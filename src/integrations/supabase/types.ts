@@ -545,6 +545,7 @@ export type Database = {
           id: string
           max_score: number
           min_score: number
+          mode: string
           sort_order: number
           title: string
           version_id: string
@@ -556,6 +557,7 @@ export type Database = {
           id?: string
           max_score?: number
           min_score?: number
+          mode?: string
           sort_order?: number
           title: string
           version_id: string
@@ -567,6 +569,7 @@ export type Database = {
           id?: string
           max_score?: number
           min_score?: number
+          mode?: string
           sort_order?: number
           title?: string
           version_id?: string
@@ -653,6 +656,7 @@ export type Database = {
         | "linear_scale"
         | "ranking"
         | "drag_order"
+        | "forced_choice"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -786,6 +790,7 @@ export const Constants = {
         "linear_scale",
         "ranking",
         "drag_order",
+        "forced_choice",
       ],
     },
   },

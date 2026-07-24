@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown,
-  CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical,
+  CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical, Scale,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { QuestionType } from "@/lib/tests.functions";
@@ -30,7 +30,7 @@ import type { QuestionType } from "@/lib/tests.functions";
 type UpdQ = { id: string; prompt?: string; helper?: string | null; required?: boolean; type?: QuestionType; config?: Record<string, unknown>; sort_order?: number };
 type UpdO = { id: string; label?: string; value?: string | null; sort_order?: number };
 type UpsDim = { id?: string; version_id: string; key: string; label: string; description?: string | null; color?: string | null; sort_order?: number };
-type UpsBand = { id?: string; version_id: string; dimension_id?: string | null; min_score: number; max_score: number; title: string; description?: string | null; sort_order?: number };
+type UpsBand = { id?: string; version_id: string; dimension_id?: string | null; min_score: number; max_score: number; title: string; description?: string | null; sort_order?: number; mode?: string };
 
 export const Route = createFileRoute("/_app/testes/$versionId/editar")({
   head: () => ({ meta: [{ title: "Editar teste — Métrica Humana" }] }),
@@ -43,6 +43,7 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   linear_scale: "Escala linear",
   ranking: "Classificação",
   drag_order: "Arrastar para ordenar",
+  forced_choice: "Escolha forçada (mais/menos)",
 };
 const TYPE_ICON: Record<QuestionType, React.ComponentType<{ className?: string }>> = {
   multiple_choice: Circle,
@@ -50,6 +51,7 @@ const TYPE_ICON: Record<QuestionType, React.ComponentType<{ className?: string }
   linear_scale: SlidersHorizontal,
   ranking: ListOrdered,
   drag_order: GripVertical,
+  forced_choice: Scale,
 };
 
 function EditorPage() {
@@ -214,8 +216,13 @@ function EditorPage() {
                       className="text-sm"
                     />
 
-                    {(q.type === "multiple_choice" || q.type === "checkboxes" || q.type === "ranking" || q.type === "drag_order") && (
+                    {(q.type === "multiple_choice" || q.type === "checkboxes" || q.type === "ranking" || q.type === "drag_order" || q.type === "forced_choice") && (
                       <div className="space-y-2">
+                        {q.type === "forced_choice" && (
+                          <p className="text-[11px] text-muted-foreground">
+                            O respondente escolherá a que <strong>MAIS</strong> e a que <strong>MENOS</strong> o descreve. Vincule cada descritor a uma dimensão pelos pontos abaixo.
+                          </p>
+                        )}
                         {qOptions.map((o) => {
                           const optScores = scores.filter((s) => s.option_id === o.id);
                           return (
@@ -353,10 +360,20 @@ function EditorPage() {
                     >
                       <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__total__">Score total</SelectItem>
+                        <SelectItem value="__total__">Geral</SelectItem>
                         {dimensions.map((d) => (
                           <SelectItem key={d.id} value={d.id}>{d.label} ({d.key})</SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={(b as { mode?: string }).mode ?? "natural"}
+                      onValueChange={(v) => upsertB.mutate({ ...b, mode: v as "natural" | "adaptado" })}
+                    >
+                      <SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="natural">Natural</SelectItem>
+                        <SelectItem value="adaptado">Adaptado</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button size="sm" variant="ghost" onClick={() => delB.mutate(b.id)}>

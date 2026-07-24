@@ -64,6 +64,11 @@ function hasContent(qType: string, payload: Record<string, unknown> | undefined)
   if (qType === "ranking" || qType === "drag_order") {
     return Array.isArray(payload.ordered_option_ids) && (payload.ordered_option_ids as unknown[]).length > 0;
   }
+  if (qType === "forced_choice") {
+    const m = payload.most_option_id;
+    const l = payload.least_option_id;
+    return typeof m === "string" && typeof l === "string" && m.length > 0 && l.length > 0 && m !== l;
+  }
   return Object.keys(payload).length > 0;
 }
 
@@ -100,8 +105,16 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   });
 
   const totals: Record<string, number> = {};
+  const natural: Record<string, number> = {};
+  const adaptado: Record<string, number> = {};
   const addPoints = (dimensionId: string, points: number) => {
     totals[dimensionId] = (totals[dimensionId] ?? 0) + points;
+  };
+  const addNatural = (dimensionId: string, points: number) => {
+    natural[dimensionId] = (natural[dimensionId] ?? 0) + points;
+  };
+  const addAdaptado = (dimensionId: string, points: number) => {
+    adaptado[dimensionId] = (adaptado[dimensionId] ?? 0) + points;
   };
 
   // Reject answers pointing at questions from a different version
@@ -155,6 +168,25 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
         const weight = Math.max(0, topWeight - idx);
         (scoresByOpt.get(optId) ?? []).forEach((s) => addPoints(s.dimension_id, s.points * weight));
       });
+    } else if (q.type === "forced_choice") {
+      const most = typeof payload.most_option_id === "string" ? payload.most_option_id : undefined;
+      const least = typeof payload.least_option_id === "string" ? payload.least_option_id : undefined;
+      if (!most || !least) throw new Error("Escolha forçada exige MAIS e MENOS.");
+      if (most === least) throw new Error("MAIS e MENOS não podem ser a mesma opção.");
+      // Validate that both options belong to this question (and to the version).
+      const qOptIds = new Set((options ?? []).filter((o) => o.question_id === q.id).map((o) => o.id));
+      if (!qOptIds.has(most) || !qOptIds.has(least)) throw new Error("Opção inválida no envio.");
+      sanitized.set(q.id, { most_option_id: most, least_option_id: least });
+      const mostScores = scoresByOpt.get(most) ?? [];
+      const leastScores = scoresByOpt.get(least) ?? [];
+      mostScores.forEach((s) => {
+        addPoints(s.dimension_id, s.points);
+        addNatural(s.dimension_id, s.points);
+        addAdaptado(s.dimension_id, s.points);
+      });
+      leastScores.forEach((s) => {
+        addAdaptado(s.dimension_id, -s.points);
+      });
     }
   }
 
@@ -173,6 +205,47 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     if (match) bandId = match.id;
   }
 
+  // Compute theoretical min/max per dimension from forced_choice questions (for 0..100 normalization).
+  const forcedQs = (questions ?? []).filter((q) => q.type === "forced_choice");
+  const normalized: Record<string, { natural: number; adaptado: number }> = {};
+  if (forcedQs.length > 0) {
+    const bestNat: Record<string, number> = {};
+    const worstNat: Record<string, number> = {};
+    const bestAdap: Record<string, number> = {};
+    const worstAdap: Record<string, number> = {};
+    for (const q of forcedQs) {
+      const qOpts = (options ?? []).filter((o) => o.question_id === q.id);
+      const perDim = new Map<string, number[]>();
+      qOpts.forEach((o) => {
+        (scoresByOpt.get(o.id) ?? []).forEach((s) => {
+          const list = perDim.get(s.dimension_id) ?? [];
+          list.push(s.points);
+          perDim.set(s.dimension_id, list);
+        });
+      });
+      perDim.forEach((pts, dimId) => {
+        const max = Math.max(...pts, 0);
+        const min = Math.min(...pts, 0);
+        // Natural: picking MOST awards max (best) or nothing (worst = 0).
+        bestNat[dimId] = (bestNat[dimId] ?? 0) + max;
+        worstNat[dimId] = (worstNat[dimId] ?? 0) + 0;
+        // Adaptado: best case = +max via MOST; worst case = -max via LEAST.
+        bestAdap[dimId] = (bestAdap[dimId] ?? 0) + max;
+        worstAdap[dimId] = (worstAdap[dimId] ?? 0) - max;
+      });
+    }
+    const dimIds = new Set<string>([...Object.keys(bestNat), ...Object.keys(bestAdap)]);
+    dimIds.forEach((dimId) => {
+      const nRange = (bestNat[dimId] ?? 0) - (worstNat[dimId] ?? 0);
+      const aRange = (bestAdap[dimId] ?? 0) - (worstAdap[dimId] ?? 0);
+      const nRaw = natural[dimId] ?? 0;
+      const aRaw = adaptado[dimId] ?? 0;
+      const nPct = nRange > 0 ? Math.max(0, Math.min(100, ((nRaw - (worstNat[dimId] ?? 0)) / nRange) * 100)) : 0;
+      const aPct = aRange > 0 ? Math.max(0, Math.min(100, ((aRaw - (worstAdap[dimId] ?? 0)) / aRange) * 100)) : 0;
+      normalized[dimId] = { natural: nPct, adaptado: aPct };
+    });
+  }
+
   // Persist answers (upsert) + response
   if (sanitized.size > 0) {
     const { error: delErr } = await supabase.from("test_answers").delete().eq("response_id", id);
@@ -185,9 +258,15 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     if (insErr) throw new Error(insErr.message);
   }
 
+  const computed: Record<string, unknown> = { total: totals };
+  if (forcedQs.length > 0) {
+    computed.natural = natural;
+    computed.adaptado = adaptado;
+    computed.normalized = normalized;
+  }
   const { data: updated, error } = await supabase.from("test_responses").update({
     status: "submitted",
-    computed_scores: totals as never,
+    computed_scores: computed as never,
     dominant_dimension_id: dominantDimId,
     result_band_id: bandId,
     submitted_at: new Date().toISOString(),
@@ -201,10 +280,38 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     const d = dimById.get(dimId);
     return { id: dimId, key: d?.key ?? "", label: d?.label ?? dimId, color: d?.color ?? null, points };
   }).sort((a, b) => b.points - a.points);
+
+  // Per-dimension bands, keyed by normalized (0-100). Fallback to raw if no normalized.
+  const perDimBands: Array<{ dimension_id: string; label: string; color: string | null; mode: "natural" | "adaptado"; points: number; normalized: number | null; band: { title: string; description: string | null } | null }> = [];
+  const dimsForBands = (dims ?? []).slice().sort((a, b) => (natural[b.id] ?? totals[b.id] ?? 0) - (natural[a.id] ?? totals[a.id] ?? 0));
+  for (const mode of ["natural", "adaptado"] as const) {
+    for (const d of dimsForBands) {
+      const raw = mode === "natural" ? (natural[d.id] ?? totals[d.id] ?? 0) : (adaptado[d.id] ?? 0);
+      const norm = normalized[d.id]?.[mode] ?? null;
+      const scoreForBand = norm ?? raw;
+      const match = (bands ?? []).find((b) =>
+        b.dimension_id === d.id
+        && ((b as { mode?: string }).mode ?? "natural") === mode
+        && scoreForBand >= Number(b.min_score)
+        && scoreForBand <= Number(b.max_score),
+      );
+      if (!match && mode === "adaptado" && forcedQs.length === 0) continue;
+      perDimBands.push({
+        dimension_id: d.id, label: d.label, color: d.color ?? null,
+        mode, points: raw, normalized: norm,
+        band: match ? { title: match.title, description: match.description } : null,
+      });
+    }
+  }
+
   return {
     response: updated,
     result: {
       totals,
+      natural: forcedQs.length > 0 ? natural : undefined,
+      adaptado: forcedQs.length > 0 ? adaptado : undefined,
+      normalized: forcedQs.length > 0 ? normalized : undefined,
+      per_dimension_bands: perDimBands.filter((p) => p.band != null),
       by_dimension: byDimension,
       dominant: dominantDim ? { key: dominantDim.key, label: dominantDim.label, color: dominantDim.color } : null,
       band: band ? { title: band.title, description: band.description } : null,

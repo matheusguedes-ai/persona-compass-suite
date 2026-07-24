@@ -20,9 +20,14 @@ type Payload = {
   options: Option[];
 };
 type ResultDim = { id: string; key: string; label: string; color: string | null; points: number };
+type PerDimBand = { dimension_id: string; label: string; color: string | null; mode: "natural" | "adaptado"; points: number; normalized: number | null; band: { title: string; description: string | null } | null };
 type Result = {
   totals: Record<string, number>;
   by_dimension?: ResultDim[];
+  natural?: Record<string, number>;
+  adaptado?: Record<string, number>;
+  normalized?: Record<string, { natural: number; adaptado: number }>;
+  per_dimension_bands?: PerDimBand[];
   dominant: { key: string; label: string; color: string | null } | null;
   band: { title: string; description: string | null } | null;
 };
@@ -77,9 +82,13 @@ function ResponderPage() {
         (q.type === "multiple_choice" && typeof a?.option_id === "string" && (a.option_id as string).length > 0) ||
         (q.type === "checkboxes" && Array.isArray(a?.option_ids) && (a!.option_ids as unknown[]).length > 0) ||
         (q.type === "linear_scale" && typeof a?.value === "number" && Number.isFinite(a.value as number)) ||
-        ((q.type === "ranking" || q.type === "drag_order") && Array.isArray(a?.ordered_option_ids) && (a!.ordered_option_ids as unknown[]).length > 0);
+        ((q.type === "ranking" || q.type === "drag_order") && Array.isArray(a?.ordered_option_ids) && (a!.ordered_option_ids as unknown[]).length > 0) ||
+        (q.type === "forced_choice" && typeof a?.most_option_id === "string" && typeof a?.least_option_id === "string" && a.most_option_id !== a.least_option_id);
       if (!ok) {
-        toast.error(`Pergunta ${i + 1} é obrigatória: "${q.prompt || "sem título"}"`);
+        const msg = q.type === "forced_choice"
+          ? `Pergunta ${i + 1}: escolha uma opção em MAIS e outra em MENOS (diferentes).`
+          : `Pergunta ${i + 1} é obrigatória: "${q.prompt || "sem título"}"`;
+        toast.error(msg);
         return;
       }
     }
@@ -218,11 +227,55 @@ function QuestionField({ q, options, value, onChange }: {
       </div>
     );
   }
+  if (q.type === "forced_choice") {
+    const most = value?.most_option_id as string | undefined;
+    const least = value?.least_option_id as string | undefined;
+    return (
+      <div className="space-y-2">
+        <p className="text-[11px] text-muted-foreground">Escolha a que <strong>MAIS</strong> e a que <strong>MENOS</strong> descreve você (não podem ser a mesma).</p>
+        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
+          <span />
+          <span className="w-16 text-center">Mais</span>
+          <span className="w-16 text-center">Menos</span>
+        </div>
+        {options.map((o) => {
+          const isMost = most === o.id;
+          const isLeast = least === o.id;
+          return (
+            <div key={o.id} className={`grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-lg border p-3 text-sm ${isMost ? "border-primary bg-primary/5" : isLeast ? "border-destructive/50 bg-destructive/5" : "border-input"}`}>
+              <span className="flex-1">{o.label}</span>
+              <div className="w-16 text-center">
+                <input
+                  type="radio"
+                  name={`${q.id}-most`}
+                  className="accent-primary"
+                  checked={isMost}
+                  onChange={() => onChange({ most_option_id: o.id, least_option_id: least === o.id ? undefined : least })}
+                />
+              </div>
+              <div className="w-16 text-center">
+                <input
+                  type="radio"
+                  name={`${q.id}-least`}
+                  className="accent-destructive"
+                  checked={isLeast}
+                  onChange={() => onChange({ most_option_id: most === o.id ? undefined : most, least_option_id: o.id })}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   return <Textarea disabled placeholder="Tipo desconhecido" />;
 }
 
 function ResultView({ result }: { result: Result }) {
   const entries = useMemo(() => Object.entries(result.totals).sort(([, a], [, b]) => b - a), [result.totals]);
+  const perDim = result.per_dimension_bands ?? [];
+  const naturalBands = perDim.filter((p) => p.mode === "natural");
+  const adaptadoBands = perDim.filter((p) => p.mode === "adaptado");
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-6">
       <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 text-center">
@@ -237,6 +290,12 @@ function ResultView({ result }: { result: Result }) {
           <h2 className="text-lg font-semibold">{result.band.title}</h2>
           {result.band.description && <p className="mt-2 text-sm text-muted-foreground">{result.band.description}</p>}
         </div>
+      )}
+      {naturalBands.length > 0 && (
+        <PerDimSection title="Perfil natural" items={naturalBands} />
+      )}
+      {adaptadoBands.length > 0 && (
+        <PerDimSection title="Perfil adaptado" items={adaptadoBands} />
       )}
       <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Pontuação por dimensão</h3>
@@ -255,6 +314,35 @@ function ResultView({ result }: { result: Result }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PerDimSection({ title, items }: { title: string; items: PerDimBand[] }) {
+  return (
+    <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <div className="mt-3 space-y-3">
+        {items.map((d) => (
+          <div key={`${d.dimension_id}-${d.mode}`} className="rounded-lg border border-input p-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-2">
+                <span className="inline-block size-2 rounded-full" style={{ background: d.color ?? "var(--muted-foreground)" }} />
+                <span className="font-medium">{d.label}</span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {d.points} pts{d.normalized != null ? ` · ${Math.round(d.normalized)}/100` : ""}
+              </span>
+            </div>
+            {d.band && (
+              <div className="mt-2">
+                <p className="text-sm font-semibold">{d.band.title}</p>
+                {d.band.description && <p className="mt-1 text-xs text-muted-foreground">{d.band.description}</p>}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

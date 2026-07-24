@@ -11,7 +11,8 @@ export type QuestionType =
   | "checkboxes"
   | "linear_scale"
   | "ranking"
-  | "drag_order";
+  | "drag_order"
+  | "forced_choice";
 
 // ============================================================
 // Versions
@@ -257,7 +258,7 @@ export const deleteDimension = createServerFn({ method: "POST" })
 // ============================================================
 // Questions
 // ============================================================
-const questionTypeSchema = z.enum(["multiple_choice", "checkboxes", "linear_scale", "ranking", "drag_order"]);
+const questionTypeSchema = z.enum(["multiple_choice", "checkboxes", "linear_scale", "ranking", "drag_order", "forced_choice"]);
 
 export const createQuestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -272,7 +273,8 @@ export const createQuestion = createServerFn({ method: "POST" })
     const sort_order = (max?.sort_order ?? 0) + 1;
     const defaultConfig =
       data.type === "linear_scale" ? { min: 1, max: 5, minLabel: "Discordo", maxLabel: "Concordo" } :
-      data.type === "ranking" || data.type === "drag_order" ? { top_weight: 3 } : {};
+      data.type === "ranking" || data.type === "drag_order" ? { top_weight: 3 } :
+      data.type === "forced_choice" ? { hint: "Escolha a que MAIS e a que MENOS descreve você." } : {};
     const { data: row, error } = await context.supabase.from("test_questions").insert({
       version_id: data.version_id, type: data.type, prompt: "", required: true,
       sort_order, config: defaultConfig,
@@ -404,6 +406,7 @@ export const upsertBand = createServerFn({ method: "POST" })
     title: z.string().trim().min(1).max(160),
     description: z.string().trim().max(1000).optional().nullable(),
     sort_order: z.number().int().default(0),
+    mode: z.enum(["natural", "adaptado"]).optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
