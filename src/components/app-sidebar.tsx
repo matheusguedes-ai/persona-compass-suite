@@ -2,21 +2,21 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
-  ClipboardList,
-  Send,
   BarChart3,
   Settings,
   Inbox,
+  FolderKanban,
+  GraduationCap,
 } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { cn } from "@/lib/utils";
 
 const ADMIN_NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/pessoas", label: "Gestão de Pessoas", icon: Users },
-  { to: "/testes", label: "Catálogo de Testes", icon: ClipboardList },
-  { to: "/envios", label: "Envios", icon: Send },
-  { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
+  { to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
+  { to: "/grupos", label: "Grupos", icon: FolderKanban },
+  { to: "/pessoas", label: "Pessoas", icon: Users },
+  { to: "/mentores", label: "Mentores", icon: GraduationCap },
   { to: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
