@@ -22,6 +22,7 @@ import { Route as AppEnviosRouteImport } from './routes/_app.envios'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as AppGruposIndexRouteImport } from './routes/_app.grupos.index'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
 import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
@@ -94,6 +95,11 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppGruposIndexRoute = AppGruposIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppGruposRoute,
+} as any)
 const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
+  '/grupos/': typeof AppGruposIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -148,7 +155,6 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/envios': typeof AppEnviosRouteWithChildren
   '/estatisticas': typeof AppEstatisticasRoute
-  '/grupos': typeof AppGruposRouteWithChildren
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRoute
@@ -158,6 +164,7 @@ export interface FileRoutesByTo {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
+  '/grupos': typeof AppGruposIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,6 +186,7 @@ export interface FileRoutesById {
   '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
+  '/_app/grupos/': typeof AppGruposIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,6 +208,7 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
+    | '/grupos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -209,7 +218,6 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/envios'
     | '/estatisticas'
-    | '/grupos'
     | '/mentores'
     | '/pessoas'
     | '/testes'
@@ -219,6 +227,7 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
+    | '/grupos'
   id:
     | '__root__'
     | '/_app'
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/_app/envios/novo'
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
+    | '/_app/grupos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -344,6 +354,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/grupos/': {
+      id: '/_app/grupos/'
+      path: '/'
+      fullPath: '/grupos/'
+      preLoaderRoute: typeof AppGruposIndexRouteImport
+      parentRoute: typeof AppGruposRoute
+    }
     '/_app/pessoas/$id': {
       id: '/_app/pessoas/$id'
       path: '/$id'
@@ -396,10 +413,12 @@ const AppEnviosRouteWithChildren = AppEnviosRoute._addFileChildren(
 
 interface AppGruposRouteChildren {
   AppGruposIdRoute: typeof AppGruposIdRoute
+  AppGruposIndexRoute: typeof AppGruposIndexRoute
 }
 
 const AppGruposRouteChildren: AppGruposRouteChildren = {
   AppGruposIdRoute: AppGruposIdRoute,
+  AppGruposIndexRoute: AppGruposIndexRoute,
 }
 
 const AppGruposRouteWithChildren = AppGruposRoute._addFileChildren(
