@@ -16,6 +16,9 @@ export const Route = createFileRoute("/_app/envios/novo")({
       { name: "description", content: "Assistente para disparar um novo teste." },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    personId: typeof s.personId === "string" ? s.personId : undefined,
+  }),
   component: NovoEnvio,
 });
 
@@ -23,9 +26,10 @@ const STEPS = ["Testes", "Destinatários", "Revisão"] as const;
 
 function NovoEnvio() {
   const nav = useNavigate();
+  const { personId } = Route.useSearch();
   const [step, setStep] = useState(0);
   const [selectedVersions, setSelV] = useState<string[]>([]);
-  const [selectedPeople, setPpl] = useState<string[]>([]);
+  const [selectedPeople, setPpl] = useState<string[]>(personId ? [personId] : []);
   const [createdLinks, setCreatedLinks] = useState<{ id: string; person: string; test: string }[] | null>(null);
 
   const listPeopleFn = useServerFn(listPeople);

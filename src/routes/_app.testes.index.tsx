@@ -4,6 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { listTestVersions, duplicateTemplate, deleteTestVersion } from "@/lib/tests.functions";
 import { listInstruments } from "@/lib/data.functions";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Copy, Pencil, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
 
@@ -89,9 +93,23 @@ function TestesPage() {
                   <h3 className="mt-2 text-base font-medium">{v.title}</h3>
                   {v.description && <p className="mt-1 text-xs text-muted-foreground">{v.description}</p>}
                   <div className="mt-4 flex items-center justify-end gap-2">
-                    <Button size="sm" variant="ghost" onClick={() => del.mutate(v.id)}>
-                      <Trash2 className="size-3" /> Excluir
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost"><Trash2 className="size-3" /> Excluir</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir versão</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Excluir <strong>{v.title}</strong>? Perguntas, dimensões e resultados desta versão serão removidos.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => del.mutate(v.id)}>Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <Button size="sm" onClick={() => nav({ to: "/testes/$versionId/editar", params: { versionId: v.id } })}>
                       <Pencil className="size-3" /> Editar
                     </Button>

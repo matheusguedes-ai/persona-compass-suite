@@ -256,3 +256,96 @@ export const setGroupInstruments = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// ============================================================
+// Mentors (owner-scoped CRUD)
+// ============================================================
+const mentorSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  email: z.string().trim().email().max(200),
+  specialty: z.string().trim().max(160).optional().nullable(),
+});
+
+export const listMentors = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("mentors")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const createMentor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => mentorSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("mentors")
+      .insert({ ...data, owner_id: context.userId })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const updateMentor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).merge(mentorSchema.partial()).parse(d))
+  .handler(async ({ data, context }) => {
+    const { id, ...rest } = data;
+    const { data: row, error } = await context.supabase
+      .from("mentors")
+      .update(rest)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const deleteMentor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("mentors").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ============================================================
+// Profile (per-user settings, single row)
+// ============================================================
+const profileSchema = z.object({
+  full_name: z.string().trim().max(160).optional().nullable(),
+  company_name: z.string().trim().max(160).optional().nullable(),
+  brand_color: z.string().trim().max(32).optional().nullable(),
+  logo_url: z.string().trim().max(500).optional().nullable(),
+});
+
+export const getMyProfile = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const email = (context.claims as { email?: string })?.email ?? null;
+    return { profile: data, email, user_id: context.userId };
+  });
+
+export const upsertMyProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => profileSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("profiles")
+      .upsert({ user_id: context.userId, ...data }, { onConflict: "user_id" })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
