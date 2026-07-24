@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown,
-  CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical,
+  CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical, Scale,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { QuestionType } from "@/lib/tests.functions";
@@ -43,6 +43,7 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   linear_scale: "Escala linear",
   ranking: "Classificação",
   drag_order: "Arrastar para ordenar",
+  forced_choice: "Escolha forçada (mais/menos)",
 };
 const TYPE_ICON: Record<QuestionType, React.ComponentType<{ className?: string }>> = {
   multiple_choice: Circle,
@@ -50,6 +51,7 @@ const TYPE_ICON: Record<QuestionType, React.ComponentType<{ className?: string }
   linear_scale: SlidersHorizontal,
   ranking: ListOrdered,
   drag_order: GripVertical,
+  forced_choice: Scale,
 };
 
 function EditorPage() {
@@ -214,8 +216,13 @@ function EditorPage() {
                       className="text-sm"
                     />
 
-                    {(q.type === "multiple_choice" || q.type === "checkboxes" || q.type === "ranking" || q.type === "drag_order") && (
+                    {(q.type === "multiple_choice" || q.type === "checkboxes" || q.type === "ranking" || q.type === "drag_order" || q.type === "forced_choice") && (
                       <div className="space-y-2">
+                        {q.type === "forced_choice" && (
+                          <p className="text-[11px] text-muted-foreground">
+                            O respondente escolherá a que <strong>MAIS</strong> e a que <strong>MENOS</strong> o descreve. Vincule cada descritor a uma dimensão pelos pontos abaixo.
+                          </p>
+                        )}
                         {qOptions.map((o) => {
                           const optScores = scores.filter((s) => s.option_id === o.id);
                           return (
