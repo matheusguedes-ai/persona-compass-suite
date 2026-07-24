@@ -9,10 +9,10 @@ import {
   GraduationCap,
   FlaskConical,
 } from "lucide-react";
-import { useRole } from "@/lib/role-context";
+import { useCurrentUser } from "@/lib/role-context";
 import { cn } from "@/lib/utils";
 
-const ADMIN_NAV = [
+const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
   { to: "/grupos", label: "Grupos", icon: FolderKanban },
@@ -23,14 +23,12 @@ const ADMIN_NAV = [
   { to: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
-const AVALIADO_NAV = [
-  { to: "/configuracoes", label: "Meu Perfil", icon: Settings },
-] as const;
-
 export function AppSidebar() {
-  const { role, displayName } = useRole();
+  const user = useCurrentUser();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const items = role === "avaliado" ? AVALIADO_NAV : ADMIN_NAV;
+  const items = NAV;
+  const displayName = user?.displayName ?? "—";
+  const email = user?.email ?? "";
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-black/5 bg-sidebar lg:flex">
@@ -71,13 +69,11 @@ export function AppSidebar() {
       <div className="border-t border-black/5 p-4">
         <div className="flex items-center gap-3">
           <div className="grid size-8 place-items-center rounded-full bg-zinc-200 text-[11px] font-semibold text-zinc-600 ring-1 ring-black/5">
-            {displayName.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+            {displayName.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
           </div>
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-xs font-medium">{displayName}</span>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {role === "admin" ? "Administrador" : role === "coach" ? "Master Coach" : "Avaliado"}
-            </span>
+            <span className="truncate text-[10px] text-muted-foreground">{email}</span>
           </div>
         </div>
       </div>
