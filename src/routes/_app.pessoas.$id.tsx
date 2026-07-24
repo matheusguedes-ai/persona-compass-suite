@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { personById, SENDS, instrumentById, ROLE_LABEL } from "@/lib/mock-data";
+import { personById, SENDS, instrumentById, ROLE_LABEL, type Person } from "@/lib/mock-data";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_app/pessoas/$id")({
 });
 
 function PersonProfile() {
-  const { person } = Route.useLoaderData();
+  const { person } = Route.useLoaderData() as { person: Person };
   const sends = SENDS.filter((s) => s.personId === person.id);
 
   return (
@@ -36,7 +36,7 @@ function PersonProfile() {
       <div className="flex items-start justify-between rounded-xl bg-card p-6 ring-1 ring-black/5">
         <div className="flex items-center gap-4">
           <div className="grid size-16 place-items-center rounded-full bg-zinc-200 text-lg font-semibold text-zinc-600 ring-1 ring-black/5">
-            {person.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+            {person.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">{person.name}</h1>

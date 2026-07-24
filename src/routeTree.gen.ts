@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
+import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -27,27 +28,35 @@ const AppPessoasRoute = AppPessoasRouteImport.update({
   path: '/pessoas',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppPessoasRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
-  '/pessoas': typeof AppPessoasRoute
+  '/pessoas': typeof AppPessoasRouteWithChildren
+  '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesByTo {
-  '/pessoas': typeof AppPessoasRoute
+  '/pessoas': typeof AppPessoasRouteWithChildren
   '/': typeof AppIndexRoute
+  '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
-  '/_app/pessoas': typeof AppPessoasRoute
+  '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/': typeof AppIndexRoute
+  '/_app/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pessoas'
+  fullPaths: '/' | '/pessoas' | '/pessoas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/pessoas' | '/'
-  id: '__root__' | '/_app' | '/_app/pessoas' | '/_app/'
+  to: '/pessoas' | '/' | '/pessoas/$id'
+  id: '__root__' | '/_app' | '/_app/pessoas' | '/_app/' | '/_app/pessoas/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,16 +86,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPessoasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/pessoas/$id': {
+      id: '/_app/pessoas/$id'
+      path: '/$id'
+      fullPath: '/pessoas/$id'
+      preLoaderRoute: typeof AppPessoasIdRouteImport
+      parentRoute: typeof AppPessoasRoute
+    }
   }
 }
 
+interface AppPessoasRouteChildren {
+  AppPessoasIdRoute: typeof AppPessoasIdRoute
+}
+
+const AppPessoasRouteChildren: AppPessoasRouteChildren = {
+  AppPessoasIdRoute: AppPessoasIdRoute,
+}
+
+const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
+  AppPessoasRouteChildren,
+)
+
 interface AppRouteChildren {
-  AppPessoasRoute: typeof AppPessoasRoute
+  AppPessoasRoute: typeof AppPessoasRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppPessoasRoute: AppPessoasRoute,
+  AppPessoasRoute: AppPessoasRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
 }
 
