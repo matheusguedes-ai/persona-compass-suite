@@ -12,20 +12,34 @@ async function loadResponsePayload(id: string) {
   const supabase = await getAdmin();
   const { data: response } = await supabase
     .from("test_responses")
-    .select("*, people(id, full_name, email), test_versions(id, title, description, instrument_id)")
+    .select("id, submitted_at, version_id, people(full_name), test_versions(title, description)")
     .eq("id", id)
     .maybeSingle();
   if (!response) return null;
+  if (response.submitted_at) {
+    return { submitted: true as const };
+  }
   const versionId = response.version_id;
-  const [{ data: questions }, { data: dims }] = await Promise.all([
-    supabase.from("test_questions").select("*").eq("version_id", versionId).order("sort_order"),
-    supabase.from("test_dimensions").select("id, key, label, color, sort_order").eq("version_id", versionId).order("sort_order"),
-  ]);
+  const { data: questions } = await supabase
+    .from("test_questions")
+    .select("id, type, prompt, required, config, sort_order")
+    .eq("version_id", versionId)
+    .order("sort_order");
   const qIds = (questions ?? []).map((q) => q.id);
   const { data: options } = qIds.length
     ? await supabase.from("test_options").select("id, question_id, label, sort_order").in("question_id", qIds).order("sort_order")
     : { data: [] };
-  return { response, questions: questions ?? [], options: options ?? [], dimensions: dims ?? [] };
+  return {
+    submitted: false as const,
+    response: {
+      id: response.id,
+      submitted_at: response.submitted_at,
+      test_versions: response.test_versions,
+      people: response.people,
+    },
+    questions: questions ?? [],
+    options: options ?? [],
+  };
 }
 
 const submitSchema = z.object({
