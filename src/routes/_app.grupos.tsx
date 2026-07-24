@@ -153,7 +153,7 @@ function NewGroupDialog() {
       toast.success("Grupo criado");
       reset();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao criar grupo."),
   });
 
   function reset() {
