@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown,
-  CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical, Eye,
+  CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { QuestionType } from "@/lib/tests.functions";
