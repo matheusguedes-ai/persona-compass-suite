@@ -19,7 +19,13 @@ type Payload = {
   questions: Question[];
   options: Option[];
 };
-type Result = { totals: Record<string, number>; dominant: { key: string; label: string; color: string | null } | null; band: { title: string; description: string | null } | null };
+type ResultDim = { id: string; key: string; label: string; color: string | null; points: number };
+type Result = {
+  totals: Record<string, number>;
+  by_dimension?: ResultDim[];
+  dominant: { key: string; label: string; color: string | null } | null;
+  band: { title: string; description: string | null } | null;
+};
 
 function ResponderPage() {
   const { responseId } = Route.useParams();
@@ -62,6 +68,21 @@ function ResponderPage() {
 
   const submit = async () => {
     if (!payload) return;
+    // Pre-validate required questions with a clear per-question message.
+    for (let i = 0; i < payload.questions.length; i++) {
+      const q = payload.questions[i];
+      if (!q.required) continue;
+      const a = answers[q.id];
+      const ok =
+        (q.type === "multiple_choice" && typeof a?.option_id === "string" && (a.option_id as string).length > 0) ||
+        (q.type === "checkboxes" && Array.isArray(a?.option_ids) && (a!.option_ids as unknown[]).length > 0) ||
+        (q.type === "linear_scale" && typeof a?.value === "number" && Number.isFinite(a.value as number)) ||
+        ((q.type === "ranking" || q.type === "drag_order") && Array.isArray(a?.ordered_option_ids) && (a!.ordered_option_ids as unknown[]).length > 0);
+      if (!ok) {
+        toast.error(`Pergunta ${i + 1} é obrigatória: "${q.prompt || "sem título"}"`);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const body = { answers: Object.entries(answers).map(([question_id, payload]) => ({ question_id, payload })) };
@@ -220,10 +241,17 @@ function ResultView({ result }: { result: Result }) {
       <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Pontuação por dimensão</h3>
         <div className="mt-3 space-y-2">
-          {entries.map(([id, pts]) => (
-            <div key={id} className="flex items-center justify-between text-sm">
-              <span className="font-mono text-xs text-muted-foreground">{id.slice(0, 8)}</span>
-              <span className="font-semibold">{pts}</span>
+          {(result.by_dimension && result.by_dimension.length > 0
+            ? result.by_dimension
+            : entries.map(([id, points]) => ({ id, key: "", label: id, color: null, points } as ResultDim))
+          ).map((d) => (
+            <div key={d.id} className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-2">
+                <span className="inline-block size-2 rounded-full" style={{ background: d.color ?? "var(--muted-foreground)" }} />
+                <span>{d.label}</span>
+                {d.key && <span className="text-[10px] uppercase text-muted-foreground">({d.key})</span>}
+              </span>
+              <span className="font-semibold">{d.points}</span>
             </div>
           ))}
         </div>
