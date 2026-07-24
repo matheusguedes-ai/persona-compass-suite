@@ -116,9 +116,6 @@ function EditorPage() {
           <ArrowLeft className="size-3" /> Voltar
         </Link>
         <div className="flex items-center gap-2">
-          <Link to="/testes/$versionId/preview" params={{ versionId }} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-            <Eye className="size-3" /> Pré-visualizar
-          </Link>
           <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-1.5">
             <Switch checked={version.is_published} onCheckedChange={(v) => updVersion.mutate({ is_published: v })} />
             <span className="text-xs font-medium">{version.is_published ? "Publicado" : "Rascunho"}</span>
