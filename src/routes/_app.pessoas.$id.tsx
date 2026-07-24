@@ -2,6 +2,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ROLE_LABEL, type PersonRole } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ArrowLeft, Mail, Send, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -74,11 +78,31 @@ function PersonProfile() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm"><Mail className="size-4" /> Enviar email</Button>
-          <Button asChild size="sm"><Link to="/envios/novo"><Send className="size-4" /> Enviar teste</Link></Button>
-          <Button variant="ghost" size="sm" onClick={() => del.mutate()} disabled={del.isPending}>
-            <Trash2 className="size-4" />
+          <Button asChild variant="outline" size="sm">
+            <a href={`mailto:${person.email}`}><Mail className="size-4" /> Enviar email</a>
           </Button>
+          <Button asChild size="sm">
+            <Link to="/envios/novo" search={{ personId: person.id }}><Send className="size-4" /> Enviar teste</Link>
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="sm" disabled={del.isPending}>
+                <Trash2 className="size-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remover pessoa</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja remover <strong>{person.full_name}</strong>? Todos os vínculos com grupos e respostas serão perdidos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => del.mutate()}>Remover</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 

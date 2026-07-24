@@ -8,6 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -105,9 +109,25 @@ function GroupDetail() {
           </div>
           {group.description && <p className="mt-3 max-w-2xl text-sm text-muted-foreground">{group.description}</p>}
         </div>
-        <Button variant="ghost" size="sm" onClick={() => del.mutate()} disabled={del.isPending}>
-          <Trash2 className="size-4" /> Excluir
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="sm" disabled={del.isPending}>
+              <Trash2 className="size-4" /> Excluir
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir grupo</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o grupo <strong>{group.name}</strong>? Os membros e testes liberados serão desvinculados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => del.mutate()}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <Tabs defaultValue="pessoas">
@@ -141,9 +161,23 @@ function GroupDetail() {
                       </div>
                       <div className="flex items-center gap-3">
                         <Link to="/pessoas/$id" params={{ id: p.id }} className="text-xs text-accent hover:underline">Perfil</Link>
-                        <Button size="sm" variant="ghost" onClick={() => removeMember.mutate(m.person_id)}>
-                          <Trash2 className="size-4" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost"><Trash2 className="size-4" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover do grupo</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Remover <strong>{p.full_name}</strong> deste grupo? A pessoa permanecerá cadastrada.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => removeMember.mutate(m.person_id)}>Remover</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </li>
                   );

@@ -17,6 +17,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown,
   CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical,
 } from "lucide-react";
@@ -185,9 +189,21 @@ function EditorPage() {
                           <Switch checked={q.required} onCheckedChange={(v) => updQ.mutate({ id: q.id, required: v })} />
                           Obrigatória
                         </label>
-                        <Button size="sm" variant="ghost" onClick={() => delQ.mutate(q.id)}>
-                          <Trash2 className="size-3" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost"><Trash2 className="size-3" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir pergunta</AlertDialogTitle>
+                              <AlertDialogDescription>Excluir esta pergunta e suas opções? Esta ação não pode ser desfeita.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => delQ.mutate(q.id)}>Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                     <Textarea
@@ -300,9 +316,21 @@ function EditorPage() {
                     <Input defaultValue={d.label} className="h-7 flex-1 text-xs" onBlur={(e) =>
                       e.target.value !== d.label && upsertDim.mutate({ ...d, label: e.target.value })
                     } />
-                    <Button size="sm" variant="ghost" onClick={() => delDim.mutate(d.id)}>
-                      <Trash2 className="size-3" />
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="ghost"><Trash2 className="size-3" /></Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir dimensão</AlertDialogTitle>
+                          <AlertDialogDescription>Excluir a dimensão <strong>{d.label}</strong>? Pontuações vinculadas a ela serão perdidas.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => delDim.mutate(d.id)}>Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                   <Input defaultValue={d.color ?? ""} placeholder="#3b82f6" className="h-7 text-xs" onBlur={(e) =>
                     e.target.value !== (d.color ?? "") && upsertDim.mutate({ ...d, color: e.target.value })
