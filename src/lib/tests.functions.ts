@@ -432,6 +432,21 @@ export const startResponse = createServerFn({ method: "POST" })
     group_id: z.string().uuid().optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    // Verify ownership: person must belong to this mentor, and version must be
+    // either a global template or owned by this mentor.
+    const [personRes, versionRes] = await Promise.all([
+      context.supabase.from("people").select("id, mentor_id").eq("id", data.person_id).maybeSingle(),
+      context.supabase.from("test_versions").select("id, mentor_id, is_template").eq("id", data.version_id).maybeSingle(),
+    ]);
+    if (personRes.error) throw new Error(personRes.error.message);
+    if (versionRes.error) throw new Error(versionRes.error.message);
+    if (!personRes.data || personRes.data.mentor_id !== context.userId) {
+      throw new Error("Pessoa não encontrada ou não pertence a você.");
+    }
+    const v = versionRes.data;
+    if (!v || (!v.is_template && v.mentor_id !== context.userId)) {
+      throw new Error("Versão de teste não encontrada ou não pertence a você.");
+    }
     const { data: row, error } = await context.supabase.from("test_responses").insert({
       version_id: data.version_id,
       person_id: data.person_id,

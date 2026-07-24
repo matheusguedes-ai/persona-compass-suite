@@ -245,7 +245,10 @@ function EditorPage() {
                                           type="number"
                                           defaultValue={s?.points ?? 0}
                                           onBlur={(e) => {
-                                            const points = Number(e.target.value);
+                                            const raw = e.target.value.trim();
+                                            if (raw === "") { e.target.value = String(s?.points ?? 0); return; }
+                                            const points = Number(raw);
+                                            if (!Number.isFinite(points)) { e.target.value = String(s?.points ?? 0); return; }
                                             if (points !== (s?.points ?? 0)) {
                                               setScore.mutate({ option_id: o.id, dimension_id: d.id, points });
                                             }
@@ -421,8 +424,16 @@ function LinearScaleEditor({ question, dimensions, onUpdate }: {
   const [max, setMax] = useState(Number(cfg.max ?? 5));
   const [minLabel, setMinLabel] = useState(String(cfg.minLabel ?? "Discordo"));
   const [maxLabel, setMaxLabel] = useState(String(cfg.maxLabel ?? "Concordo"));
-  const [dimKey, setDimKey] = useState(String(cfg.dimension_key ?? dimensions[0]?.key ?? ""));
-  const save = () => onUpdate({ min, max, minLabel, maxLabel, dimension_key: dimKey });
+  // Prefer dimension_id (stable UUID); migrate legacy dimension_key if present.
+  const initialDimId = (() => {
+    if (typeof cfg.dimension_id === "string" && cfg.dimension_id) return cfg.dimension_id;
+    if (typeof cfg.dimension_key === "string" && cfg.dimension_key) {
+      return dimensions.find((d) => d.key === cfg.dimension_key)?.id ?? dimensions[0]?.id ?? "";
+    }
+    return dimensions[0]?.id ?? "";
+  })();
+  const [dimId, setDimId] = useState(initialDimId);
+  const save = () => onUpdate({ min, max, minLabel, maxLabel, dimension_id: dimId });
 
   return (
     <div className="space-y-2 rounded-lg bg-muted/40 p-3 ring-1 ring-black/5">
@@ -434,10 +445,10 @@ function LinearScaleEditor({ question, dimensions, onUpdate }: {
       </div>
       <div>
         <Label className="text-[10px]">Dimensão pontuada</Label>
-        <Select value={dimKey} onValueChange={(v) => { setDimKey(v); onUpdate({ min, max, minLabel, maxLabel, dimension_key: v }); }}>
+        <Select value={dimId} onValueChange={(v) => { setDimId(v); onUpdate({ min, max, minLabel, maxLabel, dimension_id: v }); }}>
           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione…" /></SelectTrigger>
           <SelectContent>
-            {dimensions.map((d) => <SelectItem key={d.id} value={d.key}>{d.label} ({d.key})</SelectItem>)}
+            {dimensions.map((d) => <SelectItem key={d.id} value={d.id}>{d.label} ({d.key})</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
