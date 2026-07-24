@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
+import { Route as AppEnviosRouteImport } from './routes/_app.envios'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 
 const AppRoute = AppRouteImport.update({
@@ -34,6 +35,11 @@ const AppPessoasRoute = AppPessoasRouteImport.update({
   path: '/pessoas',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEnviosRoute = AppEnviosRouteImport.update({
+  id: '/envios',
+  path: '/envios',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -42,11 +48,13 @@ const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/envios': typeof AppEnviosRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesByTo {
+  '/envios': typeof AppEnviosRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRoute
   '/': typeof AppIndexRoute
@@ -55,6 +63,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/_app/envios': typeof AppEnviosRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRoute
   '/_app/': typeof AppIndexRoute
@@ -62,12 +71,13 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pessoas' | '/testes' | '/pessoas/$id'
+  fullPaths: '/' | '/envios' | '/pessoas' | '/testes' | '/pessoas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/pessoas' | '/testes' | '/' | '/pessoas/$id'
+  to: '/envios' | '/pessoas' | '/testes' | '/' | '/pessoas/$id'
   id:
     | '__root__'
     | '/_app'
+    | '/_app/envios'
     | '/_app/pessoas'
     | '/_app/testes'
     | '/_app/'
@@ -108,6 +118,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPessoasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/envios': {
+      id: '/_app/envios'
+      path: '/envios'
+      fullPath: '/envios'
+      preLoaderRoute: typeof AppEnviosRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/pessoas/$id': {
       id: '/_app/pessoas/$id'
       path: '/$id'
@@ -131,12 +148,14 @@ const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppEnviosRoute: typeof AppEnviosRoute
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
   AppTestesRoute: typeof AppTestesRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppEnviosRoute: AppEnviosRoute,
   AppPessoasRoute: AppPessoasRouteWithChildren,
   AppTestesRoute: AppTestesRoute,
   AppIndexRoute: AppIndexRoute,
