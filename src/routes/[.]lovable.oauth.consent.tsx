@@ -114,7 +114,7 @@ function Consent() {
         <div className="mt-6 rounded-md border border-border p-4 text-sm">
           <p className="mb-2 font-medium">Permissões solicitadas</p>
           <ul className="list-disc pl-5 text-muted-foreground">
-            {scopes.map((s) => (
+            {scopes.map((s: string) => (
               <li key={s}>{s}</li>
             ))}
           </ul>
