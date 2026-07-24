@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
+import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppGruposRouteImport } from './routes/_app.grupos'
 import { Route as AppEstatisticasRouteImport } from './routes/_app.estatisticas'
@@ -56,6 +57,11 @@ const ResponderResponseIdRoute = ResponderResponseIdRouteImport.update({
   path: '/responder/$responseId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppPessoasRoute = AppPessoasRouteImport.update({
+  id: '/pessoas',
+  path: '/pessoas',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppMentoresRoute = AppMentoresRouteImport.update({
   id: '/mentores',
   path: '/mentores',
@@ -94,9 +100,9 @@ const AppTestesIndexRoute = AppTestesIndexRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppPessoasIndexRoute = AppPessoasIndexRouteImport.update({
-  id: '/pessoas/',
-  path: '/pessoas/',
-  getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPessoasRoute,
 } as any)
 const AppGruposIndexRoute = AppGruposIndexRouteImport.update({
   id: '/',
@@ -109,9 +115,9 @@ const AppEnviosIndexRoute = AppEnviosIndexRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
-  id: '/pessoas/$id',
-  path: '/pessoas/$id',
-  getParentRoute: () => AppRoute,
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppPessoasRoute,
 } as any)
 const AppGruposIdRoute = AppGruposIdRouteImport.update({
   id: '/$id',
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/estatisticas': typeof AppEstatisticasRoute
   '/grupos': typeof AppGruposRouteWithChildren
   '/mentores': typeof AppMentoresRoute
+  '/pessoas': typeof AppPessoasRouteWithChildren
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -202,6 +209,7 @@ export interface FileRoutesById {
   '/_app/estatisticas': typeof AppEstatisticasRoute
   '/_app/grupos': typeof AppGruposRouteWithChildren
   '/_app/mentores': typeof AppMentoresRoute
+  '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/_app/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -228,6 +236,7 @@ export interface FileRouteTypes {
     | '/estatisticas'
     | '/grupos'
     | '/mentores'
+    | '/pessoas'
     | '/responder/$responseId'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -273,6 +282,7 @@ export interface FileRouteTypes {
     | '/_app/estatisticas'
     | '/_app/grupos'
     | '/_app/mentores'
+    | '/_app/pessoas'
     | '/responder/$responseId'
     | '/_app/'
     | '/.lovable/oauth/consent'
@@ -337,6 +347,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResponderResponseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/pessoas': {
+      id: '/_app/pessoas'
+      path: '/pessoas'
+      fullPath: '/pessoas'
+      preLoaderRoute: typeof AppPessoasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/mentores': {
       id: '/_app/mentores'
       path: '/mentores'
@@ -388,10 +405,10 @@ declare module '@tanstack/react-router' {
     }
     '/_app/pessoas/': {
       id: '/_app/pessoas/'
-      path: '/pessoas'
+      path: '/'
       fullPath: '/pessoas/'
       preLoaderRoute: typeof AppPessoasIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppPessoasRoute
     }
     '/_app/grupos/': {
       id: '/_app/grupos/'
@@ -409,10 +426,10 @@ declare module '@tanstack/react-router' {
     }
     '/_app/pessoas/$id': {
       id: '/_app/pessoas/$id'
-      path: '/pessoas/$id'
+      path: '/$id'
       fullPath: '/pessoas/$id'
       preLoaderRoute: typeof AppPessoasIdRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppPessoasRoute
     }
     '/_app/grupos/$id': {
       id: '/_app/grupos/$id'
@@ -473,16 +490,29 @@ const AppGruposRouteWithChildren = AppGruposRoute._addFileChildren(
   AppGruposRouteChildren,
 )
 
+interface AppPessoasRouteChildren {
+  AppPessoasIdRoute: typeof AppPessoasIdRoute
+  AppPessoasIndexRoute: typeof AppPessoasIndexRoute
+}
+
+const AppPessoasRouteChildren: AppPessoasRouteChildren = {
+  AppPessoasIdRoute: AppPessoasIdRoute,
+  AppPessoasIndexRoute: AppPessoasIndexRoute,
+}
+
+const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
+  AppPessoasRouteChildren,
+)
+
 interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppEstatisticasRoute: typeof AppEstatisticasRoute
   AppGruposRoute: typeof AppGruposRouteWithChildren
   AppMentoresRoute: typeof AppMentoresRoute
+  AppPessoasRoute: typeof AppPessoasRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppEnviosNovoRoute: typeof AppEnviosNovoRoute
-  AppPessoasIdRoute: typeof AppPessoasIdRoute
   AppEnviosIndexRoute: typeof AppEnviosIndexRoute
-  AppPessoasIndexRoute: typeof AppPessoasIndexRoute
   AppTestesIndexRoute: typeof AppTestesIndexRoute
   AppTestesVersionIdEditarRoute: typeof AppTestesVersionIdEditarRoute
 }
@@ -492,11 +522,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppEstatisticasRoute: AppEstatisticasRoute,
   AppGruposRoute: AppGruposRouteWithChildren,
   AppMentoresRoute: AppMentoresRoute,
+  AppPessoasRoute: AppPessoasRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppEnviosNovoRoute: AppEnviosNovoRoute,
-  AppPessoasIdRoute: AppPessoasIdRoute,
   AppEnviosIndexRoute: AppEnviosIndexRoute,
-  AppPessoasIndexRoute: AppPessoasIndexRoute,
   AppTestesIndexRoute: AppTestesIndexRoute,
   AppTestesVersionIdEditarRoute: AppTestesVersionIdEditarRoute,
 }
