@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyProfile, upsertMyProfile } from "@/lib/data.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/configuracoes")({
@@ -19,6 +22,30 @@ export const Route = createFileRoute("/_app/configuracoes")({
 });
 
 function ConfiguracoesPage() {
+  const qc = useQueryClient();
+  const getFn = useServerFn(getMyProfile);
+  const saveFn = useServerFn(upsertMyProfile);
+  const { data, isLoading } = useQuery({ queryKey: ["my-profile"], queryFn: () => getFn() });
+
+  const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [brandColor, setBrandColor] = useState("#164e63");
+  const [logoUrl, setLogoUrl] = useState("");
+
+  useEffect(() => {
+    if (!data) return;
+    setFullName(data.profile?.full_name ?? "");
+    setCompanyName(data.profile?.company_name ?? "");
+    setBrandColor(data.profile?.brand_color ?? "#164e63");
+    setLogoUrl(data.profile?.logo_url ?? "");
+  }, [data]);
+
+  const save = useMutation({
+    mutationFn: (v: { full_name?: string | null; company_name?: string | null; brand_color?: string | null; logo_url?: string | null }) => saveFn({ data: v }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["my-profile"] }); toast.success("Alterações salvas"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -38,19 +65,34 @@ function ConfiguracoesPage() {
 
         <TabsContent value="perfil" className="mt-6">
           <form
-            onSubmit={(e) => { e.preventDefault(); toast.success("Perfil salvo (demo)"); }}
+            onSubmit={(e) => { e.preventDefault(); save.mutate({ full_name: fullName.trim() || null }); }}
             className="max-w-xl space-y-4 rounded-xl bg-card p-6 ring-1 ring-black/5"
           >
-            <div className="space-y-2"><Label>Nome</Label><Input defaultValue="Marina Cardoso" /></div>
-            <div className="space-y-2"><Label>Email</Label><Input type="email" defaultValue="marina@metrica.com" /></div>
-            <div className="space-y-2"><Label>Fuso horário</Label><Input defaultValue="America/Sao_Paulo" /></div>
-            <Button type="submit">Salvar alterações</Button>
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Seu nome" disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input type="email" value={data?.email ?? ""} disabled readOnly />
+              <p className="text-[11px] text-muted-foreground">O email é gerenciado pela sua conta de acesso.</p>
+            </div>
+            <Button type="submit" disabled={save.isPending || isLoading}>
+              {save.isPending ? "Salvando…" : "Salvar alterações"}
+            </Button>
           </form>
         </TabsContent>
 
         <TabsContent value="marca" className="mt-6">
           <form
-            onSubmit={(e) => { e.preventDefault(); toast.success("Marca atualizada (demo)"); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              save.mutate({
+                company_name: companyName.trim() || null,
+                brand_color: brandColor || null,
+                logo_url: logoUrl.trim() || null,
+              });
+            }}
             className="max-w-xl space-y-6 rounded-xl bg-card p-6 ring-1 ring-black/5"
           >
             <div>
@@ -59,34 +101,29 @@ function ConfiguracoesPage() {
                 Personalize nome, logo e cores para publicar a plataforma com a sua marca.
               </p>
             </div>
-            <div className="space-y-2"><Label>Nome da plataforma</Label><Input defaultValue="Métrica Humana" /></div>
             <div className="space-y-2">
-              <Label>Logo</Label>
-              <div className="flex items-center gap-3">
-                <div className="grid size-14 place-items-center rounded-md bg-muted ring-1 ring-black/5">
-                  <Upload className="size-4 text-muted-foreground" />
-                </div>
-                <Button type="button" variant="outline" onClick={() => toast.info("Upload de logo (demo)")}>Enviar arquivo</Button>
+              <Label>Nome da plataforma</Label>
+              <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Métrica Humana" disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>URL do logo</Label>
+              <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://cdn.exemplo.com/logo.png" disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label>Cor primária</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={brandColor}
+                  onChange={(e) => setBrandColor(e.target.value)}
+                  className="size-10 rounded-md border border-black/10 bg-transparent"
+                />
+                <Input value={brandColor} onChange={(e) => setBrandColor(e.target.value)} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Cor primária</Label>
-                <div className="flex items-center gap-2">
-                  <input type="color" defaultValue="#164e63" className="size-10 rounded-md border border-black/10 bg-transparent" />
-                  <Input defaultValue="#164e63" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Cor de acento</Label>
-                <div className="flex items-center gap-2">
-                  <input type="color" defaultValue="#0d9488" className="size-10 rounded-md border border-black/10 bg-transparent" />
-                  <Input defaultValue="#0d9488" />
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2"><Label>Domínio personalizado</Label><Input placeholder="assessments.suamarca.com" /></div>
-            <Button type="submit">Aplicar marca</Button>
+            <Button type="submit" disabled={save.isPending || isLoading}>
+              {save.isPending ? "Salvando…" : "Aplicar marca"}
+            </Button>
           </form>
         </TabsContent>
 
