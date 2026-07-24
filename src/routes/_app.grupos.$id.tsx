@@ -184,6 +184,10 @@ function GroupDetail() {
 }
 
 function AddPeopleDialog({ groupId, excludeIds }: { groupId: string; excludeIds: string[] }) {
+  return <InlineAddPeople groupId={groupId} excludeIds={excludeIds} />;
+}
+
+function InlineAddPeople({ groupId, excludeIds }: { groupId: string; excludeIds: string[] }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
