@@ -29,6 +29,7 @@ import { Route as AppGruposIndexRouteImport } from './routes/_app.grupos.index'
 import { Route as AppEnviosIndexRouteImport } from './routes/_app.envios.index'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
+import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
@@ -135,6 +136,11 @@ const AppGruposIdRoute = AppGruposIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppGruposRoute,
 } as any)
+const AppEnviosNovoRoute = AppEnviosNovoRouteImport.update({
+  id: '/novo',
+  path: '/novo',
+  getParentRoute: () => AppEnviosRoute,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/envios/': typeof AppEnviosIndexRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/envios': typeof AppEnviosIndexRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
   '/_app/envios/': typeof AppEnviosIndexRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/responder/$responseId'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/envios/'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/envios'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/_app/envios/novo'
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
     | '/_app/envios/'
@@ -460,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGruposIdRouteImport
       parentRoute: typeof AppGruposRoute
     }
+    '/_app/envios/novo': {
+      id: '/_app/envios/novo'
+      path: '/novo'
+      fullPath: '/envios/novo'
+      preLoaderRoute: typeof AppEnviosNovoRouteImport
+      parentRoute: typeof AppEnviosRoute
+    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -492,10 +511,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppEnviosRouteChildren {
+  AppEnviosNovoRoute: typeof AppEnviosNovoRoute
   AppEnviosIndexRoute: typeof AppEnviosIndexRoute
 }
 
 const AppEnviosRouteChildren: AppEnviosRouteChildren = {
+  AppEnviosNovoRoute: AppEnviosNovoRoute,
   AppEnviosIndexRoute: AppEnviosIndexRoute,
 }
 
