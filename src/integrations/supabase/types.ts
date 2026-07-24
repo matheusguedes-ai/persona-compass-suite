@@ -545,6 +545,7 @@ export type Database = {
           id: string
           max_score: number
           min_score: number
+          mode: string
           sort_order: number
           title: string
           version_id: string
@@ -556,6 +557,7 @@ export type Database = {
           id?: string
           max_score?: number
           min_score?: number
+          mode?: string
           sort_order?: number
           title: string
           version_id: string
@@ -567,6 +569,7 @@ export type Database = {
           id?: string
           max_score?: number
           min_score?: number
+          mode?: string
           sort_order?: number
           title?: string
           version_id?: string
