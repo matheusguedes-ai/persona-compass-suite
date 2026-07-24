@@ -137,3 +137,41 @@ export function personById(id: string) {
 export function instrumentById(id: string) {
   return INSTRUMENTS.find((i) => i.id === id);
 }
+
+export type GroupType = "turma" | "empresa" | "setor";
+
+export interface Group {
+  id: string;
+  name: string;
+  type: GroupType;
+  peopleCount: number;
+  createdAt: string;
+  description?: string;
+}
+
+export const GROUP_TYPE_LABEL: Record<GroupType, string> = {
+  turma: "Turma",
+  empresa: "Empresa",
+  setor: "Setor",
+};
+
+export const GROUPS: Group[] = [
+  { id: "g1", name: "Turma Coaching Executivo 2025.2", type: "turma", peopleCount: 24, createdAt: "2025-08-10", description: "Alunos do programa de formação em coaching executivo." },
+  { id: "g2", name: "Grupo Alfa — Indústrias Vega", type: "empresa", peopleCount: 58, createdAt: "2025-09-01", description: "Colaboradores mapeados no diagnóstico organizacional." },
+  { id: "g3", name: "Setor Comercial — Vega SP", type: "setor", peopleCount: 12, createdAt: "2025-09-14" },
+  { id: "g4", name: "Mentorados Q4/2025", type: "turma", peopleCount: 9, createdAt: "2025-10-02" },
+];
+
+export interface Mentor {
+  id: string;
+  name: string;
+  email: string;
+  specialty: string;
+  activeSessions: number;
+}
+
+export const MENTORS: Mentor[] = [
+  { id: "m1", name: "Dr. Ricardo Santos", email: "ricardo.santos@metrica.com", specialty: "Coaching Executivo", activeSessions: 12 },
+  { id: "m2", name: "Juliana Prado", email: "juliana.prado@metrica.com", specialty: "Desenvolvimento de Liderança", activeSessions: 7 },
+  { id: "m3", name: "Henrique Almeida", email: "henrique.a@metrica.com", specialty: "Psicologia Organizacional", activeSessions: 15 },
+];
