@@ -656,6 +656,7 @@ export type Database = {
         | "linear_scale"
         | "ranking"
         | "drag_order"
+        | "forced_choice"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -789,6 +790,7 @@ export const Constants = {
         "linear_scale",
         "ranking",
         "drag_order",
+        "forced_choice",
       ],
     },
   },
