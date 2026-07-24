@@ -81,7 +81,7 @@ function EditorPage() {
     onSuccess: inv,
     onError: (e: Error) => toast.error(e.message),
   });
-  const updQ = useMutation({ mutationFn: (v: Parameters<typeof updQFn>[0]["data"]) => updQFn({ data: v }), onSuccess: inv });
+  const updQ = useMutation({ mutationFn: (v: Parameters<typeof updateQuestion>[0]["data"]) => updQFn({ data: v }), onSuccess: inv });
   const delQ = useMutation({ mutationFn: (id: string) => delQFn({ data: { id } }), onSuccess: inv });
   const reorderQ = useMutation({
     mutationFn: (ids: string[]) => reorderFn({ data: { version_id: versionId, ordered_ids: ids } }),
@@ -89,16 +89,16 @@ function EditorPage() {
   });
 
   const addO = useMutation({ mutationFn: (question_id: string) => createOFn({ data: { question_id } }), onSuccess: inv });
-  const updO = useMutation({ mutationFn: (v: Parameters<typeof updOFn>[0]["data"]) => updOFn({ data: v }), onSuccess: inv });
+  const updO = useMutation({ mutationFn: (v: Parameters<typeof updateOption>[0]["data"]) => updOFn({ data: v }), onSuccess: inv });
   const delO = useMutation({ mutationFn: (id: string) => delOFn({ data: { id } }), onSuccess: inv });
   const setScore = useMutation({
     mutationFn: (v: { option_id: string; dimension_id: string; points: number }) => scoreFn({ data: v }),
     onSuccess: inv,
   });
 
-  const upsertDim = useMutation({ mutationFn: (v: Parameters<typeof upsertDimFn>[0]["data"]) => upsertDimFn({ data: v }), onSuccess: inv });
+  const upsertDim = useMutation({ mutationFn: (v: Parameters<typeof upsertDimension>[0]["data"]) => upsertDimFn({ data: v }), onSuccess: inv });
   const delDim = useMutation({ mutationFn: (id: string) => delDimFn({ data: { id } }), onSuccess: inv });
-  const upsertB = useMutation({ mutationFn: (v: Parameters<typeof upsertBandFn>[0]["data"]) => upsertBandFn({ data: v }), onSuccess: inv });
+  const upsertB = useMutation({ mutationFn: (v: Parameters<typeof upsertBand>[0]["data"]) => upsertBandFn({ data: v }), onSuccess: inv });
   const delB = useMutation({ mutationFn: (id: string) => delBandFn({ data: { id } }), onSuccess: inv });
 
   if (isLoading || !data) return <div className="py-16 text-center text-sm text-muted-foreground">Carregando…</div>;
