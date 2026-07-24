@@ -23,6 +23,11 @@ import {
 import { toast } from "sonner";
 import type { QuestionType } from "@/lib/tests.functions";
 
+type UpdQ = { id: string; prompt?: string; helper?: string | null; required?: boolean; type?: QuestionType; config?: Record<string, unknown>; sort_order?: number };
+type UpdO = { id: string; label?: string; value?: string | null; sort_order?: number };
+type UpsDim = { id?: string; version_id: string; key: string; label: string; description?: string | null; color?: string | null; sort_order?: number };
+type UpsBand = { id?: string; version_id: string; dimension_id?: string | null; min_score: number; max_score: number; title: string; description?: string | null; sort_order?: number };
+
 export const Route = createFileRoute("/_app/testes/$versionId/editar")({
   head: () => ({ meta: [{ title: "Editar teste — Métrica Humana" }] }),
   component: EditorPage,
@@ -81,7 +86,7 @@ function EditorPage() {
     onSuccess: inv,
     onError: (e: Error) => toast.error(e.message),
   });
-  const updQ = useMutation({ mutationFn: (v: Parameters<typeof updateQuestion>[0]["data"]) => updQFn({ data: v }), onSuccess: inv });
+  const updQ = useMutation({ mutationFn: (v: UpdQ) => updQFn({ data: v }), onSuccess: inv });
   const delQ = useMutation({ mutationFn: (id: string) => delQFn({ data: { id } }), onSuccess: inv });
   const reorderQ = useMutation({
     mutationFn: (ids: string[]) => reorderFn({ data: { version_id: versionId, ordered_ids: ids } }),
@@ -89,16 +94,16 @@ function EditorPage() {
   });
 
   const addO = useMutation({ mutationFn: (question_id: string) => createOFn({ data: { question_id } }), onSuccess: inv });
-  const updO = useMutation({ mutationFn: (v: Parameters<typeof updateOption>[0]["data"]) => updOFn({ data: v }), onSuccess: inv });
+  const updO = useMutation({ mutationFn: (v: UpdO) => updOFn({ data: v }), onSuccess: inv });
   const delO = useMutation({ mutationFn: (id: string) => delOFn({ data: { id } }), onSuccess: inv });
   const setScore = useMutation({
     mutationFn: (v: { option_id: string; dimension_id: string; points: number }) => scoreFn({ data: v }),
     onSuccess: inv,
   });
 
-  const upsertDim = useMutation({ mutationFn: (v: Parameters<typeof upsertDimension>[0]["data"]) => upsertDimFn({ data: v }), onSuccess: inv });
+  const upsertDim = useMutation({ mutationFn: (v: UpsDim) => upsertDimFn({ data: v }), onSuccess: inv });
   const delDim = useMutation({ mutationFn: (id: string) => delDimFn({ data: { id } }), onSuccess: inv });
-  const upsertB = useMutation({ mutationFn: (v: Parameters<typeof upsertBand>[0]["data"]) => upsertBandFn({ data: v }), onSuccess: inv });
+  const upsertB = useMutation({ mutationFn: (v: UpsBand) => upsertBandFn({ data: v }), onSuccess: inv });
   const delB = useMutation({ mutationFn: (id: string) => delBandFn({ data: { id } }), onSuccess: inv });
 
   if (isLoading || !data) return <div className="py-16 text-center text-sm text-muted-foreground">Carregando…</div>;
