@@ -9,13 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppEnviosRouteImport } from './routes/_app.envios'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
+import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -45,51 +52,86 @@ const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppPessoasRoute,
 } as any)
+const AppEnviosNovoRoute = AppEnviosNovoRouteImport.update({
+  id: '/novo',
+  path: '/novo',
+  getParentRoute: () => AppEnviosRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
-  '/envios': typeof AppEnviosRoute
+  '/auth': typeof AuthRoute
+  '/envios': typeof AppEnviosRouteWithChildren
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRoute
+  '/envios/novo': typeof AppEnviosNovoRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesByTo {
-  '/envios': typeof AppEnviosRoute
+  '/auth': typeof AuthRoute
+  '/envios': typeof AppEnviosRouteWithChildren
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRoute
   '/': typeof AppIndexRoute
+  '/envios/novo': typeof AppEnviosNovoRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
-  '/_app/envios': typeof AppEnviosRoute
+  '/auth': typeof AuthRoute
+  '/_app/envios': typeof AppEnviosRouteWithChildren
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/envios' | '/pessoas' | '/testes' | '/pessoas/$id'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/envios'
+    | '/pessoas'
+    | '/testes'
+    | '/envios/novo'
+    | '/pessoas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/envios' | '/pessoas' | '/testes' | '/' | '/pessoas/$id'
+  to:
+    | '/auth'
+    | '/envios'
+    | '/pessoas'
+    | '/testes'
+    | '/'
+    | '/envios/novo'
+    | '/pessoas/$id'
   id:
     | '__root__'
     | '/_app'
+    | '/auth'
     | '/_app/envios'
     | '/_app/pessoas'
     | '/_app/testes'
     | '/_app/'
+    | '/_app/envios/novo'
     | '/_app/pessoas/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -132,8 +174,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPessoasIdRouteImport
       parentRoute: typeof AppPessoasRoute
     }
+    '/_app/envios/novo': {
+      id: '/_app/envios/novo'
+      path: '/novo'
+      fullPath: '/envios/novo'
+      preLoaderRoute: typeof AppEnviosNovoRouteImport
+      parentRoute: typeof AppEnviosRoute
+    }
   }
 }
+
+interface AppEnviosRouteChildren {
+  AppEnviosNovoRoute: typeof AppEnviosNovoRoute
+}
+
+const AppEnviosRouteChildren: AppEnviosRouteChildren = {
+  AppEnviosNovoRoute: AppEnviosNovoRoute,
+}
+
+const AppEnviosRouteWithChildren = AppEnviosRoute._addFileChildren(
+  AppEnviosRouteChildren,
+)
 
 interface AppPessoasRouteChildren {
   AppPessoasIdRoute: typeof AppPessoasIdRoute
@@ -148,14 +209,14 @@ const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
-  AppEnviosRoute: typeof AppEnviosRoute
+  AppEnviosRoute: typeof AppEnviosRouteWithChildren
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
   AppTestesRoute: typeof AppTestesRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppEnviosRoute: AppEnviosRoute,
+  AppEnviosRoute: AppEnviosRouteWithChildren,
   AppPessoasRoute: AppPessoasRouteWithChildren,
   AppTestesRoute: AppTestesRoute,
   AppIndexRoute: AppIndexRoute,
@@ -165,6 +226,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
