@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listGroups, createGroup, listPeople, listInstruments } from "@/lib/data.functions";
 
-export const Route = createFileRoute("/_app/grupos")({
+export const Route = createFileRoute("/_app/grupos/")({
   head: () => ({
     meta: [
       { title: "Grupos — Métrica Humana" },
