@@ -1,49 +1,72 @@
-## Reestruturação do menu lateral
 
-Vou reorganizar o menu lateral (admin/coach) para refletir a nova estrutura solicitada, adicionando as áreas de **Estatísticas**, **Grupos** e **Mentores**, e removendo **Catálogo de Testes**, **Envios** e **Relatórios** da navegação principal.
+# Conectar Pessoas, Grupos e Testes
 
-### Nova navegação (admin/coach)
+Vamos sair dos mocks e persistir tudo no Lovable Cloud, para que as três funcionalidades se conectem de verdade. Assim, quando o próximo passo (frontend do aluno) começar, já existirá dado real por trás.
 
-| Item | Rota | Ícone | Descrição |
-|---|---|---|---|
-| Dashboard | `/` | LayoutDashboard | Homepage (mantém o dashboard atual) |
-| Estatísticas | `/estatisticas` | BarChart3 | Gráficos quantitativos/qualitativos das respostas |
-| Grupos | `/grupos` | Users2 (ou FolderKanban) | Campanhas segmentadas (turmas, empresas, setores) |
-| Pessoas | `/pessoas` | Users | Avaliados que responderam (já existe) |
-| Mentores | `/mentores` | GraduationCap | CRUD de coaches/mentores |
-| Configurações | `/configuracoes` | Settings | Preferências + White Label |
+## 1. Modelo de dados (Lovable Cloud)
 
-Navegação do perfil **Avaliado** permanece como está (Meus Testes + Perfil).
+Novas tabelas no banco, todas com RLS habilitada e escopo por mentor logado (`auth.uid()`):
 
-### Rotas a criar (esqueleto de UI mockada)
+- `profiles` — perfil do usuário logado (id, nome, papel `admin | coach | avaliado`).
+- `people` — avaliados cadastrados pelo mentor.
+  - Campos: `full_name`, `email`, `phone`, `profession`, `role_at_company`, `notes`, `mentor_id` (dono), timestamps.
+- `groups` — grupos/campanhas criados pelo mentor.
+  - Campos: `name`, `type` (turma/empresa/setor), `description`, `mentor_id`, timestamps.
+- `group_members` — relação N:N entre `groups` e `people` (`group_id`, `person_id`, `added_at`). Chave única no par.
+- `instruments` — catálogo fixo dos testes (DISC, Big Five, MBTI, Temperamentos, VAK, QI). Leitura pública (anon SELECT). Sem escrita pelo cliente — semeado por migração.
+- `group_instruments` — quais testes o grupo tem acesso (`group_id`, `instrument_id`). Chave única no par. Adicionar/remover a qualquer momento.
 
-Todas seguem o mesmo padrão visual "Analytical Workspace" já usado nas outras páginas: cabeçalho da página + card com estado vazio explicativo, para manter a navegação inteira funcional.
+Regras de acesso: cada mentor só enxerga e altera as próprias `people`, `groups`, `group_members` e `group_instruments`. `instruments` é leitura pública.
 
-1. `src/routes/_app.estatisticas.tsx` — página com placeholders de 4 KPIs + área "Gráficos em breve" (EmptyState). Sem dados ainda.
-2. `src/routes/_app.grupos.tsx` — cabeçalho "Grupos" com botão "Novo grupo" (não funcional) + tabela mock de 2–3 grupos exemplo (nome, tipo — Turma/Empresa/Setor, nº de pessoas, ações) para dar sensação de vida.
-3. `src/routes/_app.mentores.tsx` — cabeçalho "Mentores" com botão "Adicionar mentor" + tabela mock de 2–3 mentores (nome, email, especialidade, ações).
-4. `src/routes/configuracoes.tsx` já **não existe** hoje — vou criar `src/routes/_app.configuracoes.tsx` com abas: **Perfil da conta**, **Marca (White Label)** (logo, cor primária, nome da plataforma — todos placeholders), **Equipe**, **Modelos de email**.
+## 2. Fluxos conectados
 
-### Rotas mantidas mas fora do menu
+### Adicionar pessoa (Pessoas)
+Modal atualizado com os campos: nome completo, e-mail, telefone (celular), profissão, cargo, observações. Ao salvar, insere em `people` com `mentor_id = auth.uid()`. Lista e busca passam a consultar o banco.
 
-`/testes`, `/envios`, `/envios/novo` continuam existindo e acessíveis por links contextuais (por exemplo o botão "Novo envio" no header e os cards do dashboard). Não vou deletar essas rotas — o fluxo de disparo de testes segue funcional, só deixa de ocupar espaço na navegação principal.
+### Perfil da pessoa
+Mostra os novos campos e uma seção "Grupos" listando os grupos aos quais ela pertence, com ação para adicionar/remover de grupos existentes.
 
-### Arquivos a editar
+### Criar / editar grupo (Grupos)
+Wizard em modal com 3 passos:
+1. **Dados do grupo** — nome, tipo, descrição.
+2. **Pessoas** — multi-seleção com busca sobre `people` do mentor, criando registros em `group_members`.
+3. **Testes liberados** — checklist dos `instruments`, gravando em `group_instruments`.
 
-- `src/components/app-sidebar.tsx` — reescrever `ADMIN_NAV` com os 6 itens acima e os ícones novos do lucide-react.
-- `src/lib/mock-data.ts` — adicionar arrays `GROUPS` e `MENTORS` (2–3 registros cada) para popular as novas telas.
+### Detalhe do grupo (nova rota `/grupos/$id`)
+- Cabeçalho com nome/tipo/descrição.
+- Aba **Pessoas**: lista membros, adicionar/remover pessoas (edita `group_members`).
+- Aba **Testes**: checklist com os testes liberados, adicionar/remover em tempo real (edita `group_instruments`).
+- Botão "Enviar teste" fica restrito aos testes liberados do grupo.
 
-### Arquivos a criar
+### Envio de teste
+O wizard de envio já existente passa a validar: só permite escolher instrumentos que estejam em `group_instruments` quando o destinatário for via grupo, ou qualquer teste quando for envio avulso a uma pessoa.
 
-- `src/routes/_app.estatisticas.tsx`
-- `src/routes/_app.grupos.tsx`
-- `src/routes/_app.mentores.tsx`
-- `src/routes/_app.configuracoes.tsx`
+## 3. Camada de servidor
 
-Cada nova rota terá seu próprio `head()` com title e description PT-BR únicos.
+Server functions TanStack em `src/lib/`:
+- `people.functions.ts`: `listPeople`, `createPerson`, `updatePerson`, `deletePerson`, `getPerson`.
+- `groups.functions.ts`: `listGroups`, `createGroup`, `getGroup`, `updateGroup`, `deleteGroup`.
+- `groupMembers.functions.ts`: `listGroupMembers`, `addPeopleToGroup`, `removePersonFromGroup`, `listGroupsForPerson`.
+- `groupInstruments.functions.ts`: `listGroupInstruments`, `setGroupInstruments` (substitui o conjunto), `toggleGroupInstrument`.
+- `instruments.functions.ts`: `listInstruments` (público).
 
-### Fora do escopo desta iteração
+Todas com `requireSupabaseAuth`, exceto `listInstruments`. Componentes consomem via TanStack Query (padrão do template).
 
-- Lógica real de criação/edição de grupos e mentores (só UI + mocks).
-- Gráficos reais em Estatísticas (placeholder por enquanto).
-- Aplicação real do White Label (só formulário visual).
+## 4. Ajustes de UI necessários
+
+- `src/routes/_app.pessoas.tsx`: formulário expandido, listagem vinda do banco, filtros mantidos.
+- `src/routes/_app.pessoas.$id.tsx`: novos campos + seção "Grupos".
+- `src/routes/_app.grupos.tsx`: substituir mocks, abrir novo wizard.
+- `src/routes/_app.grupos.$id.tsx` (novo): detalhe do grupo com abas Pessoas/Testes.
+- `src/routes/_app.envios.novo.tsx`: filtrar instrumentos por grupo.
+- `src/lib/mock-data.ts`: manter só o que sobrar de mock (labels/enums); remover `PEOPLE`/`GROUPS` do uso runtime.
+
+## 5. Ordem de execução
+
+1. Migração SQL com todas as tabelas, RLS, grants e seed de `instruments`.
+2. Server functions e hooks de query/mutation.
+3. Refatorar telas Pessoas / Perfil / Grupos + nova rota de detalhe do grupo.
+4. Ajustar wizard de envio para respeitar `group_instruments`.
+5. Smoke test: criar pessoa → criar grupo com essa pessoa e 2 testes → abrir detalhe do grupo → alterar testes liberados → tentar enviar.
+
+Depois disso a base fica sólida para começarmos o **frontend do aluno (avaliado)** no próximo ciclo.
