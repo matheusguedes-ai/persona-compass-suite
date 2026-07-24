@@ -242,16 +242,30 @@ export const setGroupInstruments = createServerFn({ method: "POST" })
     z.object({ group_id: z.string().uuid(), instrument_ids: z.array(z.string()) }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    // Replace current set: delete then insert new ids.
-    const { error: delErr } = await context.supabase
+    // Diff current vs desired so we preserve version_id on rows that stay.
+    const { data: current, error: curErr } = await context.supabase
       .from("group_instruments")
-      .delete()
+      .select("instrument_id")
       .eq("group_id", data.group_id);
-    if (delErr) throw new Error(delErr.message);
-    if (data.instrument_ids.length > 0) {
-      const { error } = await context.supabase.from("group_instruments").insert(
-        data.instrument_ids.map((instrument_id) => ({ group_id: data.group_id, instrument_id })),
-      );
+    if (curErr) throw new Error(curErr.message);
+    const currentIds = new Set((current ?? []).map((r) => r.instrument_id));
+    const desired = new Set(data.instrument_ids);
+
+    const toRemove = [...currentIds].filter((id) => !desired.has(id));
+    const toAdd = [...desired].filter((id) => !currentIds.has(id));
+
+    if (toRemove.length > 0) {
+      const { error } = await context.supabase
+        .from("group_instruments")
+        .delete()
+        .eq("group_id", data.group_id)
+        .in("instrument_id", toRemove);
+      if (error) throw new Error(error.message);
+    }
+    if (toAdd.length > 0) {
+      const { error } = await context.supabase
+        .from("group_instruments")
+        .insert(toAdd.map((instrument_id) => ({ group_id: data.group_id, instrument_id })));
       if (error) throw new Error(error.message);
     }
     return { ok: true };

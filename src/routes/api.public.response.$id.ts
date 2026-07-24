@@ -49,6 +49,24 @@ const submitSchema = z.object({
   })),
 });
 
+function dedupe<T>(arr: T[]): T[] {
+  return Array.from(new Set(arr));
+}
+
+function hasContent(qType: string, payload: Record<string, unknown> | undefined): boolean {
+  if (!payload) return false;
+  if (qType === "multiple_choice") return typeof payload.option_id === "string" && payload.option_id.length > 0;
+  if (qType === "checkboxes") return Array.isArray(payload.option_ids) && (payload.option_ids as unknown[]).length > 0;
+  if (qType === "linear_scale") {
+    const v = payload.value;
+    return typeof v === "number" && Number.isFinite(v);
+  }
+  if (qType === "ranking" || qType === "drag_order") {
+    return Array.isArray(payload.ordered_option_ids) && (payload.ordered_option_ids as unknown[]).length > 0;
+  }
+  return Object.keys(payload).length > 0;
+}
+
 async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) {
   const supabase = await getAdmin();
   const { data: response } = await supabase.from("test_responses").select("*").eq("id", id).maybeSingle();
@@ -71,6 +89,9 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     : { data: [] };
 
   const dimByKey = new Map((dims ?? []).map((d) => [d.key, d]));
+  const dimById = new Map((dims ?? []).map((d) => [d.id, d]));
+  const qIdSet = new Set(qIds);
+  const optIdSet = new Set(optIds);
   const scoresByOpt = new Map<string, Array<{ dimension_id: string; points: number }>>();
   (scores ?? []).forEach((s) => {
     const list = scoresByOpt.get(s.option_id) ?? [];
@@ -83,31 +104,51 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     totals[dimensionId] = (totals[dimensionId] ?? 0) + points;
   };
 
-  // Validate required + compute
-  const qMap = new Map((questions ?? []).map((q) => [q.id, q]));
+  // Reject answers pointing at questions from a different version
+  for (const a of input.answers) {
+    if (!qIdSet.has(a.question_id)) throw new Error("Pergunta inválida no envio.");
+  }
   const givenMap = new Map(input.answers.map((a) => [a.question_id, a.payload]));
+
+  // Sanitized payloads to persist (dedup + type-safe)
+  const sanitized = new Map<string, Record<string, unknown>>();
 
   for (const q of questions ?? []) {
     const payload = givenMap.get(q.id);
-    if (q.required && (!payload || Object.keys(payload).length === 0)) {
+    if (q.required && !hasContent(q.type, payload)) {
       throw new Error(`Pergunta obrigatória sem resposta: "${q.prompt || q.id}"`);
     }
     if (!payload) continue;
 
     if (q.type === "multiple_choice") {
-      const optId = payload.option_id as string | undefined;
-      if (optId) (scoresByOpt.get(optId) ?? []).forEach((s) => addPoints(s.dimension_id, s.points));
+      const optId = typeof payload.option_id === "string" ? payload.option_id : undefined;
+      if (!optId) continue;
+      if (!optIdSet.has(optId)) throw new Error("Opção inválida no envio.");
+      sanitized.set(q.id, { option_id: optId });
+      (scoresByOpt.get(optId) ?? []).forEach((s) => addPoints(s.dimension_id, s.points));
     } else if (q.type === "checkboxes") {
-      const ids = (payload.option_ids as string[] | undefined) ?? [];
+      const raw = Array.isArray(payload.option_ids) ? (payload.option_ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
+      const ids = dedupe(raw);
+      for (const id of ids) if (!optIdSet.has(id)) throw new Error("Opção inválida no envio.");
+      sanitized.set(q.id, { option_ids: ids });
       ids.forEach((optId) => (scoresByOpt.get(optId) ?? []).forEach((s) => addPoints(s.dimension_id, s.points)));
     } else if (q.type === "linear_scale") {
-      const value = Number(payload.value ?? 0);
+      const value = Number(payload.value);
+      if (!Number.isFinite(value)) {
+        if (q.required) throw new Error(`Pergunta obrigatória sem resposta: "${q.prompt || q.id}"`);
+        continue;
+      }
+      sanitized.set(q.id, { value });
       const cfg = (q.config ?? {}) as Json;
-      const dimKey = cfg.dimension_key as string | undefined;
-      const dim = dimKey ? dimByKey.get(dimKey) : undefined;
+      const dimId = typeof cfg.dimension_id === "string" ? cfg.dimension_id : undefined;
+      const dimKey = typeof cfg.dimension_key === "string" ? cfg.dimension_key : undefined;
+      const dim = (dimId && dimById.get(dimId)) || (dimKey && dimByKey.get(dimKey)) || undefined;
       if (dim) addPoints(dim.id, value);
     } else if (q.type === "ranking" || q.type === "drag_order") {
-      const ordered = (payload.ordered_option_ids as string[] | undefined) ?? [];
+      const raw = Array.isArray(payload.ordered_option_ids) ? (payload.ordered_option_ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
+      const ordered = dedupe(raw);
+      for (const id of ordered) if (!optIdSet.has(id)) throw new Error("Opção inválida no envio.");
+      sanitized.set(q.id, { ordered_option_ids: ordered });
       const cfg = (q.config ?? {}) as Json;
       const topWeight = Number(cfg.top_weight ?? ordered.length);
       ordered.forEach((optId, idx) => {
@@ -133,11 +174,15 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   }
 
   // Persist answers (upsert) + response
-  if (input.answers.length > 0) {
-    await supabase.from("test_answers").delete().eq("response_id", id);
-    await supabase.from("test_answers").insert(
-      input.answers.map((a) => ({ response_id: id, question_id: a.question_id, payload: a.payload as never })),
+  if (sanitized.size > 0) {
+    const { error: delErr } = await supabase.from("test_answers").delete().eq("response_id", id);
+    if (delErr) throw new Error(delErr.message);
+    const { error: insErr } = await supabase.from("test_answers").insert(
+      Array.from(sanitized.entries()).map(([question_id, payload]) => ({
+        response_id: id, question_id, payload: payload as never,
+      })),
     );
+    if (insErr) throw new Error(insErr.message);
   }
 
   const { data: updated, error } = await supabase.from("test_responses").update({
@@ -150,13 +195,17 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   if (error) throw new Error(error.message);
 
   // Build friendly result summary
-  const dimById = new Map((dims ?? []).map((d) => [d.id, d]));
   const dominantDim = dominantDimId != null ? dimById.get(dominantDimId) : undefined;
   const band = bandId ? (bands ?? []).find((b) => b.id === bandId) : undefined;
+  const byDimension = Object.entries(totals).map(([dimId, points]) => {
+    const d = dimById.get(dimId);
+    return { id: dimId, key: d?.key ?? "", label: d?.label ?? dimId, color: d?.color ?? null, points };
+  }).sort((a, b) => b.points - a.points);
   return {
     response: updated,
     result: {
       totals,
+      by_dimension: byDimension,
       dominant: dominantDim ? { key: dominantDim.key, label: dominantDim.label, color: dominantDim.color } : null,
       band: band ? { title: band.title, description: band.description } : null,
     },
