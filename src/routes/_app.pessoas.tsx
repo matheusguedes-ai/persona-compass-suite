@@ -36,7 +36,11 @@ function PessoasPage() {
   const createFn = useServerFn(createPerson);
   const { data: people = [], isLoading } = useQuery({ queryKey: ["people"], queryFn: () => listFn() });
   const create = useMutation({
-    mutationFn: (data: Parameters<typeof createFn>[0]["data"]) => createFn({ data }),
+    mutationFn: (data: {
+      full_name: string; email: string; phone: string | null;
+      profession: string | null; role_at_company: string | null;
+      role: PersonRole; notes: string | null;
+    }) => createFn({ data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["people"] });
       toast.success("Pessoa cadastrada");
