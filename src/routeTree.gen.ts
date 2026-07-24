@@ -26,7 +26,6 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
 import { Route as AppPessoasIndexRouteImport } from './routes/_app.pessoas.index'
 import { Route as AppGruposIndexRouteImport } from './routes/_app.grupos.index'
-import { Route as AppEnviosIndexRouteImport } from './routes/_app.envios.index'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
 import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
@@ -121,11 +120,6 @@ const AppGruposIndexRoute = AppGruposIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppGruposRoute,
 } as any)
-const AppEnviosIndexRoute = AppEnviosIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppEnviosRoute,
-} as any)
 const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -183,7 +177,6 @@ export interface FileRoutesByFullPath {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
-  '/envios/': typeof AppEnviosIndexRoute
   '/grupos/': typeof AppGruposIndexRoute
   '/pessoas/': typeof AppPessoasIndexRoute
   '/testes/': typeof AppTestesIndexRoute
@@ -196,6 +189,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/configuracoes': typeof AppConfiguracoesRoute
+  '/envios': typeof AppEnviosRouteWithChildren
   '/estatisticas': typeof AppEstatisticasRoute
   '/mentores': typeof AppMentoresRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
@@ -205,7 +199,6 @@ export interface FileRoutesByTo {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
-  '/envios': typeof AppEnviosIndexRoute
   '/grupos': typeof AppGruposIndexRoute
   '/pessoas': typeof AppPessoasIndexRoute
   '/testes': typeof AppTestesIndexRoute
@@ -233,7 +226,6 @@ export interface FileRoutesById {
   '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
-  '/_app/envios/': typeof AppEnviosIndexRoute
   '/_app/grupos/': typeof AppGruposIndexRoute
   '/_app/pessoas/': typeof AppPessoasIndexRoute
   '/_app/testes/': typeof AppTestesIndexRoute
@@ -261,7 +253,6 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
-    | '/envios/'
     | '/grupos/'
     | '/pessoas/'
     | '/testes/'
@@ -274,6 +265,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/configuracoes'
+    | '/envios'
     | '/estatisticas'
     | '/mentores'
     | '/responder/$responseId'
@@ -283,7 +275,6 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
-    | '/envios'
     | '/grupos'
     | '/pessoas'
     | '/testes'
@@ -310,7 +301,6 @@ export interface FileRouteTypes {
     | '/_app/envios/novo'
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
-    | '/_app/envios/'
     | '/_app/grupos/'
     | '/_app/pessoas/'
     | '/_app/testes/'
@@ -451,13 +441,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGruposIndexRouteImport
       parentRoute: typeof AppGruposRoute
     }
-    '/_app/envios/': {
-      id: '/_app/envios/'
-      path: '/'
-      fullPath: '/envios/'
-      preLoaderRoute: typeof AppEnviosIndexRouteImport
-      parentRoute: typeof AppEnviosRoute
-    }
     '/_app/pessoas/$id': {
       id: '/_app/pessoas/$id'
       path: '/$id'
@@ -512,12 +495,10 @@ declare module '@tanstack/react-router' {
 
 interface AppEnviosRouteChildren {
   AppEnviosNovoRoute: typeof AppEnviosNovoRoute
-  AppEnviosIndexRoute: typeof AppEnviosIndexRoute
 }
 
 const AppEnviosRouteChildren: AppEnviosRouteChildren = {
   AppEnviosNovoRoute: AppEnviosNovoRoute,
-  AppEnviosIndexRoute: AppEnviosIndexRoute,
 }
 
 const AppEnviosRouteWithChildren = AppEnviosRoute._addFileChildren(
