@@ -33,9 +33,11 @@ function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   async function signInWithGoogle() {
     setError(null);
+    setInfo(null);
     setBusy(true);
     try {
       const target = safeNext(next);
@@ -66,6 +68,7 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setInfo(null);
     const target = safeNext(next);
     const redirectAfterAuth = () => {
       // Consent route lives at /.lovable/oauth/consent — use full navigation so
@@ -82,23 +85,19 @@ function AuthPage() {
       if (target === "/") nav({ to: "/" });
       else redirectAfterAuth();
     } else {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ email, password });
       if (error) {
         setBusy(false);
         setError(error.message);
         return;
       }
-      // Auto-confirm está ativo: a sessão já vem pronta.
-      if (!data.session) {
-        const signIn = await supabase.auth.signInWithPassword({ email, password });
-        if (signIn.error) {
-          setBusy(false);
-          setError(signIn.error.message);
-          return;
-        }
-      }
-      if (target === "/") nav({ to: "/" });
-      else redirectAfterAuth();
+      // Após cadastro, deslogar (caso a sessão tenha sido criada automaticamente)
+      // e enviar a pessoa para o fluxo de login com as credenciais escolhidas.
+      await supabase.auth.signOut();
+      setBusy(false);
+      setPassword("");
+      setMode("signin");
+      setInfo("Conta criada com sucesso. Entre com seu email e senha para continuar.");
     }
   }
 
@@ -146,14 +145,15 @@ function AuthPage() {
             <Input type="password" required placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+          {info && <p className="text-sm text-accent" role="status">{info}</p>}
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "Aguarde…" : mode === "signin" ? "Entrar" : "Criar conta"}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             {mode === "signin" ? (
-              <>Sem conta?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => setMode("signup")}>Criar agora</button></>
+              <>Sem conta?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => { setMode("signup"); setError(null); setInfo(null); }}>Criar agora</button></>
             ) : (
-              <>Já tem conta?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => setMode("signin")}>Entrar</button></>
+              <>Já tem conta?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => { setMode("signin"); setError(null); setInfo(null); }}>Entrar</button></>
             )}
           </p>
           <p className="text-center text-[10px] uppercase tracking-widest text-muted-foreground">

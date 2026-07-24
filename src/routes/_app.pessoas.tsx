@@ -31,6 +31,18 @@ function PessoasPage() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"todos" | PersonRole>("todos");
   const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    profession: "",
+    role_at_company: "",
+    role: "cliente" as PersonRole,
+    notes: "",
+  });
+  function resetForm() {
+    setForm({ full_name: "", email: "", phone: "", profession: "", role_at_company: "", role: "cliente", notes: "" });
+  }
   const qc = useQueryClient();
   const listFn = useServerFn(listPeople);
   const createFn = useServerFn(createPerson);
@@ -45,8 +57,9 @@ function PessoasPage() {
       qc.invalidateQueries({ queryKey: ["people"] });
       toast.success("Pessoa cadastrada");
       setOpen(false);
+      resetForm();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao cadastrar."),
   });
   const list = people.filter((p) => {
     const okQ = p.full_name.toLowerCase().includes(q.toLowerCase()) || p.email.toLowerCase().includes(q.toLowerCase());
@@ -61,7 +74,7 @@ function PessoasPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Gestão de Pessoas</h1>
           <p className="mt-1 text-sm text-muted-foreground">{people.length} pessoas cadastradas</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
             <Button><Plus className="size-4" /> Adicionar pessoa</Button>
           </DialogTrigger>
@@ -72,29 +85,30 @@ function PessoasPage() {
             </DialogHeader>
             <form
               className="space-y-4"
+              autoComplete="off"
               onSubmit={(e) => {
                 e.preventDefault();
-                const fd = new FormData(e.currentTarget as HTMLFormElement);
+                if (!form.full_name.trim() || !form.email.trim()) return;
                 create.mutate({
-                  full_name: String(fd.get("full_name") ?? ""),
-                  email: String(fd.get("email") ?? ""),
-                  phone: (fd.get("phone") as string) || null,
-                  profession: (fd.get("profession") as string) || null,
-                  role_at_company: (fd.get("role_at_company") as string) || null,
-                  role: (fd.get("role") as PersonRole) ?? "cliente",
-                  notes: (fd.get("notes") as string) || null,
+                  full_name: form.full_name.trim(),
+                  email: form.email.trim(),
+                  phone: form.phone.trim() || null,
+                  profession: form.profession.trim() || null,
+                  role_at_company: form.role_at_company.trim() || null,
+                  role: form.role,
+                  notes: form.notes.trim() || null,
                 });
               }}
             >
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 space-y-2"><Label>Nome completo</Label><Input name="full_name" required placeholder="Ex.: Maria da Silva" /></div>
-                <div className="space-y-2"><Label>Email</Label><Input name="email" required type="email" placeholder="maria@empresa.com" /></div>
-                <div className="space-y-2"><Label>Telefone (celular)</Label><Input name="phone" placeholder="(11) 99999-0000" /></div>
-                <div className="space-y-2"><Label>Profissão</Label><Input name="profession" placeholder="Ex.: Psicóloga" /></div>
-                <div className="space-y-2"><Label>Cargo</Label><Input name="role_at_company" placeholder="Ex.: Gerente de RH" /></div>
+                <div className="col-span-2 space-y-2"><Label>Nome completo</Label><Input required autoComplete="off" placeholder="Ex.: Maria da Silva" value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} /></div>
+                <div className="space-y-2"><Label>Email</Label><Input required type="email" autoComplete="off" placeholder="maria@empresa.com" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></div>
+                <div className="space-y-2"><Label>Telefone (celular)</Label><Input autoComplete="off" placeholder="(11) 99999-0000" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} /></div>
+                <div className="space-y-2"><Label>Profissão</Label><Input autoComplete="off" placeholder="Ex.: Psicóloga" value={form.profession} onChange={(e) => setForm((f) => ({ ...f, profession: e.target.value }))} /></div>
+                <div className="space-y-2"><Label>Cargo</Label><Input autoComplete="off" placeholder="Ex.: Gerente de RH" value={form.role_at_company} onChange={(e) => setForm((f) => ({ ...f, role_at_company: e.target.value }))} /></div>
                 <div className="col-span-2 space-y-2">
                   <Label>Papel</Label>
-                  <Select name="role" defaultValue="cliente">
+                  <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v as PersonRole }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cliente">Cliente</SelectItem>
@@ -103,7 +117,7 @@ function PessoasPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-2 space-y-2"><Label>Observações</Label><Textarea name="notes" rows={3} placeholder="Notas internas sobre a pessoa" /></div>
+                <div className="col-span-2 space-y-2"><Label>Observações</Label><Textarea rows={3} placeholder="Notas internas sobre a pessoa" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} /></div>
               </div>
               <DialogFooter><Button type="submit" disabled={create.isPending}>{create.isPending ? "Salvando…" : "Cadastrar"}</Button></DialogFooter>
             </form>
