@@ -156,6 +156,36 @@ export type Database = {
         }
         Relationships: []
       }
+      mentors: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          owner_id: string
+          specialty: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          owner_id: string
+          specialty?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          specialty?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       option_scores: {
         Row: {
           dimension_id: string
@@ -231,6 +261,36 @@ export type Database = {
           role?: string
           role_at_company?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          brand_color: string | null
+          company_name: string | null
+          created_at: string
+          full_name: string | null
+          logo_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_color?: string | null
+          company_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          logo_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand_color?: string | null
+          company_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          logo_url?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
