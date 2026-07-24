@@ -14,7 +14,8 @@ export const Route = createFileRoute("/responder/$responseId")({
 type Question = { id: string; type: string; prompt: string; required: boolean; config: Record<string, unknown> | null };
 type Option = { id: string; question_id: string; label: string };
 type Payload = {
-  response: { id: string; submitted_at: string | null; test_versions: { title: string; description: string | null } | null; people: { full_name: string; email: string } | null };
+  submitted: false;
+  response: { id: string; submitted_at: string | null; test_versions: { title: string; description: string | null } | null; people: { full_name: string } | null };
   questions: Question[];
   options: Option[];
 };
@@ -23,16 +24,37 @@ type Result = { totals: Record<string, number>; dominant: { key: string; label: 
 function ResponderPage() {
   const { responseId } = Route.useParams();
   const [payload, setPayload] = useState<Payload | null>(null);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [answers, setAnswers] = useState<Record<string, Record<string, unknown>>>({});
   const [result, setResult] = useState<Result | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/public/response/${responseId}`).then(async (r) => {
-      if (!r.ok) { setError((await r.json()).error ?? "Erro"); return; }
-      setPayload(await r.json());
-    });
+    fetch(`/api/public/response/${responseId}`)
+      .then(async (r) => {
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          setError(j.error ?? "Não foi possível carregar o teste.");
+          return;
+        }
+        const json = await r.json();
+        if (json?.submitted) { setAlreadySubmitted(true); return; }
+        setPayload(json);
+        // Initialize ranking/drag_order answers with the shown order so submitting
+        // without reordering still counts as a valid answer for required questions.
+        const init: Record<string, Record<string, unknown>> = {};
+        for (const q of json.questions as Question[]) {
+          if (q.type === "ranking" || q.type === "drag_order") {
+            const ordered = (json.options as Option[])
+              .filter((o) => o.question_id === q.id)
+              .map((o) => o.id);
+            init[q.id] = { ordered_option_ids: ordered };
+          }
+        }
+        setAnswers(init);
+      })
+      .catch(() => setError("Falha de conexão. Verifique sua internet e tente novamente."));
   }, [responseId]);
 
   const setAns = (qid: string, payload: Record<string, unknown>) =>
@@ -41,21 +63,26 @@ function ResponderPage() {
   const submit = async () => {
     if (!payload) return;
     setSubmitting(true);
-    const body = { answers: Object.entries(answers).map(([question_id, payload]) => ({ question_id, payload })) };
-    const res = await fetch(`/api/public/response/${responseId}`, {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-    });
-    setSubmitting(false);
-    const json = await res.json();
-    if (!res.ok) { toast.error(json.error ?? "Erro ao enviar"); return; }
-    setResult(json.result);
+    try {
+      const body = { answers: Object.entries(answers).map(([question_id, payload]) => ({ question_id, payload })) };
+      const res = await fetch(`/api/public/response/${responseId}`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(json.error ?? "Erro ao enviar"); return; }
+      setResult(json.result);
+    } catch {
+      toast.error("Falha de conexão. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (error) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">{error}</div>;
-  if (!payload) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Carregando…</div>;
-  if (payload.response.submitted_at && !result) {
+  if (alreadySubmitted && !result) {
     return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Esta resposta já foi enviada. Obrigado!</div>;
   }
+  if (!payload) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Carregando…</div>;
   if (result) return <ResultView result={result} />;
 
   const v = payload.response.test_versions;
