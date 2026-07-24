@@ -9,61 +9,225 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppTestesRouteImport } from './routes/_app.testes'
+import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
+import { Route as AppEnviosRouteImport } from './routes/_app.envios'
+import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
+import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 
-const IndexRoute = IndexRouteImport.update({
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTestesRoute = AppTestesRouteImport.update({
+  id: '/testes',
+  path: '/testes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPessoasRoute = AppPessoasRouteImport.update({
+  id: '/pessoas',
+  path: '/pessoas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEnviosRoute = AppEnviosRouteImport.update({
+  id: '/envios',
+  path: '/envios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppPessoasRoute,
+} as any)
+const AppEnviosNovoRoute = AppEnviosNovoRouteImport.update({
+  id: '/novo',
+  path: '/novo',
+  getParentRoute: () => AppEnviosRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/auth': typeof AuthRoute
+  '/envios': typeof AppEnviosRouteWithChildren
+  '/pessoas': typeof AppPessoasRouteWithChildren
+  '/testes': typeof AppTestesRoute
+  '/envios/novo': typeof AppEnviosNovoRoute
+  '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/envios': typeof AppEnviosRouteWithChildren
+  '/pessoas': typeof AppPessoasRouteWithChildren
+  '/testes': typeof AppTestesRoute
+  '/': typeof AppIndexRoute
+  '/envios/novo': typeof AppEnviosNovoRoute
+  '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_app/envios': typeof AppEnviosRouteWithChildren
+  '/_app/pessoas': typeof AppPessoasRouteWithChildren
+  '/_app/testes': typeof AppTestesRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/envios/novo': typeof AppEnviosNovoRoute
+  '/_app/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/envios'
+    | '/pessoas'
+    | '/testes'
+    | '/envios/novo'
+    | '/pessoas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/auth'
+    | '/envios'
+    | '/pessoas'
+    | '/testes'
+    | '/'
+    | '/envios/novo'
+    | '/pessoas/$id'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/auth'
+    | '/_app/envios'
+    | '/_app/pessoas'
+    | '/_app/testes'
+    | '/_app/'
+    | '/_app/envios/novo'
+    | '/_app/pessoas/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/testes': {
+      id: '/_app/testes'
+      path: '/testes'
+      fullPath: '/testes'
+      preLoaderRoute: typeof AppTestesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pessoas': {
+      id: '/_app/pessoas'
+      path: '/pessoas'
+      fullPath: '/pessoas'
+      preLoaderRoute: typeof AppPessoasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/envios': {
+      id: '/_app/envios'
+      path: '/envios'
+      fullPath: '/envios'
+      preLoaderRoute: typeof AppEnviosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pessoas/$id': {
+      id: '/_app/pessoas/$id'
+      path: '/$id'
+      fullPath: '/pessoas/$id'
+      preLoaderRoute: typeof AppPessoasIdRouteImport
+      parentRoute: typeof AppPessoasRoute
+    }
+    '/_app/envios/novo': {
+      id: '/_app/envios/novo'
+      path: '/novo'
+      fullPath: '/envios/novo'
+      preLoaderRoute: typeof AppEnviosNovoRouteImport
+      parentRoute: typeof AppEnviosRoute
     }
   }
 }
 
+interface AppEnviosRouteChildren {
+  AppEnviosNovoRoute: typeof AppEnviosNovoRoute
+}
+
+const AppEnviosRouteChildren: AppEnviosRouteChildren = {
+  AppEnviosNovoRoute: AppEnviosNovoRoute,
+}
+
+const AppEnviosRouteWithChildren = AppEnviosRoute._addFileChildren(
+  AppEnviosRouteChildren,
+)
+
+interface AppPessoasRouteChildren {
+  AppPessoasIdRoute: typeof AppPessoasIdRoute
+}
+
+const AppPessoasRouteChildren: AppPessoasRouteChildren = {
+  AppPessoasIdRoute: AppPessoasIdRoute,
+}
+
+const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
+  AppPessoasRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppEnviosRoute: typeof AppEnviosRouteWithChildren
+  AppPessoasRoute: typeof AppPessoasRouteWithChildren
+  AppTestesRoute: typeof AppTestesRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppEnviosRoute: AppEnviosRouteWithChildren,
+  AppPessoasRoute: AppPessoasRouteWithChildren,
+  AppTestesRoute: AppTestesRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
