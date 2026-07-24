@@ -103,7 +103,7 @@ function Dashboard() {
               <tbody className="divide-y divide-black/5">
                 {recent.map((s) => {
                   const when = s.submitted_at ?? s.created_at;
-                  const status: "pending" | "submitted" = s.status === "submitted" ? "submitted" : "pending";
+                  const status = s.status === "submitted" ? "concluido" : "pendente";
                   return (
                     <tr key={s.id}>
                       <td className="px-6 py-4 font-medium">{s.people?.full_name ?? "—"}</td>
