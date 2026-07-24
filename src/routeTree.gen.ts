@@ -14,7 +14,11 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
+import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
+import { Route as AppGruposRouteImport } from './routes/_app.grupos'
+import { Route as AppEstatisticasRouteImport } from './routes/_app.estatisticas'
 import { Route as AppEnviosRouteImport } from './routes/_app.envios'
+import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 
@@ -42,9 +46,29 @@ const AppPessoasRoute = AppPessoasRouteImport.update({
   path: '/pessoas',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMentoresRoute = AppMentoresRouteImport.update({
+  id: '/mentores',
+  path: '/mentores',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGruposRoute = AppGruposRouteImport.update({
+  id: '/grupos',
+  path: '/grupos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEstatisticasRoute = AppEstatisticasRouteImport.update({
+  id: '/estatisticas',
+  path: '/estatisticas',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEnviosRoute = AppEnviosRouteImport.update({
   id: '/envios',
   path: '/envios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
@@ -61,7 +85,11 @@ const AppEnviosNovoRoute = AppEnviosNovoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/configuracoes': typeof AppConfiguracoesRoute
   '/envios': typeof AppEnviosRouteWithChildren
+  '/estatisticas': typeof AppEstatisticasRoute
+  '/grupos': typeof AppGruposRoute
+  '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRoute
   '/envios/novo': typeof AppEnviosNovoRoute
@@ -69,7 +97,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/configuracoes': typeof AppConfiguracoesRoute
   '/envios': typeof AppEnviosRouteWithChildren
+  '/estatisticas': typeof AppEstatisticasRoute
+  '/grupos': typeof AppGruposRoute
+  '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRoute
   '/': typeof AppIndexRoute
@@ -80,7 +112,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/envios': typeof AppEnviosRouteWithChildren
+  '/_app/estatisticas': typeof AppEstatisticasRoute
+  '/_app/grupos': typeof AppGruposRoute
+  '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRoute
   '/_app/': typeof AppIndexRoute
@@ -92,7 +128,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/configuracoes'
     | '/envios'
+    | '/estatisticas'
+    | '/grupos'
+    | '/mentores'
     | '/pessoas'
     | '/testes'
     | '/envios/novo'
@@ -100,7 +140,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/configuracoes'
     | '/envios'
+    | '/estatisticas'
+    | '/grupos'
+    | '/mentores'
     | '/pessoas'
     | '/testes'
     | '/'
@@ -110,7 +154,11 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/auth'
+    | '/_app/configuracoes'
     | '/_app/envios'
+    | '/_app/estatisticas'
+    | '/_app/grupos'
+    | '/_app/mentores'
     | '/_app/pessoas'
     | '/_app/testes'
     | '/_app/'
@@ -160,11 +208,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPessoasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/mentores': {
+      id: '/_app/mentores'
+      path: '/mentores'
+      fullPath: '/mentores'
+      preLoaderRoute: typeof AppMentoresRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/grupos': {
+      id: '/_app/grupos'
+      path: '/grupos'
+      fullPath: '/grupos'
+      preLoaderRoute: typeof AppGruposRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/estatisticas': {
+      id: '/_app/estatisticas'
+      path: '/estatisticas'
+      fullPath: '/estatisticas'
+      preLoaderRoute: typeof AppEstatisticasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/envios': {
       id: '/_app/envios'
       path: '/envios'
       fullPath: '/envios'
       preLoaderRoute: typeof AppEnviosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/configuracoes': {
+      id: '/_app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/pessoas/$id': {
@@ -209,14 +285,22 @@ const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppEnviosRoute: typeof AppEnviosRouteWithChildren
+  AppEstatisticasRoute: typeof AppEstatisticasRoute
+  AppGruposRoute: typeof AppGruposRoute
+  AppMentoresRoute: typeof AppMentoresRoute
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
   AppTestesRoute: typeof AppTestesRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppEnviosRoute: AppEnviosRouteWithChildren,
+  AppEstatisticasRoute: AppEstatisticasRoute,
+  AppGruposRoute: AppGruposRoute,
+  AppMentoresRoute: AppMentoresRoute,
   AppPessoasRoute: AppPessoasRouteWithChildren,
   AppTestesRoute: AppTestesRoute,
   AppIndexRoute: AppIndexRoute,
