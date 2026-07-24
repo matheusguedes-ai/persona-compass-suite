@@ -23,7 +23,10 @@ import { Route as AppEnviosRouteImport } from './routes/_app.envios'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
+import { Route as AppPessoasIndexRouteImport } from './routes/_app.pessoas.index'
 import { Route as AppGruposIndexRouteImport } from './routes/_app.grupos.index'
+import { Route as AppEnviosIndexRouteImport } from './routes/_app.envios.index'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
 import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
@@ -103,10 +106,25 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppTestesIndexRoute = AppTestesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppTestesRoute,
+} as any)
+const AppPessoasIndexRoute = AppPessoasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPessoasRoute,
+} as any)
 const AppGruposIndexRoute = AppGruposIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppGruposRoute,
+} as any)
+const AppEnviosIndexRoute = AppEnviosIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppEnviosRoute,
 } as any)
 const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
   id: '/$id',
@@ -165,7 +183,10 @@ export interface FileRoutesByFullPath {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
+  '/envios/': typeof AppEnviosIndexRoute
   '/grupos/': typeof AppGruposIndexRoute
+  '/pessoas/': typeof AppPessoasIndexRoute
+  '/testes/': typeof AppTestesIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
@@ -175,11 +196,8 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/configuracoes': typeof AppConfiguracoesRoute
-  '/envios': typeof AppEnviosRouteWithChildren
   '/estatisticas': typeof AppEstatisticasRoute
   '/mentores': typeof AppMentoresRoute
-  '/pessoas': typeof AppPessoasRouteWithChildren
-  '/testes': typeof AppTestesRouteWithChildren
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -187,7 +205,10 @@ export interface FileRoutesByTo {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
+  '/envios': typeof AppEnviosIndexRoute
   '/grupos': typeof AppGruposIndexRoute
+  '/pessoas': typeof AppPessoasIndexRoute
+  '/testes': typeof AppTestesIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
@@ -212,7 +233,10 @@ export interface FileRoutesById {
   '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
+  '/_app/envios/': typeof AppEnviosIndexRoute
   '/_app/grupos/': typeof AppGruposIndexRoute
+  '/_app/pessoas/': typeof AppPessoasIndexRoute
+  '/_app/testes/': typeof AppTestesIndexRoute
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
@@ -237,7 +261,10 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
+    | '/envios/'
     | '/grupos/'
+    | '/pessoas/'
+    | '/testes/'
     | '/testes/$versionId/editar'
     | '/api/public/response/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -247,11 +274,8 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/configuracoes'
-    | '/envios'
     | '/estatisticas'
     | '/mentores'
-    | '/pessoas'
-    | '/testes'
     | '/responder/$responseId'
     | '/'
     | '/.lovable/oauth/consent'
@@ -259,7 +283,10 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
+    | '/envios'
     | '/grupos'
+    | '/pessoas'
+    | '/testes'
     | '/testes/$versionId/editar'
     | '/api/public/response/$id'
   id:
@@ -283,7 +310,10 @@ export interface FileRouteTypes {
     | '/_app/envios/novo'
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
+    | '/_app/envios/'
     | '/_app/grupos/'
+    | '/_app/pessoas/'
+    | '/_app/testes/'
     | '/_app/testes/$versionId/editar'
     | '/api/public/response/$id'
   fileRoutesById: FileRoutesById
@@ -400,12 +430,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/testes/': {
+      id: '/_app/testes/'
+      path: '/'
+      fullPath: '/testes/'
+      preLoaderRoute: typeof AppTestesIndexRouteImport
+      parentRoute: typeof AppTestesRoute
+    }
+    '/_app/pessoas/': {
+      id: '/_app/pessoas/'
+      path: '/'
+      fullPath: '/pessoas/'
+      preLoaderRoute: typeof AppPessoasIndexRouteImport
+      parentRoute: typeof AppPessoasRoute
+    }
     '/_app/grupos/': {
       id: '/_app/grupos/'
       path: '/'
       fullPath: '/grupos/'
       preLoaderRoute: typeof AppGruposIndexRouteImport
       parentRoute: typeof AppGruposRoute
+    }
+    '/_app/envios/': {
+      id: '/_app/envios/'
+      path: '/'
+      fullPath: '/envios/'
+      preLoaderRoute: typeof AppEnviosIndexRouteImport
+      parentRoute: typeof AppEnviosRoute
     }
     '/_app/pessoas/$id': {
       id: '/_app/pessoas/$id'
@@ -461,10 +512,12 @@ declare module '@tanstack/react-router' {
 
 interface AppEnviosRouteChildren {
   AppEnviosNovoRoute: typeof AppEnviosNovoRoute
+  AppEnviosIndexRoute: typeof AppEnviosIndexRoute
 }
 
 const AppEnviosRouteChildren: AppEnviosRouteChildren = {
   AppEnviosNovoRoute: AppEnviosNovoRoute,
+  AppEnviosIndexRoute: AppEnviosIndexRoute,
 }
 
 const AppEnviosRouteWithChildren = AppEnviosRoute._addFileChildren(
@@ -487,10 +540,12 @@ const AppGruposRouteWithChildren = AppGruposRoute._addFileChildren(
 
 interface AppPessoasRouteChildren {
   AppPessoasIdRoute: typeof AppPessoasIdRoute
+  AppPessoasIndexRoute: typeof AppPessoasIndexRoute
 }
 
 const AppPessoasRouteChildren: AppPessoasRouteChildren = {
   AppPessoasIdRoute: AppPessoasIdRoute,
+  AppPessoasIndexRoute: AppPessoasIndexRoute,
 }
 
 const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
@@ -498,10 +553,12 @@ const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
 )
 
 interface AppTestesRouteChildren {
+  AppTestesIndexRoute: typeof AppTestesIndexRoute
   AppTestesVersionIdEditarRoute: typeof AppTestesVersionIdEditarRoute
 }
 
 const AppTestesRouteChildren: AppTestesRouteChildren = {
+  AppTestesIndexRoute: AppTestesIndexRoute,
   AppTestesVersionIdEditarRoute: AppTestesVersionIdEditarRoute,
 }
 

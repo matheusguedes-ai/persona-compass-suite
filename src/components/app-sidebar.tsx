@@ -1,19 +1,16 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
 import {
   LayoutDashboard,
   Users,
   BarChart3,
   Settings,
-  Inbox,
+  Send,
   FolderKanban,
   GraduationCap,
   FlaskConical,
-  ChevronDown,
 } from "lucide-react";
 import { useRole } from "@/lib/role-context";
 import { cn } from "@/lib/utils";
-import { INSTRUMENTS } from "@/lib/mock-data";
 
 const ADMIN_NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -21,11 +18,12 @@ const ADMIN_NAV = [
   { to: "/grupos", label: "Grupos", icon: FolderKanban },
   { to: "/pessoas", label: "Pessoas", icon: Users },
   { to: "/mentores", label: "Mentores", icon: GraduationCap },
+  { to: "/testes", label: "Testes", icon: FlaskConical },
+  { to: "/envios", label: "Envios", icon: Send },
   { to: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
 const AVALIADO_NAV = [
-  { to: "/meus-testes", label: "Meus Testes", icon: Inbox },
   { to: "/configuracoes", label: "Meu Perfil", icon: Settings },
 ] as const;
 
@@ -33,17 +31,6 @@ export function AppSidebar() {
   const { role, displayName } = useRole();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = role === "avaliado" ? AVALIADO_NAV : ADMIN_NAV;
-  const [testesOpen, setTestesOpen] = useState(false);
-  const showTestes = role !== "avaliado";
-
-  const ACCENT_DOT: Record<string, string> = {
-    rose: "bg-rose-500",
-    amber: "bg-amber-500",
-    emerald: "bg-emerald-500",
-    teal: "bg-teal-500",
-    violet: "bg-violet-500",
-    zinc: "bg-zinc-500",
-  };
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-black/5 bg-sidebar lg:flex">
@@ -63,7 +50,7 @@ export function AppSidebar() {
               ? pathname === "/"
               : pathname === item.to || pathname.startsWith(item.to + "/");
           const Icon = item.icon;
-          const node = (
+          return (
             <Link
               key={item.to}
               to={item.to}
@@ -78,50 +65,6 @@ export function AppSidebar() {
               {item.label}
             </Link>
           );
-          if (showTestes && item.to === "/grupos") {
-            return (
-              <div key="grupos-with-testes">
-                {node}
-                <button
-                  type="button"
-                  onClick={() => setTestesOpen((v) => !v)}
-                  className={cn(
-                    "mt-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                    "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                  )}
-                  aria-expanded={testesOpen}
-                >
-                  <FlaskConical className="size-4 shrink-0" />
-                  <span className="flex-1 text-left">Testes</span>
-                  <ChevronDown
-                    className={cn(
-                      "size-3.5 shrink-0 transition-transform",
-                      testesOpen && "rotate-180",
-                    )}
-                  />
-                </button>
-                {testesOpen && (
-                  <ul className="mb-1 mt-1 space-y-0.5 border-l border-black/5 pl-3 ml-5">
-                    {INSTRUMENTS.map((t) => (
-                      <li
-                        key={t.id}
-                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground"
-                      >
-                        <span
-                          className={cn(
-                            "size-1.5 rounded-full shrink-0",
-                            ACCENT_DOT[t.accent] ?? "bg-zinc-400",
-                          )}
-                        />
-                        <span className="truncate">{t.shortName}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          }
-          return node;
         })}
       </nav>
 
