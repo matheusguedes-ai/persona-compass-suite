@@ -20,9 +20,14 @@ type Payload = {
   options: Option[];
 };
 type ResultDim = { id: string; key: string; label: string; color: string | null; points: number };
+type PerDimBand = { dimension_id: string; label: string; color: string | null; mode: "natural" | "adaptado"; points: number; normalized: number | null; band: { title: string; description: string | null } | null };
 type Result = {
   totals: Record<string, number>;
   by_dimension?: ResultDim[];
+  natural?: Record<string, number>;
+  adaptado?: Record<string, number>;
+  normalized?: Record<string, { natural: number; adaptado: number }>;
+  per_dimension_bands?: PerDimBand[];
   dominant: { key: string; label: string; color: string | null } | null;
   band: { title: string; description: string | null } | null;
 };
@@ -77,9 +82,13 @@ function ResponderPage() {
         (q.type === "multiple_choice" && typeof a?.option_id === "string" && (a.option_id as string).length > 0) ||
         (q.type === "checkboxes" && Array.isArray(a?.option_ids) && (a!.option_ids as unknown[]).length > 0) ||
         (q.type === "linear_scale" && typeof a?.value === "number" && Number.isFinite(a.value as number)) ||
-        ((q.type === "ranking" || q.type === "drag_order") && Array.isArray(a?.ordered_option_ids) && (a!.ordered_option_ids as unknown[]).length > 0);
+        ((q.type === "ranking" || q.type === "drag_order") && Array.isArray(a?.ordered_option_ids) && (a!.ordered_option_ids as unknown[]).length > 0) ||
+        (q.type === "forced_choice" && typeof a?.most_option_id === "string" && typeof a?.least_option_id === "string" && a.most_option_id !== a.least_option_id);
       if (!ok) {
-        toast.error(`Pergunta ${i + 1} é obrigatória: "${q.prompt || "sem título"}"`);
+        const msg = q.type === "forced_choice"
+          ? `Pergunta ${i + 1}: escolha uma opção em MAIS e outra em MENOS (diferentes).`
+          : `Pergunta ${i + 1} é obrigatória: "${q.prompt || "sem título"}"`;
+        toast.error(msg);
         return;
       }
     }
