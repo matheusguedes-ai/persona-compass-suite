@@ -16,6 +16,7 @@ import {
   getGroup, deleteGroup, addGroupMembers, removeGroupMember,
   setGroupInstruments, listPeople, listInstruments,
 } from "@/lib/data.functions";
+import { listResponses } from "@/lib/tests.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/grupos/$id")({
@@ -117,7 +118,7 @@ function GroupDetail() {
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-4">
-          <GroupDashboard members={members} instruments={instruments} />
+          <GroupDashboard groupId={id} members={members} instruments={instruments} />
         </TabsContent>
 
         <TabsContent value="pessoas" className="mt-4 space-y-3">
@@ -248,52 +249,24 @@ type InstrRow = { instrument_id: string; instruments: { id: string; name: string
 
 const DNA_COLORS = ["#0891b2", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#22c55e", "#3b82f6", "#ec4899"];
 
-function hash(str: string) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return Math.abs(h);
-}
+type ResponseRow = {
+  id: string;
+  person_id: string;
+  status: string;
+  submitted_at: string | null;
+  dominant_dimension_id: string | null;
+  computed_scores: Record<string, number> | null;
+  test_versions: { id: string; title: string; instrument_id: string } | null;
+};
 
-function GroupDashboard({ members, instruments }: { members: MemberRow[]; instruments: InstrRow[] }) {
-  const total = members.length * instruments.length;
-  let answered = 0;
-  const perInstrumentDNA: Record<string, Record<string, number>> = {};
-
-  // Default trait buckets by instrument category
-  const traitsByCategory: Record<string, string[]> = {
-    comportamental: ["Dominância", "Influência", "Estabilidade", "Conformidade"],
-    psicometrico: ["Abertura", "Conscienciosidade", "Extroversão", "Amabilidade", "Neuroticismo"],
-    cognitivo: ["Verbal", "Lógico", "Numérico", "Espacial"],
-  };
-
-  for (const m of members) {
-    for (const i of instruments) {
-      const key = `${m.person_id}:${i.instrument_id}`;
-      const h = hash(key);
-      const isAnswered = (h % 10) > 3;
-      if (!isAnswered) continue;
-      answered++;
-      const inst = i.instruments;
-      if (!inst) continue;
-      const traits = traitsByCategory[inst.category] ?? ["A", "B", "C", "D"];
-      const dominant = traits[h % traits.length];
-      const bucket = (perInstrumentDNA[inst.name] ??= {});
-      bucket[dominant] = (bucket[dominant] ?? 0) + 1;
-    }
-  }
-
-  const completion = total > 0 ? Math.round((answered / total) * 100) : 0;
-
-  // Aggregate group-level DNA: average distribution across all instruments (normalized)
-  const dnaAgg: Record<string, number> = {};
-  for (const name of Object.keys(perInstrumentDNA)) {
-    const bucket = perInstrumentDNA[name];
-    const sum = Object.values(bucket).reduce((a, b) => a + b, 0) || 1;
-    for (const [k, v] of Object.entries(bucket)) {
-      dnaAgg[k] = (dnaAgg[k] ?? 0) + v / sum;
-    }
-  }
-  const dnaData = Object.entries(dnaAgg).map(([name, value]) => ({ name, value: +(value * 100).toFixed(1) }));
+function GroupDashboard({ groupId, members, instruments }: { groupId: string; members: MemberRow[]; instruments: InstrRow[] }) {
+  const listRespFn = useServerFn(listResponses);
+  const personIds = useMemo(() => members.map((m) => m.person_id), [members]);
+  const { data: responses = [], isLoading } = useQuery({
+    queryKey: ["group-responses", groupId, personIds.join(",")],
+    queryFn: () => listRespFn({ data: { person_ids: personIds } }),
+    enabled: personIds.length > 0,
+  });
 
   if (members.length === 0 || instruments.length === 0) {
     return (
@@ -302,6 +275,46 @@ function GroupDashboard({ members, instruments }: { members: MemberRow[]; instru
       </div>
     );
   }
+  if (isLoading) {
+    return <div className="rounded-xl bg-card p-10 text-center text-sm text-muted-foreground ring-1 ring-black/5">Carregando respostas…</div>;
+  }
+
+  const rs = responses as ResponseRow[];
+  const allowedInstrumentIds = new Set(instruments.map((i) => i.instrument_id));
+  const scoped = rs.filter((r) => r.test_versions && allowedInstrumentIds.has(r.test_versions.instrument_id));
+  const submitted = scoped.filter((r) => r.status === "submitted");
+  const total = scoped.length;
+  const answered = submitted.length;
+  const completion = total > 0 ? Math.round((answered / total) * 100) : 0;
+
+  const dnaCounts: Record<string, number> = {};
+  for (const r of submitted) {
+    if (!r.dominant_dimension_id) continue;
+    dnaCounts[r.dominant_dimension_id] = (dnaCounts[r.dominant_dimension_id] ?? 0) + 1;
+  }
+  const dnaSum = Object.values(dnaCounts).reduce((a, b) => a + b, 0) || 1;
+  const dnaData = Object.entries(dnaCounts).map(([id, count]) => ({
+    name: id.slice(0, 6),
+    value: +((count / dnaSum) * 100).toFixed(1),
+  }));
+
+  const perInstrumentDNA: Record<string, Record<string, number>> = {};
+  for (const r of submitted) {
+    const inst = instruments.find((i) => i.instrument_id === r.test_versions?.instrument_id)?.instruments;
+    if (!inst || !r.dominant_dimension_id) continue;
+    const bucket = (perInstrumentDNA[inst.name] ??= {});
+    const key = r.dominant_dimension_id.slice(0, 6);
+    bucket[key] = (bucket[key] ?? 0) + 1;
+  }
+
+  const perPerson = new Map<string, { answered: number; total: number }>();
+  for (const m of members) perPerson.set(m.person_id, { answered: 0, total: 0 });
+  for (const r of scoped) {
+    const p = perPerson.get(r.person_id);
+    if (!p) continue;
+    p.total += 1;
+    if (r.status === "submitted") p.answered += 1;
+  }
 
   return (
     <div className="space-y-6">
@@ -309,7 +322,7 @@ function GroupDashboard({ members, instruments }: { members: MemberRow[]; instru
         <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Respostas</p>
           <p className="mt-1 text-2xl font-medium">{answered} / {total}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{completion}% de conclusão</p>
+          <p className="mt-1 text-xs text-muted-foreground">{total > 0 ? `${completion}% de conclusão` : "Nenhum envio ainda"}</p>
         </div>
         <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Pessoas</p>
@@ -324,10 +337,10 @@ function GroupDashboard({ members, instruments }: { members: MemberRow[]; instru
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
           <h3 className="text-sm font-medium">DNA do grupo</h3>
-          <p className="text-xs text-muted-foreground">Média das características dominantes agregadas por teste.</p>
+          <p className="text-xs text-muted-foreground">Distribuição das dimensões dominantes das respostas concluídas.</p>
           <div className="mt-4 h-72">
             {dnaData.length === 0 ? (
-              <div className="grid h-full place-items-center text-xs text-muted-foreground">Sem respostas ainda.</div>
+              <div className="grid h-full place-items-center text-xs text-muted-foreground">Nenhuma resposta ainda.</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -346,40 +359,42 @@ function GroupDashboard({ members, instruments }: { members: MemberRow[]; instru
 
         <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
           <h3 className="text-sm font-medium">Status por pessoa</h3>
-          <p className="text-xs text-muted-foreground">Testes respondidos e resultado dominante.</p>
+          <p className="text-xs text-muted-foreground">Testes enviados vs. respondidos por pessoa.</p>
           <div className="mt-4 max-h-72 overflow-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="text-muted-foreground">
-                <tr>
-                  <th className="py-2">Pessoa</th>
-                  <th className="py-2">Respondidos</th>
-                  <th className="py-2">Pendentes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/5">
-                {members.map((m) => {
-                  let a = 0;
-                  for (const i of instruments) {
-                    if ((hash(`${m.person_id}:${i.instrument_id}`) % 10) > 3) a++;
-                  }
-                  return (
-                    <tr key={m.person_id}>
-                      <td className="py-2">{m.people?.full_name ?? "—"}</td>
-                      <td className="py-2 text-emerald-600">{a}</td>
-                      <td className="py-2 text-muted-foreground">{instruments.length - a}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            {total === 0 ? (
+              <div className="py-6 text-center text-xs text-muted-foreground">Nenhum envio criado para este grupo ainda.</div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="text-muted-foreground">
+                  <tr>
+                    <th className="py-2">Pessoa</th>
+                    <th className="py-2">Respondidos</th>
+                    <th className="py-2">Pendentes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/5">
+                  {members.map((m) => {
+                    const stat = perPerson.get(m.person_id) ?? { answered: 0, total: 0 };
+                    return (
+                      <tr key={m.person_id}>
+                        <td className="py-2">{m.people?.full_name ?? "—"}</td>
+                        <td className="py-2 text-emerald-600">{stat.answered}</td>
+                        <td className="py-2 text-muted-foreground">{Math.max(0, stat.total - stat.answered)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
-        <h3 className="text-sm font-medium">Distribuição por teste</h3>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Object.entries(perInstrumentDNA).map(([name, bucket]) => {
+      {Object.keys(perInstrumentDNA).length > 0 && (
+        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+          <h3 className="text-sm font-medium">Distribuição por teste</h3>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Object.entries(perInstrumentDNA).map(([name, bucket]) => {
             const sum = Object.values(bucket).reduce((a, b) => a + b, 0) || 1;
             const data = Object.entries(bucket).map(([k, v]) => ({ name: k, value: +((v / sum) * 100).toFixed(1) }));
             return (
@@ -407,9 +422,10 @@ function GroupDashboard({ members, instruments }: { members: MemberRow[]; instru
                 </div>
               </div>
             );
-          })}
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
