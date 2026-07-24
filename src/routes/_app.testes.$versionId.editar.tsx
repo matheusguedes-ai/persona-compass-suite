@@ -360,10 +360,20 @@ function EditorPage() {
                     >
                       <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__total__">Score total</SelectItem>
+                        <SelectItem value="__total__">Geral</SelectItem>
                         {dimensions.map((d) => (
                           <SelectItem key={d.id} value={d.id}>{d.label} ({d.key})</SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={(b as { mode?: string }).mode ?? "natural"}
+                      onValueChange={(v) => upsertB.mutate({ ...b, mode: v as "natural" | "adaptado" })}
+                    >
+                      <SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="natural">Natural</SelectItem>
+                        <SelectItem value="adaptado">Adaptado</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button size="sm" variant="ghost" onClick={() => delB.mutate(b.id)}>
