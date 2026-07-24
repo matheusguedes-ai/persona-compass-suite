@@ -9,6 +9,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -110,9 +111,14 @@ function GroupDetail() {
 
       <Tabs defaultValue="pessoas">
         <TabsList>
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="pessoas">Pessoas ({members.length})</TabsTrigger>
           <TabsTrigger value="testes">Testes liberados ({instruments.length})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard" className="mt-4">
+          <GroupDashboard members={members} instruments={instruments} />
+        </TabsContent>
 
         <TabsContent value="pessoas" className="mt-4 space-y-3">
           <div className="flex justify-end">
