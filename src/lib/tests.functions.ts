@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Json } from "@/integrations/supabase/types";
 
 // ============================================================
 // Types
@@ -271,9 +272,11 @@ export const updateQuestion = createServerFn({ method: "POST" })
     sort_order: z.number().int().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
-    const { id, ...rest } = data;
+    const { id, config, ...rest } = data;
+    const patch: Record<string, unknown> = { ...rest };
+    if (config !== undefined) patch.config = config as Json;
     const { data: row, error } = await context.supabase
-      .from("test_questions").update(rest).eq("id", id).select().single();
+      .from("test_questions").update(patch).eq("id", id).select().single();
     if (error) throw new Error(error.message);
     return row;
   });
