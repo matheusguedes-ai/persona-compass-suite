@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -33,6 +34,34 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  async function signInWithGoogle() {
+    setError(null);
+    setBusy(true);
+    try {
+      const target = safeNext(next);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("auth:next", target);
+      }
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result?.error) {
+        setError(result.error.message ?? "Falha ao entrar com Google.");
+        setBusy(false);
+        return;
+      }
+      if (result?.redirected) return;
+      // Popup flow: session set. Redirect.
+      const saved = sessionStorage.getItem("auth:next") ?? "/";
+      sessionStorage.removeItem("auth:next");
+      if (saved === "/") nav({ to: "/" });
+      else window.location.href = saved;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao entrar com Google.");
+      setBusy(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -53,20 +82,23 @@ function AuthPage() {
       if (target === "/") nav({ to: "/" });
       else redirectAfterAuth();
     } else {
-      const emailRedirectTo = `${window.location.origin}${target}`;
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo },
-      });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
         setBusy(false);
         setError(error.message);
         return;
       }
-      setBusy(false);
-      setError("Conta criada. Verifique seu email para confirmar, depois faça login.");
-      setMode("signin");
+      // Auto-confirm está ativo: a sessão já vem pronta.
+      if (!data.session) {
+        const signIn = await supabase.auth.signInWithPassword({ email, password });
+        if (signIn.error) {
+          setBusy(false);
+          setError(signIn.error.message);
+          return;
+        }
+      }
+      if (target === "/") nav({ to: "/" });
+      else redirectAfterAuth();
     }
   }
 
@@ -93,6 +125,17 @@ function AuthPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {mode === "signin" ? "Entre com suas credenciais." : "Cadastre-se com email e senha."}
             </p>
+          </div>
+          <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithGoogle}>
+            <svg className="mr-2 size-4" viewBox="0 0 24 24" aria-hidden>
+              <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.66 4.1-5.5 4.1-3.31 0-6-2.74-6-6.1s2.69-6.1 6-6.1c1.88 0 3.14.8 3.86 1.48l2.63-2.53C16.85 3.4 14.66 2.4 12 2.4 6.98 2.4 2.9 6.48 2.9 11.5S6.98 20.6 12 20.6c6.93 0 8.9-4.87 8.3-9.5H12z"/>
+            </svg>
+            Continuar com Google
+          </Button>
+          <div className="flex items-center gap-3 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            ou com email
+            <span className="h-px flex-1 bg-border" />
           </div>
           <div className="space-y-2">
             <Label>Email</Label>
