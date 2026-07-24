@@ -227,6 +227,47 @@ function QuestionField({ q, options, value, onChange }: {
       </div>
     );
   }
+  if (q.type === "forced_choice") {
+    const most = value?.most_option_id as string | undefined;
+    const least = value?.least_option_id as string | undefined;
+    return (
+      <div className="space-y-2">
+        <p className="text-[11px] text-muted-foreground">Escolha a que <strong>MAIS</strong> e a que <strong>MENOS</strong> descreve você (não podem ser a mesma).</p>
+        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
+          <span />
+          <span className="w-16 text-center">Mais</span>
+          <span className="w-16 text-center">Menos</span>
+        </div>
+        {options.map((o) => {
+          const isMost = most === o.id;
+          const isLeast = least === o.id;
+          return (
+            <div key={o.id} className={`grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-lg border p-3 text-sm ${isMost ? "border-primary bg-primary/5" : isLeast ? "border-destructive/50 bg-destructive/5" : "border-input"}`}>
+              <span className="flex-1">{o.label}</span>
+              <div className="w-16 text-center">
+                <input
+                  type="radio"
+                  name={`${q.id}-most`}
+                  className="accent-primary"
+                  checked={isMost}
+                  onChange={() => onChange({ most_option_id: o.id, least_option_id: least === o.id ? undefined : least })}
+                />
+              </div>
+              <div className="w-16 text-center">
+                <input
+                  type="radio"
+                  name={`${q.id}-least`}
+                  className="accent-destructive"
+                  checked={isLeast}
+                  onChange={() => onChange({ most_option_id: most === o.id ? undefined : most, least_option_id: o.id })}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   return <Textarea disabled placeholder="Tipo desconhecido" />;
 }
 
