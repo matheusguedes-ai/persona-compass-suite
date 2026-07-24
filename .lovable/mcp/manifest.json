@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "sdk_version": "0.24.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://bmulylpuqhzrowsqtxgp.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "metrica-humana-mcp",
+      "version": "0.1.0",
+      "title": "Métrica Humana"
+    },
+    "tools": [
+      {
+        "name": "whoami",
+        "title": "Identidade do usuário conectado",
+        "description": "Retorna o identificador e email do usuário autenticado que está chamando o servidor MCP. Útil para confirmar que a conexão OAuth está funcionando.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_instruments",
+        "title": "Listar instrumentos de avaliação",
+        "description": "Retorna o catálogo de testes disponíveis na plataforma (DISC, Big Five, MBTI, Temperamentos, VAK, QI, etc.), com categoria e duração estimada.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "category": {
+              "description": "Filtra o catálogo por categoria do instrumento.",
+              "type": "string",
+              "enum": [
+                "comportamental",
+                "psicometrico",
+                "cognitivo"
+              ]
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
