@@ -30,7 +30,7 @@ import type { QuestionType } from "@/lib/tests.functions";
 type UpdQ = { id: string; prompt?: string; helper?: string | null; required?: boolean; type?: QuestionType; config?: Record<string, unknown>; sort_order?: number };
 type UpdO = { id: string; label?: string; value?: string | null; sort_order?: number };
 type UpsDim = { id?: string; version_id: string; key: string; label: string; description?: string | null; color?: string | null; sort_order?: number };
-type UpsBand = { id?: string; version_id: string; dimension_id?: string | null; min_score: number; max_score: number; title: string; description?: string | null; sort_order?: number; mode?: "natural" | "adaptado" };
+type UpsBand = { id?: string; version_id: string; dimension_id?: string | null; min_score: number; max_score: number; title: string; description?: string | null; sort_order?: number; mode?: string };
 
 export const Route = createFileRoute("/_app/testes/$versionId/editar")({
   head: () => ({ meta: [{ title: "Editar teste — Métrica Humana" }] }),
