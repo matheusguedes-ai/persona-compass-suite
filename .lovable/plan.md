@@ -1,95 +1,49 @@
-## Objetivo desta fase
+## Reestruturação do menu lateral
 
-Construir apenas a **interface** (frontend, sem backend/testes reais) da plataforma de gestão de testes psicométricos e comportamentais, inspirada na CIS Assessment da Febracis, em português (Brasil), no estilo "Analytical Workspace" (Geist, cinzas zinc, acento ciano/teal escuro).
+Vou reorganizar o menu lateral (admin/coach) para refletir a nova estrutura solicitada, adicionando as áreas de **Estatísticas**, **Grupos** e **Mentores**, e removendo **Catálogo de Testes**, **Envios** e **Relatórios** da navegação principal.
 
-Nenhum teste real, nenhum envio de email real, nenhum banco de dados ainda. Dados mock em memória para dar vida à navegação.
+### Nova navegação (admin/coach)
 
-## Escopo de telas
+| Item | Rota | Ícone | Descrição |
+|---|---|---|---|
+| Dashboard | `/` | LayoutDashboard | Homepage (mantém o dashboard atual) |
+| Estatísticas | `/estatisticas` | BarChart3 | Gráficos quantitativos/qualitativos das respostas |
+| Grupos | `/grupos` | Users2 (ou FolderKanban) | Campanhas segmentadas (turmas, empresas, setores) |
+| Pessoas | `/pessoas` | Users | Avaliados que responderam (já existe) |
+| Mentores | `/mentores` | GraduationCap | CRUD de coaches/mentores |
+| Configurações | `/configuracoes` | Settings | Preferências + White Label |
 
-Todas com sidebar fixa à esquerda + header sticky + área principal em grid.
+Navegação do perfil **Avaliado** permanece como está (Meus Testes + Perfil).
 
-1. **`/` — Dashboard**
-   - 4 KPIs: Testes enviados, Respondidos, Pendentes, Tempo médio de conclusão
-   - Gráfico de barras (atividade dos últimos 20 dias) + painel "Disparo Rápido" (mock)
-   - Catálogo em destaque (3 cards)
-   - Tabela "Últimos Envios" (avaliado, instrumento, status, data, ação)
+### Rotas a criar (esqueleto de UI mockada)
 
-2. **`/pessoas` — Gestão de Pessoas**
-   - Lista/tabela de avaliados com busca e filtro por papel (Cliente / Aluno / Colaborador)
-   - Botão "Adicionar pessoa" abre modal (nome, email, papel, tags)
-   - Coluna de ações: Ver perfil, Enviar teste
+Todas seguem o mesmo padrão visual "Analytical Workspace" já usado nas outras páginas: cabeçalho da página + card com estado vazio explicativo, para manter a navegação inteira funcional.
 
-3. **`/pessoas/$id` — Perfil do avaliado**
-   - Cabeçalho com avatar, dados, papel
-   - Abas: Visão geral, Testes recebidos, Histórico
-   - Placeholder para relatórios (fase futura)
+1. `src/routes/_app.estatisticas.tsx` — página com placeholders de 4 KPIs + área "Gráficos em breve" (EmptyState). Sem dados ainda.
+2. `src/routes/_app.grupos.tsx` — cabeçalho "Grupos" com botão "Novo grupo" (não funcional) + tabela mock de 2–3 grupos exemplo (nome, tipo — Turma/Empresa/Setor, nº de pessoas, ações) para dar sensação de vida.
+3. `src/routes/_app.mentores.tsx` — cabeçalho "Mentores" com botão "Adicionar mentor" + tabela mock de 2–3 mentores (nome, email, especialidade, ações).
+4. `src/routes/configuracoes.tsx` já **não existe** hoje — vou criar `src/routes/_app.configuracoes.tsx` com abas: **Perfil da conta**, **Marca (White Label)** (logo, cor primária, nome da plataforma — todos placeholders), **Equipe**, **Modelos de email**.
 
-4. **`/testes` — Catálogo de Testes**
-   - Grid de cards por instrumento: DISC, Big Five, MBTI, Temperamentos, Canais de Acesso (VAK), QI
-   - Cada card: categoria (Comportamental / Psicométrico / Cognitivo), duração estimada, descrição, botão "Enviar"
-   - Filtro por categoria
+### Rotas mantidas mas fora do menu
 
-5. **`/envios` — Envios**
-   - Tabela completa com filtros (status, instrumento, data)
-   - Status: Pendente, Em andamento, Concluído, Expirado
-   - Ações: Copiar link, Reenviar email, Cancelar
+`/testes`, `/envios`, `/envios/novo` continuam existindo e acessíveis por links contextuais (por exemplo o botão "Novo envio" no header e os cards do dashboard). Não vou deletar essas rotas — o fluxo de disparo de testes segue funcional, só deixa de ocupar espaço na navegação principal.
 
-6. **`/envios/novo` — Novo envio (drawer/dialog)**
-   - Wizard em passos: 1) escolher avaliado(s), 2) escolher testes, 3) canal (Email + Link / Só link), 4) prazo, 5) revisão
-   - Gera link mockado ao final
+### Arquivos a editar
 
-7. **`/relatorios` — Relatórios** (placeholder da fase futura)
-   - Estado vazio explicativo: "Os relatórios aparecerão aqui quando os testes forem construídos"
+- `src/components/app-sidebar.tsx` — reescrever `ADMIN_NAV` com os 6 itens acima e os ícones novos do lucide-react.
+- `src/lib/mock-data.ts` — adicionar arrays `GROUPS` e `MENTORS` (2–3 registros cada) para popular as novas telas.
 
-8. **`/configuracoes` — Configurações**
-   - Abas: Perfil da conta, Equipe (coaches), Marca (logo, cor), Modelos de email
+### Arquivos a criar
 
-9. **`/auth` — Login / Cadastro** (visual apenas)
-   - Duas colunas: formulário + painel de marca
-   - Papéis: admin, coach, avaliado (seletor visual pré-preenchido para prototipagem)
+- `src/routes/_app.estatisticas.tsx`
+- `src/routes/_app.grupos.tsx`
+- `src/routes/_app.mentores.tsx`
+- `src/routes/_app.configuracoes.tsx`
 
-10. **Perfil "Avaliado" (`/meus-testes`)** — visão simplificada
-    - Lista de testes recebidos com botão "Iniciar" (não funcional ainda)
+Cada nova rota terá seu próprio `head()` com title e description PT-BR únicos.
 
-## Design system
+### Fora do escopo desta iteração
 
-Tokens em `src/styles.css` (sobrescrever oklch atuais):
-- Fonte: **Geist** (via `<link>` no `__root.tsx`)
-- Fundo: zinc-50; Superfícies: white/zinc-100; Bordas: black/5%
-- `--primary`: `#164e63` (brand-primary, teal escuro)
-- `--accent`: `#0d9488` (brand-accent) + `#0891b2` (cyan-600) para destaques
-- Status: emerald (concluído), amber (em andamento/pendente urgente), zinc (pendente), rose (expirado)
-- Radius padrão `0.5rem`; cards `rounded-xl` com `ring-1 ring-black/5`
-- Tipografia: `tracking-tight` em títulos, uppercase `tracking-wider` em rótulos KPI
-
-## Arquitetura técnica
-
-- **TanStack Router** com rotas em `src/routes/` (dot-separated)
-- Layout autenticado em `src/routes/_app.tsx` (pathless) que renderiza sidebar + header + `<Outlet />`. Filhos: `_app.index.tsx` (dashboard em `/`), `_app.pessoas.tsx`, `_app.pessoas.$id.tsx`, `_app.testes.tsx`, `_app.envios.tsx`, `_app.envios.novo.tsx`, `_app.relatorios.tsx`, `_app.configuracoes.tsx`, `_app.meus-testes.tsx`
-- `src/routes/index.tsx` atual será substituído (o dashboard passa a ser o `/`)
-- `src/routes/auth.tsx` fora do layout
-- **Sem `_authenticated/`** — nesta fase não há login real; um "role switcher" no header (Admin / Coach / Avaliado) troca papel via Context React
-- `head()` próprio em cada rota (title + description PT-BR únicos)
-- Componentes shadcn: `sidebar`, `button`, `input`, `table`, `dialog`, `tabs`, `badge`, `card`, `select`, `avatar`, `dropdown-menu`, `sonner`
-- Dados mock em `src/lib/mock-data.ts` (pessoas, testes, envios)
-- Contexto de papel em `src/lib/role-context.tsx`
-
-## Componentes reutilizáveis
-
-- `AppSidebar` (com navegação por papel: avaliado vê só "Meus Testes" e "Perfil")
-- `AppHeader` (busca global mock + botão "Novo Envio" + role switcher + avatar)
-- `KpiCard`, `StatusBadge`, `TestInstrumentCard`, `PersonRow`, `EmptyState`
-
-## Fora do escopo desta fase
-
-- Perguntas/lógica dos testes (DISC, Big Five, etc.)
-- Cálculo e geração de relatórios
-- Envio real de email
-- Autenticação real e banco de dados (Lovable Cloud)
-- Multi-tenant / cobrança
-
-Essas serão as próximas fases depois que você validar a casca.
-
-## Entregável
-
-Fluxo navegável ponta-a-ponta: fazer login (mock) → dashboard → adicionar pessoa → abrir catálogo → disparar teste (wizard) → ver envio na lista → alternar para o perfil "Avaliado" e ver testes recebidos.
+- Lógica real de criação/edição de grupos e mentores (só UI + mocks).
+- Gráficos reais em Estatísticas (placeholder por enquanto).
+- Aplicação real do White Label (só formulário visual).
