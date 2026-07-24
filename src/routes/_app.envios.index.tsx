@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Copy, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/envios")({
+export const Route = createFileRoute("/_app/envios/")({
   head: () => ({
     meta: [
       { title: "Envios — Métrica Humana" },

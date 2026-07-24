@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listPeople, createPerson } from "@/lib/data.functions";
 
-export const Route = createFileRoute("/_app/pessoas")({
+export const Route = createFileRoute("/_app/pessoas/")({
   head: () => ({
     meta: [
       { title: "Pessoas — Métrica Humana" },

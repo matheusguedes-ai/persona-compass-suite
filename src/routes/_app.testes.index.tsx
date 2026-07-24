@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Pencil, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/testes")({
+export const Route = createFileRoute("/_app/testes/")({
   head: () => ({
     meta: [
       { title: "Testes — Métrica Humana" },
