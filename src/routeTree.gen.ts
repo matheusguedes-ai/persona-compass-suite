@@ -13,6 +13,7 @@ import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
@@ -28,6 +29,8 @@ import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
 import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
+import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
@@ -47,6 +50,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const ResponderResponseIdRoute = ResponderResponseIdRouteImport.update({
+  id: '/responder/$responseId',
+  path: '/responder/$responseId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppTestesRoute = AppTestesRouteImport.update({
   id: '/testes',
@@ -126,6 +134,17 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicResponseIdRoute = ApiPublicResponseIdRouteImport.update({
+  id: '/api/public/response/$id',
+  path: '/api/public/response/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppTestesVersionIdEditarRoute =
+  AppTestesVersionIdEditarRouteImport.update({
+    id: '/$versionId/editar',
+    path: '/$versionId/editar',
+    getParentRoute: () => AppTestesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -139,13 +158,16 @@ export interface FileRoutesByFullPath {
   '/grupos': typeof AppGruposRouteWithChildren
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
-  '/testes': typeof AppTestesRoute
+  '/testes': typeof AppTestesRouteWithChildren
+  '/responder/$responseId': typeof ResponderResponseIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/grupos/': typeof AppGruposIndexRoute
+  '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -157,7 +179,8 @@ export interface FileRoutesByTo {
   '/estatisticas': typeof AppEstatisticasRoute
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
-  '/testes': typeof AppTestesRoute
+  '/testes': typeof AppTestesRouteWithChildren
+  '/responder/$responseId': typeof ResponderResponseIdRoute
   '/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -165,6 +188,8 @@ export interface FileRoutesByTo {
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/grupos': typeof AppGruposIndexRoute
+  '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,7 +204,8 @@ export interface FileRoutesById {
   '/_app/grupos': typeof AppGruposRouteWithChildren
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
-  '/_app/testes': typeof AppTestesRoute
+  '/_app/testes': typeof AppTestesRouteWithChildren
+  '/responder/$responseId': typeof ResponderResponseIdRoute
   '/_app/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -187,6 +213,8 @@ export interface FileRoutesById {
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
   '/_app/grupos/': typeof AppGruposIndexRoute
+  '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -203,12 +231,15 @@ export interface FileRouteTypes {
     | '/mentores'
     | '/pessoas'
     | '/testes'
+    | '/responder/$responseId'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/grupos/'
+    | '/testes/$versionId/editar'
+    | '/api/public/response/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -221,6 +252,7 @@ export interface FileRouteTypes {
     | '/mentores'
     | '/pessoas'
     | '/testes'
+    | '/responder/$responseId'
     | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -228,6 +260,8 @@ export interface FileRouteTypes {
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/grupos'
+    | '/testes/$versionId/editar'
+    | '/api/public/response/$id'
   id:
     | '__root__'
     | '/_app'
@@ -242,6 +276,7 @@ export interface FileRouteTypes {
     | '/_app/mentores'
     | '/_app/pessoas'
     | '/_app/testes'
+    | '/responder/$responseId'
     | '/_app/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -249,6 +284,8 @@ export interface FileRouteTypes {
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
     | '/_app/grupos/'
+    | '/_app/testes/$versionId/editar'
+    | '/api/public/response/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -257,8 +294,10 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ResponderResponseIdRoute: typeof ResponderResponseIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicResponseIdRoute: typeof ApiPublicResponseIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -290,6 +329,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/responder/$responseId': {
+      id: '/responder/$responseId'
+      path: '/responder/$responseId'
+      fullPath: '/responder/$responseId'
+      preLoaderRoute: typeof ResponderResponseIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/testes': {
       id: '/_app/testes'
@@ -396,6 +442,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/response/$id': {
+      id: '/api/public/response/$id'
+      path: '/api/public/response/$id'
+      fullPath: '/api/public/response/$id'
+      preLoaderRoute: typeof ApiPublicResponseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/testes/$versionId/editar': {
+      id: '/_app/testes/$versionId/editar'
+      path: '/$versionId/editar'
+      fullPath: '/testes/$versionId/editar'
+      preLoaderRoute: typeof AppTestesVersionIdEditarRouteImport
+      parentRoute: typeof AppTestesRoute
+    }
   }
 }
 
@@ -437,6 +497,18 @@ const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
   AppPessoasRouteChildren,
 )
 
+interface AppTestesRouteChildren {
+  AppTestesVersionIdEditarRoute: typeof AppTestesVersionIdEditarRoute
+}
+
+const AppTestesRouteChildren: AppTestesRouteChildren = {
+  AppTestesVersionIdEditarRoute: AppTestesVersionIdEditarRoute,
+}
+
+const AppTestesRouteWithChildren = AppTestesRoute._addFileChildren(
+  AppTestesRouteChildren,
+)
+
 interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppEnviosRoute: typeof AppEnviosRouteWithChildren
@@ -444,7 +516,7 @@ interface AppRouteChildren {
   AppGruposRoute: typeof AppGruposRouteWithChildren
   AppMentoresRoute: typeof AppMentoresRoute
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
-  AppTestesRoute: typeof AppTestesRoute
+  AppTestesRoute: typeof AppTestesRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -455,7 +527,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppGruposRoute: AppGruposRouteWithChildren,
   AppMentoresRoute: AppMentoresRoute,
   AppPessoasRoute: AppPessoasRouteWithChildren,
-  AppTestesRoute: AppTestesRoute,
+  AppTestesRoute: AppTestesRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
 }
 
@@ -468,8 +540,10 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ResponderResponseIdRoute: ResponderResponseIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicResponseIdRoute: ApiPublicResponseIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

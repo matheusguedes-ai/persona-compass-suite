@@ -19,16 +19,19 @@ export type Database = {
           added_at: string
           group_id: string
           instrument_id: string
+          version_id: string | null
         }
         Insert: {
           added_at?: string
           group_id: string
           instrument_id: string
+          version_id?: string | null
         }
         Update: {
           added_at?: string
           group_id?: string
           instrument_id?: string
+          version_id?: string | null
         }
         Relationships: [
           {
@@ -43,6 +46,13 @@ export type Database = {
             columns: ["instrument_id"]
             isOneToOne: false
             referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_instruments_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "test_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -146,6 +156,42 @@ export type Database = {
         }
         Relationships: []
       }
+      option_scores: {
+        Row: {
+          dimension_id: string
+          id: string
+          option_id: string
+          points: number
+        }
+        Insert: {
+          dimension_id: string
+          id?: string
+          option_id: string
+          points?: number
+        }
+        Update: {
+          dimension_id?: string
+          id?: string
+          option_id?: string
+          points?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "option_scores_dimension_id_fkey"
+            columns: ["dimension_id"]
+            isOneToOne: false
+            referencedRelation: "test_dimensions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "option_scores_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "test_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       people: {
         Row: {
           created_at: string
@@ -188,15 +234,365 @@ export type Database = {
         }
         Relationships: []
       }
+      test_answers: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json
+          question_id: string
+          response_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          question_id: string
+          response_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          question_id?: string
+          response_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "test_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "test_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_dimensions: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          label: string
+          sort_order: number
+          version_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          label: string
+          sort_order?: number
+          version_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          label?: string
+          sort_order?: number
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_dimensions_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "test_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_options: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          question_id: string
+          sort_order: number
+          value: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string
+          question_id: string
+          sort_order?: number
+          value?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          question_id?: string
+          sort_order?: number
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_options_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "test_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_questions: {
+        Row: {
+          config: Json
+          created_at: string
+          helper: string | null
+          id: string
+          prompt: string
+          required: boolean
+          sort_order: number
+          type: Database["public"]["Enums"]["question_type"]
+          version_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          helper?: string | null
+          id?: string
+          prompt?: string
+          required?: boolean
+          sort_order?: number
+          type: Database["public"]["Enums"]["question_type"]
+          version_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          helper?: string | null
+          id?: string
+          prompt?: string
+          required?: boolean
+          sort_order?: number
+          type?: Database["public"]["Enums"]["question_type"]
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_questions_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "test_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_responses: {
+        Row: {
+          computed_scores: Json | null
+          created_at: string
+          dominant_dimension_id: string | null
+          group_id: string | null
+          id: string
+          mentor_id: string
+          person_id: string
+          result_band_id: string | null
+          started_at: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          version_id: string
+        }
+        Insert: {
+          computed_scores?: Json | null
+          created_at?: string
+          dominant_dimension_id?: string | null
+          group_id?: string | null
+          id?: string
+          mentor_id: string
+          person_id: string
+          result_band_id?: string | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          version_id: string
+        }
+        Update: {
+          computed_scores?: Json | null
+          created_at?: string
+          dominant_dimension_id?: string | null
+          group_id?: string | null
+          id?: string
+          mentor_id?: string
+          person_id?: string
+          result_band_id?: string | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_responses_dominant_dimension_id_fkey"
+            columns: ["dominant_dimension_id"]
+            isOneToOne: false
+            referencedRelation: "test_dimensions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_responses_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_responses_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_responses_result_band_id_fkey"
+            columns: ["result_band_id"]
+            isOneToOne: false
+            referencedRelation: "test_result_bands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_responses_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "test_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_result_bands: {
+        Row: {
+          created_at: string
+          description: string | null
+          dimension_id: string | null
+          id: string
+          max_score: number
+          min_score: number
+          sort_order: number
+          title: string
+          version_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          dimension_id?: string | null
+          id?: string
+          max_score?: number
+          min_score?: number
+          sort_order?: number
+          title: string
+          version_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          dimension_id?: string | null
+          id?: string
+          max_score?: number
+          min_score?: number
+          sort_order?: number
+          title?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_result_bands_dimension_id_fkey"
+            columns: ["dimension_id"]
+            isOneToOne: false
+            referencedRelation: "test_dimensions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_result_bands_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "test_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_versions: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          instrument_id: string
+          is_published: boolean
+          is_template: boolean
+          mentor_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          instrument_id: string
+          is_published?: boolean
+          is_template?: boolean
+          mentor_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          instrument_id?: string
+          is_published?: boolean
+          is_template?: boolean
+          mentor_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_versions_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      option_version_id: { Args: { _option_id: string }; Returns: string }
+      owns_test_version: { Args: { _version_id: string }; Returns: boolean }
+      question_version_id: { Args: { _question_id: string }; Returns: string }
+      response_mentor_id: { Args: { _response_id: string }; Returns: string }
+      test_version_is_template: {
+        Args: { _version_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      question_type:
+        | "multiple_choice"
+        | "checkboxes"
+        | "linear_scale"
+        | "ranking"
+        | "drag_order"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -323,6 +719,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      question_type: [
+        "multiple_choice",
+        "checkboxes",
+        "linear_scale",
+        "ranking",
+        "drag_order",
+      ],
+    },
   },
 } as const
