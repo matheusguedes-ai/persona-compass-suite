@@ -14,7 +14,180 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      group_instruments: {
+        Row: {
+          added_at: string
+          group_id: string
+          instrument_id: string
+        }
+        Insert: {
+          added_at?: string
+          group_id: string
+          instrument_id: string
+        }
+        Update: {
+          added_at?: string
+          group_id?: string
+          instrument_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_instruments_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_instruments_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_members: {
+        Row: {
+          added_at: string
+          group_id: string
+          person_id: string
+        }
+        Insert: {
+          added_at?: string
+          group_id: string
+          person_id: string
+        }
+        Update: {
+          added_at?: string
+          group_id?: string
+          person_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          mentor_id: string
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          mentor_id: string
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          mentor_id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      instruments: {
+        Row: {
+          accent: string | null
+          category: string
+          created_at: string
+          description: string | null
+          duration_min: number
+          id: string
+          name: string
+          short_name: string
+          updated_at: string
+        }
+        Insert: {
+          accent?: string | null
+          category: string
+          created_at?: string
+          description?: string | null
+          duration_min?: number
+          id: string
+          name: string
+          short_name: string
+          updated_at?: string
+        }
+        Update: {
+          accent?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          duration_min?: number
+          id?: string
+          name?: string
+          short_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      people: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          mentor_id: string
+          notes: string | null
+          phone: string | null
+          profession: string | null
+          role: string
+          role_at_company: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          mentor_id: string
+          notes?: string | null
+          phone?: string | null
+          profession?: string | null
+          role?: string
+          role_at_company?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          mentor_id?: string
+          notes?: string | null
+          phone?: string | null
+          profession?: string | null
+          role?: string
+          role_at_company?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
