@@ -1,0 +1,2 @@
+GRANT EXECUTE ON FUNCTION public.owns_test_version(uuid), public.test_version_is_template(uuid), public.question_version_id(uuid), public.option_version_id(uuid), public.response_mentor_id(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.owns_test_version(uuid), public.test_version_is_template(uuid), public.question_version_id(uuid), public.option_version_id(uuid), public.response_mentor_id(uuid) FROM anon, PUBLIC;
