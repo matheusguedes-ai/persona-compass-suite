@@ -273,8 +273,7 @@ export const updateQuestion = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { id, config, ...rest } = data;
-    const patch: Record<string, unknown> = { ...rest };
-    if (config !== undefined) patch.config = config as Json;
+    const patch = { ...rest, ...(config !== undefined ? { config: config as Json } : {}) };
     const { data: row, error } = await context.supabase
       .from("test_questions").update(patch).eq("id", id).select().single();
     if (error) throw new Error(error.message);
