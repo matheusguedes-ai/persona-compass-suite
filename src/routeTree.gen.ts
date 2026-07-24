@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 
@@ -21,6 +22,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTestesRoute = AppTestesRouteImport.update({
+  id: '/testes',
+  path: '/testes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPessoasRoute = AppPessoasRouteImport.update({
@@ -37,10 +43,12 @@ const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
+  '/testes': typeof AppTestesRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesByTo {
   '/pessoas': typeof AppPessoasRouteWithChildren
+  '/testes': typeof AppTestesRoute
   '/': typeof AppIndexRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
 }
@@ -48,15 +56,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
+  '/_app/testes': typeof AppTestesRoute
   '/_app/': typeof AppIndexRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pessoas' | '/pessoas/$id'
+  fullPaths: '/' | '/pessoas' | '/testes' | '/pessoas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/pessoas' | '/' | '/pessoas/$id'
-  id: '__root__' | '/_app' | '/_app/pessoas' | '/_app/' | '/_app/pessoas/$id'
+  to: '/pessoas' | '/testes' | '/' | '/pessoas/$id'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/_app/pessoas'
+    | '/_app/testes'
+    | '/_app/'
+    | '/_app/pessoas/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +92,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/testes': {
+      id: '/_app/testes'
+      path: '/testes'
+      fullPath: '/testes'
+      preLoaderRoute: typeof AppTestesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/pessoas': {
@@ -110,11 +132,13 @@ const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
+  AppTestesRoute: typeof AppTestesRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppPessoasRoute: AppPessoasRouteWithChildren,
+  AppTestesRoute: AppTestesRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
