@@ -43,6 +43,9 @@ export const getTestVersion = createServerFn({ method: "GET" })
     ]);
     if (vErr) throw new Error(vErr.message);
     if (!version) throw new Error("Versão não encontrada");
+    if (dims.error) throw new Error(dims.error.message);
+    if (questions.error) throw new Error(questions.error.message);
+    if (bands.error) throw new Error(bands.error.message);
 
     const questionIds = (questions.data ?? []).map((q) => q.id);
     const [options, scores] = await Promise.all([
@@ -60,6 +63,8 @@ export const getTestVersion = createServerFn({ method: "GET" })
             .in("test_options.question_id", questionIds)
         : Promise.resolve({ data: [] as never[], error: null }),
     ]);
+    if (options.error) throw new Error(options.error.message);
+    if (scores.error) throw new Error(scores.error.message);
 
     return {
       version,
@@ -86,6 +91,34 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
     if (tErr) throw new Error(tErr.message);
     if (!tpl) throw new Error("Template não encontrado");
 
+    // Pre-fetch all source rows first; abort before inserting anything on any error.
+    const [dimsRes, qsRes, bandsRes] = await Promise.all([
+      supabase.from("test_dimensions").select("*").eq("version_id", tpl.id),
+      supabase.from("test_questions").select("*").eq("version_id", tpl.id),
+      supabase.from("test_result_bands").select("*").eq("version_id", tpl.id),
+    ]);
+    if (dimsRes.error) throw new Error(dimsRes.error.message);
+    if (qsRes.error) throw new Error(qsRes.error.message);
+    if (bandsRes.error) throw new Error(bandsRes.error.message);
+    const dims = dimsRes.data ?? [];
+    const qs = qsRes.data ?? [];
+    const bands = bandsRes.data ?? [];
+
+    let opts: Array<{ id: string; question_id: string; label: string; value: string | null; sort_order: number }> = [];
+    let srcScores: Array<{ option_id: string; dimension_id: string; points: number }> = [];
+    if (qs.length > 0) {
+      const optsRes = await supabase
+        .from("test_options").select("*").in("question_id", qs.map((q) => q.id));
+      if (optsRes.error) throw new Error(optsRes.error.message);
+      opts = optsRes.data ?? [];
+      if (opts.length > 0) {
+        const scoresRes = await supabase
+          .from("option_scores").select("*").in("option_id", opts.map((o) => o.id));
+        if (scoresRes.error) throw new Error(scoresRes.error.message);
+        srcScores = scoresRes.data ?? [];
+      }
+    }
+
     const { data: newV, error: nErr } = await supabase
       .from("test_versions")
       .insert({
@@ -99,10 +132,8 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
       .select().single();
     if (nErr) throw new Error(nErr.message);
 
-    // Dimensions
-    const { data: dims } = await supabase.from("test_dimensions").select("*").eq("version_id", tpl.id);
     const dimMap = new Map<string, string>();
-    if (dims && dims.length > 0) {
+    if (dims.length > 0) {
       const { data: newDims, error } = await supabase
         .from("test_dimensions")
         .insert(dims.map((d) => ({
@@ -114,10 +145,8 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
       dims.forEach((d, i) => dimMap.set(d.id, newDims![i].id));
     }
 
-    // Questions
-    const { data: qs } = await supabase.from("test_questions").select("*").eq("version_id", tpl.id);
     const qMap = new Map<string, string>();
-    if (qs && qs.length > 0) {
+    if (qs.length > 0) {
       const { data: newQs, error } = await supabase
         .from("test_questions")
         .insert(qs.map((q) => ({
@@ -128,11 +157,8 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       qs.forEach((q, i) => qMap.set(q.id, newQs![i].id));
 
-      // Options
-      const { data: opts } = await supabase
-        .from("test_options").select("*").in("question_id", qs.map((q) => q.id));
       const optMap = new Map<string, string>();
-      if (opts && opts.length > 0) {
+      if (opts.length > 0) {
         const { data: newOpts, error: oErr } = await supabase
           .from("test_options")
           .insert(opts.map((o) => ({
@@ -143,12 +169,9 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
         if (oErr) throw new Error(oErr.message);
         opts.forEach((o, i) => optMap.set(o.id, newOpts![i].id));
 
-        // Scores
-        const { data: scores } = await supabase
-          .from("option_scores").select("*").in("option_id", opts.map((o) => o.id));
-        if (scores && scores.length > 0) {
+        if (srcScores.length > 0) {
           const { error: sErr } = await supabase.from("option_scores").insert(
-            scores.map((s) => ({
+            srcScores.map((s) => ({
               option_id: optMap.get(s.option_id)!,
               dimension_id: dimMap.get(s.dimension_id)!,
               points: s.points,
@@ -159,9 +182,7 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
       }
     }
 
-    // Bands
-    const { data: bands } = await supabase.from("test_result_bands").select("*").eq("version_id", tpl.id);
-    if (bands && bands.length > 0) {
+    if (bands.length > 0) {
       const { error } = await supabase.from("test_result_bands").insert(
         bands.map((b) => ({
           version_id: newV.id,
@@ -296,11 +317,14 @@ export const reorderQuestions = createServerFn({ method: "POST" })
     ordered_ids: z.array(z.string().uuid()),
   }).parse(d))
   .handler(async ({ data, context }) => {
-    await Promise.all(
+    const results = await Promise.all(
       data.ordered_ids.map((id, i) =>
         context.supabase.from("test_questions").update({ sort_order: i + 1 }).eq("id", id),
       ),
     );
+    for (const r of results) {
+      if (r.error) throw new Error(r.error.message);
+    }
     return { ok: true };
   });
 
@@ -424,6 +448,7 @@ export const listResponses = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({
     group_id: z.string().uuid().optional(),
     person_id: z.string().uuid().optional(),
+    person_ids: z.array(z.string().uuid()).optional(),
   }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
     let q = context.supabase
@@ -432,6 +457,7 @@ export const listResponses = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (data.group_id) q = q.eq("group_id", data.group_id);
     if (data.person_id) q = q.eq("person_id", data.person_id);
+    if (data.person_ids && data.person_ids.length > 0) q = q.in("person_id", data.person_ids);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows ?? [];
