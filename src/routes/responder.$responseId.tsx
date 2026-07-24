@@ -273,6 +273,9 @@ function QuestionField({ q, options, value, onChange }: {
 
 function ResultView({ result }: { result: Result }) {
   const entries = useMemo(() => Object.entries(result.totals).sort(([, a], [, b]) => b - a), [result.totals]);
+  const perDim = result.per_dimension_bands ?? [];
+  const naturalBands = perDim.filter((p) => p.mode === "natural");
+  const adaptadoBands = perDim.filter((p) => p.mode === "adaptado");
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-6">
       <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 text-center">
@@ -287,6 +290,12 @@ function ResultView({ result }: { result: Result }) {
           <h2 className="text-lg font-semibold">{result.band.title}</h2>
           {result.band.description && <p className="mt-2 text-sm text-muted-foreground">{result.band.description}</p>}
         </div>
+      )}
+      {naturalBands.length > 0 && (
+        <PerDimSection title="Perfil natural" items={naturalBands} />
+      )}
+      {adaptadoBands.length > 0 && (
+        <PerDimSection title="Perfil adaptado" items={adaptadoBands} />
       )}
       <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Pontuação por dimensão</h3>
@@ -305,6 +314,35 @@ function ResultView({ result }: { result: Result }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function PerDimSection({ title, items }: { title: string; items: PerDimBand[] }) {
+  return (
+    <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <div className="mt-3 space-y-3">
+        {items.map((d) => (
+          <div key={`${d.dimension_id}-${d.mode}`} className="rounded-lg border border-input p-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-2">
+                <span className="inline-block size-2 rounded-full" style={{ background: d.color ?? "var(--muted-foreground)" }} />
+                <span className="font-medium">{d.label}</span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {d.points} pts{d.normalized != null ? ` · ${Math.round(d.normalized)}/100` : ""}
+              </span>
+            </div>
+            {d.band && (
+              <div className="mt-2">
+                <p className="text-sm font-semibold">{d.band.title}</p>
+                {d.band.description && <p className="mt-1 text-xs text-muted-foreground">{d.band.description}</p>}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
