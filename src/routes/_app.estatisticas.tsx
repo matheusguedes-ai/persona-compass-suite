@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { KpiCard } from "@/components/kpi-card";
-import { BarChart3, PieChart, TrendingUp, Users } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/estatisticas")({
   head: () => ({
@@ -25,10 +25,10 @@ function EstatisticasPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Testes respondidos" value="—" icon={BarChart3} hint="Aguardando dados" />
-        <KpiCard label="Perfil DISC dominante" value="—" icon={PieChart} hint="Aguardando dados" />
-        <KpiCard label="Taxa de conclusão" value="—" icon={TrendingUp} hint="Aguardando dados" />
-        <KpiCard label="Avaliados ativos" value="—" icon={Users} hint="Aguardando dados" />
+        <KpiCard label="Testes respondidos" value="—" hint="Aguardando dados" />
+        <KpiCard label="Perfil DISC dominante" value="—" hint="Aguardando dados" />
+        <KpiCard label="Taxa de conclusão" value="—" hint="Aguardando dados" />
+        <KpiCard label="Avaliados ativos" value="—" hint="Aguardando dados" />
       </div>
 
       <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
