@@ -190,6 +190,7 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
           dimension_id: b.dimension_id ? dimMap.get(b.dimension_id) : null,
           min_score: b.min_score, max_score: b.max_score,
           title: b.title, description: b.description, sort_order: b.sort_order,
+          mode: b.mode,
         })),
       );
       if (error) throw new Error(error.message);
