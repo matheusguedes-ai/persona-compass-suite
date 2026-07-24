@@ -23,6 +23,7 @@ import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoe
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
+import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
 import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -98,6 +99,11 @@ const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppPessoasRoute,
 } as any)
+const AppGruposIdRoute = AppGruposIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppGruposRoute,
+} as any)
 const AppEnviosNovoRoute = AppEnviosNovoRouteImport.update({
   id: '/novo',
   path: '/novo',
@@ -124,13 +130,14 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/envios': typeof AppEnviosRouteWithChildren
   '/estatisticas': typeof AppEstatisticasRoute
-  '/grupos': typeof AppGruposRoute
+  '/grupos': typeof AppGruposRouteWithChildren
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/envios/novo': typeof AppEnviosNovoRoute
+  '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesByTo {
@@ -141,7 +148,7 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/envios': typeof AppEnviosRouteWithChildren
   '/estatisticas': typeof AppEstatisticasRoute
-  '/grupos': typeof AppGruposRoute
+  '/grupos': typeof AppGruposRouteWithChildren
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRoute
@@ -149,6 +156,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/envios/novo': typeof AppEnviosNovoRoute
+  '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRoutesById {
@@ -161,7 +169,7 @@ export interface FileRoutesById {
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/envios': typeof AppEnviosRouteWithChildren
   '/_app/estatisticas': typeof AppEstatisticasRoute
-  '/_app/grupos': typeof AppGruposRoute
+  '/_app/grupos': typeof AppGruposRouteWithChildren
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRoute
@@ -169,6 +177,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_app/envios/novo': typeof AppEnviosNovoRoute
+  '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
 }
 export interface FileRouteTypes {
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/envios/novo'
+    | '/grupos/$id'
     | '/pessoas/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/envios/novo'
+    | '/grupos/$id'
     | '/pessoas/$id'
   id:
     | '__root__'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_app/envios/novo'
+    | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
   fileRoutesById: FileRoutesById
 }
@@ -339,6 +351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPessoasIdRouteImport
       parentRoute: typeof AppPessoasRoute
     }
+    '/_app/grupos/$id': {
+      id: '/_app/grupos/$id'
+      path: '/$id'
+      fullPath: '/grupos/$id'
+      preLoaderRoute: typeof AppGruposIdRouteImport
+      parentRoute: typeof AppGruposRoute
+    }
     '/_app/envios/novo': {
       id: '/_app/envios/novo'
       path: '/novo'
@@ -375,6 +394,18 @@ const AppEnviosRouteWithChildren = AppEnviosRoute._addFileChildren(
   AppEnviosRouteChildren,
 )
 
+interface AppGruposRouteChildren {
+  AppGruposIdRoute: typeof AppGruposIdRoute
+}
+
+const AppGruposRouteChildren: AppGruposRouteChildren = {
+  AppGruposIdRoute: AppGruposIdRoute,
+}
+
+const AppGruposRouteWithChildren = AppGruposRoute._addFileChildren(
+  AppGruposRouteChildren,
+)
+
 interface AppPessoasRouteChildren {
   AppPessoasIdRoute: typeof AppPessoasIdRoute
 }
@@ -391,7 +422,7 @@ interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppEnviosRoute: typeof AppEnviosRouteWithChildren
   AppEstatisticasRoute: typeof AppEstatisticasRoute
-  AppGruposRoute: typeof AppGruposRoute
+  AppGruposRoute: typeof AppGruposRouteWithChildren
   AppMentoresRoute: typeof AppMentoresRoute
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
   AppTestesRoute: typeof AppTestesRoute
@@ -402,7 +433,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppEnviosRoute: AppEnviosRouteWithChildren,
   AppEstatisticasRoute: AppEstatisticasRoute,
-  AppGruposRoute: AppGruposRoute,
+  AppGruposRoute: AppGruposRouteWithChildren,
   AppMentoresRoute: AppMentoresRoute,
   AppPessoasRoute: AppPessoasRouteWithChildren,
   AppTestesRoute: AppTestesRoute,
