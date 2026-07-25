@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -113,7 +113,7 @@ function ResponderPage() {
     return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Esta resposta já foi enviada. Obrigado!</div>;
   }
   if (!payload) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Carregando…</div>;
-  if (result) return <ResultView result={result} />;
+  if (result) return <ResultView result={result} responseId={responseId} />;
 
   const v = payload.response.test_versions;
   return (
@@ -271,7 +271,7 @@ function QuestionField({ q, options, value, onChange }: {
   return <Textarea disabled placeholder="Tipo desconhecido" />;
 }
 
-function ResultView({ result }: { result: Result }) {
+function ResultView({ result, responseId }: { result: Result; responseId: string }) {
   const entries = useMemo(() => Object.entries(result.totals).sort(([, a], [, b]) => b - a), [result.totals]);
   const perDim = result.per_dimension_bands ?? [];
   const naturalBands = perDim.filter((p) => p.mode === "natural");
@@ -283,6 +283,11 @@ function ResultView({ result }: { result: Result }) {
         <h1 className="mt-2 text-2xl font-semibold">Respostas enviadas!</h1>
         {result.dominant && (
           <p className="mt-2 text-sm text-muted-foreground">Perfil dominante: <strong style={{ color: result.dominant.color ?? undefined }}>{result.dominant.label}</strong></p>
+        )}
+        {result.normalized && (
+          <Button asChild className="mt-4">
+            <Link to="/relatorio/$responseId" params={{ responseId }}>Ver relatório completo</Link>
+          </Button>
         )}
       </div>
       {result.band && (

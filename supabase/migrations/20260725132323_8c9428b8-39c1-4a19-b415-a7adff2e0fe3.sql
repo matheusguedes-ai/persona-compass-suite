@@ -1,0 +1,1 @@
+ALTER TABLE public.test_responses ADD COLUMN IF NOT EXISTS started_at timestamptz NULL;

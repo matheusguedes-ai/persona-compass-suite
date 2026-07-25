@@ -19,6 +19,11 @@ async function loadResponsePayload(id: string) {
   if (response.submitted_at) {
     return { submitted: true as const };
   }
+  await supabase
+    .from("test_responses")
+    .update({ started_at: new Date().toISOString(), status: "in_progress" })
+    .eq("id", id)
+    .is("started_at", null);
   const versionId = response.version_id;
   const { data: questions } = await supabase
     .from("test_questions")

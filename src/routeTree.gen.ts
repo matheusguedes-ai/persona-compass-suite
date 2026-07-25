@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
+import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$responseId'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
@@ -33,6 +34,7 @@ import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
+import { Route as ApiPublicReportIdRouteImport } from './routes/api.public.report.$id'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 
 const McpRoute = McpRouteImport.update({
@@ -57,6 +59,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const ResponderResponseIdRoute = ResponderResponseIdRouteImport.update({
   id: '/responder/$responseId',
   path: '/responder/$responseId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelatorioResponseIdRoute = RelatorioResponseIdRouteImport.update({
+  id: '/relatorio/$responseId',
+  path: '/relatorio/$responseId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppTestesRoute = AppTestesRouteImport.update({
@@ -157,6 +164,11 @@ const ApiPublicResponseIdRoute = ApiPublicResponseIdRouteImport.update({
   path: '/api/public/response/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicReportIdRoute = ApiPublicReportIdRouteImport.update({
+  id: '/api/public/report/$id',
+  path: '/api/public/report/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppTestesVersionIdEditarRoute =
   AppTestesVersionIdEditarRouteImport.update({
     id: '/$versionId/editar',
@@ -177,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
+  '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -188,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/pessoas/': typeof AppPessoasIndexRoute
   '/testes/': typeof AppTestesIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
 export interface FileRoutesByTo {
@@ -198,6 +212,7 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/estatisticas': typeof AppEstatisticasRoute
   '/mentores': typeof AppMentoresRoute
+  '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -210,6 +225,7 @@ export interface FileRoutesByTo {
   '/pessoas': typeof AppPessoasIndexRoute
   '/testes': typeof AppTestesIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
 export interface FileRoutesById {
@@ -226,6 +242,7 @@ export interface FileRoutesById {
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
+  '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/_app/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -238,6 +255,7 @@ export interface FileRoutesById {
   '/_app/pessoas/': typeof AppPessoasIndexRoute
   '/_app/testes/': typeof AppTestesIndexRoute
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
 export interface FileRouteTypes {
@@ -255,6 +273,7 @@ export interface FileRouteTypes {
     | '/mentores'
     | '/pessoas'
     | '/testes'
+    | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -266,6 +285,7 @@ export interface FileRouteTypes {
     | '/pessoas/'
     | '/testes/'
     | '/testes/$versionId/editar'
+    | '/api/public/report/$id'
     | '/api/public/response/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -276,6 +296,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/estatisticas'
     | '/mentores'
+    | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/'
     | '/.lovable/oauth/consent'
@@ -288,6 +309,7 @@ export interface FileRouteTypes {
     | '/pessoas'
     | '/testes'
     | '/testes/$versionId/editar'
+    | '/api/public/report/$id'
     | '/api/public/response/$id'
   id:
     | '__root__'
@@ -303,6 +325,7 @@ export interface FileRouteTypes {
     | '/_app/mentores'
     | '/_app/pessoas'
     | '/_app/testes'
+    | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/_app/'
     | '/.lovable/oauth/consent'
@@ -315,6 +338,7 @@ export interface FileRouteTypes {
     | '/_app/pessoas/'
     | '/_app/testes/'
     | '/_app/testes/$versionId/editar'
+    | '/api/public/report/$id'
     | '/api/public/response/$id'
   fileRoutesById: FileRoutesById
 }
@@ -324,9 +348,11 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  RelatorioResponseIdRoute: typeof RelatorioResponseIdRoute
   ResponderResponseIdRoute: typeof ResponderResponseIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicReportIdRoute: typeof ApiPublicReportIdRoute
   ApiPublicResponseIdRoute: typeof ApiPublicResponseIdRoute
 }
 
@@ -365,6 +391,13 @@ declare module '@tanstack/react-router' {
       path: '/responder/$responseId'
       fullPath: '/responder/$responseId'
       preLoaderRoute: typeof ResponderResponseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relatorio/$responseId': {
+      id: '/relatorio/$responseId'
+      path: '/relatorio/$responseId'
+      fullPath: '/relatorio/$responseId'
+      preLoaderRoute: typeof RelatorioResponseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/testes': {
@@ -500,6 +533,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicResponseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/report/$id': {
+      id: '/api/public/report/$id'
+      path: '/api/public/report/$id'
+      fullPath: '/api/public/report/$id'
+      preLoaderRoute: typeof ApiPublicReportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/testes/$versionId/editar': {
       id: '/_app/testes/$versionId/editar'
       path: '/$versionId/editar'
@@ -597,9 +637,11 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  RelatorioResponseIdRoute: RelatorioResponseIdRoute,
   ResponderResponseIdRoute: ResponderResponseIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicReportIdRoute: ApiPublicReportIdRoute,
   ApiPublicResponseIdRoute: ApiPublicResponseIdRoute,
 }
 export const routeTree = rootRouteImport

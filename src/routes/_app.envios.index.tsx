@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listResponses } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
-import { Copy, Plus } from "lucide-react";
+import { Copy, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/envios/")({
@@ -74,6 +74,13 @@ function EnviosPage() {
                 <td className="px-6 py-4 text-muted-foreground">{STATUS_LABEL[r.status] ?? r.status}</td>
                 <td className="px-6 py-4 text-muted-foreground">{new Date(r.created_at).toLocaleDateString("pt-BR")}</td>
                 <td className="px-6 py-4 text-right">
+                  {r.status === "submitted" && (
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to="/relatorio/$responseId" params={{ responseId: r.id }}>
+                        <FileText className="size-3" /> Relatório
+                      </Link>
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" onClick={() => copyLink(r.id)}>
                     <Copy className="size-3" /> Link
                   </Button>
