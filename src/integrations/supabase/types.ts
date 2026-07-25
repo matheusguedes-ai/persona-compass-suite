@@ -644,6 +644,7 @@ export type Database = {
       test_versions: {
         Row: {
           created_at: string
+          derived_config: Json | null
           description: string | null
           id: string
           instrument_id: string
@@ -655,6 +656,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          derived_config?: Json | null
           description?: string | null
           id?: string
           instrument_id: string
@@ -666,6 +668,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          derived_config?: Json | null
           description?: string | null
           id?: string
           instrument_id?: string
