@@ -474,6 +474,7 @@ export const listResponses = createServerFn({ method: "GET" })
       .from("test_responses")
       .select("*, people(id, full_name, email), test_versions(id, title, instrument_id)")
       .eq("kind", "self")
+      .is("assessment_response_id", null)
       .order("created_at", { ascending: false });
     if (data.group_id) q = q.eq("group_id", data.group_id);
     if (data.person_id) q = q.eq("person_id", data.person_id);
@@ -536,4 +537,96 @@ export const createObserverInvite = createServerFn({ method: "POST" })
     }).select("id").single();
     if (insErr) throw new Error(insErr.message);
     return { id: row.id };
+  });
+// ============================================================
+// Bateria unificada (assessment_responses)
+// ============================================================
+export const startAssessment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    person_id: z.string().uuid(),
+    version_ids: z.array(z.string().uuid()).min(1).max(10),
+    group_id: z.string().uuid().optional().nullable(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const versionIds = Array.from(new Set(data.version_ids));
+
+    const [personRes, versionsRes] = await Promise.all([
+      supabase.from("people").select("id, mentor_id").eq("id", data.person_id).maybeSingle(),
+      supabase.from("test_versions").select("id, mentor_id, is_template").in("id", versionIds),
+    ]);
+    if (personRes.error) throw new Error(personRes.error.message);
+    if (versionsRes.error) throw new Error(versionsRes.error.message);
+    if (!personRes.data || personRes.data.mentor_id !== userId) {
+      throw new Error("Pessoa não encontrada ou não pertence a você.");
+    }
+    const byId = new Map((versionsRes.data ?? []).map((v) => [v.id, v]));
+    for (const vid of versionIds) {
+      const v = byId.get(vid);
+      if (!v || (!v.is_template && v.mentor_id !== userId)) {
+        throw new Error("Versão de teste não encontrada ou não pertence a você.");
+      }
+    }
+
+    const { data: assessment, error: aErr } = await supabase.from("assessment_responses").insert({
+      mentor_id: userId,
+      person_id: data.person_id,
+      group_id: data.group_id ?? null,
+      status: "pending",
+    }).select("id").single();
+    if (aErr) throw new Error(aErr.message);
+
+    const { error: rErr } = await supabase.from("test_responses").insert(
+      data.version_ids.map((version_id, idx) => ({
+        version_id,
+        person_id: data.person_id,
+        group_id: data.group_id ?? null,
+        mentor_id: userId,
+        status: "pending",
+        kind: "self",
+        assessment_response_id: assessment.id,
+        assessment_sort: idx,
+      })),
+    );
+    if (rErr) {
+      await supabase.from("assessment_responses").delete().eq("id", assessment.id);
+      throw new Error(rErr.message);
+    }
+    return { id: assessment.id };
+  });
+
+export const listAssessments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ person_id: z.string().uuid().optional() }).parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("assessment_responses")
+      .select("*, people(id, full_name, email)")
+      .order("created_at", { ascending: false });
+    if (data.person_id) q = q.eq("person_id", data.person_id);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const list = rows ?? [];
+    if (list.length === 0) return [];
+    const { data: parts, error: pErr } = await context.supabase
+      .from("test_responses")
+      .select("id, assessment_response_id, assessment_sort, submitted_at, test_versions(id, title, instrument_id)")
+      .in("assessment_response_id", list.map((a) => a.id))
+      .order("assessment_sort");
+    if (pErr) throw new Error(pErr.message);
+    return list.map((a) => {
+      const mine = (parts ?? []).filter((p) => p.assessment_response_id === a.id);
+      return {
+        ...a,
+        total: mine.length,
+        done: mine.filter((p) => p.submitted_at).length,
+        parts: mine.map((p) => ({
+          response_id: p.id,
+          title: p.test_versions?.title ?? "Teste",
+          instrument_id: p.test_versions?.instrument_id ?? null,
+          submitted: !!p.submitted_at,
+        })),
+      };
+    });
   });
