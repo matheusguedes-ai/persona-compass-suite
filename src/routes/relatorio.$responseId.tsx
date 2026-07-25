@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 
@@ -33,7 +35,8 @@ type Report = {
   test_description: string | null;
   submitted_at: string;
   duration: string | null;
-  profile: string;
+  is_disc?: boolean;
+  profile: string | null;
   profile_labels: string[];
   factors: Factor[];
   sections: Array<{ section: string; title: string | null; body: string }>;
@@ -88,6 +91,15 @@ const PLANO_ACAO: string[] = [
   "Qual ponto a desenvolver traria maior impacto se você trabalhasse nele nos próximos 90 dias?",
   "Que apoio (pessoas, rotinas, ferramentas) você precisa para sustentar essa mudança?",
   "Como você vai medir o seu progresso e em que data pretende revisitar este plano?",
+];
+
+const PLANO_ACAO_GENERICO: string[] = [
+  "Quais dimensões deste relatório descrevem bem o que você observa em si mesmo?",
+  "Alguma intensidade apresentada aqui te surpreendeu? O que pode explicar isso?",
+  "Qual dimensão mais alta você quer usar de forma mais consciente nos próximos meses?",
+  "Qual dimensão mais baixa merece atenção e por quê?",
+  "Que apoio (pessoas, rotinas, ferramentas) você precisa para avançar?",
+  "Como você vai acompanhar o progresso e quando pretende revisitar este plano?",
 ];
 
 function RelatorioPage() {
