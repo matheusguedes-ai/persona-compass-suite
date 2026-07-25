@@ -334,7 +334,7 @@ function RelatorioPage() {
       )}
 
       {/* Seções do composto */}
-      {data.sections.map((s) => (
+      {isDisc && data.sections.map((s) => (
         <section key={s.section} className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
           <h2 className="text-lg font-semibold">{s.title ?? SECTION_TITLES[s.section] ?? s.section}</h2>
           <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
@@ -344,7 +344,7 @@ function RelatorioPage() {
       ))}
 
       {/* Blocos por fator */}
-      {FACTOR_THEMES.map((theme) => {
+      {isDisc && FACTOR_THEMES.map((theme) => {
         const f = byKey.get(theme.key);
         if (!f) return null;
         return (
@@ -376,7 +376,7 @@ function RelatorioPage() {
       })}
 
       {/* Régua de descritores */}
-      {data.factors.some((f) => f.descritores.length > 0) && (
+      {isDisc && data.factors.some((f) => f.descritores.length > 0) && (
         <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
           <h2 className="text-lg font-semibold">Régua de descritores</h2>
           <p className="mt-1 text-sm text-muted-foreground">A faixa destacada corresponde à sua intensidade natural em cada fator.</p>
@@ -408,8 +408,9 @@ function RelatorioPage() {
       )}
 
       {/* Comunicação */}
-      {data.derived && <DerivedSections d={data.derived} />}
+      {isDisc && data.derived && <DerivedSections d={data.derived} />}
 
+      {isDisc && (
       <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
         <h2 className="text-lg font-semibold">Sugestões de comunicação</h2>
         <p className="mt-1 text-sm text-muted-foreground">Ajustes simples que aumentam a chance de ser compreendido por cada estilo.</p>
@@ -422,20 +423,10 @@ function RelatorioPage() {
           ))}
         </div>
       </section>
+      )}
 
       {/* Plano de ação */}
-      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
-        <h2 className="text-lg font-semibold">Plano de ação</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Responda com calma, de preferência por escrito, e revisite as respostas com seu mentor.</p>
-        <ol className="mt-4 space-y-4">
-          {PLANO_ACAO.map((q, i) => (
-            <li key={i}>
-              <p className="text-sm font-medium">{i + 1}. {q}</p>
-              <div className="mt-2 h-12 rounded-md border border-dashed border-input" />
-            </li>
-          ))}
-        </ol>
-      </section>
+      <ActionPlanSection responseId={responseId} questions={isDisc ? PLANO_ACAO : PLANO_ACAO_GENERICO} />
 
       <footer className="report-section px-2 pb-8 text-xs leading-relaxed text-muted-foreground">
         Este relatório é uma ferramenta de autoconhecimento e desenvolvimento. Ele descreve tendências de comportamento
