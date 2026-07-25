@@ -1,0 +1,1 @@
+ALTER TABLE public.test_versions ADD COLUMN IF NOT EXISTS derived_config jsonb NULL;
