@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { computeDerived, type DerivedConfig, type FactorMap } from "@/lib/derivations";
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -27,7 +28,7 @@ async function buildReport(id: string) {
   const supabase = await getAdmin();
   const { data: response } = await supabase
     .from("test_responses")
-    .select("id, submitted_at, started_at, computed_scores, version_id, people(full_name), test_versions(title, description)")
+    .select("id, submitted_at, started_at, computed_scores, version_id, people(full_name), test_versions(title, description, derived_config)")
     .eq("id", id)
     .maybeSingle();
 
@@ -141,6 +142,7 @@ async function buildReport(id: string) {
       profile_labels: profileDims.map((d) => d.label),
       factors,
       sections,
+      derived,
     },
   };
 }
