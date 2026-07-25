@@ -294,6 +294,56 @@ export type Database = {
         }
         Relationships: []
       }
+      report_content: {
+        Row: {
+          band_max: number | null
+          band_min: number | null
+          body: string
+          created_at: string
+          dimension_key: string
+          id: string
+          mode: string
+          section: string
+          sort_order: number
+          title: string | null
+          version_id: string | null
+        }
+        Insert: {
+          band_max?: number | null
+          band_min?: number | null
+          body: string
+          created_at?: string
+          dimension_key: string
+          id?: string
+          mode?: string
+          section: string
+          sort_order?: number
+          title?: string | null
+          version_id?: string | null
+        }
+        Update: {
+          band_max?: number | null
+          band_min?: number | null
+          body?: string
+          created_at?: string
+          dimension_key?: string
+          id?: string
+          mode?: string
+          section?: string
+          sort_order?: number
+          title?: string | null
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_content_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "test_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_answers: {
         Row: {
           created_at: string
