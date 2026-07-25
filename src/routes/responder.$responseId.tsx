@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -15,6 +16,8 @@ type Question = { id: string; type: string; prompt: string; required: boolean; c
 type Option = { id: string; question_id: string; label: string };
 type Payload = {
   submitted: false;
+  kind: "self" | "observer";
+  subject_name: string | null;
   response: { id: string; submitted_at: string | null; test_versions: { title: string; description: string | null } | null; people: { full_name: string } | null };
   questions: Question[];
   options: Option[];
@@ -38,6 +41,8 @@ function ResponderPage() {
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [answers, setAnswers] = useState<Record<string, Record<string, unknown>>>({});
   const [result, setResult] = useState<Result | null>(null);
+  const [observerDone, setObserverDone] = useState(false);
+  const [raterName, setRaterName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,6 +78,11 @@ function ResponderPage() {
 
   const submit = async () => {
     if (!payload) return;
+    const isObserver = payload.kind === "observer";
+    if (isObserver && raterName.trim().length === 0) {
+      toast.error("Informe o seu nome antes de enviar.");
+      return;
+    }
     // Pre-validate required questions with a clear per-question message.
     for (let i = 0; i < payload.questions.length; i++) {
       const q = payload.questions[i];
@@ -94,12 +104,16 @@ function ResponderPage() {
     }
     setSubmitting(true);
     try {
-      const body = { answers: Object.entries(answers).map(([question_id, payload]) => ({ question_id, payload })) };
+      const body = {
+        ...(isObserver ? { rater_name: raterName.trim() } : {}),
+        answers: Object.entries(answers).map(([question_id, payload]) => ({ question_id, payload })),
+      };
       const res = await fetch(`/api/public/response/${responseId}`, {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { toast.error(json.error ?? "Erro ao enviar"); return; }
+      if (json.observer) { setObserverDone(true); return; }
       setResult(json.result);
     } catch {
       toast.error("Falha de conexão. Tente novamente.");
@@ -109,6 +123,14 @@ function ResponderPage() {
   };
 
   if (error) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">{error}</div>;
+  if (observerDone) {
+    return (
+      <div className="mx-auto max-w-2xl p-10 text-center">
+        <CheckCircle2 className="mx-auto size-10 text-emerald-500" />
+        <p className="mt-3 text-lg font-medium">Obrigado! Sua percepção foi registrada.</p>
+      </div>
+    );
+  }
   if (alreadySubmitted && !result) {
     return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Esta resposta já foi enviada. Obrigado!</div>;
   }
@@ -116,13 +138,28 @@ function ResponderPage() {
   if (result) return <ResultView result={result} responseId={responseId} />;
 
   const v = payload.response.test_versions;
+  const isObserver = payload.kind === "observer";
+  const subject = payload.subject_name ?? "a pessoa avaliada";
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-6">
       <header className="rounded-xl bg-card p-6 ring-1 ring-black/5">
         <h1 className="text-2xl font-semibold tracking-tight">{v?.title}</h1>
         {v?.description && <p className="mt-2 text-sm text-muted-foreground">{v.description}</p>}
-        {payload.response.people && <p className="mt-3 text-xs text-muted-foreground">Respondendo como: <strong>{payload.response.people.full_name}</strong></p>}
+        {!isObserver && payload.response.people && <p className="mt-3 text-xs text-muted-foreground">Respondendo como: <strong>{payload.response.people.full_name}</strong></p>}
       </header>
+
+      {isObserver && (
+        <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-5">
+          <p className="text-sm">
+            Você foi convidado(a) a descrever como percebe <strong>{subject}</strong>. Responda pensando no
+            comportamento OBSERVADO, não no seu.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="rater-name" className="text-sm font-medium">Seu nome <span className="text-destructive">*</span></Label>
+            <Input id="rater-name" value={raterName} onChange={(e) => setRaterName(e.target.value)} placeholder="Como você se chama?" />
+          </div>
+        </div>
+      )}
 
       {payload.questions.map((q, i) => {
         const opts = payload.options.filter((o) => o.question_id === q.id);
@@ -132,7 +169,7 @@ function ResponderPage() {
               {i + 1}. {q.prompt} {q.required && <span className="text-destructive">*</span>}
             </Label>
             <div className="mt-3">
-              <QuestionField q={q} options={opts} value={answers[q.id]} onChange={(v) => setAns(q.id, v)} />
+              <QuestionField q={q} options={opts} value={answers[q.id]} onChange={(v) => setAns(q.id, v)} subjectLabel={isObserver ? subject : null} />
             </div>
           </div>
         );
@@ -145,10 +182,11 @@ function ResponderPage() {
   );
 }
 
-function QuestionField({ q, options, value, onChange }: {
+function QuestionField({ q, options, value, onChange, subjectLabel }: {
   q: Question; options: Option[];
   value: Record<string, unknown> | undefined;
   onChange: (v: Record<string, unknown>) => void;
+  subjectLabel?: string | null;
 }) {
   if (q.type === "multiple_choice") {
     const sel = value?.option_id as string | undefined;
@@ -232,7 +270,10 @@ function QuestionField({ q, options, value, onChange }: {
     const least = value?.least_option_id as string | undefined;
     return (
       <div className="space-y-2">
-        <p className="text-[11px] text-muted-foreground">Escolha a que <strong>MAIS</strong> e a que <strong>MENOS</strong> descreve você (não podem ser a mesma).</p>
+        <p className="text-[11px] text-muted-foreground">
+          Escolha a frase que <strong>MAIS</strong> e a que <strong>MENOS</strong> descreve{" "}
+          {subjectLabel ? <strong>{subjectLabel}</strong> : "você"} (não podem ser a mesma).
+        </p>
         <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 text-xs text-muted-foreground">
           <span />
           <span className="w-16 text-center">Mais</span>
