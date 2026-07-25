@@ -154,6 +154,42 @@ async function buildReport(id: string) {
     },
   };
 
+  // --- Fase 3a: percepção externa (observadores 360°) ---
+  const { data: observerRows } = await supabase
+    .from("test_responses")
+    .select("id, rater_name, computed_scores")
+    .eq("parent_response_id", id)
+    .eq("kind", "observer")
+    .not("submitted_at", "is", null);
+
+  let external: { count: number; respondents: string[]; scores: Record<string, number> } | null = null;
+  const obsList = observerRows ?? [];
+  if (obsList.length > 0) {
+    const sums: Record<string, number> = {};
+    const counts: Record<string, number> = {};
+    for (const o of obsList) {
+      const norm = ((o.computed_scores ?? {}) as { normalized?: NormMap }).normalized;
+      if (!norm) continue;
+      for (const d of dimList) {
+        const v = norm[d.id]?.natural;
+        if (typeof v !== "number") continue;
+        sums[d.key] = (sums[d.key] ?? 0) + v;
+        counts[d.key] = (counts[d.key] ?? 0) + 1;
+      }
+    }
+    const scores: Record<string, number> = {};
+    for (const key of Object.keys(sums)) {
+      scores[key] = Math.round((sums[key] / (counts[key] || 1)) * 10) / 10;
+    }
+    if (Object.keys(scores).length > 0) {
+      external = {
+        count: obsList.length,
+        respondents: obsList.map((o) => o.rater_name).filter((n): n is string => !!n),
+        scores,
+      };
+    }
+  }
+
   return {
     status: 200 as const,
     data: {
@@ -167,6 +203,7 @@ async function buildReport(id: string) {
       factors,
       sections,
       derived,
+      external,
     },
   };
 }
