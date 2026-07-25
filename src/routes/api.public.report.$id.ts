@@ -62,6 +62,10 @@ async function buildReport(id: string) {
     adaptado_norm: normalized[d.id]?.adaptado ?? 0,
   }));
 
+  // DISC quando o conjunto de keys das dimensões é exatamente {D,I,S,C}.
+  const keySet = new Set(dimList.map((d) => d.key.trim().toUpperCase()));
+  const isDisc = keySet.size === 4 && ["D", "I", "S", "C"].every((k) => keySet.has(k));
+
   // Composite profile from natural normalized scores.
   const ranked = [...dimList].sort((a, b) => b.natural_norm - a.natural_norm);
   const above = ranked.filter((d) => d.natural_norm >= 50).slice(0, 2);
@@ -90,7 +94,7 @@ async function buildReport(id: string) {
     "pontos_desenvolver",
   ] as const;
 
-  const sections = COMPOSITE_SECTIONS.map((section) => {
+  const sections = !isDisc ? [] : COMPOSITE_SECTIONS.map((section) => {
     const block = pick(section, profile) ?? pick(section, profile.slice(0, 1));
     return block ? { section, title: block.title, body: block.body } : { section, title: null, body: null };
   }).filter((s) => s.body != null);
@@ -138,21 +142,22 @@ async function buildReport(id: string) {
     adaptadoByKey[d.key] = d.adaptado_norm;
   }
   const derivedConfig = (response.test_versions?.derived_config ?? null) as DerivedConfig | null;
-  const core = computeDerived(naturalByKey, adaptadoByKey, derivedConfig);
-
-  const leadershipContent = rows
-    .filter((r) => r.section === "lideranca" && r.dimension_key === core.dominant.key)
-    .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));
-  const leadershipSpecific = leadershipContent.filter((r) => r.version_id === versionId);
-  const leadershipRows = leadershipSpecific.length > 0 ? leadershipSpecific : leadershipContent;
-
-  const derived = {
-    ...core,
-    leadership_content: {
-      strengths: leadershipRows[0] ? { title: leadershipRows[0].title, body: leadershipRows[0].body } : null,
-      attention: leadershipRows[1] ? { title: leadershipRows[1].title, body: leadershipRows[1].body } : null,
-    },
-  };
+  let derived: Record<string, unknown> | null = null;
+  if (isDisc) {
+    const core = computeDerived(naturalByKey, adaptadoByKey, derivedConfig);
+    const leadershipContent = rows
+      .filter((r) => r.section === "lideranca" && r.dimension_key === core.dominant.key)
+      .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));
+    const leadershipSpecific = leadershipContent.filter((r) => r.version_id === versionId);
+    const leadershipRows = leadershipSpecific.length > 0 ? leadershipSpecific : leadershipContent;
+    derived = {
+      ...core,
+      leadership_content: {
+        strengths: leadershipRows[0] ? { title: leadershipRows[0].title, body: leadershipRows[0].body } : null,
+        attention: leadershipRows[1] ? { title: leadershipRows[1].title, body: leadershipRows[1].body } : null,
+      },
+    };
+  }
 
   // --- Fase 3a: percepção externa (observadores 360°) ---
   const { data: observerRows } = await supabase
@@ -198,8 +203,9 @@ async function buildReport(id: string) {
       test_description: response.test_versions?.description ?? null,
       submitted_at: response.submitted_at,
       duration: formatDuration(response.started_at, response.submitted_at),
-      profile,
-      profile_labels: profileDims.map((d) => d.label),
+      is_disc: isDisc,
+      profile: isDisc ? profile : null,
+      profile_labels: isDisc ? profileDims.map((d) => d.label) : [],
       factors,
       sections,
       derived,

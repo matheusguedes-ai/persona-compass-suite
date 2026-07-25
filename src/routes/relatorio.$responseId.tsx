@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 
@@ -33,7 +35,8 @@ type Report = {
   test_description: string | null;
   submitted_at: string;
   duration: string | null;
-  profile: string;
+  is_disc?: boolean;
+  profile: string | null;
   profile_labels: string[];
   factors: Factor[];
   sections: Array<{ section: string; title: string | null; body: string }>;
@@ -90,6 +93,15 @@ const PLANO_ACAO: string[] = [
   "Como você vai medir o seu progresso e em que data pretende revisitar este plano?",
 ];
 
+const PLANO_ACAO_GENERICO: string[] = [
+  "Quais dimensões deste relatório descrevem bem o que você observa em si mesmo?",
+  "Alguma intensidade apresentada aqui te surpreendeu? O que pode explicar isso?",
+  "Qual dimensão mais alta você quer usar de forma mais consciente nos próximos meses?",
+  "Qual dimensão mais baixa merece atenção e por quê?",
+  "Que apoio (pessoas, rotinas, ferramentas) você precisa para avançar?",
+  "Como você vai acompanhar o progresso e quando pretende revisitar este plano?",
+];
+
 function RelatorioPage() {
   const { responseId } = Route.useParams();
   const [data, setData] = useState<Report | null>(null);
@@ -109,6 +121,8 @@ function RelatorioPage() {
   if (!data) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Carregando relatório…</div>;
 
   const byKey = new Map(data.factors.map((f) => [f.key, f]));
+  const isDisc = data.is_disc !== false;
+  const rankedFactors = [...data.factors].sort((a, b) => b.natural_norm - a.natural_norm);
 
   return (
     <div className="report-root mx-auto max-w-3xl space-y-6 p-6 print:max-w-none print:p-0">
@@ -136,12 +150,13 @@ function RelatorioPage() {
           )}
           <div>
             <dt className="text-xs uppercase text-muted-foreground">Perfil</dt>
-            <dd className="font-medium">{data.profile}</dd>
+            <dd className="font-medium">{data.profile ?? rankedFactors[0]?.label ?? "—"}</dd>
           </div>
         </dl>
       </section>
 
       {/* Introdução metodológica */}
+      {isDisc ? (
       <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
         <h2 className="text-lg font-semibold">Como ler este relatório</h2>
         <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
@@ -164,8 +179,25 @@ function RelatorioPage() {
           </p>
         </div>
       </section>
+      ) : (
+      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+        <h2 className="text-lg font-semibold">Como ler este relatório</h2>
+        <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            Este relatório apresenta a intensidade de cada dimensão avaliada, em uma escala comparável de 0 a 100.
+            Quanto maior o valor, maior o peso daquela dimensão nas suas respostas.
+          </p>
+          <p>
+            Não há dimensões certas ou erradas: o conjunto descreve ênfases e prioridades no momento em que você
+            respondeu. Leia primeiro as dimensões mais altas, depois observe as mais baixas — elas costumam explicar
+            escolhas e desconfortos com a mesma clareza.
+          </p>
+        </div>
+      </section>
+      )}
 
       {/* Gráficos */}
+      {isDisc ? (
       <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-semibold">Natural × Adaptado</h2>
@@ -199,6 +231,52 @@ function RelatorioPage() {
           </p>
         )}
       </section>
+      ) : (
+      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+        <h2 className="text-lg font-semibold">Intensidade por dimensão</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Dimensões ordenadas da maior para a menor intensidade.</p>
+        <div className="mt-5 space-y-4">
+          {rankedFactors.map((f) => (
+            <div key={f.id}>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">{f.label} <span className="text-xs text-muted-foreground">({f.key})</span></span>
+                {data.external?.scores[f.key] != null && (
+                  <span className="text-xs text-muted-foreground">externo {Math.round(data.external.scores[f.key])}</span>
+                )}
+              </div>
+              <Bar value={f.natural_norm} color={f.color} label="Resultado" />
+              {data.external?.scores[f.key] != null && (
+                <Bar value={data.external.scores[f.key]} color="#8b5cf6" label="Externo" />
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+      )}
+
+      {!isDisc && rankedFactors.some((f) => f.band_natural) && (
+        <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+          <h2 className="text-lg font-semibold">Leitura de cada dimensão</h2>
+          <div className="mt-5 space-y-4">
+            {rankedFactors.map((f) => (
+              <div key={f.id} className="rounded-lg border border-input p-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm font-semibold">
+                    <span className="mr-2 inline-block size-2 rounded-full align-middle" style={{ background: f.color ?? "var(--muted-foreground)" }} />
+                    {f.label}
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {Math.round(f.natural_norm)} · {f.band_natural?.title ?? "sem faixa definida"}
+                  </span>
+                </div>
+                {f.band_natural?.description && (
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.band_natural.description}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {data.external && (
         <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
@@ -256,7 +334,7 @@ function RelatorioPage() {
       )}
 
       {/* Seções do composto */}
-      {data.sections.map((s) => (
+      {isDisc && data.sections.map((s) => (
         <section key={s.section} className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
           <h2 className="text-lg font-semibold">{s.title ?? SECTION_TITLES[s.section] ?? s.section}</h2>
           <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
@@ -266,7 +344,7 @@ function RelatorioPage() {
       ))}
 
       {/* Blocos por fator */}
-      {FACTOR_THEMES.map((theme) => {
+      {isDisc && FACTOR_THEMES.map((theme) => {
         const f = byKey.get(theme.key);
         if (!f) return null;
         return (
@@ -298,7 +376,7 @@ function RelatorioPage() {
       })}
 
       {/* Régua de descritores */}
-      {data.factors.some((f) => f.descritores.length > 0) && (
+      {isDisc && data.factors.some((f) => f.descritores.length > 0) && (
         <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
           <h2 className="text-lg font-semibold">Régua de descritores</h2>
           <p className="mt-1 text-sm text-muted-foreground">A faixa destacada corresponde à sua intensidade natural em cada fator.</p>
@@ -330,8 +408,9 @@ function RelatorioPage() {
       )}
 
       {/* Comunicação */}
-      {data.derived && <DerivedSections d={data.derived} />}
+      {isDisc && data.derived && <DerivedSections d={data.derived} />}
 
+      {isDisc && (
       <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
         <h2 className="text-lg font-semibold">Sugestões de comunicação</h2>
         <p className="mt-1 text-sm text-muted-foreground">Ajustes simples que aumentam a chance de ser compreendido por cada estilo.</p>
@@ -344,20 +423,10 @@ function RelatorioPage() {
           ))}
         </div>
       </section>
+      )}
 
       {/* Plano de ação */}
-      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
-        <h2 className="text-lg font-semibold">Plano de ação</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Responda com calma, de preferência por escrito, e revisite as respostas com seu mentor.</p>
-        <ol className="mt-4 space-y-4">
-          {PLANO_ACAO.map((q, i) => (
-            <li key={i}>
-              <p className="text-sm font-medium">{i + 1}. {q}</p>
-              <div className="mt-2 h-12 rounded-md border border-dashed border-input" />
-            </li>
-          ))}
-        </ol>
-      </section>
+      <ActionPlanSection responseId={responseId} questions={isDisc ? PLANO_ACAO : PLANO_ACAO_GENERICO} />
 
       <footer className="report-section px-2 pb-8 text-xs leading-relaxed text-muted-foreground">
         Este relatório é uma ferramenta de autoconhecimento e desenvolvimento. Ele descreve tendências de comportamento
@@ -381,6 +450,92 @@ function Bar({ value, color, label, faded }: { value: number; color: string | nu
       </div>
       <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums">{Math.round(pct)}</span>
     </div>
+  );
+}
+
+function ActionPlanSection({ responseId, questions }: { responseId: string; questions: string[] }) {
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/public/action-plan/${responseId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j) return;
+        setAnswers((j.answers ?? {}) as Record<string, string>);
+        setUpdatedAt(j.updated_at ?? null);
+      })
+      .catch(() => undefined);
+  }, [responseId]);
+
+  const save = useCallback(
+    async (payload: Record<string, string>, silent = false) => {
+      setSaving(true);
+      try {
+        const res = await fetch(`/api/public/action-plan/${responseId}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ answers: payload }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (!silent) toast.error(j.error ?? "Não foi possível salvar o plano.");
+          return;
+        }
+        setUpdatedAt(j.updated_at ?? new Date().toISOString());
+        if (!silent) toast.success("Plano salvo.");
+      } catch {
+        if (!silent) toast.error("Falha de conexão ao salvar o plano.");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [responseId],
+  );
+
+  return (
+    <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold">Plano de ação</h2>
+        {updatedAt && (
+          <span className="text-xs text-muted-foreground">
+            salvo em {new Date(updatedAt).toLocaleString("pt-BR")}
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Responda com calma, salve suas anotações e revisite-as com seu mentor.
+      </p>
+      <ol className="mt-4 space-y-4">
+        {questions.map((q, i) => {
+          const key = `q${i + 1}`;
+          const value = answers[key] ?? "";
+          return (
+            <li key={key}>
+              <p className="text-sm font-medium">{i + 1}. {q}</p>
+              <Textarea
+                className="mt-2 print:hidden"
+                rows={3}
+                maxLength={2000}
+                value={value}
+                onChange={(e) => setAnswers((prev) => ({ ...prev, [key]: e.target.value }))}
+                onBlur={() => void save({ ...answers, [key]: value }, true)}
+                placeholder="Escreva aqui…"
+              />
+              <div className="mt-2 hidden min-h-12 whitespace-pre-line rounded-md border border-dashed border-input p-3 text-sm leading-relaxed print:block">
+                {value}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="mt-5 print:hidden">
+        <Button onClick={() => void save(answers)} disabled={saving}>
+          {saving ? "Salvando…" : "Salvar plano"}
+        </Button>
+      </div>
+    </section>
   );
 }
 
