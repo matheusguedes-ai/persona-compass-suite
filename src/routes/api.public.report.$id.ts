@@ -133,6 +133,7 @@ async function buildReport(id: string) {
   return {
     status: 200 as const,
     data: {
+      // placeholder removed
       person_name: response.people?.full_name ?? null,
       test_title: response.test_versions?.title ?? null,
       test_description: response.test_versions?.description ?? null,
