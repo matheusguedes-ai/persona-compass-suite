@@ -347,6 +347,21 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   }).eq("id", id).select().single();
   if (error) throw new Error(error.message);
 
+  // Se a resposta faz parte de uma bateria, fecha a bateria quando for a última etapa.
+  const assessmentId = (response as { assessment_response_id?: string | null }).assessment_response_id ?? null;
+  if (assessmentId) {
+    const { data: siblings } = await supabase
+      .from("test_responses")
+      .select("id, submitted_at")
+      .eq("assessment_response_id", assessmentId);
+    const pending = (siblings ?? []).filter((s) => !s.submitted_at && s.id !== id);
+    await supabase.from("assessment_responses").update(
+      pending.length === 0
+        ? { status: "submitted", submitted_at: new Date().toISOString() }
+        : { status: "in_progress" },
+    ).eq("id", assessmentId);
+  }
+
   // Build friendly result summary
   const dominantDim = dominantDimId != null ? dimById.get(dominantDimId) : undefined;
   const band = bandId ? (bands ?? []).find((b) => b.id === bandId) : undefined;
@@ -380,6 +395,7 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
 
   return {
     response: updated,
+    assessment_response_id: assessmentId,
     kind: (updated as { kind?: string }).kind ?? "self",
     result: {
       totals,
