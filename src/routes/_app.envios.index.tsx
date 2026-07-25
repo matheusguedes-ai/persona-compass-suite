@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listResponses, createObserverInvite } from "@/lib/tests.functions";
+import { listResponses, listAssessments, createObserverInvite } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
 import { Copy, FileText, Plus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -35,16 +35,32 @@ const STATUS_LABEL: Record<string, string> = {
   expired: "Expirado",
 };
 
+type AssessmentRow = {
+  id: string;
+  status: string;
+  created_at: string;
+  total: number;
+  done: number;
+  people: { id: string; full_name: string; email: string } | null;
+  parts: { response_id: string; title: string; instrument_id: string | null; submitted: boolean }[];
+};
+
 function EnviosPage() {
   const listFn = useServerFn(listResponses);
+  const listAssessmentsFn = useServerFn(listAssessments);
   const inviteFn = useServerFn(createObserverInvite);
   const { data = [], isLoading, refetch } = useQuery({
     queryKey: ["responses"],
     queryFn: () => listFn({ data: {} }) as Promise<ResponseRow[]>,
   });
 
-  const copyLink = (id: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/responder/${id}`);
+  const { data: batteries = [] } = useQuery({
+    queryKey: ["assessments"],
+    queryFn: () => listAssessmentsFn({ data: {} }) as Promise<AssessmentRow[]>,
+  });
+
+  const copyLink = (id: string, kind: "responder" | "bateria" = "responder") => {
+    navigator.clipboard.writeText(`${window.location.origin}/${kind}/${id}`);
     toast.success("Link copiado");
   };
 
@@ -65,7 +81,7 @@ function EnviosPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Envios</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{data.length} disparos registrados.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{data.length + batteries.length} disparos registrados.</p>
         </div>
         <Button asChild><Link to="/envios/novo"><Plus className="size-4" /> Novo envio</Link></Button>
       </div>
@@ -83,6 +99,35 @@ function EnviosPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
+            {batteries.map((b) => {
+              const complete = b.done === b.total && b.total > 0;
+              const reportTarget =
+                b.parts.find((p) => (p.instrument_id ?? "").toLowerCase().includes("disc"))?.response_id
+                ?? b.parts[0]?.response_id;
+              return (
+                <tr key={b.id} className="hover:bg-muted/40">
+                  <td className="px-6 py-4 font-medium">{b.people?.full_name ?? "—"}</td>
+                  <td className="px-6 py-4 text-muted-foreground">Bateria — {b.total} testes</td>
+                  <td className="px-6 py-4 text-muted-foreground">
+                    {complete ? "Concluído" : `${b.done}/${b.total} respondidos`}
+                  </td>
+                  <td className="px-6 py-4 text-muted-foreground">—</td>
+                  <td className="px-6 py-4 text-muted-foreground">{new Date(b.created_at).toLocaleDateString("pt-BR")}</td>
+                  <td className="px-6 py-4 text-right">
+                    {complete && reportTarget && (
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to="/relatorio/$responseId" params={{ responseId: reportTarget }}>
+                          <FileText className="size-3" /> Relatório
+                        </Link>
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => copyLink(b.id, "bateria")}>
+                      <Copy className="size-3" /> Link
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
             {data.map((r) => (
               <tr key={r.id} className="hover:bg-muted/40">
                 <td className="px-6 py-4 font-medium">{r.people?.full_name ?? "—"}</td>
@@ -113,7 +158,7 @@ function EnviosPage() {
                 </td>
               </tr>
             ))}
-            {data.length === 0 && (
+            {data.length === 0 && batteries.length === 0 && (
               <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-muted-foreground">
                 {isLoading ? "Carregando…" : "Nenhum envio ainda."}
               </td></tr>

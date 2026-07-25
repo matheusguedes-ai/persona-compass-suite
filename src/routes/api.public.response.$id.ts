@@ -124,6 +124,12 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   const addAdaptado = (dimensionId: string, points: number) => {
     adaptado[dimensionId] = (adaptado[dimensionId] ?? 0) + points;
   };
+  // Contribuição dos tipos de pergunta que não são escolha forçada
+  // (entra tanto no perfil natural quanto no adaptado).
+  const other: Record<string, number> = {};
+  const addOther = (dimensionId: string, points: number) => {
+    other[dimensionId] = (other[dimensionId] ?? 0) + points;
+  };
 
   // Reject answers pointing at questions from a different version
   for (const a of input.answers) {
@@ -146,13 +152,13 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       if (!optId) continue;
       if (!optIdSet.has(optId)) throw new Error("Opção inválida no envio.");
       sanitized.set(q.id, { option_id: optId });
-      (scoresByOpt.get(optId) ?? []).forEach((s) => addPoints(s.dimension_id, s.points));
+      (scoresByOpt.get(optId) ?? []).forEach((s) => { addPoints(s.dimension_id, s.points); addOther(s.dimension_id, s.points); });
     } else if (q.type === "checkboxes") {
       const raw = Array.isArray(payload.option_ids) ? (payload.option_ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
       const ids = dedupe(raw);
       for (const id of ids) if (!optIdSet.has(id)) throw new Error("Opção inválida no envio.");
       sanitized.set(q.id, { option_ids: ids });
-      ids.forEach((optId) => (scoresByOpt.get(optId) ?? []).forEach((s) => addPoints(s.dimension_id, s.points)));
+      ids.forEach((optId) => (scoresByOpt.get(optId) ?? []).forEach((s) => { addPoints(s.dimension_id, s.points); addOther(s.dimension_id, s.points); }));
     } else if (q.type === "linear_scale") {
       const value = Number(payload.value);
       if (!Number.isFinite(value)) {
@@ -164,7 +170,7 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       const dimId = typeof cfg.dimension_id === "string" ? cfg.dimension_id : undefined;
       const dimKey = typeof cfg.dimension_key === "string" ? cfg.dimension_key : undefined;
       const dim = (dimId && dimById.get(dimId)) || (dimKey && dimByKey.get(dimKey)) || undefined;
-      if (dim) addPoints(dim.id, value);
+      if (dim) { addPoints(dim.id, value); addOther(dim.id, value); }
     } else if (q.type === "ranking" || q.type === "drag_order") {
       const raw = Array.isArray(payload.ordered_option_ids) ? (payload.ordered_option_ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
       const ordered = dedupe(raw);
@@ -174,7 +180,7 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       const topWeight = Number(cfg.top_weight ?? ordered.length);
       ordered.forEach((optId, idx) => {
         const weight = Math.max(0, topWeight - idx);
-        (scoresByOpt.get(optId) ?? []).forEach((s) => addPoints(s.dimension_id, s.points * weight));
+        (scoresByOpt.get(optId) ?? []).forEach((s) => { addPoints(s.dimension_id, s.points * weight); addOther(s.dimension_id, s.points * weight); });
       });
     } else if (q.type === "forced_choice") {
       const most = typeof payload.most_option_id === "string" ? payload.most_option_id : undefined;
@@ -213,16 +219,32 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     if (match) bandId = match.id;
   }
 
-  // Compute theoretical min/max per dimension from forced_choice questions (for 0..100 normalization).
+  // ------------------------------------------------------------------
+  // Normalização 0–100 por dimensão: derivamos os mínimos e máximos
+  // teóricos de TODOS os tipos de pergunta da versão.
+  // ------------------------------------------------------------------
   const forcedQs = (questions ?? []).filter((q) => q.type === "forced_choice");
   const normalized: Record<string, { natural: number; adaptado: number }> = {};
-  if (forcedQs.length > 0) {
-    const bestNat: Record<string, number> = {};
-    const worstNat: Record<string, number> = {};
-    const bestAdap: Record<string, number> = {};
-    const worstAdap: Record<string, number> = {};
-    for (const q of forcedQs) {
-      const qOpts = (options ?? []).filter((o) => o.question_id === q.id);
+  const bestNat: Record<string, number> = {};
+  const worstNat: Record<string, number> = {};
+  const bestAdap: Record<string, number> = {};
+  const worstAdap: Record<string, number> = {};
+  const bump = (rec: Record<string, number>, dimId: string, v: number) => { rec[dimId] = (rec[dimId] ?? 0) + v; };
+  const bumpBoth = (dimId: string, min: number, max: number) => {
+    bump(bestNat, dimId, max); bump(worstNat, dimId, min);
+    bump(bestAdap, dimId, max); bump(worstAdap, dimId, min);
+  };
+  const pointsFor = (optId: string, dimId: string) =>
+    (scoresByOpt.get(optId) ?? []).filter((s) => s.dimension_id === dimId).reduce((acc, s) => acc + s.points, 0);
+  const dimsOfQuestion = (qOpts: Array<{ id: string }>) => {
+    const set = new Set<string>();
+    qOpts.forEach((o) => (scoresByOpt.get(o.id) ?? []).forEach((s) => set.add(s.dimension_id)));
+    return Array.from(set);
+  };
+
+  for (const q of questions ?? []) {
+    const qOpts = (options ?? []).filter((o) => o.question_id === q.id);
+    if (q.type === "forced_choice") {
       const perDim = new Map<string, number[]>();
       qOpts.forEach((o) => {
         (scoresByOpt.get(o.id) ?? []).forEach((s) => {
@@ -233,26 +255,69 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       });
       perDim.forEach((pts, dimId) => {
         const max = Math.max(...pts, 0);
-        const min = Math.min(...pts, 0);
-        // Natural: picking MOST awards max (best) or nothing (worst = 0).
-        bestNat[dimId] = (bestNat[dimId] ?? 0) + max;
-        worstNat[dimId] = (worstNat[dimId] ?? 0) + 0;
-        // Adaptado: best case = +max via MOST; worst case = -max via LEAST.
-        bestAdap[dimId] = (bestAdap[dimId] ?? 0) + max;
-        worstAdap[dimId] = (worstAdap[dimId] ?? 0) - max;
+        bump(bestNat, dimId, max);
+        bump(worstNat, dimId, 0);
+        bump(bestAdap, dimId, max);
+        bump(worstAdap, dimId, -max);
       });
+    } else if (q.type === "multiple_choice") {
+      for (const dimId of dimsOfQuestion(qOpts)) {
+        const pts = qOpts.map((o) => pointsFor(o.id, dimId));
+        bumpBoth(dimId, Math.min(...pts, 0), Math.max(...pts, 0));
+      }
+    } else if (q.type === "checkboxes") {
+      for (const dimId of dimsOfQuestion(qOpts)) {
+        const pts = qOpts.map((o) => pointsFor(o.id, dimId));
+        bumpBoth(
+          dimId,
+          pts.filter((p) => p < 0).reduce((a, b) => a + b, 0),
+          pts.filter((p) => p > 0).reduce((a, b) => a + b, 0),
+        );
+      }
+    } else if (q.type === "linear_scale") {
+      const cfg = (q.config ?? {}) as Json;
+      const dimId = typeof cfg.dimension_id === "string"
+        ? cfg.dimension_id
+        : (typeof cfg.dimension_key === "string" ? dimByKey.get(cfg.dimension_key)?.id : undefined);
+      if (dimId) {
+        const mn = Number(cfg.min ?? 1);
+        const mx = Number(cfg.max ?? 5);
+        if (Number.isFinite(mn) && Number.isFinite(mx) && mx > mn) bumpBoth(dimId, mn, mx);
+      }
+    } else if (q.type === "ranking" || q.type === "drag_order") {
+      const cfg = (q.config ?? {}) as Json;
+      const topWeight = Number(cfg.top_weight ?? qOpts.length);
+      const weights = qOpts.map((_, idx) => Math.max(0, topWeight - idx));
+      for (const dimId of dimsOfQuestion(qOpts)) {
+        const pts = qOpts.map((o) => pointsFor(o.id, dimId));
+        const desc = [...pts].sort((a, b) => b - a);
+        const asc = [...pts].sort((a, b) => a - b);
+        const max = weights.reduce((acc, w, i) => acc + w * (desc[i] ?? 0), 0);
+        const min = weights.reduce((acc, w, i) => acc + w * (asc[i] ?? 0), 0);
+        bumpBoth(dimId, Math.min(min, max), Math.max(min, max));
+      }
     }
-    const dimIds = new Set<string>([...Object.keys(bestNat), ...Object.keys(bestAdap)]);
-    dimIds.forEach((dimId) => {
-      const nRange = (bestNat[dimId] ?? 0) - (worstNat[dimId] ?? 0);
-      const aRange = (bestAdap[dimId] ?? 0) - (worstAdap[dimId] ?? 0);
-      const nRaw = natural[dimId] ?? 0;
-      const aRaw = adaptado[dimId] ?? 0;
-      const nPct = nRange > 0 ? Math.max(0, Math.min(100, ((nRaw - (worstNat[dimId] ?? 0)) / nRange) * 100)) : 0;
-      const aPct = aRange > 0 ? Math.max(0, Math.min(100, ((aRaw - (worstAdap[dimId] ?? 0)) / aRange) * 100)) : 0;
-      normalized[dimId] = { natural: nPct, adaptado: aPct };
-    });
   }
+
+  // Bruto natural/adaptado somando as contribuições dos demais tipos.
+  const rawNatural: Record<string, number> = {};
+  const rawAdaptado: Record<string, number> = {};
+  new Set([...Object.keys(natural), ...Object.keys(adaptado), ...Object.keys(other)]).forEach((dimId) => {
+    rawNatural[dimId] = (natural[dimId] ?? 0) + (other[dimId] ?? 0);
+    rawAdaptado[dimId] = (adaptado[dimId] ?? 0) + (other[dimId] ?? 0);
+  });
+
+  const normDimIds = new Set<string>([...Object.keys(bestNat), ...Object.keys(bestAdap)]);
+  normDimIds.forEach((dimId) => {
+    const nRange = (bestNat[dimId] ?? 0) - (worstNat[dimId] ?? 0);
+    const aRange = (bestAdap[dimId] ?? 0) - (worstAdap[dimId] ?? 0);
+    const nRaw = rawNatural[dimId] ?? 0;
+    const aRaw = rawAdaptado[dimId] ?? 0;
+    const nPct = nRange > 0 ? Math.max(0, Math.min(100, ((nRaw - (worstNat[dimId] ?? 0)) / nRange) * 100)) : 0;
+    const aPct = aRange > 0 ? Math.max(0, Math.min(100, ((aRaw - (worstAdap[dimId] ?? 0)) / aRange) * 100)) : 0;
+    normalized[dimId] = { natural: nPct, adaptado: forcedQs.length > 0 ? aPct : nPct };
+  });
+  const hasNormalized = normDimIds.size > 0;
 
   // Persist answers (upsert) + response
   if (sanitized.size > 0) {
@@ -267,9 +332,9 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   }
 
   const computed: Record<string, unknown> = { total: totals };
-  if (forcedQs.length > 0) {
-    computed.natural = natural;
-    computed.adaptado = adaptado;
+  if (hasNormalized) {
+    computed.natural = rawNatural;
+    computed.adaptado = rawAdaptado;
     computed.normalized = normalized;
   }
   const { data: updated, error } = await supabase.from("test_responses").update({
@@ -282,6 +347,21 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   }).eq("id", id).select().single();
   if (error) throw new Error(error.message);
 
+  // Se a resposta faz parte de uma bateria, fecha a bateria quando for a última etapa.
+  const assessmentId = (response as { assessment_response_id?: string | null }).assessment_response_id ?? null;
+  if (assessmentId) {
+    const { data: siblings } = await supabase
+      .from("test_responses")
+      .select("id, submitted_at")
+      .eq("assessment_response_id", assessmentId);
+    const pending = (siblings ?? []).filter((s) => !s.submitted_at && s.id !== id);
+    await supabase.from("assessment_responses").update(
+      pending.length === 0
+        ? { status: "submitted", submitted_at: new Date().toISOString() }
+        : { status: "in_progress" },
+    ).eq("id", assessmentId);
+  }
+
   // Build friendly result summary
   const dominantDim = dominantDimId != null ? dimById.get(dominantDimId) : undefined;
   const band = bandId ? (bands ?? []).find((b) => b.id === bandId) : undefined;
@@ -292,10 +372,10 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
 
   // Per-dimension bands, keyed by normalized (0-100). Fallback to raw if no normalized.
   const perDimBands: Array<{ dimension_id: string; label: string; color: string | null; mode: "natural" | "adaptado"; points: number; normalized: number | null; band: { title: string; description: string | null } | null }> = [];
-  const dimsForBands = (dims ?? []).slice().sort((a, b) => (natural[b.id] ?? totals[b.id] ?? 0) - (natural[a.id] ?? totals[a.id] ?? 0));
+  const dimsForBands = (dims ?? []).slice().sort((a, b) => (rawNatural[b.id] ?? totals[b.id] ?? 0) - (rawNatural[a.id] ?? totals[a.id] ?? 0));
   for (const mode of ["natural", "adaptado"] as const) {
     for (const d of dimsForBands) {
-      const raw = mode === "natural" ? (natural[d.id] ?? totals[d.id] ?? 0) : (adaptado[d.id] ?? 0);
+      const raw = mode === "natural" ? (rawNatural[d.id] ?? totals[d.id] ?? 0) : (rawAdaptado[d.id] ?? 0);
       const norm = normalized[d.id]?.[mode] ?? null;
       const scoreForBand = norm ?? raw;
       const match = (bands ?? []).find((b) =>
@@ -315,12 +395,13 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
 
   return {
     response: updated,
+    assessment_response_id: assessmentId,
     kind: (updated as { kind?: string }).kind ?? "self",
     result: {
       totals,
-      natural: forcedQs.length > 0 ? natural : undefined,
-      adaptado: forcedQs.length > 0 ? adaptado : undefined,
-      normalized: forcedQs.length > 0 ? normalized : undefined,
+      natural: hasNormalized ? rawNatural : undefined,
+      adaptado: hasNormalized ? rawAdaptado : undefined,
+      normalized: hasNormalized ? normalized : undefined,
       per_dimension_bands: perDimBands.filter((p) => p.band != null),
       by_dimension: byDimension,
       dominant: dominantDim ? { key: dominantDim.key, label: dominantDim.label, color: dominantDim.color } : null,
