@@ -264,6 +264,8 @@ function RelatorioPage() {
       )}
 
       {/* Comunicação */}
+      {data.derived && <DerivedSections d={data.derived} />}
+
       <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
         <h2 className="text-lg font-semibold">Sugestões de comunicação</h2>
         <p className="mt-1 text-sm text-muted-foreground">Ajustes simples que aumentam a chance de ser compreendido por cada estilo.</p>
