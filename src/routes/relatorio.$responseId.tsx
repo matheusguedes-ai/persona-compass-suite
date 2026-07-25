@@ -318,6 +318,203 @@ function Bar({ value, color, label, faded }: { value: number; color: string | nu
   );
 }
 
+const NATURAL_COLOR = "var(--primary)";
+const ADAPTADO_COLOR = "oklch(0.62 0.14 40)";
+
+function DerivedSections({ d }: { d: Derived }) {
+  return (
+    <>
+      {/* Tipos psicológicos */}
+      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold">Tipos psicológicos</h2>
+          <span className="rounded-md bg-muted px-3 py-1 text-sm font-semibold tracking-[0.2em]">{d.jung.tipo}</span>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Leitura das preferências mentais derivada do seu perfil natural. Os polos são complementares: o percentual
+          indica ênfase, não ausência do lado oposto.
+        </p>
+        <div className="mt-5 space-y-5">
+          {d.jung.pares.map((p) => (
+            <div key={p.left}>
+              <div className="flex items-center justify-between text-sm font-medium">
+                <span className={p.preferred === p.left ? "" : "text-muted-foreground"}>{p.left} {Math.round(p.leftPct)}%</span>
+                <span className={p.preferred === p.right ? "" : "text-muted-foreground"}>{Math.round(p.rightPct)}% {p.right}</span>
+              </div>
+              <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-muted">
+                <div className="h-full" style={{ width: `${p.leftPct}%`, background: NATURAL_COLOR }} />
+                <div className="h-full" style={{ width: `${p.rightPct}%`, background: ADAPTADO_COLOR, opacity: 0.55 }} />
+              </div>
+              <ul className="mt-3 space-y-1.5">
+                {(JUNG_BULLETS[p.preferred] ?? []).map((b, i) => (
+                  <li key={i} className="flex gap-2 text-sm leading-relaxed text-muted-foreground">
+                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Estilo de liderança */}
+      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold">Estilo de liderança</h2>
+          <p className="text-sm text-muted-foreground">
+            Dominante: <strong className="text-foreground">{d.dominant.label}</strong> ({Math.round(d.dominant.pct)}%)
+          </p>
+        </div>
+        <div className="mt-5 space-y-2">
+          {d.leadership.map((s) => (
+            <Bar key={s.key} value={s.pct} color={s.key === d.dominant.key ? NATURAL_COLOR : "var(--muted-foreground)"} label={s.label} faded={s.key !== d.dominant.key} />
+          ))}
+        </div>
+        {(d.leadership_content.strengths || d.leadership_content.attention) && (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            {d.leadership_content.strengths && (
+              <div className="rounded-lg border border-input p-4">
+                <p className="text-sm font-semibold">{d.leadership_content.strengths.title ?? "Pontos fortes"}</p>
+                <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{d.leadership_content.strengths.body}</p>
+              </div>
+            )}
+            {d.leadership_content.attention && (
+              <div className="rounded-lg border border-input p-4">
+                <p className="text-sm font-semibold">{d.leadership_content.attention.title ?? "Pontos de atenção"}</p>
+                <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{d.leadership_content.attention.body}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Mapa de competências */}
+      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+        <h2 className="text-lg font-semibold">Mapa de competências</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Dezesseis competências derivadas da combinação dos seus fatores. A linha sólida representa o perfil natural;
+          a tracejada, o adaptado.
+        </p>
+        <RadarChart items={d.competencias} />
+        <div className="mt-6 space-y-4">
+          {d.competencias.map((c) => (
+            <div key={c.name}>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-sm font-medium">{c.name}</p>
+                <span className="text-xs text-muted-foreground">
+                  natural {Math.round(c.natural)} · adaptado {Math.round(c.adaptado)} · <strong className="text-foreground">{c.band}</strong>
+                </span>
+              </div>
+              <Bar value={c.natural} color={NATURAL_COLOR} label="Natural" />
+              <Bar value={c.adaptado} color={ADAPTADO_COLOR} label="Adaptado" faded />
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{c.definition}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Índices comportamentais */}
+      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+        <h2 className="text-lg font-semibold">Índices comportamentais</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Valores de 0 a 1 que resumem tendências gerais do seu momento atual.</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {d.indices.map((i) => (
+            <div key={i.key} className="rounded-lg border border-input p-4">
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm font-semibold">{i.label}</p>
+                <span className="text-2xl font-medium tabular-nums">{i.value.toFixed(2)}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full" style={{ width: `${i.value * 100}%`, background: NATURAL_COLOR }} />
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{indexPhrase(i.key, i.value)}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function RadarChart({ items }: { items: Derived["competencias"] }) {
+  const size = 520;
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 170;
+  const n = items.length;
+  const point = (i: number, value: number) => {
+    const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
+    const r = (Math.max(0, Math.min(100, value)) / 100) * radius;
+    return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)] as const;
+  };
+  const poly = (key: "natural" | "adaptado") =>
+    items.map((it, i) => point(i, it[key]).join(",")).join(" ");
+
+  return (
+    <div className="mt-5">
+      <svg viewBox={`0 0 ${size} ${size}`} className="mx-auto w-full max-w-[520px]" role="img" aria-label="Radar das 16 competências">
+        {[25, 50, 75, 100].map((ring) => (
+          <polygon
+            key={ring}
+            points={items.map((_, i) => point(i, ring).join(",")).join(" ")}
+            fill="none"
+            stroke="currentColor"
+            className="text-muted-foreground/25"
+            strokeWidth={1}
+          />
+        ))}
+        {items.map((it, i) => {
+          const [x, y] = point(i, 100);
+          const [lx, ly] = point(i, 118);
+          return (
+            <g key={it.name}>
+              <line x1={cx} y1={cy} x2={x} y2={y} stroke="currentColor" className="text-muted-foreground/20" strokeWidth={1} />
+              <text
+                x={lx}
+                y={ly}
+                fontSize={10}
+                textAnchor={lx > cx + 4 ? "start" : lx < cx - 4 ? "end" : "middle"}
+                dominantBaseline="middle"
+                fill="currentColor"
+                className="text-muted-foreground"
+              >
+                {it.name}
+              </text>
+            </g>
+          );
+        })}
+        <polygon points={poly("adaptado")} fill={ADAPTADO_COLOR} fillOpacity={0.18} stroke={ADAPTADO_COLOR} strokeWidth={2} strokeDasharray="6 4" />
+        <polygon points={poly("natural")} fill={NATURAL_COLOR} fillOpacity={0.22} stroke={NATURAL_COLOR} strokeWidth={2} />
+      </svg>
+      <div className="mt-2 flex justify-center gap-6 text-xs text-muted-foreground">
+        <span className="flex items-center gap-2">
+          <span className="inline-block h-1 w-6 rounded" style={{ background: NATURAL_COLOR }} /> Natural
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="inline-block h-1 w-6 rounded" style={{ background: ADAPTADO_COLOR, opacity: 0.7 }} /> Adaptado
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function _BarLegacy({ value, color, label, faded }: { value: number; color: string | null; label: string; faded?: boolean }) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div className="mt-2 flex items-center gap-3">
+      <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, background: color ?? "var(--primary)", opacity: faded ? 0.55 : 1 }}
+        />
+      </div>
+      <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums">{Math.round(pct)}</span>
+    </div>
+  );
+}
+
 const PRINT_CSS = `
 @media print {
   @page { margin: 14mm; }
