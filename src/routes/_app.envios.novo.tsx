@@ -3,9 +3,11 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listPeople } from "@/lib/data.functions";
-import { listTestVersions, startResponse } from "@/lib/tests.functions";
+import { listTestVersions, startResponse, startAssessment } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight, Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,11 +32,13 @@ function NovoEnvio() {
   const [step, setStep] = useState(0);
   const [selectedVersions, setSelV] = useState<string[]>([]);
   const [selectedPeople, setPpl] = useState<string[]>(personId ? [personId] : []);
-  const [createdLinks, setCreatedLinks] = useState<{ id: string; person: string; test: string }[] | null>(null);
+  const [createdLinks, setCreatedLinks] = useState<{ id: string; person: string; test: string; battery?: boolean }[] | null>(null);
+  const [battery, setBattery] = useState(true);
 
   const listPeopleFn = useServerFn(listPeople);
   const listVersionsFn = useServerFn(listTestVersions);
   const startFn = useServerFn(startResponse);
+  const startAssessmentFn = useServerFn(startAssessment);
 
   const { data: people = [] } = useQuery({ queryKey: ["people"], queryFn: () => listPeopleFn() });
   const { data: versions = [] } = useQuery({
@@ -51,9 +55,24 @@ function NovoEnvio() {
     (step === 1 && selectedPeople.length > 0) ||
     step === 2;
 
+  const useBattery = battery && selectedVersions.length > 1;
+
   const confirm = useMutation({
     mutationFn: async () => {
-      const results: { id: string; person: string; test: string }[] = [];
+      const results: { id: string; person: string; test: string; battery?: boolean }[] = [];
+      if (useBattery) {
+        for (const person_id of selectedPeople) {
+          const row = await startAssessmentFn({ data: { person_id, version_ids: selectedVersions } });
+          const person = people.find((p) => p.id === person_id);
+          results.push({
+            id: row.id,
+            person: person?.full_name ?? "",
+            test: `Bateria — ${selectedVersions.length} testes`,
+            battery: true,
+          });
+        }
+        return results;
+      }
       for (const version_id of selectedVersions) {
         for (const person_id of selectedPeople) {
           const row = await startFn({ data: { version_id, person_id } });
@@ -71,8 +90,11 @@ function NovoEnvio() {
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao criar envios"),
   });
 
-  const copy = (id: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/responder/${id}`);
+  const linkFor = (r: { id: string; battery?: boolean }) =>
+    `${typeof window !== "undefined" ? window.location.origin : ""}/${r.battery ? "bateria" : "responder"}/${r.id}`;
+
+  const copy = (r: { id: string; battery?: boolean }) => {
+    navigator.clipboard.writeText(linkFor(r));
     toast.success("Link copiado");
   };
 
@@ -89,9 +111,9 @@ function NovoEnvio() {
               <div className="min-w-0">
                 <div className="font-medium truncate">{r.person}</div>
                 <div className="text-xs text-muted-foreground truncate">{r.test}</div>
-                <div className="text-xs text-muted-foreground truncate">{`${typeof window !== "undefined" ? window.location.origin : ""}/responder/${r.id}`}</div>
+                <div className="text-xs text-muted-foreground truncate">{linkFor(r)}</div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => copy(r.id)}>
+              <Button variant="ghost" size="sm" onClick={() => copy(r)}>
                 <Copy className="size-3" /> Copiar
               </Button>
             </div>
@@ -159,6 +181,17 @@ function NovoEnvio() {
                 })}
               </div>
             )}
+            {selectedVersions.length > 1 && (
+              <div className="flex items-center justify-between gap-4 rounded-lg bg-muted/40 p-4 ring-1 ring-black/5">
+                <div>
+                  <Label htmlFor="battery" className="text-sm font-medium">Gerar link único (bateria)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    O avaliado responde todos os testes em etapas, com um único link.
+                  </p>
+                </div>
+                <Switch id="battery" checked={battery} onCheckedChange={setBattery} />
+              </div>
+            )}
           </div>
         )}
 
@@ -197,7 +230,8 @@ function NovoEnvio() {
           <div className="space-y-4 text-sm">
             <Row label="Testes" value={selectedVersions.map((id) => publishedVersions.find((v) => v.id === id)?.title).filter(Boolean).join(", ")} />
             <Row label="Destinatários" value={`${selectedPeople.length} pessoa(s)`} />
-            <Row label="Total de envios" value={`${selectedVersions.length * selectedPeople.length}`} />
+            <Row label="Formato" value={useBattery ? "Link único (bateria em etapas)" : "Um link por teste"} />
+            <Row label="Total de envios" value={`${(useBattery ? 1 : selectedVersions.length) * selectedPeople.length}`} />
             <div className="rounded-lg bg-muted/40 p-4 text-xs text-muted-foreground ring-1 ring-black/5">
               Ao confirmar, os disparos serão registrados e cada avaliado receberá um link único de resposta.
             </div>
