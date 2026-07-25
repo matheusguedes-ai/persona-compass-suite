@@ -473,11 +473,67 @@ export const listResponses = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("test_responses")
       .select("*, people(id, full_name, email), test_versions(id, title, instrument_id)")
+      .eq("kind", "self")
       .order("created_at", { ascending: false });
     if (data.group_id) q = q.eq("group_id", data.group_id);
     if (data.person_id) q = q.eq("person_id", data.person_id);
     if (data.person_ids && data.person_ids.length > 0) q = q.in("person_id", data.person_ids);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    const list = rows ?? [];
+    if (list.length === 0) return list;
+    const { data: observers, error: obsErr } = await context.supabase
+      .from("test_responses")
+      .select("id, parent_response_id, submitted_at")
+      .eq("kind", "observer")
+      .in("parent_response_id", list.map((r) => r.id));
+    if (obsErr) throw new Error(obsErr.message);
+    const counts = new Map<string, { invited: number; answered: number }>();
+    for (const o of observers ?? []) {
+      if (!o.parent_response_id) continue;
+      const c = counts.get(o.parent_response_id) ?? { invited: 0, answered: 0 };
+      c.invited += 1;
+      if (o.submitted_at) c.answered += 1;
+      counts.set(o.parent_response_id, c);
+    }
+    return list.map((r) => ({
+      ...r,
+      observers_invited: counts.get(r.id)?.invited ?? 0,
+      observers_answered: counts.get(r.id)?.answered ?? 0,
+    }));
+  });
+
+// Cria um convite de observador (percepção externa 360°) vinculado a uma
+// response própria (kind='self') do mentor autenticado.
+export const createObserverInvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ response_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: parent, error } = await context.supabase
+      .from("test_responses")
+      .select("id, kind, version_id, person_id, mentor_id")
+      .eq("id", data.response_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!parent || parent.mentor_id !== context.userId) {
+      throw new Error("Resposta não encontrada ou não pertence a você.");
+    }
+    if (parent.kind !== "self") throw new Error("Só é possível convidar observadores para a resposta do próprio avaliado.");
+    const { count, error: qErr } = await context.supabase
+      .from("test_questions")
+      .select("id", { count: "exact", head: true })
+      .eq("version_id", parent.version_id)
+      .eq("type", "forced_choice");
+    if (qErr) throw new Error(qErr.message);
+    if (!count || count === 0) throw new Error("Este teste não suporta percepção externa.");
+    const { data: row, error: insErr } = await context.supabase.from("test_responses").insert({
+      version_id: parent.version_id,
+      person_id: parent.person_id,
+      mentor_id: context.userId,
+      status: "pending",
+      kind: "observer",
+      parent_response_id: parent.id,
+    }).select("id").single();
+    if (insErr) throw new Error(insErr.message);
+    return { id: row.id };
   });
