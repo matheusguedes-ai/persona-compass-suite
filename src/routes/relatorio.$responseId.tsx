@@ -539,22 +539,6 @@ function ActionPlanSection({ responseId, questions }: { responseId: string; ques
   );
 }
 
-function BarLegacyUnused({ value, color, label, faded }: { value: number; color: string | null; label: string; faded?: boolean }) {
-  const pct = Math.max(0, Math.min(100, value));
-  return (
-    <div className="mt-2 flex items-center gap-3">
-      <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
-      <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full"
-          style={{ width: `${pct}%`, background: color ?? "var(--primary)", opacity: faded ? 0.55 : 1 }}
-        />
-      </div>
-      <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums">{Math.round(pct)}</span>
-    </div>
-  );
-}
-
 const NATURAL_COLOR = "var(--primary)";
 const ADAPTADO_COLOR = "oklch(0.62 0.14 40)";
 
