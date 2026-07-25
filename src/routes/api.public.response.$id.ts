@@ -12,12 +12,12 @@ async function loadResponsePayload(id: string) {
   const supabase = await getAdmin();
   const { data: response } = await supabase
     .from("test_responses")
-    .select("id, submitted_at, version_id, people(full_name), test_versions(title, description)")
+    .select("id, submitted_at, version_id, kind, people(full_name), test_versions(title, description)")
     .eq("id", id)
     .maybeSingle();
   if (!response) return null;
   if (response.submitted_at) {
-    return { submitted: true as const };
+    return { submitted: true as const, kind: response.kind ?? "self" };
   }
   await supabase
     .from("test_responses")
@@ -36,6 +36,8 @@ async function loadResponsePayload(id: string) {
     : { data: [] };
   return {
     submitted: false as const,
+    kind: (response.kind ?? "self") as "self" | "observer",
+    subject_name: response.people?.full_name ?? null,
     response: {
       id: response.id,
       submitted_at: response.submitted_at,
@@ -48,6 +50,7 @@ async function loadResponsePayload(id: string) {
 }
 
 const submitSchema = z.object({
+  rater_name: z.string().trim().min(1).max(120).optional(),
   answers: z.array(z.object({
     question_id: z.string().uuid(),
     payload: z.record(z.string(), z.unknown()),
@@ -275,6 +278,7 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     dominant_dimension_id: dominantDimId,
     result_band_id: bandId,
     submitted_at: new Date().toISOString(),
+    ...(input.rater_name ? { rater_name: input.rater_name } : {}),
   }).eq("id", id).select().single();
   if (error) throw new Error(error.message);
 
@@ -311,6 +315,7 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
 
   return {
     response: updated,
+    kind: (updated as { kind?: string }).kind ?? "self",
     result: {
       totals,
       natural: forcedQs.length > 0 ? natural : undefined,
@@ -342,6 +347,9 @@ export const Route = createFileRoute("/api/public/response/$id")({
           const body = await request.json();
           const input = submitSchema.parse(body);
           const result = await computeAndStore(params.id, input);
+          if (result.kind === "observer") {
+            return new Response(JSON.stringify({ observer: true }), { headers: { "content-type": "application/json" } });
+          }
           return new Response(JSON.stringify(result), { headers: { "content-type": "application/json" } });
         } catch (e) {
           const msg = e instanceof Error ? e.message : "erro";
