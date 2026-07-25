@@ -33,6 +33,7 @@ import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
+import { Route as ApiPublicReportIdRouteImport } from './routes/api.public.report.$id'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 
 const McpRoute = McpRouteImport.update({
@@ -157,6 +158,11 @@ const ApiPublicResponseIdRoute = ApiPublicResponseIdRouteImport.update({
   path: '/api/public/response/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicReportIdRoute = ApiPublicReportIdRouteImport.update({
+  id: '/api/public/report/$id',
+  path: '/api/public/report/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppTestesVersionIdEditarRoute =
   AppTestesVersionIdEditarRouteImport.update({
     id: '/$versionId/editar',
@@ -188,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/pessoas/': typeof AppPessoasIndexRoute
   '/testes/': typeof AppTestesIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
 export interface FileRoutesByTo {
@@ -210,6 +217,7 @@ export interface FileRoutesByTo {
   '/pessoas': typeof AppPessoasIndexRoute
   '/testes': typeof AppTestesIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
 export interface FileRoutesById {
@@ -238,6 +246,7 @@ export interface FileRoutesById {
   '/_app/pessoas/': typeof AppPessoasIndexRoute
   '/_app/testes/': typeof AppTestesIndexRoute
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
 export interface FileRouteTypes {
@@ -266,6 +275,7 @@ export interface FileRouteTypes {
     | '/pessoas/'
     | '/testes/'
     | '/testes/$versionId/editar'
+    | '/api/public/report/$id'
     | '/api/public/response/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/pessoas'
     | '/testes'
     | '/testes/$versionId/editar'
+    | '/api/public/report/$id'
     | '/api/public/response/$id'
   id:
     | '__root__'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/_app/pessoas/'
     | '/_app/testes/'
     | '/_app/testes/$versionId/editar'
+    | '/api/public/report/$id'
     | '/api/public/response/$id'
   fileRoutesById: FileRoutesById
 }
@@ -327,6 +339,7 @@ export interface RootRouteChildren {
   ResponderResponseIdRoute: typeof ResponderResponseIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicReportIdRoute: typeof ApiPublicReportIdRoute
   ApiPublicResponseIdRoute: typeof ApiPublicResponseIdRoute
 }
 
@@ -500,6 +513,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicResponseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/report/$id': {
+      id: '/api/public/report/$id'
+      path: '/api/public/report/$id'
+      fullPath: '/api/public/report/$id'
+      preLoaderRoute: typeof ApiPublicReportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/testes/$versionId/editar': {
       id: '/_app/testes/$versionId/editar'
       path: '/$versionId/editar'
@@ -600,6 +620,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResponderResponseIdRoute: ResponderResponseIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicReportIdRoute: ApiPublicReportIdRoute,
   ApiPublicResponseIdRoute: ApiPublicResponseIdRoute,
 }
 export const routeTree = rootRouteImport
