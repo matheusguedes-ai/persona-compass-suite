@@ -453,6 +453,108 @@ function Bar({ value, color, label, faded }: { value: number; color: string | nu
   );
 }
 
+function ActionPlanSection({ responseId, questions }: { responseId: string; questions: string[] }) {
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/public/action-plan/${responseId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j) return;
+        setAnswers((j.answers ?? {}) as Record<string, string>);
+        setUpdatedAt(j.updated_at ?? null);
+      })
+      .catch(() => undefined);
+  }, [responseId]);
+
+  const save = useCallback(
+    async (payload: Record<string, string>, silent = false) => {
+      setSaving(true);
+      try {
+        const res = await fetch(`/api/public/action-plan/${responseId}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ answers: payload }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (!silent) toast.error(j.error ?? "Não foi possível salvar o plano.");
+          return;
+        }
+        setUpdatedAt(j.updated_at ?? new Date().toISOString());
+        if (!silent) toast.success("Plano salvo.");
+      } catch {
+        if (!silent) toast.error("Falha de conexão ao salvar o plano.");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [responseId],
+  );
+
+  return (
+    <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold">Plano de ação</h2>
+        {updatedAt && (
+          <span className="text-xs text-muted-foreground">
+            salvo em {new Date(updatedAt).toLocaleString("pt-BR")}
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Responda com calma, salve suas anotações e revisite-as com seu mentor.
+      </p>
+      <ol className="mt-4 space-y-4">
+        {questions.map((q, i) => {
+          const key = `q${i + 1}`;
+          const value = answers[key] ?? "";
+          return (
+            <li key={key}>
+              <p className="text-sm font-medium">{i + 1}. {q}</p>
+              <Textarea
+                className="mt-2 print:hidden"
+                rows={3}
+                maxLength={2000}
+                value={value}
+                onChange={(e) => setAnswers((prev) => ({ ...prev, [key]: e.target.value }))}
+                onBlur={() => void save({ ...answers, [key]: value }, true)}
+                placeholder="Escreva aqui…"
+              />
+              <div className="mt-2 hidden min-h-12 whitespace-pre-line rounded-md border border-dashed border-input p-3 text-sm leading-relaxed print:block">
+                {value}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="mt-5 print:hidden">
+        <Button onClick={() => void save(answers)} disabled={saving}>
+          {saving ? "Salvando…" : "Salvar plano"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function BarLegacyUnused({ value, color, label, faded }: { value: number; color: string | null; label: string; faded?: boolean }) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div className="mt-2 flex items-center gap-3">
+      <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, background: color ?? "var(--primary)", opacity: faded ? 0.55 : 1 }}
+        />
+      </div>
+      <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums">{Math.round(pct)}</span>
+    </div>
+  );
+}
+
 const NATURAL_COLOR = "var(--primary)";
 const ADAPTADO_COLOR = "oklch(0.62 0.14 40)";
 
