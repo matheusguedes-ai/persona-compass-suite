@@ -121,6 +121,8 @@ function RelatorioPage() {
   if (!data) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Carregando relatório…</div>;
 
   const byKey = new Map(data.factors.map((f) => [f.key, f]));
+  const isDisc = data.is_disc !== false;
+  const rankedFactors = [...data.factors].sort((a, b) => b.natural_norm - a.natural_norm);
 
   return (
     <div className="report-root mx-auto max-w-3xl space-y-6 p-6 print:max-w-none print:p-0">
@@ -148,12 +150,13 @@ function RelatorioPage() {
           )}
           <div>
             <dt className="text-xs uppercase text-muted-foreground">Perfil</dt>
-            <dd className="font-medium">{data.profile}</dd>
+            <dd className="font-medium">{data.profile ?? rankedFactors[0]?.label ?? "—"}</dd>
           </div>
         </dl>
       </section>
 
       {/* Introdução metodológica */}
+      {isDisc ? (
       <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
         <h2 className="text-lg font-semibold">Como ler este relatório</h2>
         <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
@@ -176,8 +179,25 @@ function RelatorioPage() {
           </p>
         </div>
       </section>
+      ) : (
+      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+        <h2 className="text-lg font-semibold">Como ler este relatório</h2>
+        <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            Este relatório apresenta a intensidade de cada dimensão avaliada, em uma escala comparável de 0 a 100.
+            Quanto maior o valor, maior o peso daquela dimensão nas suas respostas.
+          </p>
+          <p>
+            Não há dimensões certas ou erradas: o conjunto descreve ênfases e prioridades no momento em que você
+            respondeu. Leia primeiro as dimensões mais altas, depois observe as mais baixas — elas costumam explicar
+            escolhas e desconfortos com a mesma clareza.
+          </p>
+        </div>
+      </section>
+      )}
 
       {/* Gráficos */}
+      {isDisc ? (
       <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-semibold">Natural × Adaptado</h2>
@@ -211,6 +231,52 @@ function RelatorioPage() {
           </p>
         )}
       </section>
+      ) : (
+      <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+        <h2 className="text-lg font-semibold">Intensidade por dimensão</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Dimensões ordenadas da maior para a menor intensidade.</p>
+        <div className="mt-5 space-y-4">
+          {rankedFactors.map((f) => (
+            <div key={f.id}>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">{f.label} <span className="text-xs text-muted-foreground">({f.key})</span></span>
+                {data.external?.scores[f.key] != null && (
+                  <span className="text-xs text-muted-foreground">externo {Math.round(data.external.scores[f.key])}</span>
+                )}
+              </div>
+              <Bar value={f.natural_norm} color={f.color} label="Resultado" />
+              {data.external?.scores[f.key] != null && (
+                <Bar value={data.external.scores[f.key]} color="#8b5cf6" label="Externo" />
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+      )}
+
+      {!isDisc && rankedFactors.some((f) => f.band_natural) && (
+        <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+          <h2 className="text-lg font-semibold">Leitura de cada dimensão</h2>
+          <div className="mt-5 space-y-4">
+            {rankedFactors.map((f) => (
+              <div key={f.id} className="rounded-lg border border-input p-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm font-semibold">
+                    <span className="mr-2 inline-block size-2 rounded-full align-middle" style={{ background: f.color ?? "var(--muted-foreground)" }} />
+                    {f.label}
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {Math.round(f.natural_norm)} · {f.band_natural?.title ?? "sem faixa definida"}
+                  </span>
+                </div>
+                {f.band_natural?.description && (
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.band_natural.description}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {data.external && (
         <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
