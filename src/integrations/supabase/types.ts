@@ -43,6 +43,47 @@ export type Database = {
           },
         ]
       }
+      assessment_responses: {
+        Row: {
+          created_at: string
+          group_id: string | null
+          id: string
+          mentor_id: string
+          person_id: string
+          started_at: string | null
+          status: string
+          submitted_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          mentor_id: string
+          person_id: string
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          mentor_id?: string
+          person_id?: string
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_responses_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_instruments: {
         Row: {
           added_at: string
@@ -534,6 +575,8 @@ export type Database = {
       }
       test_responses: {
         Row: {
+          assessment_response_id: string | null
+          assessment_sort: number
           computed_scores: Json | null
           created_at: string
           dominant_dimension_id: string | null
@@ -552,6 +595,8 @@ export type Database = {
           version_id: string
         }
         Insert: {
+          assessment_response_id?: string | null
+          assessment_sort?: number
           computed_scores?: Json | null
           created_at?: string
           dominant_dimension_id?: string | null
@@ -570,6 +615,8 @@ export type Database = {
           version_id: string
         }
         Update: {
+          assessment_response_id?: string | null
+          assessment_sort?: number
           computed_scores?: Json | null
           created_at?: string
           dominant_dimension_id?: string | null
@@ -588,6 +635,13 @@ export type Database = {
           version_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "test_responses_assessment_response_id_fkey"
+            columns: ["assessment_response_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_responses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "test_responses_dominant_dimension_id_fkey"
             columns: ["dominant_dimension_id"]
