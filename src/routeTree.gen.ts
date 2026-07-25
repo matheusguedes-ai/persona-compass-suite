@@ -35,6 +35,7 @@ import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
 import { Route as ApiPublicReportIdRouteImport } from './routes/api.public.report.$id'
+import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 
 const McpRoute = McpRouteImport.update({
@@ -169,6 +170,11 @@ const ApiPublicReportIdRoute = ApiPublicReportIdRouteImport.update({
   path: '/api/public/report/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicActionPlanIdRoute = ApiPublicActionPlanIdRouteImport.update({
+  id: '/api/public/action-plan/$id',
+  path: '/api/public/action-plan/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppTestesVersionIdEditarRoute =
   AppTestesVersionIdEditarRouteImport.update({
     id: '/$versionId/editar',
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/pessoas/': typeof AppPessoasIndexRoute
   '/testes/': typeof AppTestesIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
@@ -225,6 +232,7 @@ export interface FileRoutesByTo {
   '/pessoas': typeof AppPessoasIndexRoute
   '/testes': typeof AppTestesIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
@@ -255,6 +263,7 @@ export interface FileRoutesById {
   '/_app/pessoas/': typeof AppPessoasIndexRoute
   '/_app/testes/': typeof AppTestesIndexRoute
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/pessoas/'
     | '/testes/'
     | '/testes/$versionId/editar'
+    | '/api/public/action-plan/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -309,6 +319,7 @@ export interface FileRouteTypes {
     | '/pessoas'
     | '/testes'
     | '/testes/$versionId/editar'
+    | '/api/public/action-plan/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
   id:
@@ -338,6 +349,7 @@ export interface FileRouteTypes {
     | '/_app/pessoas/'
     | '/_app/testes/'
     | '/_app/testes/$versionId/editar'
+    | '/api/public/action-plan/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
   fileRoutesById: FileRoutesById
@@ -352,6 +364,7 @@ export interface RootRouteChildren {
   ResponderResponseIdRoute: typeof ResponderResponseIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicActionPlanIdRoute: typeof ApiPublicActionPlanIdRoute
   ApiPublicReportIdRoute: typeof ApiPublicReportIdRoute
   ApiPublicResponseIdRoute: typeof ApiPublicResponseIdRoute
 }
@@ -540,6 +553,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicReportIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/action-plan/$id': {
+      id: '/api/public/action-plan/$id'
+      path: '/api/public/action-plan/$id'
+      fullPath: '/api/public/action-plan/$id'
+      preLoaderRoute: typeof ApiPublicActionPlanIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/testes/$versionId/editar': {
       id: '/_app/testes/$versionId/editar'
       path: '/$versionId/editar'
@@ -641,6 +661,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResponderResponseIdRoute: ResponderResponseIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicActionPlanIdRoute: ApiPublicActionPlanIdRoute,
   ApiPublicReportIdRoute: ApiPublicReportIdRoute,
   ApiPublicResponseIdRoute: ApiPublicResponseIdRoute,
 }
