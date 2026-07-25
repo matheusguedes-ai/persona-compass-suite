@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 
 export const Route = createFileRoute("/relatorio/$responseId")({
   head: () => ({
@@ -36,6 +37,22 @@ type Report = {
   profile_labels: string[];
   factors: Factor[];
   sections: Array<{ section: string; title: string | null; body: string }>;
+  derived?: Derived | null;
+};
+
+type Derived = {
+  jung: {
+    tipo: string;
+    pares: Array<{ left: string; right: string; leftPct: number; rightPct: number; preferred: string }>;
+  };
+  leadership: Array<{ key: string; label: string; pct: number }>;
+  dominant: { key: string; label: string; pct: number };
+  indices: Array<{ key: string; label: string; value: number }>;
+  competencias: Array<{ name: string; natural: number; adaptado: number; band: string; definition: string }>;
+  leadership_content: {
+    strengths: { title: string | null; body: string } | null;
+    attention: { title: string | null; body: string } | null;
+  };
 };
 
 const SECTION_TITLES: Record<string, string> = {
