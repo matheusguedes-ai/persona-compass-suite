@@ -130,6 +130,30 @@ async function buildReport(id: string) {
     };
   });
 
+  // --- Fase 2: derivações calculadas sobre os normalizados por key ---
+  const naturalByKey: FactorMap = {};
+  const adaptadoByKey: FactorMap = {};
+  for (const d of dimList) {
+    naturalByKey[d.key] = d.natural_norm;
+    adaptadoByKey[d.key] = d.adaptado_norm;
+  }
+  const derivedConfig = (response.test_versions?.derived_config ?? null) as DerivedConfig | null;
+  const core = computeDerived(naturalByKey, adaptadoByKey, derivedConfig);
+
+  const leadershipContent = rows
+    .filter((r) => r.section === "lideranca" && r.dimension_key === core.dominant.key)
+    .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));
+  const leadershipSpecific = leadershipContent.filter((r) => r.version_id === versionId);
+  const leadershipRows = leadershipSpecific.length > 0 ? leadershipSpecific : leadershipContent;
+
+  const derived = {
+    ...core,
+    leadership_content: {
+      strengths: leadershipRows[0] ? { title: leadershipRows[0].title, body: leadershipRows[0].body } : null,
+      attention: leadershipRows[1] ? { title: leadershipRows[1].title, body: leadershipRows[1].body } : null,
+    },
+  };
+
   return {
     status: 200 as const,
     data: {
