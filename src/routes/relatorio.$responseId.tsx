@@ -38,6 +38,7 @@ type Report = {
   factors: Factor[];
   sections: Array<{ section: string; title: string | null; body: string }>;
   derived?: Derived | null;
+  external?: { count: number; respondents: string[]; scores: Record<string, number> } | null;
 };
 
 type Derived = {
@@ -180,14 +181,79 @@ function RelatorioPage() {
                 <span className="font-medium">{f.label} <span className="text-xs text-muted-foreground">({f.key})</span></span>
                 <span className="text-xs text-muted-foreground">
                   natural {Math.round(f.natural_norm)} · adaptado {Math.round(f.adaptado_norm)}
+                  {data.external?.scores[f.key] != null && <> · externo {Math.round(data.external.scores[f.key])}</>}
                 </span>
               </div>
               <Bar value={f.natural_norm} color={f.color} label="Natural" />
               <Bar value={f.adaptado_norm} color={f.color} label="Adaptado" faded />
+              {data.external?.scores[f.key] != null && (
+                <Bar value={data.external.scores[f.key]} color="#8b5cf6" label="Percepção externa" />
+              )}
             </div>
           ))}
         </div>
+        {data.external && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            Percepção externa baseada em {data.external.count} observador(es)
+            {data.external.respondents.length > 0 && <>: {data.external.respondents.join(", ")}</>}.
+          </p>
+        )}
       </section>
+
+      {data.external && (
+        <section className="report-section rounded-xl bg-card p-8 ring-1 ring-black/5">
+          <h2 className="text-lg font-semibold">Como o meio percebe você</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Média das respostas de {data.external.count} observador(es) comparada à sua autoimagem.
+          </p>
+          <div className="mt-5 overflow-hidden rounded-lg ring-1 ring-black/5">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Fator</th>
+                  <th className="px-4 py-2 font-medium">Natural</th>
+                  <th className="px-4 py-2 font-medium">Adaptado</th>
+                  <th className="px-4 py-2 font-medium">Externo</th>
+                  <th className="px-4 py-2 font-medium">Diferença</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/5">
+                {data.factors.map((f) => {
+                  const ext = data.external?.scores[f.key];
+                  const diff = ext == null ? null : Math.round(ext - f.natural_norm);
+                  return (
+                    <tr key={f.id}>
+                      <td className="px-4 py-2 font-medium">{f.label} <span className="text-xs text-muted-foreground">({f.key})</span></td>
+                      <td className="px-4 py-2">{Math.round(f.natural_norm)}</td>
+                      <td className="px-4 py-2">{Math.round(f.adaptado_norm)}</td>
+                      <td className="px-4 py-2">{ext == null ? "—" : Math.round(ext)}</td>
+                      <td className="px-4 py-2">{diff == null ? "—" : `${diff > 0 ? "+" : ""}${diff}`}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              A percepção externa não é uma correção da sua autoimagem: são duas leituras legítimas do mesmo
+              comportamento, feitas de pontos de observação diferentes. Você tem acesso à sua intenção; quem convive
+              com você tem acesso ao efeito prático das suas ações.
+            </p>
+            <p>
+              Diferenças de até cerca de 10 pontos costumam ser ruído de leitura. Acima disso, vale investigar: quando
+              o externo está bem acima do natural em um fator, é provável que você venha entregando esse comportamento
+              com mais intensidade do que reconhece — às vezes por exigência do contexto. Quando está bem abaixo, um
+              traço que você considera evidente talvez não esteja chegando com clareza às pessoas.
+            </p>
+            <p>
+              Use essas lacunas como pauta de conversa, não como veredito. Um número pequeno de observadores tende a
+              refletir a relação específica de cada um com você; quanto mais variados os contextos representados, mais
+              estável fica a leitura.
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* Seções do composto */}
       {data.sections.map((s) => (
