@@ -510,8 +510,11 @@ export type Database = {
           dominant_dimension_id: string | null
           group_id: string | null
           id: string
+          kind: string
           mentor_id: string
+          parent_response_id: string | null
           person_id: string
+          rater_name: string | null
           result_band_id: string | null
           started_at: string | null
           status: string
@@ -525,8 +528,11 @@ export type Database = {
           dominant_dimension_id?: string | null
           group_id?: string | null
           id?: string
+          kind?: string
           mentor_id: string
+          parent_response_id?: string | null
           person_id: string
+          rater_name?: string | null
           result_band_id?: string | null
           started_at?: string | null
           status?: string
@@ -540,8 +546,11 @@ export type Database = {
           dominant_dimension_id?: string | null
           group_id?: string | null
           id?: string
+          kind?: string
           mentor_id?: string
+          parent_response_id?: string | null
           person_id?: string
+          rater_name?: string | null
           result_band_id?: string | null
           started_at?: string | null
           status?: string
@@ -562,6 +571,13 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_responses_parent_response_id_fkey"
+            columns: ["parent_response_id"]
+            isOneToOne: false
+            referencedRelation: "test_responses"
             referencedColumns: ["id"]
           },
           {
