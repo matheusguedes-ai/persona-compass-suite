@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_plans: {
+        Row: {
+          answers: Json
+          id: string
+          response_id: string
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          id?: string
+          response_id: string
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          id?: string
+          response_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_plans_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: true
+            referencedRelation: "test_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_instruments: {
         Row: {
           added_at: string
