@@ -83,7 +83,7 @@ function EnviosPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Envios</h1>
           <p className="mt-1 text-sm text-muted-foreground">{data.length + batteries.length} disparos registrados.</p>
         </div>
-        <Button asChild><Link to="/envios/novo"><Plus className="size-4" /> Novo envio</Link></Button>
+        <Button asChild><Link to="/envios/novo" search={{ personId: undefined }}><Plus className="size-4" /> Novo envio</Link></Button>
       </div>
 
       <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
@@ -101,9 +101,6 @@ function EnviosPage() {
           <tbody className="divide-y divide-black/5">
             {batteries.map((b) => {
               const complete = b.done === b.total && b.total > 0;
-              const reportTarget =
-                b.parts.find((p) => (p.instrument_id ?? "").toLowerCase().includes("disc"))?.response_id
-                ?? b.parts[0]?.response_id;
               return (
                 <tr key={b.id} className="hover:bg-muted/40">
                   <td className="px-6 py-4 font-medium">{b.people?.full_name ?? "—"}</td>
@@ -114,10 +111,10 @@ function EnviosPage() {
                   <td className="px-6 py-4 text-muted-foreground">—</td>
                   <td className="px-6 py-4 text-muted-foreground">{new Date(b.created_at).toLocaleDateString("pt-BR")}</td>
                   <td className="px-6 py-4 text-right">
-                    {complete && reportTarget && (
+                    {b.done > 0 && (
                       <Button variant="ghost" size="sm" asChild>
-                        <Link to="/relatorio/$responseId" params={{ responseId: reportTarget }}>
-                          <FileText className="size-3" /> Relatório
+                        <Link to="/relatorio-bateria/$assessmentId" params={{ assessmentId: b.id }}>
+                          <FileText className="size-3" /> Relatório{complete ? "" : " parcial"}
                         </Link>
                       </Button>
                     )}

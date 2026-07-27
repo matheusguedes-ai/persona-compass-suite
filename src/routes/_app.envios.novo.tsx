@@ -45,7 +45,11 @@ function NovoEnvio() {
     queryKey: ["test-versions"],
     queryFn: () => listVersionsFn({ data: {} }),
   });
-  const publishedVersions = versions.filter((v) => v.is_published && !v.is_template);
+  // Templates publicados podem ser enviados direto — duplicar só é necessário
+  // para quem quer editar perguntas. Versões do mentor aparecem primeiro.
+  const publishedVersions = versions
+    .filter((v) => v.is_published)
+    .sort((a, b) => Number(a.is_template) - Number(b.is_template));
 
   const toggle = (arr: string[], set: (v: string[]) => void, id: string) =>
     set(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
@@ -154,10 +158,13 @@ function NovoEnvio() {
       <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
         {step === 0 && (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Selecione uma ou mais versões publicadas para enviar.</p>
+            <p className="text-sm text-muted-foreground">
+              Selecione um ou mais testes para enviar. Você pode usar os modelos prontos ou suas próprias versões —
+              para editar perguntas, duplique o modelo em <Link to="/testes" className="underline">Testes</Link>.
+            </p>
             {publishedVersions.length === 0 ? (
               <div className="rounded-lg bg-muted/40 p-6 text-sm text-muted-foreground ring-1 ring-black/5">
-                Nenhuma versão publicada. Duplique um template em <Link to="/testes" className="underline">Testes</Link> e publique.
+                Nenhum teste disponível. Publique uma versão em <Link to="/testes" className="underline">Testes</Link>.
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -173,7 +180,12 @@ function NovoEnvio() {
                     >
                       <Checkbox checked={on} className="mt-0.5" />
                       <div>
-                        <div className="text-sm font-medium">{v.title}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">{v.title}</span>
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            {v.is_template ? "Modelo" : "Minha versão"}
+                          </span>
+                        </div>
                         {v.description && <div className="text-xs text-muted-foreground line-clamp-2">{v.description}</div>}
                       </div>
                     </button>

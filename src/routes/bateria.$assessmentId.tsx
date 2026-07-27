@@ -38,9 +38,8 @@ function BateriaPage() {
   if (!payload) return <Shell><p className="text-sm text-muted-foreground">Carregando…</p></Shell>;
 
   const allDone = payload.total > 0 && payload.done === payload.total;
-  const reportTarget =
-    payload.parts.find((p) => (p.instrument_id ?? "").toLowerCase().includes("disc"))?.response_id
-    ?? payload.parts[0]?.response_id;
+  // O relatório da bateria reúne todos os inventários respondidos num só documento.
+  const hasReport = payload.done > 0;
 
   if (allDone && !activeId) {
     return (
@@ -49,9 +48,9 @@ function BateriaPage() {
           <CheckCircle2 className="mx-auto size-10 text-emerald-500" />
           <h1 className="mt-3 text-xl font-semibold">Todas as respostas foram enviadas</h1>
           <p className="mt-1 text-sm text-muted-foreground">Obrigado por concluir a bateria de testes.</p>
-          {reportTarget && (
+          {hasReport && (
             <Button asChild className="mt-6">
-              <Link to="/relatorio/$responseId" params={{ responseId: reportTarget }}>Ver relatório completo</Link>
+              <Link to="/relatorio-bateria/$assessmentId" params={{ assessmentId }}>Ver relatório completo</Link>
             </Button>
           )}
         </div>

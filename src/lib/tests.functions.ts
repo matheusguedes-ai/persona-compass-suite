@@ -146,13 +146,27 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
       dims.forEach((d, i) => dimMap.set(d.id, newDims![i].id));
     }
 
+    // O config de perguntas pontuadas por dimensão (ex.: linear_scale do Big Five)
+    // guarda o id da dimensão. Sem remapear para as dimensões da nova versão, a
+    // referência fica órfã e o teste pontua zero em tudo.
+    type QuestionConfig = (typeof qs)[number]["config"];
+    const remapQuestionConfig = (config: QuestionConfig): QuestionConfig => {
+      if (!config || typeof config !== "object" || Array.isArray(config)) return config;
+      const next: Record<string, unknown> = { ...config };
+      if (typeof next.dimension_id === "string") {
+        // Sem correspondência, zera em vez de manter um id de outra versão.
+        next.dimension_id = dimMap.get(next.dimension_id) ?? null;
+      }
+      return next as QuestionConfig;
+    };
+
     const qMap = new Map<string, string>();
     if (qs.length > 0) {
       const { data: newQs, error } = await supabase
         .from("test_questions")
         .insert(qs.map((q) => ({
           version_id: newV.id, type: q.type, prompt: q.prompt, helper: q.helper,
-          required: q.required, sort_order: q.sort_order, config: q.config,
+          required: q.required, sort_order: q.sort_order, config: remapQuestionConfig(q.config),
         })))
         .select();
       if (error) throw new Error(error.message);

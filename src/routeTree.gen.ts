@@ -9,40 +9,41 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as McpRouteImport } from './routes/mcp'
-import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as AppIndexRouteImport } from './routes/_app.index'
-import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
-import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$responseId'
-import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
-import { Route as AppTestesRouteImport } from './routes/_app.testes'
-import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
-import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
-import { Route as AppGruposRouteImport } from './routes/_app.grupos'
-import { Route as AppEstatisticasRouteImport } from './routes/_app.estatisticas'
-import { Route as AppEnviosRouteImport } from './routes/_app.envios'
-import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
-import { Route as AppPessoasIndexRouteImport } from './routes/_app.pessoas.index'
-import { Route as AppGruposIndexRouteImport } from './routes/_app.grupos.index'
-import { Route as AppEnviosIndexRouteImport } from './routes/_app.envios.index'
-import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
-import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
-import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
+import { Route as AppEnviosRouteImport } from './routes/_app.envios'
+import { Route as AppEstatisticasRouteImport } from './routes/_app.estatisticas'
+import { Route as AppGruposRouteImport } from './routes/_app.grupos'
+import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
+import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
+import { Route as AppTestesRouteImport } from './routes/_app.testes'
+import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
+import { Route as RelatorioBateriaAssessmentIdRouteImport } from './routes/relatorio-bateria.$assessmentId'
+import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$responseId'
+import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
-import { Route as ApiPublicReportIdRouteImport } from './routes/api.public.report.$id'
-import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
-import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as AppEnviosIndexRouteImport } from './routes/_app.envios.index'
+import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
+import { Route as AppGruposIndexRouteImport } from './routes/_app.grupos.index'
+import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
+import { Route as AppPessoasIndexRouteImport } from './routes/_app.pessoas.index'
+import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
+import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
+import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
+import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
+import { Route as ApiPublicReportBateriaIdRouteImport } from './routes/api.public.report-bateria.$id'
+import { Route as ApiPublicReportIdRouteImport } from './routes/api.public.report.$id'
+import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
 
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -50,58 +51,26 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
-} as any)
-const ResponderResponseIdRoute = ResponderResponseIdRouteImport.update({
-  id: '/responder/$responseId',
-  path: '/responder/$responseId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RelatorioResponseIdRoute = RelatorioResponseIdRouteImport.update({
-  id: '/relatorio/$responseId',
-  path: '/relatorio/$responseId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
-  id: '/bateria/$assessmentId',
-  path: '/bateria/$assessmentId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppTestesRoute = AppTestesRouteImport.update({
-  id: '/testes',
-  path: '/testes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPessoasRoute = AppPessoasRouteImport.update({
-  id: '/pessoas',
-  path: '/pessoas',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMentoresRoute = AppMentoresRouteImport.update({
-  id: '/mentores',
-  path: '/mentores',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppGruposRoute = AppGruposRouteImport.update({
-  id: '/grupos',
-  path: '/grupos',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEstatisticasRoute = AppEstatisticasRouteImport.update({
-  id: '/estatisticas',
-  path: '/estatisticas',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEnviosRoute = AppEnviosRouteImport.update({
-  id: '/envios',
-  path: '/envios',
   getParentRoute: () => AppRoute,
 } as any)
 const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
@@ -109,52 +78,61 @@ const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
   path: '/configuracoes',
   getParentRoute: () => AppRoute,
 } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
+const AppEnviosRoute = AppEnviosRouteImport.update({
+  id: '/envios',
+  path: '/envios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEstatisticasRoute = AppEstatisticasRouteImport.update({
+  id: '/estatisticas',
+  path: '/estatisticas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGruposRoute = AppGruposRouteImport.update({
+  id: '/grupos',
+  path: '/grupos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMentoresRoute = AppMentoresRouteImport.update({
+  id: '/mentores',
+  path: '/mentores',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPessoasRoute = AppPessoasRouteImport.update({
+  id: '/pessoas',
+  path: '/pessoas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTestesRoute = AppTestesRouteImport.update({
+  id: '/testes',
+  path: '/testes',
+  getParentRoute: () => AppRoute,
+} as any)
+const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
+  id: '/bateria/$assessmentId',
+  path: '/bateria/$assessmentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelatorioBateriaAssessmentIdRoute =
+  RelatorioBateriaAssessmentIdRouteImport.update({
+    id: '/relatorio-bateria/$assessmentId',
+    path: '/relatorio-bateria/$assessmentId',
     getParentRoute: () => rootRouteImport,
   } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AppTestesIndexRoute = AppTestesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppTestesRoute,
+const RelatorioResponseIdRoute = RelatorioResponseIdRouteImport.update({
+  id: '/relatorio/$responseId',
+  path: '/relatorio/$responseId',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppPessoasIndexRoute = AppPessoasIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppPessoasRoute,
+const ResponderResponseIdRoute = ResponderResponseIdRouteImport.update({
+  id: '/responder/$responseId',
+  path: '/responder/$responseId',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppGruposIndexRoute = AppGruposIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppGruposRoute,
-} as any)
-const AppEnviosIndexRoute = AppEnviosIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppEnviosRoute,
-} as any)
-const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppPessoasRoute,
-} as any)
-const AppGruposIdRoute = AppGruposIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppGruposRoute,
-} as any)
-const AppEnviosNovoRoute = AppEnviosNovoRouteImport.update({
-  id: '/novo',
-  path: '/novo',
-  getParentRoute: () => AppEnviosRoute,
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
@@ -162,30 +140,40 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
-  getParentRoute: () => rootRouteImport,
+const AppEnviosIndexRoute = AppEnviosIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppEnviosRoute,
 } as any)
-const ApiPublicResponseIdRoute = ApiPublicResponseIdRouteImport.update({
-  id: '/api/public/response/$id',
-  path: '/api/public/response/$id',
-  getParentRoute: () => rootRouteImport,
+const AppEnviosNovoRoute = AppEnviosNovoRouteImport.update({
+  id: '/novo',
+  path: '/novo',
+  getParentRoute: () => AppEnviosRoute,
 } as any)
-const ApiPublicReportIdRoute = ApiPublicReportIdRouteImport.update({
-  id: '/api/public/report/$id',
-  path: '/api/public/report/$id',
-  getParentRoute: () => rootRouteImport,
+const AppGruposIndexRoute = AppGruposIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppGruposRoute,
 } as any)
-const ApiPublicAssessmentIdRoute = ApiPublicAssessmentIdRouteImport.update({
-  id: '/api/public/assessment/$id',
-  path: '/api/public/assessment/$id',
-  getParentRoute: () => rootRouteImport,
+const AppGruposIdRoute = AppGruposIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppGruposRoute,
 } as any)
-const ApiPublicActionPlanIdRoute = ApiPublicActionPlanIdRouteImport.update({
-  id: '/api/public/action-plan/$id',
-  path: '/api/public/action-plan/$id',
-  getParentRoute: () => rootRouteImport,
+const AppPessoasIndexRoute = AppPessoasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPessoasRoute,
+} as any)
+const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppPessoasRoute,
+} as any)
+const AppTestesIndexRoute = AppTestesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppTestesRoute,
 } as any)
 const AppTestesVersionIdEditarRoute =
   AppTestesVersionIdEditarRouteImport.update({
@@ -193,6 +181,32 @@ const AppTestesVersionIdEditarRoute =
     path: '/$versionId/editar',
     getParentRoute: () => AppTestesRoute,
   } as any)
+const ApiPublicActionPlanIdRoute = ApiPublicActionPlanIdRouteImport.update({
+  id: '/api/public/action-plan/$id',
+  path: '/api/public/action-plan/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicAssessmentIdRoute = ApiPublicAssessmentIdRouteImport.update({
+  id: '/api/public/assessment/$id',
+  path: '/api/public/assessment/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicReportBateriaIdRoute =
+  ApiPublicReportBateriaIdRouteImport.update({
+    id: '/api/public/report-bateria/$id',
+    path: '/api/public/report-bateria/$id',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicReportIdRoute = ApiPublicReportIdRouteImport.update({
+  id: '/api/public/report/$id',
+  path: '/api/public/report/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicResponseIdRoute = ApiPublicResponseIdRouteImport.update({
+  id: '/api/public/response/$id',
+  path: '/api/public/response/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -208,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -222,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
+  '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
@@ -234,6 +250,7 @@ export interface FileRoutesByTo {
   '/estatisticas': typeof AppEstatisticasRoute
   '/mentores': typeof AppMentoresRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/': typeof AppIndexRoute
@@ -249,6 +266,7 @@ export interface FileRoutesByTo {
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
+  '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
@@ -267,6 +285,7 @@ export interface FileRoutesById {
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/_app/': typeof AppIndexRoute
@@ -282,6 +301,7 @@ export interface FileRoutesById {
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
+  '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
 }
@@ -301,6 +321,7 @@ export interface FileRouteTypes {
     | '/pessoas'
     | '/testes'
     | '/bateria/$assessmentId'
+    | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/.lovable/oauth/consent'
@@ -315,6 +336,7 @@ export interface FileRouteTypes {
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
+    | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -327,6 +349,7 @@ export interface FileRouteTypes {
     | '/estatisticas'
     | '/mentores'
     | '/bateria/$assessmentId'
+    | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/'
@@ -342,6 +365,7 @@ export interface FileRouteTypes {
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
+    | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
   id:
@@ -359,6 +383,7 @@ export interface FileRouteTypes {
     | '/_app/pessoas'
     | '/_app/testes'
     | '/bateria/$assessmentId'
+    | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/_app/'
@@ -374,6 +399,7 @@ export interface FileRouteTypes {
     | '/_app/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
+    | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
   fileRoutesById: FileRoutesById
@@ -385,23 +411,25 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   BateriaAssessmentIdRoute: typeof BateriaAssessmentIdRoute
+  RelatorioBateriaAssessmentIdRoute: typeof RelatorioBateriaAssessmentIdRoute
   RelatorioResponseIdRoute: typeof RelatorioResponseIdRoute
   ResponderResponseIdRoute: typeof ResponderResponseIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicActionPlanIdRoute: typeof ApiPublicActionPlanIdRoute
   ApiPublicAssessmentIdRoute: typeof ApiPublicAssessmentIdRoute
+  ApiPublicReportBateriaIdRoute: typeof ApiPublicReportBateriaIdRoute
   ApiPublicReportIdRoute: typeof ApiPublicReportIdRoute
   ApiPublicResponseIdRoute: typeof ApiPublicResponseIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -411,95 +439,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/': {
-      id: '/_app/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/responder/$responseId': {
-      id: '/responder/$responseId'
-      path: '/responder/$responseId'
-      fullPath: '/responder/$responseId'
-      preLoaderRoute: typeof ResponderResponseIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/relatorio/$responseId': {
-      id: '/relatorio/$responseId'
-      path: '/relatorio/$responseId'
-      fullPath: '/relatorio/$responseId'
-      preLoaderRoute: typeof RelatorioResponseIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bateria/$assessmentId': {
-      id: '/bateria/$assessmentId'
-      path: '/bateria/$assessmentId'
-      fullPath: '/bateria/$assessmentId'
-      preLoaderRoute: typeof BateriaAssessmentIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/testes': {
-      id: '/_app/testes'
-      path: '/testes'
-      fullPath: '/testes'
-      preLoaderRoute: typeof AppTestesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/pessoas': {
-      id: '/_app/pessoas'
-      path: '/pessoas'
-      fullPath: '/pessoas'
-      preLoaderRoute: typeof AppPessoasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/mentores': {
-      id: '/_app/mentores'
-      path: '/mentores'
-      fullPath: '/mentores'
-      preLoaderRoute: typeof AppMentoresRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/grupos': {
-      id: '/_app/grupos'
-      path: '/grupos'
-      fullPath: '/grupos'
-      preLoaderRoute: typeof AppGruposRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/estatisticas': {
-      id: '/_app/estatisticas'
-      path: '/estatisticas'
-      fullPath: '/estatisticas'
-      preLoaderRoute: typeof AppEstatisticasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/envios': {
-      id: '/_app/envios'
-      path: '/envios'
-      fullPath: '/envios'
-      preLoaderRoute: typeof AppEnviosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/configuracoes': {
-      id: '/_app/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof AppConfiguracoesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/list-tools': {
@@ -509,60 +453,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/testes/': {
-      id: '/_app/testes/'
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
-      fullPath: '/testes/'
-      preLoaderRoute: typeof AppTestesIndexRouteImport
-      parentRoute: typeof AppTestesRoute
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/pessoas/': {
-      id: '/_app/pessoas/'
-      path: '/'
-      fullPath: '/pessoas/'
-      preLoaderRoute: typeof AppPessoasIndexRouteImport
-      parentRoute: typeof AppPessoasRoute
+    '/_app/configuracoes': {
+      id: '/_app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/grupos/': {
-      id: '/_app/grupos/'
-      path: '/'
-      fullPath: '/grupos/'
-      preLoaderRoute: typeof AppGruposIndexRouteImport
-      parentRoute: typeof AppGruposRoute
+    '/_app/envios': {
+      id: '/_app/envios'
+      path: '/envios'
+      fullPath: '/envios'
+      preLoaderRoute: typeof AppEnviosRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/envios/': {
-      id: '/_app/envios/'
-      path: '/'
-      fullPath: '/envios/'
-      preLoaderRoute: typeof AppEnviosIndexRouteImport
-      parentRoute: typeof AppEnviosRoute
+    '/_app/estatisticas': {
+      id: '/_app/estatisticas'
+      path: '/estatisticas'
+      fullPath: '/estatisticas'
+      preLoaderRoute: typeof AppEstatisticasRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/pessoas/$id': {
-      id: '/_app/pessoas/$id'
-      path: '/$id'
-      fullPath: '/pessoas/$id'
-      preLoaderRoute: typeof AppPessoasIdRouteImport
-      parentRoute: typeof AppPessoasRoute
+    '/_app/grupos': {
+      id: '/_app/grupos'
+      path: '/grupos'
+      fullPath: '/grupos'
+      preLoaderRoute: typeof AppGruposRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/grupos/$id': {
-      id: '/_app/grupos/$id'
-      path: '/$id'
-      fullPath: '/grupos/$id'
-      preLoaderRoute: typeof AppGruposIdRouteImport
-      parentRoute: typeof AppGruposRoute
+    '/_app/mentores': {
+      id: '/_app/mentores'
+      path: '/mentores'
+      fullPath: '/mentores'
+      preLoaderRoute: typeof AppMentoresRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/envios/novo': {
-      id: '/_app/envios/novo'
-      path: '/novo'
-      fullPath: '/envios/novo'
-      preLoaderRoute: typeof AppEnviosNovoRouteImport
-      parentRoute: typeof AppEnviosRoute
+    '/_app/pessoas': {
+      id: '/_app/pessoas'
+      path: '/pessoas'
+      fullPath: '/pessoas'
+      preLoaderRoute: typeof AppPessoasRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+    '/_app/testes': {
+      id: '/_app/testes'
+      path: '/testes'
+      fullPath: '/testes'
+      preLoaderRoute: typeof AppTestesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/bateria/$assessmentId': {
+      id: '/bateria/$assessmentId'
+      path: '/bateria/$assessmentId'
+      fullPath: '/bateria/$assessmentId'
+      preLoaderRoute: typeof BateriaAssessmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relatorio-bateria/$assessmentId': {
+      id: '/relatorio-bateria/$assessmentId'
+      path: '/relatorio-bateria/$assessmentId'
+      fullPath: '/relatorio-bateria/$assessmentId'
+      preLoaderRoute: typeof RelatorioBateriaAssessmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relatorio/$responseId': {
+      id: '/relatorio/$responseId'
+      path: '/relatorio/$responseId'
+      fullPath: '/relatorio/$responseId'
+      preLoaderRoute: typeof RelatorioResponseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/responder/$responseId': {
+      id: '/responder/$responseId'
+      path: '/responder/$responseId'
+      fullPath: '/responder/$responseId'
+      preLoaderRoute: typeof ResponderResponseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -572,18 +551,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/response/$id': {
-      id: '/api/public/response/$id'
-      path: '/api/public/response/$id'
-      fullPath: '/api/public/response/$id'
-      preLoaderRoute: typeof ApiPublicResponseIdRouteImport
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/report/$id': {
-      id: '/api/public/report/$id'
-      path: '/api/public/report/$id'
-      fullPath: '/api/public/report/$id'
-      preLoaderRoute: typeof ApiPublicReportIdRouteImport
+    '/_app/envios/': {
+      id: '/_app/envios/'
+      path: '/'
+      fullPath: '/envios/'
+      preLoaderRoute: typeof AppEnviosIndexRouteImport
+      parentRoute: typeof AppEnviosRoute
+    }
+    '/_app/envios/novo': {
+      id: '/_app/envios/novo'
+      path: '/novo'
+      fullPath: '/envios/novo'
+      preLoaderRoute: typeof AppEnviosNovoRouteImport
+      parentRoute: typeof AppEnviosRoute
+    }
+    '/_app/grupos/': {
+      id: '/_app/grupos/'
+      path: '/'
+      fullPath: '/grupos/'
+      preLoaderRoute: typeof AppGruposIndexRouteImport
+      parentRoute: typeof AppGruposRoute
+    }
+    '/_app/grupos/$id': {
+      id: '/_app/grupos/$id'
+      path: '/$id'
+      fullPath: '/grupos/$id'
+      preLoaderRoute: typeof AppGruposIdRouteImport
+      parentRoute: typeof AppGruposRoute
+    }
+    '/_app/pessoas/': {
+      id: '/_app/pessoas/'
+      path: '/'
+      fullPath: '/pessoas/'
+      preLoaderRoute: typeof AppPessoasIndexRouteImport
+      parentRoute: typeof AppPessoasRoute
+    }
+    '/_app/pessoas/$id': {
+      id: '/_app/pessoas/$id'
+      path: '/$id'
+      fullPath: '/pessoas/$id'
+      preLoaderRoute: typeof AppPessoasIdRouteImport
+      parentRoute: typeof AppPessoasRoute
+    }
+    '/_app/testes/': {
+      id: '/_app/testes/'
+      path: '/'
+      fullPath: '/testes/'
+      preLoaderRoute: typeof AppTestesIndexRouteImport
+      parentRoute: typeof AppTestesRoute
+    }
+    '/_app/testes/$versionId/editar': {
+      id: '/_app/testes/$versionId/editar'
+      path: '/$versionId/editar'
+      fullPath: '/testes/$versionId/editar'
+      preLoaderRoute: typeof AppTestesVersionIdEditarRouteImport
+      parentRoute: typeof AppTestesRoute
+    }
+    '/api/public/action-plan/$id': {
+      id: '/api/public/action-plan/$id'
+      path: '/api/public/action-plan/$id'
+      fullPath: '/api/public/action-plan/$id'
+      preLoaderRoute: typeof ApiPublicActionPlanIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/assessment/$id': {
@@ -593,19 +628,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAssessmentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/action-plan/$id': {
-      id: '/api/public/action-plan/$id'
-      path: '/api/public/action-plan/$id'
-      fullPath: '/api/public/action-plan/$id'
-      preLoaderRoute: typeof ApiPublicActionPlanIdRouteImport
+    '/api/public/report-bateria/$id': {
+      id: '/api/public/report-bateria/$id'
+      path: '/api/public/report-bateria/$id'
+      fullPath: '/api/public/report-bateria/$id'
+      preLoaderRoute: typeof ApiPublicReportBateriaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/testes/$versionId/editar': {
-      id: '/_app/testes/$versionId/editar'
-      path: '/$versionId/editar'
-      fullPath: '/testes/$versionId/editar'
-      preLoaderRoute: typeof AppTestesVersionIdEditarRouteImport
-      parentRoute: typeof AppTestesRoute
+    '/api/public/report/$id': {
+      id: '/api/public/report/$id'
+      path: '/api/public/report/$id'
+      fullPath: '/api/public/report/$id'
+      preLoaderRoute: typeof ApiPublicReportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/response/$id': {
+      id: '/api/public/response/$id'
+      path: '/api/public/response/$id'
+      fullPath: '/api/public/response/$id'
+      preLoaderRoute: typeof ApiPublicResponseIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -698,12 +740,14 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   BateriaAssessmentIdRoute: BateriaAssessmentIdRoute,
+  RelatorioBateriaAssessmentIdRoute: RelatorioBateriaAssessmentIdRoute,
   RelatorioResponseIdRoute: RelatorioResponseIdRoute,
   ResponderResponseIdRoute: ResponderResponseIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicActionPlanIdRoute: ApiPublicActionPlanIdRoute,
   ApiPublicAssessmentIdRoute: ApiPublicAssessmentIdRoute,
+  ApiPublicReportBateriaIdRoute: ApiPublicReportBateriaIdRoute,
   ApiPublicReportIdRoute: ApiPublicReportIdRoute,
   ApiPublicResponseIdRoute: ApiPublicResponseIdRoute,
 }

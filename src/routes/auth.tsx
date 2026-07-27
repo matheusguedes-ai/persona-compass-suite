@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -40,24 +39,18 @@ function AuthPage() {
     setInfo(null);
     setBusy(true);
     try {
-      const target = safeNext(next);
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("auth:next", target);
-      }
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      // Login com Google direto pelo Supabase (sem depender do Lovable).
+      // O Supabase leva a pessoa ao Google e, ao voltar, restaura a sessão no app.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
       });
-      if (result?.error) {
-        setError(result.error.message ?? "Falha ao entrar com Google.");
+      if (error) {
+        setError(error.message ?? "Falha ao entrar com Google.");
         setBusy(false);
         return;
       }
-      if (result?.redirected) return;
-      // Popup flow: session set. Redirect.
-      const saved = sessionStorage.getItem("auth:next") ?? "/";
-      sessionStorage.removeItem("auth:next");
-      if (saved === "/") nav({ to: "/" });
-      else window.location.href = saved;
+      // Em caso de sucesso, o navegador é redirecionado ao Google automaticamente.
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao entrar com Google.");
       setBusy(false);

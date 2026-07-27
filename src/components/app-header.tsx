@@ -14,7 +14,7 @@ export function AppHeader() {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
-    nav({ to: "/auth", replace: true });
+    nav({ to: "/auth", search: { next: "" }, replace: true });
   };
 
   return (
@@ -33,7 +33,7 @@ export function AppHeader() {
           <LogOut className="size-4" /> Sair
         </Button>
         <Button asChild size="sm">
-          <Link to="/envios/novo">
+          <Link to="/envios/novo" search={{ personId: undefined }}>
             <Plus className="size-4" /> Novo Envio
           </Link>
         </Button>
