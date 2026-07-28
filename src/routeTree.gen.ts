@@ -34,6 +34,7 @@ import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$res
 import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as AppDevolutivasIndexRouteImport } from './routes/_app.devolutivas.index'
 import { Route as AppEducacaoIndexRouteImport } from './routes/_app.educacao.index'
 import { Route as AppEducacaoTrackIdRouteImport } from './routes/_app.educacao.$trackId'
 import { Route as AppEnviosIndexRouteImport } from './routes/_app.envios.index'
@@ -182,6 +183,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppDevolutivasIndexRoute = AppDevolutivasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppDevolutivasRoute,
+} as any)
 const AppEducacaoIndexRoute = AppEducacaoIndexRouteImport.update({
   id: '/educacao/',
   path: '/educacao/',
@@ -310,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/devolutivas/': typeof AppDevolutivasIndexRoute
   '/educacao/': typeof AppEducacaoIndexRoute
   '/envios/': typeof AppEnviosIndexRoute
   '/grupos/': typeof AppGruposIndexRoute
@@ -332,7 +339,6 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/colaboradores': typeof AppColaboradoresRoute
   '/configuracoes': typeof AppConfiguracoesRoute
-  '/devolutivas': typeof AppDevolutivasRouteWithChildren
   '/mentores': typeof AppMentoresRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
@@ -350,6 +356,7 @@ export interface FileRoutesByTo {
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/devolutivas': typeof AppDevolutivasIndexRoute
   '/educacao': typeof AppEducacaoIndexRoute
   '/envios': typeof AppEnviosIndexRoute
   '/grupos': typeof AppGruposIndexRoute
@@ -397,6 +404,7 @@ export interface FileRoutesById {
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/_app/devolutivas/': typeof AppDevolutivasIndexRoute
   '/_app/educacao/': typeof AppEducacaoIndexRoute
   '/_app/envios/': typeof AppEnviosIndexRoute
   '/_app/grupos/': typeof AppGruposIndexRoute
@@ -444,6 +452,7 @@ export interface FileRouteTypes {
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/aluno/educacao/$trackId'
+    | '/devolutivas/'
     | '/educacao/'
     | '/envios/'
     | '/grupos/'
@@ -466,7 +475,6 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/colaboradores'
     | '/configuracoes'
-    | '/devolutivas'
     | '/mentores'
     | '/aluno/perfil'
     | '/bateria/$assessmentId'
@@ -484,6 +492,7 @@ export interface FileRouteTypes {
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/aluno/educacao/$trackId'
+    | '/devolutivas'
     | '/educacao'
     | '/envios'
     | '/grupos'
@@ -530,6 +539,7 @@ export interface FileRouteTypes {
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
     | '/aluno/educacao/$trackId'
+    | '/_app/devolutivas/'
     | '/_app/educacao/'
     | '/_app/envios/'
     | '/_app/grupos/'
@@ -746,6 +756,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/devolutivas/': {
+      id: '/_app/devolutivas/'
+      path: '/'
+      fullPath: '/devolutivas/'
+      preLoaderRoute: typeof AppDevolutivasIndexRouteImport
+      parentRoute: typeof AppDevolutivasRoute
+    }
     '/_app/educacao/': {
       id: '/_app/educacao/'
       path: '/educacao'
@@ -883,10 +900,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppDevolutivasRouteChildren {
+  AppDevolutivasIndexRoute: typeof AppDevolutivasIndexRoute
   AppDevolutivasIdPainelRoute: typeof AppDevolutivasIdPainelRoute
 }
 
 const AppDevolutivasRouteChildren: AppDevolutivasRouteChildren = {
+  AppDevolutivasIndexRoute: AppDevolutivasIndexRoute,
   AppDevolutivasIdPainelRoute: AppDevolutivasIdPainelRoute,
 }
 
