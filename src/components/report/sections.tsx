@@ -56,8 +56,14 @@ export type ReportSettings = {
 export type QualidadeResposta = {
   nivel: "alta" | "media" | "baixa";
   motivos: string[];
+  /** Escala: distância média entre frases equivalentes. Nulo em escolha forçada. */
   consistencia: number | null;
-  variacao: number;
+  /** Escala: desvio padrão das notas. Nulo em escolha forçada. */
+  variacao: number | null;
+  /** Escolha forçada: fração de blocos equivalentes com escolhas opostas. */
+  contradicoes?: number | null;
+  /** Escolha forçada: fração de vezes que marcou a alternativa da mesma posição. */
+  posicao_repetida?: number | null;
   segundos_por_item: number | null;
 };
 

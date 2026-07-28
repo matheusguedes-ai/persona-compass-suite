@@ -165,6 +165,17 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     questionId: string; bruto: number; direcionado: number; min: number; max: number; cfg: Json;
   }> = [];
 
+  /**
+   * O mesmo, para blocos de escolha forçada (DISC, Valores, Temperamentos, VAK).
+   * Aqui não há escala para medir variação, então a checagem é outra: guardamos
+   * QUAL dimensão a pessoa escolheu como MAIS e como MENOS, e em que posição da
+   * lista ela clicou — quem marca sempre a primeira alternativa se entrega.
+   */
+  const forcadaRespondida: Array<{
+    questionId: string; dimMais: string | null; dimMenos: string | null;
+    posicaoMais: number; nOpcoes: number; cfg: Json;
+  }> = [];
+
   for (const q of questions ?? []) {
     const payload = givenMap.get(q.id);
     if (q.required && !hasContent(q.type, payload)) {
@@ -177,7 +188,19 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       if (!optId) continue;
       if (!optIdSet.has(optId)) throw new Error("Opção inválida no envio.");
       sanitized.set(q.id, { option_id: optId });
-      (scoresByOpt.get(optId) ?? []).forEach((s) => { addPoints(s.dimension_id, s.points); addOther(s.dimension_id, s.points); });
+      const escolhidas = scoresByOpt.get(optId) ?? [];
+      escolhidas.forEach((s) => { addPoints(s.dimension_id, s.points); addOther(s.dimension_id, s.points); });
+      // Escolha entre alternativas também vira material para o selo: no MBTI as
+      // perguntas são A ou B, e quem marca sempre a primeira precisa aparecer.
+      const opcoesDaPergunta = (options ?? []).filter((o) => o.question_id === q.id);
+      forcadaRespondida.push({
+        questionId: q.id,
+        dimMais: escolhidas[0]?.dimension_id ?? null,
+        dimMenos: null,
+        posicaoMais: opcoesDaPergunta.findIndex((o) => o.id === optId),
+        nOpcoes: opcoesDaPergunta.length,
+        cfg: (q.config ?? {}) as Json,
+      });
     } else if (q.type === "checkboxes") {
       const raw = Array.isArray(payload.option_ids) ? (payload.option_ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
       const ids = dedupe(raw);
@@ -228,6 +251,15 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       sanitized.set(q.id, { most_option_id: most, least_option_id: least });
       const mostScores = scoresByOpt.get(most) ?? [];
       const leastScores = scoresByOpt.get(least) ?? [];
+      const daPergunta = (options ?? []).filter((o) => o.question_id === q.id);
+      forcadaRespondida.push({
+        questionId: q.id,
+        dimMais: mostScores[0]?.dimension_id ?? null,
+        dimMenos: leastScores[0]?.dimension_id ?? null,
+        posicaoMais: daPergunta.findIndex((o) => o.id === most),
+        nOpcoes: daPergunta.length,
+        cfg: (q.config ?? {}) as Json,
+      });
       mostScores.forEach((s) => {
         addPoints(s.dimension_id, s.points);
         addNatural(s.dimension_id, s.points);
@@ -381,8 +413,92 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
    * É um aviso de leitura, não uma acusação: o relatório sai igual, com a
    * ressalva na frente.
    */
+  /** Ritmo: rápido demais é sinal de quem clicou sem ler. Vale para os dois formatos. */
+  function medirRitmo(): number | null {
+    const inicio = response?.started_at;
+    if (!inicio) return null;
+    const ms = Date.now() - new Date(inicio).getTime();
+    if (!Number.isFinite(ms) || ms <= 0) return null;
+    return ms / 1000 / Math.max(1, (questions ?? []).length);
+  }
+
+  /**
+   * Qualidade em teste de ESCOLHA FORÇADA (DISC, Valores, Temperamentos, VAK).
+   *
+   * Aqui a pessoa não dá nota: escolhe o que MAIS e o que MENOS parece com ela.
+   * Não dá para medir "variação de escala", então olhamos outras duas coisas:
+   * blocos equivalentes que deveriam puxar a mesma dimensão, e a mania de
+   * marcar sempre a alternativa da mesma posição da lista.
+   */
+  function qualidadeEscolhaForcada() {
+    const motivos: string[] = [];
+
+    // 1. blocos equivalentes: a mesma dimensão deveria vencer nos dois
+    const grupos = new Map<string, Array<{ mais: string | null; menos: string | null }>>();
+    for (const r of forcadaRespondida) {
+      const g = (r.cfg as { check_group?: unknown })?.check_group;
+      if (typeof g === "string" && g) {
+        const lista = grupos.get(g) ?? [];
+        lista.push({ mais: r.dimMais, menos: r.dimMenos });
+        grupos.set(g, lista);
+      }
+    }
+    let paresValidos = 0;
+    let paresContraditorios = 0;
+    grupos.forEach((escolhas) => {
+      if (escolhas.length < 2) return;
+      paresValidos++;
+      const [a, b] = escolhas;
+      // Contradição forte: o que foi "mais a minha cara" num bloco virou
+      // "menos a minha cara" no bloco equivalente.
+      const inverteu = (a.mais && a.mais === b.menos) || (b.mais && b.mais === a.menos);
+      if (inverteu || a.mais !== b.mais) paresContraditorios++;
+    });
+    const contradicoes = paresValidos > 0 ? paresContraditorios / paresValidos : null;
+    // Metade dos pares discordando já é mais do que a variação normal de quem
+    // está atento: os blocos equivalentes descrevem a mesma coisa com outras palavras.
+    if (contradicoes != null && contradicoes > 0.5) {
+      motivos.push("escolhas opostas em blocos que descrevem a mesma coisa");
+    }
+
+    // 2. mania de posição
+    const porPosicao = new Map<number, number>();
+    for (const r of forcadaRespondida) {
+      if (r.posicaoMais >= 0) porPosicao.set(r.posicaoMais, (porPosicao.get(r.posicaoMais) ?? 0) + 1);
+    }
+    const maisRepetida = Math.max(0, ...porPosicao.values());
+    const posicaoRepetida = forcadaRespondida.length > 0 ? maisRepetida / forcadaRespondida.length : 0;
+    // O limite acompanha o tamanho do bloco. Com 4 alternativas, o acaso põe 25%
+    // em cada posição e passar de 70% não é perfil. Já num teste de A ou B o
+    // acaso já dá 50%, e escolher sempre o mesmo lado pode ser um tipo bem
+    // definido — só acima de 95% é que vira sinal de quem não leu.
+    const mediaDeOpcoes = forcadaRespondida.reduce((a, r) => a + r.nOpcoes, 0) / forcadaRespondida.length;
+    const limitePosicao = 1 / Math.max(2, mediaDeOpcoes) + 0.45;
+    if (posicaoRepetida > limitePosicao) motivos.push("quase sempre a alternativa da mesma posição da lista");
+
+    // 3. ritmo — comparar 4 frases leva mais tempo do que escolher entre A e B
+    const segundosPorItem = medirRitmo();
+    const limiteRitmo = mediaDeOpcoes >= 3 ? 4 : 2.5;
+    if (segundosPorItem != null && segundosPorItem < limiteRitmo) {
+      motivos.push("preenchido rápido demais para ter comparado as alternativas");
+    }
+
+    const nivel = motivos.length === 0 ? "alta" : motivos.length === 1 ? "media" : "baixa";
+    return {
+      nivel,
+      motivos,
+      consistencia: null,
+      variacao: null,
+      contradicoes: contradicoes == null ? null : Math.round(contradicoes * 100) / 100,
+      posicao_repetida: Math.round(posicaoRepetida * 100) / 100,
+      segundos_por_item: segundosPorItem == null ? null : Math.round(segundosPorItem * 10) / 10,
+    };
+  }
+
   function medirQualidade() {
-    if (escalaRespondida.length < 5) return null;
+    if (escalaRespondida.length < 5) {
+      return forcadaRespondida.length >= 8 ? qualidadeEscolhaForcada() : null;
+    }
     const motivos: string[] = [];
 
     // 1. pares equivalentes
@@ -413,14 +529,9 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     if (desvio < 0.35) motivos.push("quase todas as respostas iguais");
 
     // 3. ritmo
-    let segundosPorItem: number | null = null;
-    const inicio = response?.started_at;
-    if (inicio) {
-      const ms = Date.now() - new Date(inicio).getTime();
-      if (Number.isFinite(ms) && ms > 0) {
-        segundosPorItem = ms / 1000 / Math.max(1, (questions ?? []).length);
-        if (segundosPorItem < 2.5) motivos.push("preenchido rápido demais para ter lido as frases");
-      }
+    const segundosPorItem = medirRitmo();
+    if (segundosPorItem != null && segundosPorItem < 2.5) {
+      motivos.push("preenchido rápido demais para ter lido as frases");
     }
 
     const nivel = motivos.length === 0 ? "alta" : motivos.length === 1 ? "media" : "baixa";
@@ -429,6 +540,8 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       motivos,
       consistencia: consistencia == null ? null : Math.round(consistencia * 100) / 100,
       variacao: Math.round(desvio * 100) / 100,
+      contradicoes: null,
+      posicao_repetida: null,
       segundos_por_item: segundosPorItem == null ? null : Math.round(segundosPorItem * 10) / 10,
     };
   }

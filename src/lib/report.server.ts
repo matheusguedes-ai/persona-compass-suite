@@ -90,7 +90,9 @@ export async function buildReport(id: string) {
       nivel: "alta" | "media" | "baixa";
       motivos: string[];
       consistencia: number | null;
-      variacao: number;
+      variacao: number | null;
+      contradicoes?: number | null;
+      posicao_repetida?: number | null;
       segundos_por_item: number | null;
     };
   };
