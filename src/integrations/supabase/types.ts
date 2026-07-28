@@ -93,6 +93,51 @@ export type Database = {
           },
         ]
       }
+      email_logs: {
+        Row: {
+          assessment_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          kind: string
+          mentor_id: string
+          person_id: string | null
+          provider_id: string | null
+          response_id: string | null
+          status: string
+          subject: string
+          to_email: string
+        }
+        Insert: {
+          assessment_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind: string
+          mentor_id: string
+          person_id?: string | null
+          provider_id?: string | null
+          response_id?: string | null
+          status: string
+          subject: string
+          to_email: string
+        }
+        Update: {
+          assessment_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          kind?: string
+          mentor_id?: string
+          person_id?: string | null
+          provider_id?: string | null
+          response_id?: string | null
+          status?: string
+          subject?: string
+          to_email?: string
+        }
+        Relationships: []
+      }
       group_instruments: {
         Row: {
           added_at: string

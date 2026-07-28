@@ -3,13 +3,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getGroup, getMyProfile, listPeople } from "@/lib/data.functions";
+import { getEmailStatus, sendMentorEmail } from "@/lib/email.functions";
 import { createInviteLink, listTestVersions, startResponse, startAssessment } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ArrowRight, Check, Copy, MessageSquare } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Mail, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/envios/novo")({
@@ -56,6 +57,23 @@ function NovoEnvio() {
     queryKey: ["test-versions"],
     queryFn: () => listVersionsFn({ data: {} }),
   });
+  const emailStatusFn = useServerFn(getEmailStatus);
+  const enviarEmailFn = useServerFn(sendMentorEmail);
+  const { data: emailStatus } = useQuery({ queryKey: ["email-status"], queryFn: () => emailStatusFn() });
+  const mandarEmail = useMutation({
+    mutationFn: (r: { id: string; battery?: boolean }) =>
+      enviarEmailFn({
+        data: {
+          kind: "convite",
+          response_id: r.battery ? null : r.id,
+          assessment_id: r.battery ? r.id : null,
+          origin: window.location.origin,
+        },
+      }),
+    onSuccess: (res) => toast.success(`Convite enviado para ${(res as { para: string }).para}`),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const getProfileFn = useServerFn(getMyProfile);
   const { data: profile } = useQuery({ queryKey: ["my-profile"], queryFn: () => getProfileFn(), staleTime: 60_000 });
   const { data: groupData } = useQuery({
@@ -217,6 +235,17 @@ function NovoEnvio() {
                 <div className="text-xs text-muted-foreground truncate">{linkFor(r)}</div>
               </div>
               <div className="flex shrink-0 gap-1">
+                {/* Link aberto não tem destinatário: não há para quem mandar. */}
+                {emailStatus?.ativo && !r.invite && (
+                  <Button
+                    variant="ghost" size="sm"
+                    onClick={() => mandarEmail.mutate(r)}
+                    disabled={mandarEmail.isPending}
+                    title="Enviar o convite por email para o avaliado"
+                  >
+                    <Mail className="size-3" /> Email
+                  </Button>
+                )}
                 {modelo && (
                   <Button variant="ghost" size="sm" onClick={() => copyMensagem(r)} title="Copia sua mensagem de convite com o nome e o link preenchidos">
                     <MessageSquare className="size-3" /> Mensagem

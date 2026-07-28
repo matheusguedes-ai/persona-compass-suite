@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, ImageUp, Loader2, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, ImageUp, Loader2, Send, Trash2 } from "lucide-react";
+import { getEmailStatus, listEmailLogs, sendTestEmail } from "@/lib/email.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/configuracoes")({
@@ -406,29 +407,9 @@ function ConfiguracoesPage() {
 
         {/* ---------------- Emails ---------------- */}
         <TabsContent value="emails" className="mt-6">
-          <div className="max-w-2xl space-y-4">
-            <div className="flex gap-3 rounded-xl bg-amber-50 p-4 text-amber-900 ring-1 ring-amber-200">
-              <AlertCircle className="mt-0.5 size-5 shrink-0" />
-              <div className="space-y-1 text-sm">
-                <p className="font-medium">O envio automático ainda não está ligado.</p>
-                <p className="text-amber-800">
-                  Para a plataforma mandar email por conta própria (convite, lembrete e relatório pronto)
-                  falta contratar um serviço de envio. O <span className="font-medium">Resend</span> tem plano
-                  gratuito de 3.000 emails por mês e é o mais simples de ligar. Assim que você criar a conta e
-                  me passar a chave, isso aqui vira uma tela de verdade com histórico de envios.
-                </p>
-              </div>
-            </div>
-            <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
-              <h2 className="text-sm font-semibold">Enquanto isso</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Os textos da aba <span className="font-medium">Mensagens</span> já funcionam: na hora de criar um
-                envio, o texto sai pronto com o nome e o link preenchidos, para você colar no WhatsApp ou no seu
-                email. É o mesmo conteúdo que o envio automático vai usar depois.
-              </p>
-            </div>
-          </div>
+          <AbaEmails />
         </TabsContent>
+
       </Tabs>
     </div>
   );
@@ -449,6 +430,116 @@ function CampoMensagem({
       </div>
       <Textarea value={valor} onChange={(e) => setValor(e.target.value)} rows={3} placeholder={exemplo} />
       <p className="text-[11px] text-muted-foreground">{ajuda}</p>
+    </div>
+  );
+}
+
+/** Estado da ligação com o serviço de email + histórico do que saiu. */
+function AbaEmails() {
+  const statusFn = useServerFn(getEmailStatus);
+  const logsFn = useServerFn(listEmailLogs);
+  const testFn = useServerFn(sendTestEmail);
+  const { data: status, isLoading } = useQuery({ queryKey: ["email-status"], queryFn: () => statusFn() });
+  const { data: logs = [] } = useQuery({
+    queryKey: ["email-logs"],
+    queryFn: () => logsFn({ data: { limit: 30 } }),
+    enabled: status?.ativo === true,
+  });
+  const qc = useQueryClient();
+
+  const testar = useMutation({
+    mutationFn: () => testFn({ data: { origin: window.location.origin } }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["email-logs"] });
+      toast.success(`Email de teste enviado para ${(r as { para: string }).para}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Verificando…</p>;
+
+  if (!status?.ativo) {
+    return (
+      <div className="max-w-2xl space-y-4">
+        <div className="flex gap-3 rounded-xl bg-amber-50 p-4 text-amber-900 ring-1 ring-amber-200">
+          <AlertCircle className="mt-0.5 size-5 shrink-0" />
+          <div className="space-y-2 text-sm">
+            <p className="font-medium">Falta só a chave para ligar o envio de email.</p>
+            <p className="text-amber-800">
+              Tudo já está construído — os textos, os botões e o registro de envios. O que falta é criar a conta
+              no <span className="font-medium">Resend</span> (grátis, 3.000 emails por mês), gerar uma chave e
+              cadastrá-la no projeto com o nome <code className="rounded bg-amber-100 px-1">RESEND_API_KEY</code>.
+            </p>
+            <p className="text-amber-800">
+              Assim que a chave existir, esta tela vira o painel de envios — sem precisar mexer em mais nada.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+          <h2 className="text-sm font-semibold">Enquanto isso</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Os textos da aba <span className="font-medium">Mensagens</span> já funcionam: ao criar um envio, sai
+            pronto com o nome e o link preenchidos, para colar no WhatsApp ou no seu email.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-emerald-50 p-4 text-emerald-900 ring-1 ring-emerald-200">
+        <div className="flex gap-3">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium">Envio de email ligado.</p>
+            <p className="text-emerald-800">Sai de: {status.remetente}</p>
+          </div>
+        </div>
+        <Button variant="outline" onClick={() => testar.mutate()} disabled={testar.isPending}>
+          <Send className="size-4" /> {testar.isPending ? "Enviando…" : "Enviar teste para mim"}
+        </Button>
+      </div>
+
+      {status.remetente_de_teste && (
+        <div className="flex gap-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+          <AlertCircle className="mt-0.5 size-5 shrink-0" />
+          <p>
+            O remetente ainda é o endereço de teste do Resend, que <span className="font-medium">só entrega
+            para o email dono da conta</span>. Para enviar aos avaliados, verifique um domínio no Resend e
+            cadastre o endereço em <code className="rounded bg-amber-100 px-1">EMAIL_FROM</code>.
+          </p>
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
+        <div className="border-b border-black/5 px-5 py-3">
+          <h2 className="text-sm font-semibold">Últimos envios</h2>
+        </div>
+        {logs.length === 0 ? (
+          <p className="p-6 text-sm text-muted-foreground">Nenhum email enviado ainda.</p>
+        ) : (
+          <ul className="divide-y divide-black/5 text-sm">
+            {logs.map((l) => (
+              <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
+                <div className="min-w-0">
+                  <span className="font-medium capitalize">{l.kind}</span>
+                  <span className="text-muted-foreground"> · {l.to_email}</span>
+                  {l.error && <p className="text-xs text-destructive">{l.error}</p>}
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className={l.status === "enviado" ? "text-emerald-700" : "text-destructive"}>
+                    {l.status === "enviado" ? "entregue ao provedor" : "falhou"}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {new Date(l.created_at).toLocaleString("pt-BR")}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
