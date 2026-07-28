@@ -55,7 +55,21 @@ export const getPerson = createServerFn({ method: "GET" })
       .from("group_members")
       .select("group_id, groups(id, name, type)")
       .eq("person_id", data.id);
-    return { person, groups: groups ?? [] };
+
+    // Histórico de testes da pessoa. Só `self`: respostas de observador (360°)
+    // pertencem ao relatório do avaliado e já aparecem dentro dele.
+    const { data: responses, error: rErr } = await context.supabase
+      .from("test_responses")
+      .select(
+        "id, status, submitted_at, started_at, created_at, assessment_response_id, assessment_sort, test_versions(title, instrument_id)",
+      )
+      .eq("person_id", data.id)
+      .eq("mentor_id", context.userId)
+      .eq("kind", "self")
+      .order("created_at", { ascending: false });
+    if (rErr) throw new Error(rErr.message);
+
+    return { person, groups: groups ?? [], responses: responses ?? [] };
   });
 
 export const createPerson = createServerFn({ method: "POST" })

@@ -6,7 +6,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Mail, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Mail, Send, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getPerson, deletePerson } from "@/lib/data.functions";
@@ -51,7 +51,8 @@ function PersonProfile() {
   if (isLoading) return <div className="py-12 text-center text-sm text-muted-foreground">Carregando…</div>;
   if (error || !data) return <div className="py-12 text-center text-sm text-destructive">{(error as Error)?.message ?? "Erro"}</div>;
 
-  const { person, groups } = data;
+  const { person, groups, responses } = data;
+  const history = buildHistory(responses ?? []);
 
   return (
     <div className="space-y-6">
@@ -109,6 +110,9 @@ function PersonProfile() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
+          <TabsTrigger value="relatorios">
+            Relatórios{history.length > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{history.length}</span>}
+          </TabsTrigger>
           <TabsTrigger value="grupos">Grupos</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -124,6 +128,62 @@ function PersonProfile() {
               <p className="mt-2 whitespace-pre-wrap text-sm">{person.notes}</p>
             </div>
           )}
+        </TabsContent>
+        <TabsContent value="relatorios" className="mt-4">
+          <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
+            {history.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-sm text-muted-foreground">Esta pessoa ainda não respondeu nenhum teste.</p>
+                <Button asChild size="sm" variant="outline" className="mt-4">
+                  <Link to="/envios/novo" search={{ personId: person.id }}>
+                    <Send className="size-4" /> Enviar um teste
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <ul className="divide-y divide-black/5">
+                {history.map((item) => (
+                  <li key={item.key} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.title}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {item.done === item.total
+                          ? `Respondido em ${formatDate(item.date)}`
+                          : `${item.done} de ${item.total} respondidos${item.date ? ` · iniciado em ${formatDate(item.date)}` : ""}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-black/5 ${
+                          item.done === item.total
+                            ? "bg-emerald-50 text-emerald-700"
+                            : item.done > 0
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {item.done === item.total ? "Concluído" : item.done > 0 ? "Parcial" : "Pendente"}
+                      </span>
+                      {item.done > 0 &&
+                        (item.assessmentId ? (
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to="/relatorio-bateria/$assessmentId" params={{ assessmentId: item.assessmentId }}>
+                              <FileText className="size-3" /> Relatório
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to="/relatorio/$responseId" params={{ responseId: item.responseId! }}>
+                              <FileText className="size-3" /> Relatório
+                            </Link>
+                          </Button>
+                        ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </TabsContent>
         <TabsContent value="grupos" className="mt-4">
           <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
@@ -148,6 +208,73 @@ function PersonProfile() {
       </Tabs>
     </div>
   );
+}
+
+type ResponseRow = {
+  id: string;
+  status: string;
+  submitted_at: string | null;
+  created_at: string;
+  assessment_response_id: string | null;
+  test_versions: { title: string; instrument_id: string } | null;
+};
+
+type HistoryItem = {
+  key: string;
+  title: string;
+  date: string | null;
+  done: number;
+  total: number;
+  assessmentId: string | null;
+  responseId: string | null;
+};
+
+const formatDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
+
+/**
+ * Monta o histórico: cada bateria vira UMA linha (o relatório dela é unificado)
+ * e cada teste avulso vira a sua própria linha. Mais recentes primeiro.
+ */
+function buildHistory(rows: ResponseRow[]): HistoryItem[] {
+  const batteries = new Map<string, ResponseRow[]>();
+  const singles: ResponseRow[] = [];
+  for (const r of rows) {
+    if (r.assessment_response_id) {
+      const list = batteries.get(r.assessment_response_id) ?? [];
+      list.push(r);
+      batteries.set(r.assessment_response_id, list);
+    } else {
+      singles.push(r);
+    }
+  }
+
+  const items: HistoryItem[] = [];
+  for (const [assessmentId, parts] of batteries) {
+    const done = parts.filter((p) => p.submitted_at).length;
+    // Data da bateria: a última resposta enviada; sem nenhuma, quando foi criada.
+    const dates = parts.map((p) => p.submitted_at).filter((d): d is string => !!d).sort();
+    items.push({
+      key: `b-${assessmentId}`,
+      title: `Bateria — ${parts.length} ${parts.length === 1 ? "teste" : "testes"}`,
+      date: dates.at(-1) ?? parts.map((p) => p.created_at).sort().at(0) ?? null,
+      done,
+      total: parts.length,
+      assessmentId,
+      responseId: null,
+    });
+  }
+  for (const r of singles) {
+    items.push({
+      key: `r-${r.id}`,
+      title: r.test_versions?.title ?? "Teste",
+      date: r.submitted_at ?? r.created_at,
+      done: r.submitted_at ? 1 : 0,
+      total: 1,
+      assessmentId: null,
+      responseId: r.id,
+    });
+  }
+  return items.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
 }
 
 function InfoBox({ label, value }: { label: string; value: string | null | undefined }) {
