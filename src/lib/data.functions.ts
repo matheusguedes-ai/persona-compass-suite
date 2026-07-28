@@ -592,20 +592,20 @@ export const getDashboardStats = createServerFn({ method: "GET" })
   });
 
 /**
- * Importa pessoas de uma planilha direto para um grupo.
+ * Importa pessoas de uma planilha.
+ *
+ * `group_id` é opcional: vindo de dentro de um grupo, as pessoas já entram nele;
+ * vindo do menu Pessoas, só entram no cadastro.
  *
  * Regra que evita a maior dor de importação: **não duplica**. Se já existe
- * alguém na conta com aquele email, reaproveita o cadastro e só acrescenta ao
- * grupo — reimportar a mesma planilha não gera 80 pessoas repetidas.
- *
- * Os dados vazios da planilha não sobrescrevem o que já está preenchido: quem
- * exporta do RH costuma trazer colunas incompletas.
+ * alguém na conta com aquele email, reaproveita o cadastro — reimportar a mesma
+ * planilha não gera 80 pessoas repetidas.
  */
-export const importPeopleToGroup = createServerFn({ method: "POST" })
+export const importPeople = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z.object({
-      group_id: z.string().uuid(),
+      group_id: z.string().uuid().optional().nullable(),
       pessoas: z.array(z.object({
         full_name: z.string().trim().min(1).max(120),
         email: z.string().trim().email().max(200),
@@ -618,10 +618,12 @@ export const importPeopleToGroup = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: grupo, error: gErr } = await supabase
-      .from("groups").select("id").eq("id", data.group_id).maybeSingle();
-    if (gErr) throw new Error(gErr.message);
-    if (!grupo) throw new Error("Grupo não encontrado ou fora do seu acesso.");
+    if (data.group_id) {
+      const { data: grupo, error: gErr } = await supabase
+        .from("groups").select("id").eq("id", data.group_id).maybeSingle();
+      if (gErr) throw new Error(gErr.message);
+      if (!grupo) throw new Error("Grupo não encontrado ou fora do seu acesso.");
+    }
 
     const emails = Array.from(new Set(data.pessoas.map((p) => p.email.toLowerCase())));
     const { data: existentes, error: eErr } = await supabase
@@ -649,19 +651,25 @@ export const importPeopleToGroup = createServerFn({ method: "POST" })
       for (const p of inseridos ?? []) porEmail.set(p.email.toLowerCase(), p.id);
     }
 
-    // Quem já estava no grupo não entra de novo.
     const ids = Array.from(new Set(data.pessoas.map((p) => porEmail.get(p.email.toLowerCase())!).filter(Boolean)));
-    const { data: jaNoGrupo, error: mErr } = await supabase
-      .from("group_members").select("person_id").eq("group_id", data.group_id).in("person_id", ids);
-    if (mErr) throw new Error(mErr.message);
-    const dentro = new Set((jaNoGrupo ?? []).map((m) => m.person_id));
-    const aAdicionar = ids.filter((id) => !dentro.has(id));
 
-    if (aAdicionar.length > 0) {
-      const { error: addErr } = await supabase
-        .from("group_members")
-        .insert(aAdicionar.map((person_id) => ({ group_id: data.group_id, person_id })));
-      if (addErr) throw new Error(addErr.message);
+    let aAdicionar: string[] = [];
+    let dentro = new Set<string>();
+    if (data.group_id) {
+      // Quem já estava no grupo não entra de novo.
+      const { data: jaNoGrupo, error: mErr } = await supabase
+        .from("group_members").select("person_id").eq("group_id", data.group_id).in("person_id", ids);
+      if (mErr) throw new Error(mErr.message);
+      dentro = new Set((jaNoGrupo ?? []).map((m) => m.person_id));
+      aAdicionar = ids.filter((id) => !dentro.has(id));
+
+      if (aAdicionar.length > 0) {
+        const grupoId = data.group_id;
+        const { error: addErr } = await supabase
+          .from("group_members")
+          .insert(aAdicionar.map((person_id) => ({ group_id: grupoId, person_id })));
+        if (addErr) throw new Error(addErr.message);
+      }
     }
 
     return {
@@ -669,5 +677,6 @@ export const importPeopleToGroup = createServerFn({ method: "POST" })
       reaproveitados: ids.length - criados,
       adicionados_ao_grupo: aAdicionar.length,
       ja_estavam_no_grupo: dentro.size,
+      com_grupo: !!data.group_id,
     };
   });

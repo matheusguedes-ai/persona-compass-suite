@@ -8,7 +8,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { importPeopleToGroup } from "@/lib/data.functions";
+import { importPeople } from "@/lib/data.functions";
 import { lerPlanilhaDePessoas, csvModelo, type LinhaPlanilha } from "@/lib/planilha";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +17,14 @@ import {
 import { AlertCircle, Download, FileSpreadsheet, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
-export function ImportarPlanilha({ groupId, onPronto }: { groupId: string; onPronto?: () => void }) {
+export function ImportarPlanilha({
+  groupId,
+  onPronto,
+}: {
+  /** Ausente quando a importação vem do menu Pessoas: aí ninguém entra em grupo. */
+  groupId?: string | null;
+  onPronto?: () => void;
+}) {
   const qc = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const [lendo, setLendo] = useState(false);
@@ -26,7 +33,7 @@ export function ImportarPlanilha({ groupId, onPronto }: { groupId: string; onPro
   const [nomeArquivo, setNomeArquivo] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const importFn = useServerFn(importPeopleToGroup);
+  const importFn = useServerFn(importPeople);
 
   const validas = (linhas ?? []).filter((l) => !l.erro);
   const invalidas = (linhas ?? []).filter((l) => l.erro);
@@ -35,7 +42,7 @@ export function ImportarPlanilha({ groupId, onPronto }: { groupId: string; onPro
     mutationFn: () =>
       importFn({
         data: {
-          group_id: groupId,
+          group_id: groupId ?? null,
           pessoas: validas.map((l) => ({
             full_name: l.full_name,
             email: l.email,
@@ -46,16 +53,24 @@ export function ImportarPlanilha({ groupId, onPronto }: { groupId: string; onPro
         },
       }),
     onSuccess: (r) => {
-      const res = r as { criados: number; reaproveitados: number; adicionados_ao_grupo: number; ja_estavam_no_grupo: number };
-      qc.invalidateQueries({ queryKey: ["group", groupId] });
+      const res = r as {
+        criados: number; reaproveitados: number;
+        adicionados_ao_grupo: number; ja_estavam_no_grupo: number; com_grupo: boolean;
+      };
+      if (groupId) qc.invalidateQueries({ queryKey: ["group", groupId] });
       qc.invalidateQueries({ queryKey: ["people"] });
-      const partes = [
-        `${res.adicionados_ao_grupo} adicionada(s) ao grupo`,
-        res.criados > 0 ? `${res.criados} cadastro(s) novo(s)` : "",
-        res.reaproveitados > 0 ? `${res.reaproveitados} já existia(m)` : "",
-        res.ja_estavam_no_grupo > 0 ? `${res.ja_estavam_no_grupo} já estava(m) no grupo` : "",
-      ].filter(Boolean);
-      toast.success(partes.join(" · "));
+      const partes = res.com_grupo
+        ? [
+            `${res.adicionados_ao_grupo} adicionada(s) ao grupo`,
+            res.criados > 0 ? `${res.criados} cadastro(s) novo(s)` : "",
+            res.reaproveitados > 0 ? `${res.reaproveitados} já existia(m)` : "",
+            res.ja_estavam_no_grupo > 0 ? `${res.ja_estavam_no_grupo} já estava(m) no grupo` : "",
+          ]
+        : [
+            `${res.criados} pessoa(s) cadastrada(s)`,
+            res.reaproveitados > 0 ? `${res.reaproveitados} já existia(m) e não foi duplicada(s)` : "",
+          ];
+      toast.success(partes.filter(Boolean).join(" · "));
       fechar();
       onPronto?.();
     },
@@ -105,10 +120,11 @@ export function ImportarPlanilha({ groupId, onPronto }: { groupId: string; onPro
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Importar pessoas para o grupo</DialogTitle>
+          <DialogTitle>{groupId ? "Importar pessoas para o grupo" : "Importar pessoas"}</DialogTitle>
           <DialogDescription>
             Envie um Excel (.xlsx) ou CSV com uma linha por pessoa. Precisa ter uma coluna de{" "}
             <strong>Nome</strong> e outra de <strong>Email</strong>; telefone, profissão e cargo são opcionais.
+            {!groupId && " As pessoas entram no seu cadastro; você pode agrupá-las depois."}
           </DialogDescription>
         </DialogHeader>
 

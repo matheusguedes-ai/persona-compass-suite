@@ -10,6 +10,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search } from "lucide-react";
+import { ImportarPlanilha } from "@/components/importar-planilha";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -74,6 +75,8 @@ function PessoasPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Gestão de Pessoas</h1>
           <p className="mt-1 text-sm text-muted-foreground">{people.length} pessoas cadastradas</p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <ImportarPlanilha />
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
             <Button><Plus className="size-4" /> Adicionar pessoa</Button>
@@ -123,6 +126,7 @@ function PessoasPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
