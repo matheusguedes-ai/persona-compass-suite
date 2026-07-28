@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RankingDoGrupo } from "@/components/ranking-do-grupo";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -135,6 +136,7 @@ function GroupDetail() {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="pessoas">Pessoas ({members.length})</TabsTrigger>
           <TabsTrigger value="testes">Testes liberados ({instruments.length})</TabsTrigger>
+          <TabsTrigger value="ranking">Ranking</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-4">
@@ -233,6 +235,9 @@ function GroupDetail() {
               );
             })}
           </div>
+        </TabsContent>
+        <TabsContent value="ranking" className="mt-4">
+          <RankingDoGrupo groupId={id} />
         </TabsContent>
       </Tabs>
     </div>

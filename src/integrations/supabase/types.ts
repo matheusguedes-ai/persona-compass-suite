@@ -43,6 +43,12 @@ export type Database = {
           },
         ]
       }
+      pontos: {
+        Row: { id: string; user_id: string; mentor_id: string; acao: string; pontos: number; referencia: string | null; created_at: string }
+        Insert: { id?: string; user_id: string; mentor_id: string; acao: string; pontos: number; referencia?: string | null; created_at?: string }
+        Update: { id?: string; user_id?: string; mentor_id?: string; acao?: string; pontos?: number; referencia?: string | null; created_at?: string }
+        Relationships: []
+      }
       community_post_groups: {
         Row: { post_id: string; group_id: string }
         Insert: { post_id: string; group_id: string }

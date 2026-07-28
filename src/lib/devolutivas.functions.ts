@@ -216,6 +216,14 @@ export const registrarDevolutiva = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    // O ponto é do AVALIADO, por ter participado — quem realiza é o mentor.
+    const { data: dev } = await context.supabase
+      .from("devolutivas").select("person_id, mentor_id, people(user_id)").eq("id", data.id).maybeSingle();
+    if (dev?.people?.user_id) {
+      const { darPonto } = await import("@/lib/pontos.functions");
+      await darPonto(context.supabase, dev.people.user_id, dev.mentor_id, "devolutiva", data.id);
+    }
     return { ok: true };
   });
 

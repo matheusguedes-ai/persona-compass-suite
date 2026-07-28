@@ -30,6 +30,7 @@ import { Route as AlunoComunidadeRouteImport } from './routes/aluno.comunidade'
 import { Route as AlunoCriarSenhaRouteImport } from './routes/aluno.criar-senha'
 import { Route as AlunoDevolutivasRouteImport } from './routes/aluno.devolutivas'
 import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
+import { Route as AlunoRankingRouteImport } from './routes/aluno.ranking'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
 import { Route as ConviteEquipeTokenRouteImport } from './routes/convite-equipe.$token'
 import { Route as ConviteLinkIdRouteImport } from './routes/convite.$linkId'
@@ -163,6 +164,11 @@ const AlunoDevolutivasRoute = AlunoDevolutivasRouteImport.update({
 const AlunoPerfilRoute = AlunoPerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoRankingRoute = AlunoRankingRouteImport.update({
+  id: '/ranking',
+  path: '/ranking',
   getParentRoute: () => AlunoRoute,
 } as any)
 const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
@@ -330,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
+  '/aluno/ranking': typeof AlunoRankingRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -373,6 +380,7 @@ export interface FileRoutesByTo {
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
+  '/aluno/ranking': typeof AlunoRankingRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -425,6 +433,7 @@ export interface FileRoutesById {
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
+  '/aluno/ranking': typeof AlunoRankingRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -478,6 +487,7 @@ export interface FileRouteTypes {
     | '/aluno/criar-senha'
     | '/aluno/devolutivas'
     | '/aluno/perfil'
+    | '/aluno/ranking'
     | '/bateria/$assessmentId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
@@ -521,6 +531,7 @@ export interface FileRouteTypes {
     | '/aluno/criar-senha'
     | '/aluno/devolutivas'
     | '/aluno/perfil'
+    | '/aluno/ranking'
     | '/bateria/$assessmentId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
@@ -572,6 +583,7 @@ export interface FileRouteTypes {
     | '/aluno/criar-senha'
     | '/aluno/devolutivas'
     | '/aluno/perfil'
+    | '/aluno/ranking'
     | '/bateria/$assessmentId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
@@ -774,6 +786,13 @@ declare module '@tanstack/react-router' {
       path: '/perfil'
       fullPath: '/aluno/perfil'
       preLoaderRoute: typeof AlunoPerfilRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/ranking': {
+      id: '/aluno/ranking'
+      path: '/ranking'
+      fullPath: '/aluno/ranking'
+      preLoaderRoute: typeof AlunoRankingRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/bateria/$assessmentId': {
@@ -1082,6 +1101,7 @@ interface AlunoRouteChildren {
   AlunoCriarSenhaRoute: typeof AlunoCriarSenhaRoute
   AlunoDevolutivasRoute: typeof AlunoDevolutivasRoute
   AlunoPerfilRoute: typeof AlunoPerfilRoute
+  AlunoRankingRoute: typeof AlunoRankingRoute
   AlunoIndexRoute: typeof AlunoIndexRoute
   AlunoEducacaoTrackIdRoute: typeof AlunoEducacaoTrackIdRoute
   AlunoEducacaoIndexRoute: typeof AlunoEducacaoIndexRoute
@@ -1092,6 +1112,7 @@ const AlunoRouteChildren: AlunoRouteChildren = {
   AlunoCriarSenhaRoute: AlunoCriarSenhaRoute,
   AlunoDevolutivasRoute: AlunoDevolutivasRoute,
   AlunoPerfilRoute: AlunoPerfilRoute,
+  AlunoRankingRoute: AlunoRankingRoute,
   AlunoIndexRoute: AlunoIndexRoute,
   AlunoEducacaoTrackIdRoute: AlunoEducacaoTrackIdRoute,
   AlunoEducacaoIndexRoute: AlunoEducacaoIndexRoute,

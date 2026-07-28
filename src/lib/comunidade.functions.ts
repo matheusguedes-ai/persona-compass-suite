@@ -18,6 +18,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { darPonto, contaDaPessoa } from "@/lib/pontos.functions";
 
 /**
  * Grupos do lado da EQUIPE — os grupos da conta. Usado pelo menu Comunidades
@@ -185,6 +186,8 @@ export const publicarPost = createServerFn({ method: "POST" })
       await supabase.from("community_posts").delete().eq("id", postId);
       throw new Error("Não consegui publicar nestes grupos.");
     }
+    const conta = await contaDaPessoa(supabase, context.userId);
+    if (conta) await darPonto(supabase, context.userId, conta, "publicar", postId);
     return { ok: true };
   });
 
@@ -200,6 +203,9 @@ export const comentar = createServerFn({ method: "POST" })
       body: data.body.trim(),
     });
     if (error) throw new Error(error.message);
+    const conta = await contaDaPessoa(supabase, context.userId);
+    // Referência é o POST: comentar dez vezes no mesmo não vira dez pontos.
+    if (conta) await darPonto(supabase, context.userId, conta, "comentar", data.post_id);
     return { ok: true };
   });
 
@@ -213,6 +219,9 @@ export const alternarCurtida = createServerFn({ method: "POST" })
         .insert({ post_id: data.post_id, user_id: context.userId });
       // Curtir duas vezes não é erro para quem clicou; a chave primária barra.
       if (error && error.code !== "23505") throw new Error(error.message);
+      const conta = await contaDaPessoa(supabase, context.userId);
+      // Descurtir e curtir de novo não repontua: o índice único barra.
+      if (conta) await darPonto(supabase, context.userId, conta, "curtir", data.post_id);
     } else {
       const { error } = await supabase.from("community_reactions")
         .delete().eq("post_id", data.post_id).eq("user_id", context.userId);
