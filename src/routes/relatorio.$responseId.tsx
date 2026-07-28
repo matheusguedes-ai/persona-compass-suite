@@ -88,7 +88,7 @@ function RelatorioPage() {
               {/* Empate técnico não vira letra: ver perfilIndefinido em report.server.ts */}
               {data.perfil_indefinido
                 ? "Sem predominância clara"
-                : (data.profile ?? rankedFactors[0]?.label ?? "—")}
+                : (data.profile ?? data.mbti?.tipo ?? rankedFactors[0]?.label ?? "—")}
             </dd>
           </div>
         </dl>

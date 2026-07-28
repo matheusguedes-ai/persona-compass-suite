@@ -80,6 +80,8 @@ export type Report = {
   duration: string | null;
   is_disc?: boolean;
   is_mbti?: boolean;
+  /** Preenchido só quando o teste respondido é o de tipos psicológicos. */
+  mbti?: { tipo: string; pares: JungPares } | null;
   profile: string | null;
   profile_labels: string[];
   /** Dimensões praticamente empatadas: não há perfil a declarar. */
@@ -166,7 +168,49 @@ export function Section({ children, className = "" }: { children: React.ReactNod
 }
 
 /** Introdução metodológica (DISC ou genérica). */
-export function IntroSection({ isDisc }: { isDisc: boolean }) {
+/**
+ * Negrito em `**assim**` dentro do texto do relatório.
+ *
+ * As seções que juntam várias dimensões num bloco só ficam legíveis com um
+ * rótulo destacado abrindo cada parágrafo ("**Extroversão no trabalho.** …").
+ * É a única marcação suportada de propósito: o conteúdo vem do banco, e
+ * interpretar HTML de lá seria abrir uma porta que não precisa existir.
+ */
+function comNegrito(texto: string) {
+  return texto.split(/(\*\*[^*]+\*\*)/g).map((parte, i) =>
+    parte.startsWith("**") && parte.endsWith("**") ? (
+      <strong key={i} className="text-foreground">{parte.slice(2, -2)}</strong>
+    ) : (
+      <span key={i}>{parte}</span>
+    ),
+  );
+}
+
+export function IntroSection({ isDisc, isMbti }: { isDisc: boolean; isMbti?: boolean }) {
+  if (isMbti) {
+    return (
+      <Section>
+        <h2 className="text-lg font-semibold">Como ler este relatório</h2>
+        <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            Este inventário mede quatro preferências independentes, na tradição de Carl Jung (1921): para onde
+            você dirige a atenção (E/I), como capta informação (S/N), como decide (T/F) e como se organiza
+            diante do que está em aberto (J/P).
+          </p>
+          <p>
+            Os polos de cada eixo são complementares, não opostos excludentes. O percentual indica{" "}
+            <strong>ênfase</strong> — todo mundo usa os dois lados, e a preferência diz qual deles vem primeiro
+            e com menos esforço.
+          </p>
+          <p>
+            As quatro letras juntas formam um apelido para o conjunto. Quando um eixo fica perto de 50% a 50%,
+            aquela letra é praticamente sorteio, e este relatório diz isso em vez de fingir que decidiu. O que
+            vale a leitura são os eixos, um a um.
+          </p>
+        </div>
+      </Section>
+    );
+  }
   if (isDisc) {
     return (
       <Section>
@@ -233,7 +277,7 @@ export function ReportBody({
 
   return (
     <>
-      {showIntro && <IntroSection isDisc={isDisc} />}
+      {showIntro && <IntroSection isDisc={isDisc} isMbti={data.is_mbti} />}
 
       {mostrar("fatores") && (isDisc ? (
         <Section>
@@ -275,6 +319,10 @@ export function ReportBody({
             </p>
           )}
         </Section>
+      ) : data.is_mbti && data.mbti ? (
+        // Oito barras soltas (E 100, I 0, N 100, S 0…) dizem a mesma coisa duas
+        // vezes e escondem o que importa: a distância dentro de cada par.
+        <EixosMbti jung={data.mbti} origem="teste" />
       ) : (
         <Section>
           <h2 className="text-lg font-semibold">Intensidade por dimensão</h2>
@@ -389,7 +437,7 @@ export function ReportBody({
         <Section key={s.section}>
           <h2 className="text-lg font-semibold">{s.title ?? SECTION_TITLES[s.section] ?? s.section}</h2>
           <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
-            {s.body.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}
+            {s.body.split(/\n{2,}/).map((p, i) => <p key={i}>{comNegrito(p)}</p>)}
           </div>
         </Section>
       ))}
@@ -624,45 +672,56 @@ export function ReportBrandHeader({ brand }: { brand?: ReportBrand | null }) {
   );
 }
 
-export function DerivedSections({
-  d,
-  mbtiReal,
+/**
+ * Os quatro eixos de tipos psicológicos.
+ *
+ * Serve tanto para o teste próprio (`origem="teste"`) quanto para a estimativa
+ * derivada do DISC (`origem="disc"`) — o selo em cima diz de onde veio, e essa
+ * distinção é a regra de honestidade do relatório.
+ */
+export function EixosMbti({
+  jung,
+  origem,
 }: {
-  d: Derived;
-  mbtiReal?: { tipo: string; pares: JungPares } | null;
+  jung: { tipo: string; pares: JungPares };
+  origem: "teste" | "disc";
 }) {
-  const jung = mbtiReal ?? d.jung;
-  const jungFromTest = !!mbtiReal;
-
+  const doTeste = origem === "teste";
+  // Abaixo de 55% num eixo de dois polos, a letra é praticamente sorteio.
+  const indeciso = (p: JungPares[number]) => Math.max(p.leftPct, p.rightPct) < 55;
   return (
-    <>
-      {/* Tipos psicológicos */}
-      <Section>
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Tipos psicológicos</h2>
-          <span className="rounded-md bg-muted px-3 py-1 text-sm font-semibold tracking-[0.2em]">{jung.tipo}</span>
-        </div>
-        <div className="mt-2">
-          <SourceBadge>
-            {jungFromTest ? "Com base nas suas respostas do inventário MBTI" : "Estimativa derivada do seu DISC"}
-          </SourceBadge>
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          {jungFromTest
-            ? "Leitura das preferências mentais a partir do inventário que você respondeu. Os polos são complementares: o percentual indica ênfase, não ausência do lado oposto."
-            : "Você não respondeu um inventário de tipos psicológicos nesta avaliação. Os percentuais abaixo são uma estimativa calculada a partir do seu perfil DISC — útil como hipótese de leitura, não como resultado de teste."}
-        </p>
-        <div className="mt-5 space-y-5">
-          {jung.pares.map((p) => (
-            <div key={p.left}>
-              <div className="flex items-center justify-between text-sm font-medium">
-                <span className={p.preferred === p.left ? "" : "text-muted-foreground"}>{p.left} {Math.round(p.leftPct)}%</span>
-                <span className={p.preferred === p.right ? "" : "text-muted-foreground"}>{Math.round(p.rightPct)}% {p.right}</span>
-              </div>
-              <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-muted">
-                <div className="h-full" style={{ width: `${p.leftPct}%`, background: NATURAL_COLOR }} />
-                <div className="h-full" style={{ width: `${p.rightPct}%`, background: ADAPTADO_COLOR, opacity: 0.55 }} />
-              </div>
+    <Section>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold">Tipos psicológicos</h2>
+        <span className="rounded-md bg-muted px-3 py-1 text-sm font-semibold tracking-[0.2em]">{jung.tipo}</span>
+      </div>
+      <div className="mt-2">
+        <SourceBadge>
+          {doTeste ? "Com base nas suas respostas do inventário MBTI" : "Estimativa derivada do seu DISC"}
+        </SourceBadge>
+      </div>
+      <p className="mt-3 text-sm text-muted-foreground">
+        {doTeste
+          ? "Leitura das preferências mentais a partir do inventário que você respondeu. Os polos são complementares: o percentual indica ênfase, não ausência do lado oposto."
+          : "Você não respondeu um inventário de tipos psicológicos nesta avaliação. Os percentuais abaixo são uma estimativa calculada a partir do seu perfil DISC — útil como hipótese de leitura, não como resultado de teste."}
+      </p>
+      <div className="mt-5 space-y-5">
+        {jung.pares.map((p) => (
+          <div key={p.left}>
+            <div className="flex items-center justify-between text-sm font-medium">
+              <span className={p.preferred === p.left ? "" : "text-muted-foreground"}>{p.left} {Math.round(p.leftPct)}%</span>
+              <span className={p.preferred === p.right ? "" : "text-muted-foreground"}>{Math.round(p.rightPct)}% {p.right}</span>
+            </div>
+            <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-muted">
+              <div className="h-full" style={{ width: `${p.leftPct}%`, background: NATURAL_COLOR }} />
+              <div className="h-full" style={{ width: `${p.rightPct}%`, background: ADAPTADO_COLOR, opacity: 0.55 }} />
+            </div>
+            {indeciso(p) ? (
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                Praticamente empatado. Você transita pelos dois lados conforme a situação — a letra
+                correspondente do seu tipo, aqui, não diz grande coisa.
+              </p>
+            ) : (
               <ul className="mt-3 space-y-1.5">
                 {(JUNG_BULLETS[p.preferred] ?? []).map((b, i) => (
                   <li key={i} className="flex gap-2 text-sm leading-relaxed text-muted-foreground">
@@ -671,10 +730,26 @@ export function DerivedSections({
                   </li>
                 ))}
               </ul>
-            </div>
-          ))}
-        </div>
-      </Section>
+            )}
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+export function DerivedSections({
+  d,
+  mbtiReal,
+}: {
+  d: Derived;
+  mbtiReal?: { tipo: string; pares: JungPares } | null;
+}) {
+  const jung = mbtiReal ?? d.jung;
+
+  return (
+    <>
+      <EixosMbti jung={jung} origem={mbtiReal ? "teste" : "disc"} />
 
       {/* Estilo de liderança */}
       <Section>

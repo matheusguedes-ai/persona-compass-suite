@@ -201,6 +201,85 @@ export async function buildReport(id: string) {
    * medidas: cada trecho vem da faixa real daquela dimensão, nunca de um perfil
    * presumido. Conteúdo vive em `report_content` como `<instrumento>_<seção>`.
    */
+  /**
+   * MBTI: a narrativa sai dos EIXOS, não do rótulo de quatro letras.
+   *
+   * O que o inventário mede são quatro preferências independentes. O tipo
+   * "ENFJ" é um apelido para o conjunto delas — e um apelido que engana quando
+   * algum eixo ficou em 52% contra 48%, porque a letra vira sorteio. Então:
+   * a síntese usa o tipo, mas todo o resto é lido eixo a eixo, e o eixo
+   * indeciso é declarado como indeciso em vez de virar letra.
+   */
+  const mbtiSections = () => {
+    const built = buildMbtiFromFactors(dimList.filter((d) => d.has_data));
+    if (!built) return [];
+    const out: Array<{ section: string; title: string | null; body: string }> = [];
+
+    // Polo escolhido em cada eixo, marcando os que ficaram no muro.
+    const polos = MBTI_AXES.map(([a, b], i) => {
+      const d = built.pares[i];
+      if (!d) return null;
+      const forte = Math.max(d.leftPct, d.rightPct);
+      return { polo: d.leftPct >= 50 ? a : b, oposto: d.leftPct >= 50 ? b : a, indeciso: forte < 55 };
+    }).filter((p): p is { polo: string; oposto: string; indeciso: boolean } => p != null);
+
+    /**
+     * A síntese por tipo só entra quando o tipo significa alguma coisa.
+     *
+     * Com um eixo empatado, "ENTJ" e "ENFJ" são o mesmo resultado — escolher um
+     * dos dois para descrever a pessoa é decidir na moeda e depois falar com
+     * convicção. Então: eixo todo definido, síntese normal; um eixo no muro, as
+     * duas leituras possíveis, ditas como duas; dois ou mais no muro, nenhuma —
+     * aí o tipo não passa de um sorteio de quatro letras.
+     */
+    const indecisos = polos.filter((p) => p.indeciso);
+    if (indecisos.length === 0) {
+      const sintese = pick("mbti_sintese", built.tipo);
+      if (sintese?.body) out.push({ section: "sintese", title: sintese.title, body: sintese.body });
+    } else if (indecisos.length === 1) {
+      const alternativo = polos.map((p) => (p.indeciso ? p.oposto : p.polo)).join("");
+      const a = pick("mbti_sintese", built.tipo);
+      const b = pick("mbti_sintese", alternativo);
+      if (a?.body && b?.body) {
+        out.push({
+          section: "sintese",
+          title: `Seu resultado fica entre ${built.tipo} e ${alternativo}`,
+          body:
+            `Um dos quatro eixos ficou praticamente empatado, então as duas leituras abaixo se ` +
+            `aplicam a você. Veja qual das duas descreve melhor o seu dia a dia — e note que ` +
+            `transitar entre elas conforme a situação também é uma resposta.\n\n` +
+            `**${built.tipo}.** ${a.body}\n\n**${alternativo}.** ${b.body}`,
+        });
+      }
+    }
+
+    const juntar = (suffix: string, titulo: string) => {
+      const corpo = polos
+        .filter((p) => !p.indeciso) // eixo no muro não gera afirmação
+        .map((p) => pick(`mbti_${suffix}`, p.polo)?.body ?? null)
+        .filter((s): s is string => s != null)
+        .join("\n\n");
+      if (corpo) out.push({ section: suffix, title: titulo, body: corpo });
+    };
+    juntar("eixo", "O que cada preferência sua quer dizer");
+    juntar("trabalho", "Como isso aparece no trabalho");
+    juntar("relacoes", "Como isso aparece nas relações");
+    juntar("atencao", "Pontos cegos de cada preferência");
+
+    if (indecisos.length > 0) {
+      out.push({
+        section: "pontos_desenvolver",
+        title: "Preferências que ficaram no meio",
+        body:
+          `Em ${indecisos.length === 1 ? "um dos eixos" : `${indecisos.length} eixos`} suas respostas ficaram ` +
+          "quase empatadas. Isso não é erro nem indecisão: quer dizer que você transita pelos dois lados " +
+          "conforme a situação, e que a letra correspondente do seu tipo não deve ser levada a sério. " +
+          "Leia as outras preferências, que essas sim apareceram com clareza.",
+      });
+    }
+    return out;
+  };
+
   const dimensionalSections = () => {
     if (!instrumentId) return [];
     const measured = dimList.filter((d) => d.has_data);
@@ -238,7 +317,9 @@ export async function buildReport(id: string) {
         const block = pick(section, profile) ?? pick(section, profile.slice(0, 1));
         return block ? { section, title: block.title, body: block.body } : { section, title: null, body: null };
       }).filter((s) => s.body != null)
-    : dimensionalSections();
+    : isMbti
+      ? mbtiSections()
+      : dimensionalSections();
 
   // Band lookup by dimension + mode over normalized score.
   const bandFor = (dimensionId: string, mode: "natural" | "adaptado", score: number) => {
@@ -371,6 +452,8 @@ export async function buildReport(id: string) {
       duration: formatDuration(response.started_at, response.submitted_at),
       is_disc: isDisc,
       is_mbti: isMbti,
+      /** Tipo e eixos, quando o próprio teste respondido é o de tipos psicológicos. */
+      mbti: isMbti ? buildMbtiFromFactors(dimList.filter((d) => d.has_data)) : null,
       profile: isDisc && !perfilIndefinido ? profile : null,
       profile_labels: isDisc && !perfilIndefinido ? profileDims.map((d) => d.label) : [],
       perfil_indefinido: perfilIndefinido,
