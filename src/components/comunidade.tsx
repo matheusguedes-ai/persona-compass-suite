@@ -40,9 +40,12 @@ function quando(iso: string) {
 export function Comunidade({
   grupos,
   escolherDestino = false,
+  somenteLeitura = false,
 }: {
   grupos: Array<{ id: string; name: string }>;
   escolherDestino?: boolean;
+  /** Prévia "Ver como aluno": mostra o feed, mas não deixa publicar em nome dele. */
+  somenteLeitura?: boolean;
 }) {
   const qc = useQueryClient();
   const feedFn = useServerFn(listarFeed);
@@ -61,8 +64,15 @@ export function Comunidade({
 
   // Destino do post. Para o avaliado é sempre tudo; para o dono, o que ele marcar.
   const [destino, setDestino] = useState<string[]>(grupos.map((g) => g.id));
-  const chave = ["feed"];
-  const { data, isLoading } = useQuery({ queryKey: chave, queryFn: () => feedFn({ data: {} }) });
+  // Limita aos grupos recebidos. Importa na prévia: quem está autenticado é o
+  // dono, e sem o filtro o feed traria posts de grupos que o aluno não tem.
+  const idsDosGrupos = grupos.map((g) => g.id);
+  const chave = ["feed", idsDosGrupos.join(",")];
+  const { data, isLoading } = useQuery({
+    queryKey: chave,
+    queryFn: () => feedFn({ data: { group_ids: idsDosGrupos } }),
+    enabled: idsDosGrupos.length > 0,
+  });
   const recarregar = () => qc.invalidateQueries({ queryKey: chave });
 
   async function escolherArquivo(f: File) {
@@ -127,6 +137,7 @@ export function Comunidade({
   return (
     <div className="space-y-5">
       {/* ------------------------------------------------- escrever --- */}
+      {!somenteLeitura && (
       <div className="rounded-xl border border-black/5 bg-card p-4">
         <Textarea
           value={texto} onChange={(e) => setTexto(e.target.value)} rows={3}
@@ -190,6 +201,7 @@ export function Comunidade({
           </Button>
         </div>
       </div>
+      )}
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
       {!isLoading && posts.length === 0 && (

@@ -12,13 +12,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { meusGrupos } from "@/lib/comunidade.functions";
+import { gruposDoAvaliado } from "@/lib/comunidade.functions";
 import { Comunidade } from "@/components/comunidade";
 import { Users } from "lucide-react";
 
 function Pagina() {
-  const fn = useServerFn(meusGrupos);
-  const { data, isLoading } = useQuery({ queryKey: ["meus-grupos"], queryFn: () => fn() });
+  const { ver } = Route.useSearch();
+  const fn = useServerFn(gruposDoAvaliado);
+  const { data, isLoading } = useQuery({
+    queryKey: ["grupos-do-avaliado", ver ?? null],
+    queryFn: () => fn({ data: { preview_person_id: ver ?? null } }),
+  });
   const grupos = data?.grupos ?? [];
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
@@ -46,12 +50,15 @@ function Pagina() {
             : `Você participa de ${grupos.length} grupos, e vê todos aqui. O que você publica aparece em todos eles.`}
         </p>
       </div>
-      <Comunidade grupos={grupos} />
+      <Comunidade grupos={grupos} somenteLeitura={!!ver} />
     </div>
   );
 }
 
 export const Route = createFileRoute("/aluno/comunidade")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    ver: typeof s.ver === "string" ? s.ver : undefined,
+  }),
   head: () => ({ meta: [{ title: "Comunidade" }, { name: "robots", content: "noindex" }] }),
   component: Pagina,
 });

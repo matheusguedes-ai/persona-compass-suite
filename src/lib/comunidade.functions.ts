@@ -19,22 +19,49 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-/** Grupos em que a pessoa logada participa — como avaliada ou pela equipe. */
+/**
+ * Grupos do lado da EQUIPE — os grupos da conta. Usado pelo menu Comunidades
+ * do dono, que enxerga todos e escolhe o destino ao publicar.
+ */
 export const meusGrupos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const { data, error } = await context.supabase.from("groups").select("id, name").order("name");
+    if (error) throw new Error(error.message);
+    return { grupos: data ?? [] };
+  });
+
+/**
+ * Grupos do lado do AVALIADO — só aqueles em que ele é membro.
+ *
+ * Precisa ser separado do de cima. Na prévia "Ver como aluno" quem está
+ * autenticado continua sendo o DONO, e a busca por `groups` devolveria os
+ * grupos da conta inteira — a tela do aluno mostrava uma comunidade que ele
+ * não tem, com o campo de publicar aberto. `preview_person_id` resolve: em
+ * prévia, valem os grupos daquela pessoa.
+ */
+export const gruposDoAvaliado = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ preview_person_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
     const supabase = context.supabase;
-    // A RLS de `groups` já resolve o lado da equipe. Para o avaliado, o caminho
-    // é pelos grupos em que ele está como pessoa.
-    const { data: comoEquipe } = await supabase.from("groups").select("id, name").order("name");
-    const { data: ids } = await supabase.rpc("meus_grupos_como_avaliado");
-    const doAvaliado = (ids ?? []) as unknown as string[];
-    const extras = doAvaliado.length
-      ? (await supabase.from("groups").select("id, name").in("id", doAvaliado)).data ?? []
-      : [];
-    const juntos = new Map<string, { id: string; name: string }>();
-    for (const g of [...(comoEquipe ?? []), ...extras]) juntos.set(g.id, g);
-    return { grupos: [...juntos.values()].sort((a, b) => a.name.localeCompare(b.name)) };
+    let ids: string[];
+    if (data.preview_person_id) {
+      // A RLS de `group_members` já barra pessoa de fora da conta.
+      const { data: v, error } = await supabase
+        .from("group_members").select("group_id").eq("person_id", data.preview_person_id);
+      if (error) throw new Error(error.message);
+      ids = (v ?? []).map((x) => x.group_id);
+    } else {
+      const { data: v, error } = await supabase.rpc("meus_grupos_como_avaliado");
+      if (error) throw new Error(error.message);
+      ids = (v ?? []) as unknown as string[];
+    }
+    if (ids.length === 0) return { grupos: [] };
+    const { data: gs } = await supabase.from("groups").select("id, name").in("id", ids).order("name");
+    return { grupos: gs ?? [] };
   });
 
 export const listarFeed = createServerFn({ method: "GET" })
