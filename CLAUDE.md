@@ -15,6 +15,17 @@ TanStack Start (SSR) + React 19 + TypeScript + Tailwind v4 + shadcn/ui.
 Banco: Supabase (PostgreSQL) com RLS. Server functions do TanStack com validação Zod.
 Build: `npx vite build` · Typecheck: `npx tsc --noEmit -p tsconfig.json`
 
+Scripts de conteúdo e verificação (Python puro, sem dependência):
+- `scripts/conteudo_*.py` — perguntas e textos de relatório, com os asserts
+- `scripts/aplicar_conteudo.py <modulo>` — grava no banco **via REST**. O editor
+  SQL do Supabase já cortou script no meio dizendo "Success" e já mostrou o
+  resultado da execução anterior; pela REST cada passo devolve o que gravou.
+  Recusa rodar se a versão já tiver resposta enviada.
+- `scripts/simular_resposta.py <versao> primeira|ultima|coerente` — responde o
+  teste pelo endpoint público e mostra o resultado. **"primeira" e "ultima"
+  precisam dar empate e selo "baixa"**; se saírem com perfil dominante, o teste
+  está fabricando resultado pela posição da alternativa.
+
 ## Fluxo de trabalho
 
 1. Editar o código localmente (Claude Code / Cowork).
@@ -67,6 +78,8 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
 ## Relatórios
 
 - `src/lib/report.server.ts` — `buildReport(responseId)`, compartilhado.
+  Três montadores: DISC (seções por perfil composto), MBTI (por eixo) e
+  dimensional (Valores/Temperamentos/VAK/Big Five, 9 seções).
 - `src/lib/derivations.ts` — pesos das derivações do DISC (Jung, 4 estilos de
   liderança, 16 competências, 4 índices), sobrescritíveis por `derived_config`.
 - `src/components/report/sections.tsx` — blocos visuais compartilhados.
@@ -74,7 +87,12 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
 - `/relatorio-bateria/$assessmentId` — unificado: uma seção por teste respondido.
 
 **Regra de honestidade (importante):** nada aparece a partir de teste não
-respondido. Liderança/competências/índices levam o selo "Derivado do seu DISC".
+respondido. Empate também não vira resultado: com menos de 10 pontos entre a
+maior e a menor dimensão, o relatório diz "sem predominância clara" em vez de
+cravar uma letra vinda do desempate da lista. No MBTI, eixo abaixo de 55% é
+declarado em aberto e sai das seções.
+Selo de confiabilidade em toda resposta (`computed_scores.qualidade`): mede
+contradição entre itens equivalentes, respostas sem variação e ritmo. Liderança/competências/índices levam o selo "Derivado do seu DISC".
 Tipos Psicológicos usam o MBTI real quando respondido; senão vão como
 "Estimativa derivada do seu DISC", com ressalva explícita no texto.
 
@@ -84,8 +102,18 @@ Todo texto do relatório é **original** — as metodologias são de domínio p�
 mas os textos de relatórios comerciais (CIS Assessment etc.) são protegidos.
 Nunca copiar. Conteúdo vive em `report_content` e `test_result_bands`, não no código.
 
-Templates populados: DISC (24 blocos), Valores (12), Big Five (30 itens likert),
-MBTI (28 pares), Temperamentos (12), VAK (12), QI (20 questões com gabarito).
+Templates populados (revisados em 28/07/2026, ver `scripts/conteudo_*.py`):
+DISC 28 blocos · Valores 30 · Temperamentos 28 · VAK 24 · MBTI 40 · Big Five 50
+itens de escala · QI 20 questões com gabarito (não revisado).
+
+Regras que o conteúdo precisa respeitar, verificadas por `assert` nos scripts:
+- alternativas de **peso social parecido** — se uma delas é visivelmente a
+  "resposta de líder", o teste mede vaidade;
+- **ordem embaralhada** com equilíbrio exato por posição. A ordem fixa D,I,S,C
+  fazia quem clicava na primeira alternativa sair com perfil D puro;
+- **pares de checagem** (`config.check_group`): dois blocos equivalentes,
+  afastados, e com ordens diferentes entre si — senão o par não pega nada;
+- Big Five: metade dos itens **invertidos** (`config.reverse`) por traço.
 
 ## Estado atual e próximos passos
 
@@ -93,9 +121,11 @@ Feito: correção de ~31 bugs; `forced_choice`; relatório completo (Fases 1–3
 360° com observadores; plano de ação interativo; bateria com link único;
 relatório unificado com rótulos de derivação.
 
-Backlog: seleção pergunta a pergunta ao montar a bateria (com ajuste da
-normalização); alpha de Cronbach na tela de Estatísticas quando houver amostra;
-calibração dos pesos de derivação com dados reais.
+Backlog: menu Kanban do funil (enviar → recebeu → começou → respondeu →
+devolutiva) com tempo parado por etapa, e menu de Devolutiva; seleção pergunta a
+pergunta ao montar a bateria (com ajuste da normalização); alpha de Cronbach na
+tela de Estatísticas quando houver amostra; calibração dos pesos de derivação
+com dados reais; revisão do QI.
 
 ## Convenções
 
