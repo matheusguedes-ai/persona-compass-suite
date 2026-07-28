@@ -128,23 +128,34 @@ export const publicarPost = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
-    const { data: post, error } = await supabase.from("community_posts").insert({
+
+    // O id vem daqui, e o INSERT não pede a linha de volta.
+    //
+    // Com `.select()`, o PostgREST relê a linha recém-criada, e essa releitura
+    // passa pela policy de LEITURA — que exige que o post já esteja ligado a um
+    // grupo visível. Só que o vínculo é criado no passo seguinte: no instante
+    // do INSERT ele ainda não existe, a leitura falha e o erro chega como
+    // "new row violates row-level security policy", apontando para o lugar
+    // errado. Mesma armadilha que já apareceu em learning_tracks e em groups.
+    const postId = crypto.randomUUID();
+    const { error } = await supabase.from("community_posts").insert({
+      id: postId,
       author_id: context.userId,
       author_name: await meuNome(supabase, context.userId),
       body: data.body.trim(),
       file_url: data.file_url ?? null,
       file_kind: data.file_kind ?? null,
       link_url: data.link_url ?? null,
-    }).select("id").single();
+    });
     if (error) throw new Error(error.message);
 
     // Uma publicação, vários destinos. A RLS do vínculo barra grupo que a
     // pessoa não pode ver, então mandar um id alheio não cola.
     const { error: eV } = await supabase.from("community_post_groups")
-      .insert(data.group_ids.map((g) => ({ post_id: post.id, group_id: g })));
+      .insert(data.group_ids.map((g) => ({ post_id: postId, group_id: g })));
     if (eV) {
       // Post sem destino não aparece para ninguém e vira lixo: desfaz.
-      await supabase.from("community_posts").delete().eq("id", post.id);
+      await supabase.from("community_posts").delete().eq("id", postId);
       throw new Error("Não consegui publicar nestes grupos.");
     }
     return { ok: true };
