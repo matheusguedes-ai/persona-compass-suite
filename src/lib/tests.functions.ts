@@ -448,6 +448,7 @@ export const startResponse = createServerFn({ method: "POST" })
     version_id: z.string().uuid(),
     person_id: z.string().uuid(),
     group_id: z.string().uuid().optional().nullable(),
+    expires_at: z.string().datetime().optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     // Verify ownership: person must belong to this mentor, and version must be
@@ -471,6 +472,7 @@ export const startResponse = createServerFn({ method: "POST" })
       group_id: data.group_id ?? null,
       mentor_id: context.userId,
       status: "pending",
+      expires_at: data.expires_at ?? null,
     }).select().single();
     if (error) throw new Error(error.message);
     return row;
@@ -561,6 +563,7 @@ export const startAssessment = createServerFn({ method: "POST" })
     person_id: z.string().uuid(),
     version_ids: z.array(z.string().uuid()).min(1).max(10),
     group_id: z.string().uuid().optional().nullable(),
+    expires_at: z.string().datetime().optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -588,6 +591,7 @@ export const startAssessment = createServerFn({ method: "POST" })
       person_id: data.person_id,
       group_id: data.group_id ?? null,
       status: "pending",
+      expires_at: data.expires_at ?? null,
     }).select("id").single();
     if (aErr) throw new Error(aErr.message);
 
@@ -599,6 +603,7 @@ export const startAssessment = createServerFn({ method: "POST" })
         mentor_id: userId,
         status: "pending",
         kind: "self",
+        expires_at: data.expires_at ?? null,
         assessment_response_id: assessment.id,
         assessment_sort: idx,
       })),
@@ -643,4 +648,78 @@ export const listAssessments = createServerFn({ method: "GET" })
         })),
       };
     });
+  });
+
+// ============================================================
+// Link aberto (invite_links)
+// Um único link que várias pessoas respondem, identificando-se na hora.
+// ============================================================
+
+export const createInviteLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    version_ids: z.array(z.string().uuid()).min(1).max(10),
+    title: z.string().trim().max(160).optional().nullable(),
+    group_id: z.string().uuid().optional().nullable(),
+    expires_at: z.string().datetime().optional().nullable(),
+    max_responses: z.number().int().positive().max(10000).optional().nullable(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const versionIds = Array.from(new Set(data.version_ids));
+
+    // Mesma regra dos envios: template global ou versão do próprio mentor.
+    const { data: versions, error: vErr } = await supabase
+      .from("test_versions").select("id, mentor_id, is_template").in("id", versionIds);
+    if (vErr) throw new Error(vErr.message);
+    const byId = new Map((versions ?? []).map((v) => [v.id, v]));
+    for (const vid of versionIds) {
+      const v = byId.get(vid);
+      if (!v || (!v.is_template && v.mentor_id !== userId)) {
+        throw new Error("Versão de teste não encontrada ou não pertence a você.");
+      }
+    }
+    if (data.group_id) {
+      const { data: g } = await supabase
+        .from("groups").select("id, mentor_id").eq("id", data.group_id).maybeSingle();
+      if (!g || g.mentor_id !== userId) throw new Error("Grupo não encontrado ou não pertence a você.");
+    }
+
+    const { data: row, error } = await supabase.from("invite_links").insert({
+      mentor_id: userId,
+      title: data.title?.trim() || null,
+      version_ids: versionIds,
+      group_id: data.group_id ?? null,
+      expires_at: data.expires_at ?? null,
+      max_responses: data.max_responses ?? null,
+    }).select().single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const listInviteLinks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("invite_links")
+      .select("*, groups(name)")
+      .eq("mentor_id", context.userId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const setInviteLinkActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), is_active: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("invite_links")
+      .update({ is_active: data.is_active })
+      .eq("id", data.id)
+      .eq("mentor_id", context.userId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
   });

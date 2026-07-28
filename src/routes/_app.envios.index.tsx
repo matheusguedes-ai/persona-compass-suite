@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listResponses, listAssessments, createObserverInvite } from "@/lib/tests.functions";
+import { listResponses, listAssessments, createObserverInvite, listInviteLinks, setInviteLinkActive } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
 import { Copy, FileText, Plus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +54,20 @@ function EnviosPage() {
     queryFn: () => listFn({ data: {} }) as Promise<ResponseRow[]>,
   });
 
+  const listInviteLinksFn = useServerFn(listInviteLinks);
+  const setInviteLinkActiveFn = useServerFn(setInviteLinkActive);
+  const qc = useQueryClient();
+  const { data: inviteLinks = [] } = useQuery({
+    queryKey: ["invite-links"],
+    queryFn: () => listInviteLinksFn(),
+  });
+  const toggleLink = useMutation({
+    mutationFn: (v: { id: string; is_active: boolean }) => setInviteLinkActiveFn({ data: v }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["invite-links"] }); toast.success("Link atualizado"); },
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar"),
+  });
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+
   const { data: batteries = [] } = useQuery({
     queryKey: ["assessments"],
     queryFn: () => listAssessmentsFn({ data: {} }) as Promise<AssessmentRow[]>,
@@ -85,6 +99,53 @@ function EnviosPage() {
         </div>
         <Button asChild><Link to="/envios/novo" search={{ personId: undefined }}><Plus className="size-4" /> Novo envio</Link></Button>
       </div>
+
+      {inviteLinks.length > 0 && (
+        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
+          <div className="border-b border-black/5 bg-muted/50 px-6 py-3">
+            <p className="text-sm font-medium">Links abertos</p>
+            <p className="text-xs text-muted-foreground">Um link para vários respondentes — cada pessoa se identifica ao abrir.</p>
+          </div>
+          <ul className="divide-y divide-black/5">
+            {inviteLinks.map((l) => {
+              const expired = !!l.expires_at && new Date(l.expires_at).getTime() < Date.now();
+              const full = l.max_responses != null && l.response_count >= l.max_responses;
+              const status = !l.is_active ? "Desativado" : expired ? "Expirado" : full ? "Esgotado" : "Ativo";
+              const url = `${origin}/convite/${l.id}`;
+              return (
+                <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {l.title || `${l.version_ids.length} ${l.version_ids.length === 1 ? "teste" : "testes"}`}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{url}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {l.response_count} {l.response_count === 1 ? "resposta" : "respostas"}
+                      {l.max_responses != null && ` de ${l.max_responses}`}
+                      {l.expires_at && ` · até ${new Date(l.expires_at).toLocaleString("pt-BR")}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-black/5 ${
+                      status === "Ativo" ? "bg-emerald-50 text-emerald-700" : "bg-muted text-muted-foreground"
+                    }`}>{status}</span>
+                    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(url); toast.success("Link copiado"); }}>
+                      <Copy className="size-3" /> Copiar
+                    </Button>
+                    <Button
+                      variant="ghost" size="sm"
+                      onClick={() => toggleLink.mutate({ id: l.id, is_active: !l.is_active })}
+                      disabled={toggleLink.isPending}
+                    >
+                      {l.is_active ? "Desativar" : "Reativar"}
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
         <table className="w-full text-left text-sm">

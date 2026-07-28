@@ -45,6 +45,7 @@ export type Database = {
       }
       assessment_responses: {
         Row: {
+          expires_at: string | null
           created_at: string
           group_id: string | null
           id: string
@@ -55,6 +56,7 @@ export type Database = {
           submitted_at: string | null
         }
         Insert: {
+          expires_at?: string | null
           created_at?: string
           group_id?: string | null
           id?: string
@@ -65,6 +67,7 @@ export type Database = {
           submitted_at?: string | null
         }
         Update: {
+          expires_at?: string | null
           created_at?: string
           group_id?: string | null
           id?: string
@@ -190,6 +193,53 @@ export type Database = {
         }
         Relationships: []
       }
+      invite_links: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          group_id: string | null
+          id: string
+          is_active: boolean
+          max_responses: number | null
+          mentor_id: string
+          response_count: number
+          title: string | null
+          version_ids: string[]
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_responses?: number | null
+          mentor_id: string
+          response_count?: number
+          title?: string | null
+          version_ids: string[]
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          group_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_responses?: number | null
+          mentor_id?: string
+          response_count?: number
+          title?: string | null
+          version_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invite_links_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instruments: {
         Row: {
           accent: string | null
@@ -294,6 +344,7 @@ export type Database = {
       }
       people: {
         Row: {
+          invite_link_id: string | null
           created_at: string
           email: string
           full_name: string
@@ -307,6 +358,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          invite_link_id?: string | null
           created_at?: string
           email: string
           full_name: string
@@ -320,6 +372,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          invite_link_id?: string | null
           created_at?: string
           email?: string
           full_name?: string
@@ -575,6 +628,7 @@ export type Database = {
       }
       test_responses: {
         Row: {
+          expires_at: string | null
           assessment_response_id: string | null
           assessment_sort: number
           computed_scores: Json | null
@@ -595,6 +649,7 @@ export type Database = {
           version_id: string
         }
         Insert: {
+          expires_at?: string | null
           assessment_response_id?: string | null
           assessment_sort?: number
           computed_scores?: Json | null
@@ -615,6 +670,7 @@ export type Database = {
           version_id: string
         }
         Update: {
+          expires_at?: string | null
           assessment_response_id?: string | null
           assessment_sort?: number
           computed_scores?: Json | null
@@ -792,6 +848,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_invite_link: {
+        Args: { link_id: string }
+        Returns: Database["public"]["Tables"]["invite_links"]["Row"][]
+      }
       option_version_id: { Args: { _option_id: string }; Returns: string }
       owns_test_version: { Args: { _version_id: string }; Returns: boolean }
       question_version_id: { Args: { _question_id: string }; Returns: string }

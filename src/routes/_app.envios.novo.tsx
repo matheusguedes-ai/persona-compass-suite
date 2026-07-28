@@ -3,9 +3,10 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listPeople } from "@/lib/data.functions";
-import { listTestVersions, startResponse, startAssessment } from "@/lib/tests.functions";
+import { createInviteLink, listTestVersions, startResponse, startAssessment } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, ArrowRight, Check, Copy } from "lucide-react";
@@ -32,13 +33,19 @@ function NovoEnvio() {
   const [step, setStep] = useState(0);
   const [selectedVersions, setSelV] = useState<string[]>([]);
   const [selectedPeople, setPpl] = useState<string[]>(personId ? [personId] : []);
-  const [createdLinks, setCreatedLinks] = useState<{ id: string; person: string; test: string; battery?: boolean }[] | null>(null);
+  const [createdLinks, setCreatedLinks] = useState<{ id: string; person: string; test: string; battery?: boolean; invite?: boolean }[] | null>(null);
   const [battery, setBattery] = useState(true);
+  // Link aberto: um link só, sem escolher pessoas — quem abre se identifica.
+  const [openLink, setOpenLink] = useState(false);
+  const [maxResponses, setMaxResponses] = useState("");
+  // datetime-local: "2026-07-30T18:00" (horário de quem preenche)
+  const [expiresAt, setExpiresAt] = useState("");
 
   const listPeopleFn = useServerFn(listPeople);
   const listVersionsFn = useServerFn(listTestVersions);
   const startFn = useServerFn(startResponse);
   const startAssessmentFn = useServerFn(startAssessment);
+  const createInviteLinkFn = useServerFn(createInviteLink);
 
   const { data: people = [] } = useQuery({ queryKey: ["people"], queryFn: () => listPeopleFn() });
   const { data: versions = [] } = useQuery({
@@ -54,19 +61,38 @@ function NovoEnvio() {
   const toggle = (arr: string[], set: (v: string[]) => void, id: string) =>
     set(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
 
+  // Com link aberto não se escolhe destinatários: pula a etapa de pessoas.
   const canNext =
     (step === 0 && selectedVersions.length > 0) ||
-    (step === 1 && selectedPeople.length > 0) ||
+    (step === 1 && (openLink || selectedPeople.length > 0)) ||
     step === 2;
 
   const useBattery = battery && selectedVersions.length > 1;
+  // Converte o horário local digitado para ISO; vazio = sem prazo.
+  const expiresIso = expiresAt ? new Date(expiresAt).toISOString() : null;
 
   const confirm = useMutation({
     mutationFn: async () => {
-      const results: { id: string; person: string; test: string; battery?: boolean }[] = [];
+      const results: { id: string; person: string; test: string; battery?: boolean; invite?: boolean }[] = [];
+      if (openLink) {
+        const row = await createInviteLinkFn({
+          data: {
+            version_ids: selectedVersions,
+            expires_at: expiresIso,
+            max_responses: maxResponses ? Number(maxResponses) : null,
+          },
+        });
+        results.push({
+          id: row.id,
+          person: "Link aberto",
+          test: selectedVersions.length > 1 ? `${selectedVersions.length} testes` : (publishedVersions.find((v) => v.id === selectedVersions[0])?.title ?? ""),
+          invite: true,
+        });
+        return results;
+      }
       if (useBattery) {
         for (const person_id of selectedPeople) {
-          const row = await startAssessmentFn({ data: { person_id, version_ids: selectedVersions } });
+          const row = await startAssessmentFn({ data: { person_id, version_ids: selectedVersions, expires_at: expiresIso } });
           const person = people.find((p) => p.id === person_id);
           results.push({
             id: row.id,
@@ -79,7 +105,7 @@ function NovoEnvio() {
       }
       for (const version_id of selectedVersions) {
         for (const person_id of selectedPeople) {
-          const row = await startFn({ data: { version_id, person_id } });
+          const row = await startFn({ data: { version_id, person_id, expires_at: expiresIso } });
           const person = people.find((p) => p.id === person_id);
           const test = publishedVersions.find((v) => v.id === version_id);
           results.push({ id: row.id, person: person?.full_name ?? "", test: test?.title ?? "" });
@@ -94,10 +120,13 @@ function NovoEnvio() {
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao criar envios"),
   });
 
-  const linkFor = (r: { id: string; battery?: boolean }) =>
-    `${typeof window !== "undefined" ? window.location.origin : ""}/${r.battery ? "bateria" : "responder"}/${r.id}`;
+  const linkFor = (r: { id: string; battery?: boolean; invite?: boolean }) => {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const path = r.invite ? "convite" : r.battery ? "bateria" : "responder";
+    return `${base}/${path}/${r.id}`;
+  };
 
-  const copy = (r: { id: string; battery?: boolean }) => {
+  const copy = (r: { id: string; battery?: boolean; invite?: boolean }) => {
     navigator.clipboard.writeText(linkFor(r));
     toast.success("Link copiado");
   };
@@ -209,8 +238,32 @@ function NovoEnvio() {
 
         {step === 1 && (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Escolha quem receberá o(s) teste(s).</p>
-            {people.length === 0 ? (
+            <div className="flex items-center justify-between gap-4 rounded-lg bg-muted/40 p-4 ring-1 ring-black/5">
+              <div>
+                <Label htmlFor="openlink" className="text-sm font-medium">Link aberto (compartilhável)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Um único link para mandar ao grupo. Quem abrir informa nome e email, e é cadastrado automaticamente.
+                </p>
+              </div>
+              <Switch id="openlink" checked={openLink} onCheckedChange={setOpenLink} />
+            </div>
+
+            {openLink ? (
+              <div className="space-y-3 rounded-lg bg-card p-4 ring-1 ring-black/5">
+                <div className="space-y-2">
+                  <Label htmlFor="max">Limite de respostas</Label>
+                  <Input
+                    id="max" type="number" min={1} max={10000} placeholder="Sem limite"
+                    value={maxResponses} onChange={(e) => setMaxResponses(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Deixe vazio para não limitar.</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Escolha quem receberá o(s) teste(s).</p>
+            )}
+            {!openLink &&
+              (people.length === 0 ? (
               <div className="rounded-lg bg-muted/40 p-6 text-sm text-muted-foreground ring-1 ring-black/5">
                 Nenhuma pessoa cadastrada. Vá em <Link to="/pessoas" className="underline">Pessoas</Link> para adicionar.
               </div>
@@ -234,18 +287,39 @@ function NovoEnvio() {
                   );
                 })}
               </div>
-            )}
+            ))}
+
+            <div className="space-y-2 rounded-lg bg-card p-4 ring-1 ring-black/5">
+              <Label htmlFor="expira">Disponível até (opcional)</Label>
+              <Input
+                id="expira" type="datetime-local"
+                value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Depois desta data e horário o link para de aceitar respostas. Deixe vazio para não expirar.
+              </p>
+            </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-4 text-sm">
             <Row label="Testes" value={selectedVersions.map((id) => publishedVersions.find((v) => v.id === id)?.title).filter(Boolean).join(", ")} />
-            <Row label="Destinatários" value={`${selectedPeople.length} pessoa(s)`} />
-            <Row label="Formato" value={useBattery ? "Link único (bateria em etapas)" : "Um link por teste"} />
-            <Row label="Total de envios" value={`${(useBattery ? 1 : selectedVersions.length) * selectedPeople.length}`} />
+            <Row label="Destinatários" value={openLink ? "Link aberto — quem receber se identifica" : `${selectedPeople.length} pessoa(s)`} />
+            <Row
+              label="Formato"
+              value={openLink
+                ? (selectedVersions.length > 1 ? "Link aberto (bateria em etapas)" : "Link aberto")
+                : useBattery ? "Link único (bateria em etapas)" : "Um link por teste"}
+            />
+            {openLink
+              ? <Row label="Limite de respostas" value={maxResponses ? `${maxResponses} pessoa(s)` : "Sem limite"} />
+              : <Row label="Total de envios" value={`${(useBattery ? 1 : selectedVersions.length) * selectedPeople.length}`} />}
+            <Row label="Disponível até" value={expiresAt ? new Date(expiresAt).toLocaleString("pt-BR") : "Sem prazo"} />
             <div className="rounded-lg bg-muted/40 p-4 text-xs text-muted-foreground ring-1 ring-black/5">
-              Ao confirmar, os disparos serão registrados e cada avaliado receberá um link único de resposta.
+              {openLink
+                ? "Ao confirmar, será gerado um único link para compartilhar. Cada pessoa que abrir informa nome e email e é cadastrada automaticamente."
+                : "Ao confirmar, os disparos serão registrados e cada avaliado receberá um link único de resposta."}
             </div>
           </div>
         )}

@@ -9,10 +9,14 @@ async function loadAssessment(id: string) {
   const supabase = await getAdmin();
   const { data: assessment } = await supabase
     .from("assessment_responses")
-    .select("id, status, people(full_name)")
+    .select("id, status, expires_at, people(full_name)")
     .eq("id", id)
     .maybeSingle();
   if (!assessment) return null;
+  // Prazo vencido bloqueia o acesso, mas quem já concluiu continua podendo ver.
+  if (assessment.expires_at && assessment.status !== "submitted") {
+    if (new Date(assessment.expires_at).getTime() < Date.now()) return "expired" as const;
+  }
 
   const { data: parts } = await supabase
     .from("test_responses")
@@ -59,6 +63,12 @@ export const Route = createFileRoute("/api/public/assessment/$id")({
           const payload = await loadAssessment(params.id);
           if (!payload) {
             return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { "content-type": "application/json" } });
+          }
+          if (payload === "expired") {
+            return new Response(
+              JSON.stringify({ error: "expired", message: "Este link expirou. Peça um novo ao seu mentor." }),
+              { status: 410, headers: { "content-type": "application/json" } },
+            );
           }
           return new Response(JSON.stringify(payload), { headers: { "content-type": "application/json" } });
         } catch (e) {

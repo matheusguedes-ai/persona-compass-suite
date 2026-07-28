@@ -12,12 +12,16 @@ async function loadResponsePayload(id: string) {
   const supabase = await getAdmin();
   const { data: response } = await supabase
     .from("test_responses")
-    .select("id, submitted_at, version_id, kind, people(full_name), test_versions(title, description)")
+    .select("id, submitted_at, expires_at, version_id, kind, people(full_name), test_versions(title, description)")
     .eq("id", id)
     .maybeSingle();
   if (!response) return null;
   if (response.submitted_at) {
     return { submitted: true as const, kind: response.kind ?? "self" };
+  }
+  // Quem já enviou não é barrado (retorno acima); só bloqueia quem ainda responderia.
+  if (response.expires_at && new Date(response.expires_at).getTime() < Date.now()) {
+    return "expired" as const;
   }
   await supabase
     .from("test_responses")
@@ -85,6 +89,10 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   const { data: response } = await supabase.from("test_responses").select("*").eq("id", id).maybeSingle();
   if (!response) throw new Error("Resposta não encontrada");
   if (response.submitted_at) throw new Error("Esta resposta já foi enviada");
+  // Vale também no envio: sem isso, uma aba aberta antes do prazo ainda gravaria.
+  if (response.expires_at && new Date(response.expires_at).getTime() < Date.now()) {
+    throw new Error("Este link expirou. Peça um novo ao seu mentor.");
+  }
 
   const versionId = response.version_id;
   const [{ data: questions }, { data: dims }, { data: bands }] = await Promise.all([
@@ -417,6 +425,12 @@ export const Route = createFileRoute("/api/public/response/$id")({
         try {
           const payload = await loadResponsePayload(params.id);
           if (!payload) return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { "content-type": "application/json" } });
+          if (payload === "expired") {
+            return new Response(
+              JSON.stringify({ error: "expired", message: "Este link expirou. Peça um novo ao seu mentor." }),
+              { status: 410, headers: { "content-type": "application/json" } },
+            );
+          }
           return new Response(JSON.stringify(payload), { headers: { "content-type": "application/json" } });
         } catch (e) {
           const msg = e instanceof Error ? e.message : "erro";

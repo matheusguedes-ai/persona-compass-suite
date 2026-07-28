@@ -23,6 +23,7 @@ import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
+import { Route as ConviteLinkIdRouteImport } from './routes/convite.$linkId'
 import { Route as RelatorioBateriaAssessmentIdRouteImport } from './routes/relatorio-bateria.$assessmentId'
 import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$responseId'
 import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
@@ -38,6 +39,7 @@ import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
 import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
+import { Route as ApiPublicInviteIdRouteImport } from './routes/api.public.invite.$id'
 import { Route as ApiPublicReportBateriaIdRouteImport } from './routes/api.public.report-bateria.$id'
 import { Route as ApiPublicReportIdRouteImport } from './routes/api.public.report.$id'
 import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
@@ -111,6 +113,11 @@ const AppTestesRoute = AppTestesRouteImport.update({
 const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
   id: '/bateria/$assessmentId',
   path: '/bateria/$assessmentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConviteLinkIdRoute = ConviteLinkIdRouteImport.update({
+  id: '/convite/$linkId',
+  path: '/convite/$linkId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RelatorioBateriaAssessmentIdRoute =
@@ -191,6 +198,11 @@ const ApiPublicAssessmentIdRoute = ApiPublicAssessmentIdRouteImport.update({
   path: '/api/public/assessment/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicInviteIdRoute = ApiPublicInviteIdRouteImport.update({
+  id: '/api/public/invite/$id',
+  path: '/api/public/invite/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicReportBateriaIdRoute =
   ApiPublicReportBateriaIdRouteImport.update({
     id: '/api/public/report-bateria/$id',
@@ -222,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/convite/$linkId': typeof ConviteLinkIdRoute
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
@@ -237,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
+  '/api/public/invite/$id': typeof ApiPublicInviteIdRoute
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
@@ -250,6 +264,7 @@ export interface FileRoutesByTo {
   '/estatisticas': typeof AppEstatisticasRoute
   '/mentores': typeof AppMentoresRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/convite/$linkId': typeof ConviteLinkIdRoute
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
@@ -266,6 +281,7 @@ export interface FileRoutesByTo {
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
+  '/api/public/invite/$id': typeof ApiPublicInviteIdRoute
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
@@ -285,6 +301,7 @@ export interface FileRoutesById {
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/convite/$linkId': typeof ConviteLinkIdRoute
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
@@ -301,6 +318,7 @@ export interface FileRoutesById {
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
+  '/api/public/invite/$id': typeof ApiPublicInviteIdRoute
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
@@ -321,6 +339,7 @@ export interface FileRouteTypes {
     | '/pessoas'
     | '/testes'
     | '/bateria/$assessmentId'
+    | '/convite/$linkId'
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
@@ -336,6 +355,7 @@ export interface FileRouteTypes {
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
+    | '/api/public/invite/$id'
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
@@ -349,6 +369,7 @@ export interface FileRouteTypes {
     | '/estatisticas'
     | '/mentores'
     | '/bateria/$assessmentId'
+    | '/convite/$linkId'
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
@@ -365,6 +386,7 @@ export interface FileRouteTypes {
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
+    | '/api/public/invite/$id'
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
@@ -383,6 +405,7 @@ export interface FileRouteTypes {
     | '/_app/pessoas'
     | '/_app/testes'
     | '/bateria/$assessmentId'
+    | '/convite/$linkId'
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
@@ -399,6 +422,7 @@ export interface FileRouteTypes {
     | '/_app/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
+    | '/api/public/invite/$id'
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
@@ -411,6 +435,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   BateriaAssessmentIdRoute: typeof BateriaAssessmentIdRoute
+  ConviteLinkIdRoute: typeof ConviteLinkIdRoute
   RelatorioBateriaAssessmentIdRoute: typeof RelatorioBateriaAssessmentIdRoute
   RelatorioResponseIdRoute: typeof RelatorioResponseIdRoute
   ResponderResponseIdRoute: typeof ResponderResponseIdRoute
@@ -418,6 +443,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicActionPlanIdRoute: typeof ApiPublicActionPlanIdRoute
   ApiPublicAssessmentIdRoute: typeof ApiPublicAssessmentIdRoute
+  ApiPublicInviteIdRoute: typeof ApiPublicInviteIdRoute
   ApiPublicReportBateriaIdRoute: typeof ApiPublicReportBateriaIdRoute
   ApiPublicReportIdRoute: typeof ApiPublicReportIdRoute
   ApiPublicResponseIdRoute: typeof ApiPublicResponseIdRoute
@@ -523,6 +549,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BateriaAssessmentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/convite/$linkId': {
+      id: '/convite/$linkId'
+      path: '/convite/$linkId'
+      fullPath: '/convite/$linkId'
+      preLoaderRoute: typeof ConviteLinkIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/relatorio-bateria/$assessmentId': {
       id: '/relatorio-bateria/$assessmentId'
       path: '/relatorio-bateria/$assessmentId'
@@ -626,6 +659,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/assessment/$id'
       fullPath: '/api/public/assessment/$id'
       preLoaderRoute: typeof ApiPublicAssessmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/invite/$id': {
+      id: '/api/public/invite/$id'
+      path: '/api/public/invite/$id'
+      fullPath: '/api/public/invite/$id'
+      preLoaderRoute: typeof ApiPublicInviteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/report-bateria/$id': {
@@ -740,6 +780,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   BateriaAssessmentIdRoute: BateriaAssessmentIdRoute,
+  ConviteLinkIdRoute: ConviteLinkIdRoute,
   RelatorioBateriaAssessmentIdRoute: RelatorioBateriaAssessmentIdRoute,
   RelatorioResponseIdRoute: RelatorioResponseIdRoute,
   ResponderResponseIdRoute: ResponderResponseIdRoute,
@@ -747,6 +788,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicActionPlanIdRoute: ApiPublicActionPlanIdRoute,
   ApiPublicAssessmentIdRoute: ApiPublicAssessmentIdRoute,
+  ApiPublicInviteIdRoute: ApiPublicInviteIdRoute,
   ApiPublicReportBateriaIdRoute: ApiPublicReportBateriaIdRoute,
   ApiPublicReportIdRoute: ApiPublicReportIdRoute,
   ApiPublicResponseIdRoute: ApiPublicResponseIdRoute,
