@@ -39,28 +39,35 @@ export const meusGrupos = createServerFn({ method: "GET" })
 
 export const listarFeed = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ group_id: z.string().uuid() }).parse(d))
+  .inputValidator((d) =>
+    z.object({ group_ids: z.array(z.string().uuid()).optional() }).parse(d ?? {}),
+  )
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
-    const { data: posts, error } = await supabase
-      .from("community_posts")
-      .select("id, author_id, author_name, body, file_url, file_kind, link_url, created_at")
-      .eq("group_id", data.group_id)
-      .order("created_at", { ascending: false })
-      .limit(60);
-    if (error) throw new Error(error.message);
 
-    const ids = (posts ?? []).map((p) => p.id);
-    const [{ data: comentarios }, { data: reacoes }] = await Promise.all([
-      ids.length
-        ? supabase.from("community_comments")
-            .select("id, post_id, author_id, author_name, body, created_at")
-            .in("post_id", ids).order("created_at")
-        : Promise.resolve({ data: [] as never[] }),
-      ids.length
-        ? supabase.from("community_reactions").select("post_id, user_id").in("post_id", ids)
-        : Promise.resolve({ data: [] as never[] }),
+    // Sem filtro, vem tudo que a pessoa pode ver — que é o feed integrado: quem
+    // está em três grupos vê os três juntos, quem está em um vê só o dele. A
+    // RLS já faz esse recorte, então aqui não há regra de visibilidade nenhuma.
+    let q = supabase
+      .from("community_post_groups")
+      .select("post_id, group_id, groups(name)");
+    if (data.group_ids?.length) q = q.in("group_id", data.group_ids);
+    const { data: vinculos, error: eV } = await q;
+    if (eV) throw new Error(eV.message);
+
+    const ids = [...new Set((vinculos ?? []).map((v) => v.post_id))];
+    if (ids.length === 0) return { eu: context.userId, posts: [] };
+
+    const [{ data: posts, error }, { data: comentarios }, { data: reacoes }] = await Promise.all([
+      supabase.from("community_posts")
+        .select("id, author_id, author_name, body, file_url, file_kind, link_url, created_at")
+        .in("id", ids).order("created_at", { ascending: false }).limit(80),
+      supabase.from("community_comments")
+        .select("id, post_id, author_id, author_name, body, created_at")
+        .in("post_id", ids).order("created_at"),
+      supabase.from("community_reactions").select("post_id, user_id").in("post_id", ids),
     ]);
+    if (error) throw new Error(error.message);
 
     const eu = context.userId;
     return {
@@ -68,6 +75,9 @@ export const listarFeed = createServerFn({ method: "GET" })
       posts: (posts ?? []).map((p) => ({
         ...p,
         meu: p.author_id === eu,
+        // Em qual grupo aparece — só faz diferença para quem enxerga vários.
+        grupos: (vinculos ?? []).filter((v) => v.post_id === p.id)
+          .map((v) => v.groups?.name).filter((n): n is string => !!n),
         comentarios: (comentarios ?? []).filter((c) => c.post_id === p.id)
           .map((c) => ({ ...c, meu: c.author_id === eu })),
         curtidas: (reacoes ?? []).filter((r) => r.post_id === p.id).length,
@@ -109,7 +119,7 @@ export const publicarPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z.object({
-      group_id: z.string().uuid(),
+      group_ids: z.array(z.string().uuid()).min(1),
       body: z.string().min(1).max(4000),
       file_url: z.string().url().nullable().optional(),
       file_kind: z.enum(["imagem", "pdf"]).nullable().optional(),
@@ -118,16 +128,25 @@ export const publicarPost = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
-    const { error } = await supabase.from("community_posts").insert({
-      group_id: data.group_id,
+    const { data: post, error } = await supabase.from("community_posts").insert({
       author_id: context.userId,
       author_name: await meuNome(supabase, context.userId),
       body: data.body.trim(),
       file_url: data.file_url ?? null,
       file_kind: data.file_kind ?? null,
       link_url: data.link_url ?? null,
-    });
+    }).select("id").single();
     if (error) throw new Error(error.message);
+
+    // Uma publicação, vários destinos. A RLS do vínculo barra grupo que a
+    // pessoa não pode ver, então mandar um id alheio não cola.
+    const { error: eV } = await supabase.from("community_post_groups")
+      .insert(data.group_ids.map((g) => ({ post_id: post.id, group_id: g })));
+    if (eV) {
+      // Post sem destino não aparece para ninguém e vira lixo: desfaz.
+      await supabase.from("community_posts").delete().eq("id", post.id);
+      throw new Error("Não consegui publicar nestes grupos.");
+    }
     return { ok: true };
   });
 

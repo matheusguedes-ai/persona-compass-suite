@@ -17,6 +17,7 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppColaboradoresRouteImport } from './routes/_app.colaboradores'
+import { Route as AppComunidadesRouteImport } from './routes/_app.comunidades'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppDevolutivasRouteImport } from './routes/_app.devolutivas'
 import { Route as AppEnviosRouteImport } from './routes/_app.envios'
@@ -97,6 +98,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppColaboradoresRoute = AppColaboradoresRouteImport.update({
   id: '/colaboradores',
   path: '/colaboradores',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComunidadesRoute = AppComunidadesRouteImport.update({
+  id: '/comunidades',
+  path: '/comunidades',
   getParentRoute: () => AppRoute,
 } as any)
 const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
@@ -312,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/colaboradores': typeof AppColaboradoresRoute
+  '/comunidades': typeof AppComunidadesRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/devolutivas': typeof AppDevolutivasRouteWithChildren
   '/envios': typeof AppEnviosRouteWithChildren
@@ -359,6 +366,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/colaboradores': typeof AppColaboradoresRoute
+  '/comunidades': typeof AppComunidadesRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/mentores': typeof AppMentoresRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
@@ -405,6 +413,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/colaboradores': typeof AppColaboradoresRoute
+  '/_app/comunidades': typeof AppComunidadesRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/devolutivas': typeof AppDevolutivasRouteWithChildren
   '/_app/envios': typeof AppEnviosRouteWithChildren
@@ -457,6 +466,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/colaboradores'
+    | '/comunidades'
     | '/configuracoes'
     | '/devolutivas'
     | '/envios'
@@ -504,6 +514,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/colaboradores'
+    | '/comunidades'
     | '/configuracoes'
     | '/mentores'
     | '/aluno/comunidade'
@@ -549,6 +560,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_app/colaboradores'
+    | '/_app/comunidades'
     | '/_app/configuracoes'
     | '/_app/devolutivas'
     | '/_app/envios'
@@ -671,6 +683,13 @@ declare module '@tanstack/react-router' {
       path: '/colaboradores'
       fullPath: '/colaboradores'
       preLoaderRoute: typeof AppColaboradoresRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comunidades': {
+      id: '/_app/comunidades'
+      path: '/comunidades'
+      fullPath: '/comunidades'
+      preLoaderRoute: typeof AppComunidadesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/configuracoes': {
@@ -1028,6 +1047,7 @@ const AppTestesRouteWithChildren = AppTestesRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppColaboradoresRoute: typeof AppColaboradoresRoute
+  AppComunidadesRoute: typeof AppComunidadesRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDevolutivasRoute: typeof AppDevolutivasRouteWithChildren
   AppEnviosRoute: typeof AppEnviosRouteWithChildren
@@ -1042,6 +1062,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppColaboradoresRoute: AppColaboradoresRoute,
+  AppComunidadesRoute: AppComunidadesRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDevolutivasRoute: AppDevolutivasRouteWithChildren,
   AppEnviosRoute: AppEnviosRouteWithChildren,

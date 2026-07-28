@@ -43,10 +43,24 @@ export type Database = {
           },
         ]
       }
+      community_post_groups: {
+        Row: { post_id: string; group_id: string }
+        Insert: { post_id: string; group_id: string }
+        Update: { post_id?: string; group_id?: string }
+        Relationships: [
+          {
+            foreignKeyName: "community_post_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_posts: {
-        Row: { id: string; group_id: string; author_id: string; author_name: string; body: string; file_url: string | null; file_kind: string | null; link_url: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; group_id: string; author_id: string; author_name: string; body: string; file_url?: string | null; file_kind?: string | null; link_url?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; group_id?: string; author_id?: string; author_name?: string; body?: string; file_url?: string | null; file_kind?: string | null; link_url?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; author_id: string; author_name: string; body: string; file_url: string | null; file_kind: string | null; link_url: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; author_id: string; author_name: string; body: string; file_url?: string | null; file_kind?: string | null; link_url?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; author_id?: string; author_name?: string; body?: string; file_url?: string | null; file_kind?: string | null; link_url?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
       community_comments: {

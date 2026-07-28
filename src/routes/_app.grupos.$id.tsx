@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Comunidade } from "@/components/comunidade";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -136,7 +135,6 @@ function GroupDetail() {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="pessoas">Pessoas ({members.length})</TabsTrigger>
           <TabsTrigger value="testes">Testes liberados ({instruments.length})</TabsTrigger>
-          <TabsTrigger value="comunidade">Comunidade</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-4">
@@ -235,16 +233,6 @@ function GroupDetail() {
               );
             })}
           </div>
-        </TabsContent>
-        <TabsContent value="comunidade" className="mt-4">
-          {/* Mesmo feed que o avaliado vê. O dono entra por aqui, pelo grupo a
-              que a comunidade pertence, e pode remover o que não deveria estar
-              publicado. */}
-          <p className="mb-4 text-sm text-muted-foreground">
-            O espaço deste grupo. Só quem está aqui dentro — avaliados, mentores atribuídos e você —
-            enxerga o que é publicado.
-          </p>
-          <Comunidade groupId={id} />
         </TabsContent>
       </Tabs>
     </div>

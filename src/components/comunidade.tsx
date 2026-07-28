@@ -31,7 +31,19 @@ function quando(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 }
 
-export function Comunidade({ groupId }: { groupId: string }) {
+/**
+ * @param grupos     todos os grupos que a pessoa alcança
+ * @param escolherDestino  true para o dono, que decide para onde vai cada post.
+ *   O avaliado não escolhe: o que ele publica vai para todos os grupos dele,
+ *   por decisão do Matheus.
+ */
+export function Comunidade({
+  grupos,
+  escolherDestino = false,
+}: {
+  grupos: Array<{ id: string; name: string }>;
+  escolherDestino?: boolean;
+}) {
   const qc = useQueryClient();
   const feedFn = useServerFn(listarFeed);
   const publicarFn = useServerFn(publicarPost);
@@ -47,8 +59,10 @@ export function Comunidade({ groupId }: { groupId: string }) {
   const [comentando, setComentando] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const chave = ["feed", groupId];
-  const { data, isLoading } = useQuery({ queryKey: chave, queryFn: () => feedFn({ data: { group_id: groupId } }) });
+  // Destino do post. Para o avaliado é sempre tudo; para o dono, o que ele marcar.
+  const [destino, setDestino] = useState<string[]>(grupos.map((g) => g.id));
+  const chave = ["feed"];
+  const { data, isLoading } = useQuery({ queryKey: chave, queryFn: () => feedFn({ data: {} }) });
   const recarregar = () => qc.invalidateQueries({ queryKey: chave });
 
   async function escolherArquivo(f: File) {
@@ -73,7 +87,7 @@ export function Comunidade({ groupId }: { groupId: string }) {
     mutationFn: () =>
       publicarFn({
         data: {
-          group_id: groupId,
+          group_ids: escolherDestino ? destino : grupos.map((g) => g.id),
           body: texto,
           file_url: arquivo?.url ?? null,
           file_kind: arquivo?.kind ?? null,
@@ -137,6 +151,28 @@ export function Comunidade({ groupId }: { groupId: string }) {
           ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void escolherArquivo(f); }}
         />
+        {escolherDestino && grupos.length > 1 && (
+          <div className="mt-3">
+            <p className="text-xs font-medium text-muted-foreground">Publicar em</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {grupos.map((g) => {
+                const marcado = destino.includes(g.id);
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => setDestino((d) => marcado ? d.filter((x) => x !== g.id) : [...d, g.id])}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-xs transition",
+                      marcado ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70",
+                    )}
+                  >
+                    {g.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} disabled={enviandoArquivo}>
             <Paperclip className="size-3.5" /> {enviandoArquivo ? "Enviando…" : "Imagem ou PDF"}
@@ -144,7 +180,11 @@ export function Comunidade({ groupId }: { groupId: string }) {
           <Button
             size="sm"
             onClick={() => publicar.mutate()}
-            disabled={publicar.isPending || texto.trim().length === 0}
+            disabled={
+              publicar.isPending
+              || texto.trim().length === 0
+              || (escolherDestino ? destino.length === 0 : grupos.length === 0)
+            }
           >
             <Send className="size-3.5" /> {publicar.isPending ? "Publicando…" : "Publicar"}
           </Button>
@@ -163,7 +203,12 @@ export function Comunidade({ groupId }: { groupId: string }) {
       {posts.map((p) => (
         <article key={p.id} className="rounded-xl border border-black/5 bg-card p-4">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-medium">{p.author_name}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{p.author_name}</p>
+              {grupos.length > 1 && p.grupos.length > 0 && (
+                <p className="truncate text-xs text-muted-foreground">{p.grupos.join(" · ")}</p>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{quando(p.created_at)}</span>
               <button
