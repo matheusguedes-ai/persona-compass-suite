@@ -267,3 +267,48 @@ export const acceptInvite = createServerFn({ method: "POST" })
     if (!row) throw new Error("Convite não encontrado.");
     return row;
   });
+
+/**
+ * Este usuário pode baixar o relatório desta resposta?
+ *
+ * Só faz sentido para quem está logado na plataforma. Dono e colaborador sempre
+ * podem; mentor depende do `can_download_reports` do grupo pelo qual ele
+ * enxerga aquele avaliado — se enxerga por mais de um grupo, basta um permitir.
+ */
+export const canDownloadReport = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ response_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: kind, error: kErr } = await supabase.rpc("member_kind");
+    if (kErr) throw new Error(kErr.message);
+    if (kind !== "mentor") return { allowed: true };
+
+    const { data: resp, error: rErr } = await supabase
+      .from("test_responses")
+      .select("person_id")
+      .eq("id", data.response_id)
+      .maybeSingle();
+    if (rErr) throw new Error(rErr.message);
+    // Não enxerga a resposta (a RLS já filtrou): nada a liberar.
+    if (!resp) return { allowed: false };
+
+    const { data: membro, error: mErr } = await supabase
+      .from("team_members")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("status", "ativo")
+      .maybeSingle();
+    if (mErr) throw new Error(mErr.message);
+    if (!membro) return { allowed: false };
+
+    const [{ data: gruposDaPessoa }, { data: gruposDoMentor }] = await Promise.all([
+      supabase.from("group_members").select("group_id").eq("person_id", resp.person_id),
+      supabase.from("team_member_groups").select("group_id, can_download_reports").eq("team_member_id", membro.id),
+    ]);
+
+    const daPessoa = new Set((gruposDaPessoa ?? []).map((g) => g.group_id));
+    const allowed = (gruposDoMentor ?? []).some((g) => daPessoa.has(g.group_id) && g.can_download_reports);
+    return { allowed };
+  });

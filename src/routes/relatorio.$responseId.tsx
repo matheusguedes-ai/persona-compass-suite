@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { useApplyBrand } from "@/lib/brand";
+import { usePodeBaixar } from "@/lib/pode-baixar";
 import {
   ActionPlanSection,
   PLANO_ACAO,
@@ -45,6 +46,8 @@ function RelatorioPage() {
 
   // A marca é a do mentor dono do link, não a de quem abre (ninguém está logado).
   useApplyBrand(data?.brand);
+  // null = ninguém logado; aí vale a preferência do mentor dono.
+  const podeBaixar = usePodeBaixar(responseId);
 
   if (error) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">{error}</div>;
   if (!data) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Carregando relatório…</div>;
@@ -56,7 +59,7 @@ function RelatorioPage() {
     <div className="report-root mx-auto max-w-3xl space-y-6 p-6 print:max-w-none print:p-0">
       <style>{PRINT_CSS}</style>
 
-      {data.settings?.allow_pdf !== false && (
+      {(podeBaixar ?? data.settings?.allow_pdf !== false) && (
         <div className="flex justify-end print:hidden">
           <Button onClick={() => window.print()}><Printer className="size-4" /> Baixar PDF</Button>
         </div>
