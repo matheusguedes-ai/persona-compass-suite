@@ -5,7 +5,7 @@
  * comunidade é a mesma para os dois — o que muda é por onde se chega, e o dono
  * ganha o poder de apagar o que não deveria estar lá.
  */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -63,7 +63,15 @@ export function Comunidade({
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Destino do post. Para o avaliado é sempre tudo; para o dono, o que ele marcar.
-  const [destino, setDestino] = useState<string[]>(grupos.map((g) => g.id));
+  //
+  // `useState` só usa o valor inicial no primeiro render — e nesse instante os
+  // grupos ainda estão carregando. Sem o efeito abaixo o destino ficava vazio
+  // para sempre, e publicar falhava sem dizer por quê.
+  const [destino, setDestino] = useState<string[]>([]);
+  const assinaturaDosGrupos = grupos.map((g) => g.id).join(",");
+  useEffect(() => {
+    setDestino(grupos.map((g) => g.id));
+  }, [assinaturaDosGrupos]);
   // Limita aos grupos recebidos. Importa na prévia: quem está autenticado é o
   // dono, e sem o filtro o feed traria posts de grupos que o aluno não tem.
   const idsDosGrupos = grupos.map((g) => g.id);
@@ -162,9 +170,11 @@ export function Comunidade({
           ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void escolherArquivo(f); }}
         />
-        {escolherDestino && grupos.length > 1 && (
+        {escolherDestino && (
           <div className="mt-3">
-            <p className="text-xs font-medium text-muted-foreground">Publicar em</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              Publicar em {destino.length === 0 && <span className="text-destructive">— escolha ao menos um grupo</span>}
+            </p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {grupos.map((g) => {
                 const marcado = destino.includes(g.id);
