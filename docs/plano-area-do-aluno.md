@@ -265,3 +265,77 @@ O mentor afiliado enxerga resultado de teste de gente que não é cliente dele
 direto. `can_download_reports` já separa "ver na tela" de "levar embora" — e é
 por isso que essa distinção existe. Vale conferir com o mentor afiliado real
 antes de soltar, porque o estrago aqui é vazamento de dado de terceiro.
+
+---
+
+# Anexo 2 — Notificações (pedido em 28/07/2026, para a esteira)
+
+## Quem recebe o quê
+
+| Papel | Escopo pedido |
+|---|---|
+| **Dono** | tudo que acontece no sistema |
+| **Aluno** | o que é dele, do grupo dele e da comunidade dele |
+| **Mentor afiliado** | o que é dele e dos grupos a que pertence |
+| **Colaborador** | o que cabe nas funções liberadas para ele |
+
+## A boa notícia: o recorte já existe
+
+Nada disso precisa de um modelo novo de permissão. A plataforma já sabe
+responder "quem pode ver isto":
+
+- `acting_account()` — sob qual conta a pessoa está agindo
+- `visible_group_ids()` — os grupos do mentor afiliado
+- `can_see_person()` — se pode ver aquele avaliado
+- `posso_ver_grupo()` — as três portas do grupo, criada para a comunidade
+- `permissions` do colaborador, por funcionalidade
+
+**A regra de ouro:** uma notificação só é entregue se o destinatário já pudesse
+ver o fato que a originou. Assim o recorte de notificação nunca vira uma porta
+lateral para dado que a RLS barraria. Escrever uma segunda régua de visibilidade
+seria a forma mais provável de vazar alguma coisa.
+
+## ⚠️ O problema: "tudo" vira ruído em uma semana
+
+"O dono é notificado de tudo" funciona com 8 avaliados. Com 200, cada curtida,
+cada comentário e cada resposta vira um aviso — e a caixa de notificação passa a
+ser aquilo que ninguém abre. O custo não é técnico: é o dono perder o aviso que
+importava no meio de trezentos que não importavam.
+
+**Proposta:** agrupar por natureza e por tempo.
+
+| Tipo | Como chega ao dono |
+|---|---|
+| Alguém concluiu um teste | na hora |
+| Devolutiva atrasada (mais de 7 dias na fila) | resumo diário |
+| Publicou na comunidade | resumo diário, por grupo |
+| Curtida, comentário | não notifica o dono; só o autor do post |
+| Alguém pediu acesso / criou conta | na hora |
+| Falha de envio de e-mail | na hora |
+
+O aluno e o mentor recebem bem menos por natureza, então para eles "na hora"
+funciona sem agrupamento.
+
+## Plano
+
+1. **Tabela `notificacoes`**: destinatário, tipo, texto, link, lida, criada_em.
+   Uma linha por pessoa que deve receber — resolver o destinatário na hora de
+   gravar é mais simples e mais rápido de ler do que calcular na consulta.
+2. **Gatilhos no banco** para os fatos que já acontecem sem passar pelo código
+   do app (resposta concluída, por exemplo). O resto é gravado nas funções de
+   servidor que já existem.
+3. **Sino no cabeçalho**, com contagem de não lidas, para os quatro papéis.
+   O componente é um só; o que muda é o que chega.
+4. **Preferências**: o que cada um quer receber. Sem isso, quem se incomodar vai
+   simplesmente ignorar tudo.
+5. **Push do navegador (Web Push)** — só depois. Precisa de service worker,
+   chaves VAPID e permissão do navegador, e no iPhone só funciona se a pessoa
+   instalar a plataforma como aplicativo. Vale como segunda etapa, quando a
+   notificação dentro da plataforma já estiver provando o valor dela.
+
+## Decisão que preciso do Matheus
+
+**"Tudo" é tudo mesmo, ou tudo que importa?** Recomendo a tabela acima: curtida
+e comentário não notificam o dono, e comunidade vira resumo diário. Se ele
+quiser tudo na hora, dá para fazer — mas em poucas semanas a caixa vira algo que
+ele para de abrir, e aí o aviso que importava se perde junto.
