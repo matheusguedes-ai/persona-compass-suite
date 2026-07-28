@@ -31,7 +31,15 @@ import { cn } from "@/lib/utils";
 
 function dataBr(iso: string | null) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // Campo `date` do banco vem como "2026-08-13", sem hora. `new Date()` nesse
+  // formato assume meia-noite em UTC, que no Brasil é 21h do dia ANTERIOR — e
+  // a data aparecia um dia atrasada. Com hora e minuto separados, a data é
+  // montada no fuso local e o dia é o que foi digitado.
+  const soData = /^\d{4}-\d{2}-\d{2}$/.exec(iso);
+  const d = soData
+    ? new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
+    : new Date(iso);
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 function dataHoraBr(iso: string | null) {
   if (!iso) return "sem data marcada";
