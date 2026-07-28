@@ -3,9 +3,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { StatusBadge } from "@/components/status-badge";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listResponses } from "@/lib/tests.functions";
-import { listPeople } from "@/lib/data.functions";
-import { useMemo } from "react";
+import { getDashboardStats } from "@/lib/data.functions";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({
@@ -20,37 +18,22 @@ export const Route = createFileRoute("/_app/")({
 });
 
 function Dashboard() {
-  const listRespFn = useServerFn(listResponses);
-  const listPeopleFn = useServerFn(listPeople);
-  const { data: responses = [], isLoading } = useQuery({
-    queryKey: ["dash-responses"],
-    queryFn: () => listRespFn({ data: {} }),
-  });
-  const { data: people = [] } = useQuery({
-    queryKey: ["dash-people"],
-    queryFn: () => listPeopleFn(),
+  const statsFn = useServerFn(getDashboardStats);
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: () => statsFn(),
   });
 
-  type Resp = {
-    id: string;
-    status: string;
-    created_at: string;
-    submitted_at: string | null;
-    people: { id: string; full_name: string; email: string } | null;
-    test_versions: { id: string; title: string } | null;
-  };
-  const rs = responses as Resp[];
-  const total = rs.length;
-  const submitted = rs.filter((r) => r.status === "submitted").length;
-  const pending = total - submitted;
+  const total = data?.total ?? 0;
+  const submitted = data?.submitted ?? 0;
+  const pending = data?.pending ?? 0;
   const conversion = total > 0 ? Math.round((submitted / total) * 100) : 0;
+  const byMonth = data?.byMonth ?? [];
+  const byInstrument = data?.byInstrument ?? [];
+  const recent = data?.recent ?? [];
 
-  const recent = useMemo(
-    () => [...rs]
-      .sort((a, b) => new Date(b.submitted_at ?? b.created_at).getTime() - new Date(a.submitted_at ?? a.created_at).getTime())
-      .slice(0, 5),
-    [rs],
-  );
+  const mesPico = Math.max(1, ...byMonth.map((m) => m.respondidos));
+  const instrPico = Math.max(1, ...byInstrument.map((i) => i.respondidos + i.pendentes));
 
   return (
     <div className="space-y-8">
@@ -62,10 +45,72 @@ function Dashboard() {
       </div>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Testes enviados" value={isLoading ? "…" : String(total)} />
-        <KpiCard label="Respondidos" value={isLoading ? "…" : String(submitted)} hint={total > 0 ? `${conversion}% de conversão` : "Nenhum envio ainda"} />
+        <KpiCard label="Testes enviados" value={isLoading ? "…" : String(total)} hint="Inclui os testes de cada bateria" />
+        <KpiCard
+          label="Respondidos"
+          value={isLoading ? "…" : String(submitted)}
+          hint={total > 0 ? `${conversion}% de conversão` : "Nenhum envio ainda"}
+        />
         <KpiCard label="Pendentes" value={isLoading ? "…" : String(pending)} hintTone={pending > 0 ? "warn" : undefined} />
-        <KpiCard label="Pessoas cadastradas" value={String(people.length)} />
+        <KpiCard label="Pessoas cadastradas" value={isLoading ? "…" : String(data?.people ?? 0)} />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        {/* Ritmo: mostra se o movimento está crescendo ou parou. */}
+        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+          <h2 className="text-sm font-medium tracking-tight">Testes respondidos por mês</h2>
+          <p className="text-xs text-muted-foreground">Últimos 6 meses</p>
+          {submitted === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              {isLoading ? "Carregando…" : "Aparece aqui quando o primeiro teste for concluído."}
+            </p>
+          ) : (
+            <div className="mt-5 flex h-36 items-end gap-2">
+              {byMonth.map((m) => (
+                <div key={m.chave} className="flex flex-1 flex-col items-center gap-1.5">
+                  <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                    {m.respondidos > 0 ? m.respondidos : ""}
+                  </span>
+                  <div
+                    className="w-full rounded-t bg-primary/80"
+                    style={{ height: `${Math.max(m.respondidos > 0 ? 4 : 2, (m.respondidos / mesPico) * 100)}%` }}
+                    title={`${m.respondidos} em ${m.mes}`}
+                  />
+                  <span className="text-xs capitalize text-muted-foreground">{m.mes}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Quais inventários estão de fato sendo usados. */}
+        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+          <h2 className="text-sm font-medium tracking-tight">Inventários aplicados</h2>
+          <p className="text-xs text-muted-foreground">Respondidos e pendentes por teste</p>
+          {byInstrument.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              {isLoading ? "Carregando…" : "Nenhum teste enviado ainda."}
+            </p>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {byInstrument.map((inst) => (
+                <div key={inst.name}>
+                  <div className="flex items-baseline justify-between text-sm">
+                    <span className="font-medium">{inst.name}</span>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {inst.respondidos} respondido{inst.respondidos === 1 ? "" : "s"}
+                      {inst.pendentes > 0 && ` · ${inst.pendentes} pendente${inst.pendentes === 1 ? "" : "s"}`}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-muted">
+                    <div className="bg-primary" style={{ width: `${(inst.respondidos / instrPico) * 100}%` }} />
+                    <div className="bg-amber-400/70" style={{ width: `${(inst.pendentes / instrPico) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="rounded-xl bg-card p-6 ring-1 ring-black/5">
@@ -101,18 +146,21 @@ function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5">
-                {recent.map((s) => {
-                  const when = s.submitted_at ?? s.created_at;
-                  const status = s.status === "submitted" ? "concluido" : "pendente";
-                  return (
-                    <tr key={s.id}>
-                      <td className="px-6 py-4 font-medium">{s.people?.full_name ?? "—"}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{s.test_versions?.title ?? "—"}</td>
-                      <td className="px-6 py-4"><StatusBadge status={status} /></td>
-                      <td className="px-6 py-4 text-muted-foreground">{new Date(when).toLocaleDateString("pt-BR")}</td>
-                    </tr>
-                  );
-                })}
+                {recent.map((s) => (
+                  <tr key={s.id}>
+                    <td className="px-6 py-4 font-medium">{s.nome}</td>
+                    <td className="px-6 py-4 text-muted-foreground">
+                      {s.teste}
+                      {s.emBateria && (
+                        <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                          bateria
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4"><StatusBadge status={s.concluido ? "concluido" : "pendente"} /></td>
+                    <td className="px-6 py-4 text-muted-foreground">{new Date(s.quando).toLocaleDateString("pt-BR")}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}

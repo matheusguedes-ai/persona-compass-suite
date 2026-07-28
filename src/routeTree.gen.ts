@@ -17,7 +17,6 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppEnviosRouteImport } from './routes/_app.envios'
-import { Route as AppEstatisticasRouteImport } from './routes/_app.estatisticas'
 import { Route as AppGruposRouteImport } from './routes/_app.grupos'
 import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
@@ -83,11 +82,6 @@ const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
 const AppEnviosRoute = AppEnviosRouteImport.update({
   id: '/envios',
   path: '/envios',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppEstatisticasRoute = AppEstatisticasRouteImport.update({
-  id: '/estatisticas',
-  path: '/estatisticas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGruposRoute = AppGruposRouteImport.update({
@@ -228,7 +222,6 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/envios': typeof AppEnviosRouteWithChildren
-  '/estatisticas': typeof AppEstatisticasRoute
   '/grupos': typeof AppGruposRouteWithChildren
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
@@ -261,7 +254,6 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/configuracoes': typeof AppConfiguracoesRoute
-  '/estatisticas': typeof AppEstatisticasRoute
   '/mentores': typeof AppMentoresRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -295,7 +287,6 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/envios': typeof AppEnviosRouteWithChildren
-  '/_app/estatisticas': typeof AppEstatisticasRoute
   '/_app/grupos': typeof AppGruposRouteWithChildren
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
@@ -333,7 +324,6 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/configuracoes'
     | '/envios'
-    | '/estatisticas'
     | '/grupos'
     | '/mentores'
     | '/pessoas'
@@ -366,7 +356,6 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/configuracoes'
-    | '/estatisticas'
     | '/mentores'
     | '/bateria/$assessmentId'
     | '/convite/$linkId'
@@ -399,7 +388,6 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_app/configuracoes'
     | '/_app/envios'
-    | '/_app/estatisticas'
     | '/_app/grupos'
     | '/_app/mentores'
     | '/_app/pessoas'
@@ -505,13 +493,6 @@ declare module '@tanstack/react-router' {
       path: '/envios'
       fullPath: '/envios'
       preLoaderRoute: typeof AppEnviosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/estatisticas': {
-      id: '/_app/estatisticas'
-      path: '/estatisticas'
-      fullPath: '/estatisticas'
-      preLoaderRoute: typeof AppEstatisticasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/grupos': {
@@ -751,7 +732,6 @@ const AppTestesRouteWithChildren = AppTestesRoute._addFileChildren(
 interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppEnviosRoute: typeof AppEnviosRouteWithChildren
-  AppEstatisticasRoute: typeof AppEstatisticasRoute
   AppGruposRoute: typeof AppGruposRouteWithChildren
   AppMentoresRoute: typeof AppMentoresRoute
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
@@ -762,7 +742,6 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppEnviosRoute: AppEnviosRouteWithChildren,
-  AppEstatisticasRoute: AppEstatisticasRoute,
   AppGruposRoute: AppGruposRouteWithChildren,
   AppMentoresRoute: AppMentoresRoute,
   AppPessoasRoute: AppPessoasRouteWithChildren,

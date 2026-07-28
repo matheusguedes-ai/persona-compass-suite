@@ -480,3 +480,94 @@ export const getGroupDna = createServerFn({ method: "GET" })
 
     return { members: personIds.length, instruments: instrumentsOut };
   });
+
+// ============================================================
+// Dashboard — indicadores agregados
+// ============================================================
+// Conta TODAS as respostas do avaliado, inclusive as que fazem parte de uma
+// bateria. O `listResponses` filtra `assessment_response_id IS NULL` porque
+// serve à tela de Envios (lá a bateria aparece como uma linha só) — usar aquele
+// número aqui subestimava o total agora que a bateria é o fluxo principal.
+export const getDashboardStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
+    const { data: rows, error } = await supabase
+      .from("test_responses")
+      .select("id, status, created_at, submitted_at, assessment_response_id, people(id, full_name), test_versions(instrument_id, title, instruments(name))")
+      .eq("mentor_id", userId)
+      .eq("kind", "self")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    const { count: peopleCount, error: pErr } = await supabase
+      .from("people")
+      .select("id", { count: "exact", head: true })
+      .eq("mentor_id", userId);
+    if (pErr) throw new Error(pErr.message);
+
+    const list = rows ?? [];
+    const submitted = list.filter((r) => !!r.submitted_at).length;
+
+    // Quais inventários estão realmente sendo usados.
+    const instrumentMap = new Map<string, { name: string; respondidos: number; pendentes: number }>();
+    for (const r of list) {
+      const id = r.test_versions?.instrument_id;
+      if (!id) continue;
+      const entry = instrumentMap.get(id) ?? {
+        name: r.test_versions?.instruments?.name ?? r.test_versions?.title ?? id,
+        respondidos: 0,
+        pendentes: 0,
+      };
+      if (r.submitted_at) entry.respondidos += 1;
+      else entry.pendentes += 1;
+      instrumentMap.set(id, entry);
+    }
+    const byInstrument = Array.from(instrumentMap.values())
+      .sort((a, b) => b.respondidos - a.respondidos || a.name.localeCompare(b.name));
+
+    // Últimos 6 meses, sempre com os 6 rótulos (mês sem resposta vale zero —
+    // omitir daria a impressão de continuidade onde houve pausa).
+    const now = new Date();
+    const buckets: { chave: string; mes: string; respondidos: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push({
+        chave: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        mes: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
+        respondidos: 0,
+      });
+    }
+    const bucketIndex = new Map(buckets.map((b, i) => [b.chave, i]));
+    for (const r of list) {
+      if (!r.submitted_at) continue;
+      const d = new Date(r.submitted_at);
+      const idx = bucketIndex.get(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+      if (idx != null) buckets[idx].respondidos += 1;
+    }
+
+    const recent = list
+      .slice()
+      .sort((a, b) =>
+        new Date(b.submitted_at ?? b.created_at).getTime() - new Date(a.submitted_at ?? a.created_at).getTime())
+      .slice(0, 6)
+      .map((r) => ({
+        id: r.id,
+        nome: r.people?.full_name ?? "—",
+        teste: r.test_versions?.title ?? "—",
+        concluido: !!r.submitted_at,
+        quando: r.submitted_at ?? r.created_at,
+        emBateria: !!r.assessment_response_id,
+      }));
+
+    return {
+      total: list.length,
+      submitted,
+      pending: list.length - submitted,
+      people: peopleCount ?? 0,
+      byInstrument,
+      byMonth: buckets,
+      recent,
+    };
+  });

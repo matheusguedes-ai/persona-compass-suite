@@ -2,7 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Users,
-  BarChart3,
   Settings,
   Send,
   FolderKanban,
@@ -14,7 +13,6 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/estatisticas", label: "Estatísticas", icon: BarChart3 },
   { to: "/grupos", label: "Grupos", icon: FolderKanban },
   { to: "/pessoas", label: "Pessoas", icon: Users },
   { to: "/mentores", label: "Mentores", icon: GraduationCap },
