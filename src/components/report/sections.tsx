@@ -776,6 +776,21 @@ export const PRINT_CSS = `
 @media print {
   @page { margin: 14mm; }
   html, body { background: #fff !important; }
+  /* No tema escuro o texto é claro — no papel branco sumiria. Papel é sempre
+     claro, independente de como a pessoa esteja lendo na tela. */
+  html, html.dark {
+    --background: #ffffff !important;
+    --foreground: #111111 !important;
+    --card: #ffffff !important;
+    --card-foreground: #111111 !important;
+    --muted: #f1f1f4 !important;
+    --muted-foreground: #4b4b55 !important;
+    --border: rgba(0,0,0,0.12) !important;
+    --input: rgba(0,0,0,0.12) !important;
+  }
+  /* Sem !important de propósito: a cor da marca do mentor (aplicada inline)
+     continua ganhando e sai impressa. */
+  html.dark { --primary: oklch(0.38 0.06 210); --primary-foreground: #ffffff; }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .print\\:hidden { display: none !important; }
   .report-root { max-width: none !important; padding: 0 !important; gap: 0 !important; }

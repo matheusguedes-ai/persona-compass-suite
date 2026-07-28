@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_app")({
     // tudo vazio. Mandamos direto para a área dele.
     try {
       const eu = await getMyMembership();
-      if (eu.kind === "aluno") throw redirect({ to: "/aluno" });
+      if (eu.kind === "aluno") throw redirect({ to: "/aluno", search: { ver: undefined } });
     } catch (e) {
       // `redirect` do roteador é lançado como exceção — não engolir.
       if (e && typeof e === "object" && "to" in e) throw e;

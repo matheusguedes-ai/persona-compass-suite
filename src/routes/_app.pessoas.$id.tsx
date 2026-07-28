@@ -6,7 +6,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, FileText, Link as LinkIcon, Mail, RotateCcw, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Link as LinkIcon, Mail, RotateCcw, Send, Trash2, Eye } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getPerson, deletePerson } from "@/lib/data.functions";
@@ -99,6 +99,11 @@ function PersonProfile() {
           </Button>
           <Button asChild size="sm">
             <Link to="/envios/novo" search={{ personId: person.id, groupId: undefined }}><Send className="size-4" /> Enviar teste</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <a href={`/aluno?ver=${person.id}`} title="Abrir a plataforma como esta pessoa enxerga">
+                <Eye className="size-4" /> Ver como aluno
+              </a>
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>

@@ -6,6 +6,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { FileText, MailQuestion } from "lucide-react";
 
 export const Route = createFileRoute("/aluno/")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    ver: typeof s.ver === "string" ? s.ver : undefined,
+  }),
   head: () => ({ meta: [{ title: "Meus resultados" }, { name: "robots", content: "noindex" }] }),
   component: MeusResultados,
 });
@@ -17,8 +20,12 @@ type Resposta = {
 };
 
 function MeusResultados() {
+  const { ver } = Route.useSearch();
   const fn = useServerFn(getStudentArea);
-  const { data, isLoading } = useQuery({ queryKey: ["student-area"], queryFn: () => fn() });
+  const { data, isLoading } = useQuery({
+    queryKey: ["student-area", ver ?? null],
+    queryFn: () => fn({ data: { preview_person_id: ver ?? null } }),
+  });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
 

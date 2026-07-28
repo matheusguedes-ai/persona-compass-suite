@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/lib/role-context";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { ThemeToggle } from "@/lib/theme";
+import { VerComoAluno } from "@/components/ver-como-aluno";
 
 export function AppHeader() {
   const user = useCurrentUser();
@@ -29,6 +31,8 @@ export function AppHeader() {
         {user && (
           <span className="text-xs text-muted-foreground truncate max-w-[220px]">{user.email ?? user.displayName}</span>
         )}
+        <ThemeToggle />
+        <VerComoAluno />
         <Button variant="outline" size="sm" onClick={signOut}>
           <LogOut className="size-4" /> Sair
         </Button>

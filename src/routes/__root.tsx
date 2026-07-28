@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CurrentUserProvider } from "../lib/role-context";
+import { SCRIPT_ANTI_PISCADA, ThemeProvider } from "@/lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -111,6 +112,8 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* Antes do React subir, para a tela não piscar no tema errado. */}
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_ANTI_PISCADA }} />
       </head>
       <body>
         {children}
@@ -126,7 +129,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <CurrentUserProvider>
-        <Outlet />
+        <ThemeProvider>
+          <Outlet />
+        </ThemeProvider>
       </CurrentUserProvider>
     </QueryClientProvider>
   );
