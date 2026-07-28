@@ -436,6 +436,12 @@ function CampoMensagem({
 
 /** Estado da ligação com o serviço de email + histórico do que saiu. */
 function AbaEmails() {
+  const perfilFn = useServerFn(getMyProfile);
+  const salvarFn = useServerFn(upsertMyProfile);
+  const { data: perfil } = useQuery({ queryKey: ["my-profile"], queryFn: () => perfilFn() });
+  const [remetente, setRemetente] = useState("");
+  useEffect(() => { setRemetente(perfil?.profile?.email_from ?? ""); }, [perfil]);
+
   const statusFn = useServerFn(getEmailStatus);
   const logsFn = useServerFn(listEmailLogs);
   const testFn = useServerFn(sendTestEmail);
@@ -446,6 +452,16 @@ function AbaEmails() {
     enabled: status?.ativo === true,
   });
   const qc = useQueryClient();
+
+  const salvarRemetente = useMutation({
+    mutationFn: () => salvarFn({ data: { email_from: remetente.trim() || null } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-profile"] });
+      qc.invalidateQueries({ queryKey: ["email-status"] });
+      toast.success("Remetente salvo");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const testar = useMutation({
     mutationFn: () => testFn({ data: { origin: window.location.origin } }),
@@ -511,6 +527,30 @@ function AbaEmails() {
           </p>
         </div>
       )}
+
+      <form
+        onSubmit={(e) => { e.preventDefault(); salvarRemetente.mutate(); }}
+        className="space-y-2 rounded-xl bg-card p-5 ring-1 ring-black/5"
+      >
+        <Label>Remetente</Label>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            className="min-w-64 flex-1"
+            value={remetente}
+            onChange={(e) => setRemetente(e.target.value)}
+            placeholder="Métrica Humana <contato@seudominio.com.br>"
+            maxLength={200}
+          />
+          <Button type="submit" variant="outline" disabled={salvarRemetente.isPending}>
+            {salvarRemetente.isPending ? "Salvando…" : "Salvar"}
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Precisa ser um endereço de um domínio verificado no Resend. Aceita só o email
+          (<code className="rounded bg-muted px-1">contato@seudominio.com.br</code>) ou com nome na frente.
+          Em branco, usamos o remetente de teste.
+        </p>
+      </form>
 
       <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
         <div className="border-b border-black/5 px-5 py-3">

@@ -34,9 +34,11 @@ const ROTULO_BOTAO: Record<"convite" | "lembrete" | "resultado", string> = {
 /** Diz à tela se dá para enviar e de qual remetente. */
 export const getEmailStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
     const { emailAtivo, remetente } = await import("@/lib/email.server");
-    const r = remetente();
+    const { data: perfil } = await context.supabase
+      .from("profiles").select("email_from").eq("user_id", context.userId).maybeSingle();
+    const r = remetente(perfil?.email_from);
     return { ativo: emailAtivo(), remetente: r.valor, remetente_de_teste: r.eh_teste };
   });
 
@@ -111,7 +113,7 @@ export const sendMentorEmail = createServerFn({ method: "POST" })
 
     const { data: perfil } = await supabase
       .from("profiles")
-      .select("company_name, logo_url, brand_color, site_url, support_email, invite_message, reminder_message, result_message")
+      .select("company_name, logo_url, brand_color, site_url, support_email, email_from, invite_message, reminder_message, result_message")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -132,6 +134,7 @@ export const sendMentorEmail = createServerFn({ method: "POST" })
       subject: assunto,
       html: montarHtml({ corpo, link, rotuloBotao: ROTULO_BOTAO[data.kind], marca: perfil ?? null }),
       replyTo: perfil?.support_email ?? null,
+      from: perfil?.email_from ?? null,
     });
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -165,7 +168,7 @@ export const sendTestEmail = createServerFn({ method: "POST" })
     if (!emailAtivo()) throw new Error("O envio de email ainda não está ligado.");
 
     const { data: perfil } = await context.supabase
-      .from("profiles").select("company_name, logo_url, brand_color, site_url, support_email")
+      .from("profiles").select("company_name, logo_url, brand_color, site_url, support_email, email_from")
       .eq("user_id", userId).maybeSingle();
 
     const assunto = "Teste de envio — Métrica Humana";
@@ -181,6 +184,7 @@ export const sendTestEmail = createServerFn({ method: "POST" })
         rotuloBotao: "Abrir a plataforma",
         marca: perfil ?? null,
       }),
+      from: perfil?.email_from ?? null,
     });
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

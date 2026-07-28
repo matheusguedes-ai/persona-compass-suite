@@ -24,10 +24,18 @@ export function emailAtivo(): boolean {
   return !!chave();
 }
 
-/** De quem sai o email. Sem domínio verificado, cai no remetente de teste. */
-export function remetente(): { valor: string; eh_teste: boolean } {
-  const proprio = process.env.EMAIL_FROM || process.env.APP_EMAIL_FROM;
-  if (proprio) return { valor: proprio, eh_teste: false };
+/**
+ * De quem sai o email, na ordem: o que o mentor cadastrou na tela → variável de
+ * ambiente → remetente de teste do Resend.
+ *
+ * Deixar isso na tela evita ter que mexer em secret do projeto e republicar só
+ * para trocar um endereço.
+ */
+export function remetente(configurado?: string | null): { valor: string; eh_teste: boolean } {
+  const daTela = configurado?.trim();
+  if (daTela) return { valor: daTela, eh_teste: false };
+  const doAmbiente = process.env.EMAIL_FROM || process.env.APP_EMAIL_FROM;
+  if (doAmbiente) return { valor: doAmbiente, eh_teste: false };
   return { valor: REMETENTE_TESTE, eh_teste: true };
 }
 
@@ -40,6 +48,7 @@ export async function enviarEmail(params: {
   subject: string;
   html: string;
   replyTo?: string | null;
+  from?: string | null;
 }): Promise<ResultadoEnvio> {
   const key = chave();
   if (!key) return { ok: false, erro: "Envio de email ainda não está ligado (falta a chave do Resend)." };
@@ -49,7 +58,7 @@ export async function enviarEmail(params: {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: remetente().valor,
+        from: remetente(params.from).valor,
         to: [params.to],
         subject: params.subject,
         html: params.html,

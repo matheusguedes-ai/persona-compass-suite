@@ -355,6 +355,7 @@ const profileSchema = z.object({
   brand_accent_color: z.string().trim().max(32).optional().nullable(),
   logo_url: z.string().trim().max(500).optional().nullable(),
   avatar_url: z.string().trim().max(600).optional().nullable(),
+  email_from: z.string().trim().max(200).optional().nullable(),
   support_email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
   site_url: z.string().trim().max(300).optional().nullable(),
   invite_message: z.string().trim().max(2000).optional().nullable(),
