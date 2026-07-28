@@ -24,6 +24,7 @@ export const PERMISSOES = [
   "testes",
   "envios",
   "relatorios",
+  "devolutivas",
   "educacao",
   "configuracoes",
 ] as const;
@@ -35,6 +36,7 @@ export const PERMISSAO_LABEL: Record<Permissao, { titulo: string; ajuda: string 
   testes: { titulo: "Testes", ajuda: "Criar e editar inventários." },
   envios: { titulo: "Envios", ajuda: "Disparar testes e gerar links." },
   relatorios: { titulo: "Relatórios", ajuda: "Abrir os relatórios dos avaliados." },
+  devolutivas: { titulo: "Devolutivas", ajuda: "Agendar e registrar as conversas de resultado." },
   educacao: { titulo: "Educação", ajuda: "Publicar aulas, trilhas e materiais." },
   configuracoes: { titulo: "Configurações", ajuda: "Mexer na marca e nas preferências da conta." },
 };

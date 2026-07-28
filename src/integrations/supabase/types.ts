@@ -43,6 +43,82 @@ export type Database = {
           },
         ]
       }
+      devolutivas: {
+        Row: {
+          agreements: string | null
+          assessment_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          duration_min: number | null
+          id: string
+          mentor_id: string
+          next_at: string | null
+          notes: string | null
+          person_id: string
+          response_id: string | null
+          scheduled_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agreements?: string | null
+          assessment_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_min?: number | null
+          id?: string
+          mentor_id: string
+          next_at?: string | null
+          notes?: string | null
+          person_id: string
+          response_id?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agreements?: string | null
+          assessment_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          duration_min?: number | null
+          id?: string
+          mentor_id?: string
+          next_at?: string | null
+          notes?: string | null
+          person_id?: string
+          response_id?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devolutivas_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devolutivas_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "test_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devolutivas_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessment_responses: {
         Row: {
           previous_assessment_id: string | null
