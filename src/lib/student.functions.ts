@@ -139,3 +139,58 @@ export const updateMyStudentProfile = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/**
+ * As devolutivas do próprio avaliado.
+ *
+ * A tabela nasceu como ferramenta do mentor, e o aluno — que é quem mais
+ * precisa saber que a conversa está marcada — não via nada. A policy
+ * `devolutivas_read_aluno` abriu a leitura; aqui a lista sai pronta para a tela.
+ *
+ * O campo `notes` NÃO sai daqui. É onde o mentor anota impressões da conversa,
+ * e nem tudo ali é escrito para o avaliado ler. O que ele recebe é a data, quem
+ * conduziu, o que ficou combinado e o acesso ao relatório.
+ */
+export const getMinhasDevolutivas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const supabase = context.supabase;
+    const { data, error } = await supabase
+      .from("devolutivas")
+      .select(
+        "id, status, scheduled_at, completed_at, duration_min, agreements, next_at, response_id, assessment_id, created_by",
+      )
+      .neq("status", "cancelada")
+      .order("completed_at", { ascending: false, nullsFirst: true })
+      .order("scheduled_at", { ascending: false, nullsFirst: false });
+    if (error) throw new Error(error.message);
+
+    // Nome de quem conduziu. `profiles` não é legível pelo aluno — e não deve
+    // ser, guarda marca e e-mail da conta —, então vem por função definidora.
+    const autores = [...new Set((data ?? []).map((d) => d.created_by).filter(Boolean) as string[])];
+    const nomes = new Map<string, string>();
+    await Promise.all(
+      autores.map(async (uid) => {
+        const { data: nome } = await supabase.rpc("nome_do_mentor", { p_user_id: uid });
+        if (nome) nomes.set(uid, nome as string);
+      }),
+    );
+
+    return {
+      devolutivas: (data ?? []).map((d) => ({
+        id: d.id,
+        status: d.status,
+        scheduled_at: d.scheduled_at,
+        completed_at: d.completed_at,
+        duration_min: d.duration_min,
+        agreements: d.agreements,
+        next_at: d.next_at,
+        mentor: (d.created_by && nomes.get(d.created_by)) || null,
+        relatorio: d.assessment_id
+          ? `/relatorio-bateria/${d.assessment_id}`
+          : d.response_id
+            ? `/relatorio/${d.response_id}`
+            : null,
+      })),
+    };
+  });

@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   listarFila, listarDevolutivas, agendarDevolutiva, registrarDevolutiva,
-  atualizarDevolutiva, excluirDevolutiva, type ItemDaFila,
+  atualizarDevolutiva, excluirDevolutiva, listarPessoasParaDevolutiva, type ItemDaFila,
 } from "@/lib/devolutivas.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, CheckCircle2, FileText, Trash2, Clock, LayoutDashboard } from "lucide-react";
+import { CalendarClock, CheckCircle2, FileText, Trash2, Clock, LayoutDashboard, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +96,13 @@ export function DevolutivasPage() {
   // e a data entra depois, quando a pessoa responde o convite.
   const [remarcando, setRemarcando] = useState<Registro | null>(null);
   const [novaData, setNovaData] = useState("");
+  // Devolutiva avulsa: acompanhamento não nasce de resultado novo.
+  const [avulsa, setAvulsa] = useState(false);
+  const [pessoaId, setPessoaId] = useState("");
+  const pessoasFn = useServerFn(listarPessoasParaDevolutiva);
+  const { data: pessoasData } = useQuery({
+    queryKey: ["pessoas-devolutiva"], queryFn: () => pessoasFn(), enabled: avulsa,
+  });
 
   const recarregar = () => {
     qc.invalidateQueries({ queryKey: ["devolutivas"] });
@@ -156,6 +163,25 @@ export function DevolutivasPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const criarAvulsa = useMutation({
+    mutationFn: () =>
+      agendarFn({
+        data: {
+          person_id: pessoaId,
+          response_id: null,
+          assessment_id: null,
+          scheduled_at: paraIso(quando),
+          notes: pauta || undefined,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Devolutiva criada.");
+      setAvulsa(false); setPessoaId(""); setQuando(""); setPauta("");
+      recarregar();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const excluir = useMutation({
     mutationFn: (id: string) => excluirFn({ data: { id } }),
     onSuccess: () => { toast.success("Devolutiva excluída."); setExcluindo(null); recarregar(); },
@@ -176,11 +202,16 @@ export function DevolutivasPage() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold">Devolutivas</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          A conversa em que você apresenta o resultado e monta o plano de ação junto com a pessoa.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Devolutivas</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            A conversa em que você apresenta o resultado e monta o plano de ação junto com a pessoa.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => setAvulsa(true)}>
+          <Plus className="size-4" /> Nova devolutiva
+        </Button>
       </header>
 
       {/* ---------------------------------------------------------- FILA --- */}
@@ -358,6 +389,48 @@ export function DevolutivasPage() {
             <Button variant="ghost" onClick={() => setAgendando(null)}>Cancelar</Button>
             <Button onClick={() => agendar.mutate()} disabled={agendar.isPending}>
               {agendar.isPending ? "Agendando…" : "Agendar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* -------------------------------------------- diálogo avulso --- */}
+      <Dialog open={avulsa} onOpenChange={(v) => !v && setAvulsa(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova devolutiva</DialogTitle>
+            <DialogDescription>
+              Para conversa de acompanhamento, ou com alguém que você avaliou por fora da plataforma.
+              Sem resultado ligado, o painel abre vazio.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Com quem</label>
+              <select
+                value={pessoaId}
+                onChange={(e) => setPessoaId(e.target.value)}
+                className="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">Escolha uma pessoa…</option>
+                {(pessoasData?.pessoas ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.full_name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Quando</label>
+              <Input type="datetime-local" value={quando} onChange={(e) => setQuando(e.target.value)} className="mt-1.5" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Pauta (opcional)</label>
+              <Textarea value={pauta} onChange={(e) => setPauta(e.target.value)} rows={3} className="mt-1.5" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAvulsa(false)}>Cancelar</Button>
+            <Button onClick={() => criarAvulsa.mutate()} disabled={!pessoaId || criarAvulsa.isPending}>
+              {criarAvulsa.isPending ? "Criando…" : "Criar"}
             </Button>
           </DialogFooter>
         </DialogContent>

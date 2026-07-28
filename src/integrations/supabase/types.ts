@@ -1310,6 +1310,7 @@ export type Database = {
         Returns: { id: string; kind: string; owner_id: string }[]
       }
       acting_account: { Args: Record<string, never>; Returns: string }
+      nome_do_mentor: { Args: { p_user_id: string }; Returns: string | null }
       claim_student_profile: { Args: Record<string, never>; Returns: number }
       update_my_person: {
         Args: { _full_name: string; _phone?: string | null; _avatar_url?: string | null }

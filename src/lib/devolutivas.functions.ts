@@ -368,3 +368,22 @@ export const carregarPainel = createServerFn({ method: "GET" })
       partes,
     };
   });
+
+/**
+ * Pessoas disponíveis para uma devolutiva avulsa.
+ *
+ * A fila só enxerga quem concluiu teste. Mas conversa de acompanhamento — a
+ * segunda, a terceira — não nasce de resultado novo, e sem isto não havia como
+ * registrar. Aqui sai o cadastro inteiro que o mentor pode ver; a RLS de
+ * `people` já limita mentor convidado aos grupos dele.
+ */
+export const listarPessoasParaDevolutiva = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("people")
+      .select("id, full_name, email")
+      .order("full_name");
+    if (error) throw new Error(error.message);
+    return { pessoas: data ?? [] };
+  });

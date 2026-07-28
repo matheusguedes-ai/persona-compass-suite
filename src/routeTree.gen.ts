@@ -25,6 +25,7 @@ import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
+import { Route as AlunoDevolutivasRouteImport } from './routes/aluno.devolutivas'
 import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
 import { Route as ConviteEquipeTokenRouteImport } from './routes/convite-equipe.$token'
@@ -134,6 +135,11 @@ const AppTestesRoute = AppTestesRouteImport.update({
 const AlunoIndexRoute = AlunoIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoDevolutivasRoute = AlunoDevolutivasRouteImport.update({
+  id: '/devolutivas',
+  path: '/devolutivas',
   getParentRoute: () => AlunoRoute,
 } as any)
 const AlunoPerfilRoute = AlunoPerfilRouteImport.update({
@@ -301,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
+  '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
@@ -340,6 +347,7 @@ export interface FileRoutesByTo {
   '/colaboradores': typeof AppColaboradoresRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/mentores': typeof AppMentoresRoute
+  '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
@@ -388,6 +396,7 @@ export interface FileRoutesById {
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
+  '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
@@ -437,6 +446,7 @@ export interface FileRouteTypes {
     | '/mentores'
     | '/pessoas'
     | '/testes'
+    | '/aluno/devolutivas'
     | '/aluno/perfil'
     | '/bateria/$assessmentId'
     | '/convite-equipe/$token'
@@ -476,6 +486,7 @@ export interface FileRouteTypes {
     | '/colaboradores'
     | '/configuracoes'
     | '/mentores'
+    | '/aluno/devolutivas'
     | '/aluno/perfil'
     | '/bateria/$assessmentId'
     | '/convite-equipe/$token'
@@ -523,6 +534,7 @@ export interface FileRouteTypes {
     | '/_app/mentores'
     | '/_app/pessoas'
     | '/_app/testes'
+    | '/aluno/devolutivas'
     | '/aluno/perfil'
     | '/bateria/$assessmentId'
     | '/convite-equipe/$token'
@@ -691,6 +703,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/aluno/'
       preLoaderRoute: typeof AlunoIndexRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/devolutivas': {
+      id: '/aluno/devolutivas'
+      path: '/devolutivas'
+      fullPath: '/aluno/devolutivas'
+      preLoaderRoute: typeof AlunoDevolutivasRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/aluno/perfil': {
@@ -1000,6 +1019,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AlunoRouteChildren {
+  AlunoDevolutivasRoute: typeof AlunoDevolutivasRoute
   AlunoPerfilRoute: typeof AlunoPerfilRoute
   AlunoIndexRoute: typeof AlunoIndexRoute
   AlunoEducacaoTrackIdRoute: typeof AlunoEducacaoTrackIdRoute
@@ -1007,6 +1027,7 @@ interface AlunoRouteChildren {
 }
 
 const AlunoRouteChildren: AlunoRouteChildren = {
+  AlunoDevolutivasRoute: AlunoDevolutivasRoute,
   AlunoPerfilRoute: AlunoPerfilRoute,
   AlunoIndexRoute: AlunoIndexRoute,
   AlunoEducacaoTrackIdRoute: AlunoEducacaoTrackIdRoute,
