@@ -12,7 +12,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Send, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -187,6 +187,26 @@ function GroupDetail() {
         </TabsContent>
 
         <TabsContent value="testes" className="mt-4">
+          {/* Marcar aqui não enviava nada — a lista só ganha sentido virando um
+              disparo para o grupo inteiro de uma vez. */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-card p-4 ring-1 ring-black/5">
+            <div>
+              <p className="text-sm font-medium">Enviar para todo o grupo</p>
+              <p className="text-xs text-muted-foreground">
+                {members.length === 0
+                  ? "Adicione pessoas ao grupo para poder enviar."
+                  : instruments.length === 0
+                    ? "Marque abaixo pelo menos um teste para liberar."
+                    : `${instruments.length} teste(s) para ${members.length} pessoa(s), num disparo só.`}
+              </p>
+            </div>
+            <Button asChild disabled={members.length === 0 || instruments.length === 0}>
+              <Link to="/envios/novo" search={{ personId: undefined, groupId: id }}>
+                <Send className="size-4" /> Enviar para o grupo
+              </Link>
+            </Button>
+          </div>
+
           <p className="mb-3 text-xs text-muted-foreground">
             Marque os testes que este grupo pode receber. Você pode alterar a qualquer momento.
           </p>

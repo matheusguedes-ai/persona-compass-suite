@@ -98,7 +98,7 @@ function PersonProfile() {
             <a href={`mailto:${person.email}`}><Mail className="size-4" /> Enviar email</a>
           </Button>
           <Button asChild size="sm">
-            <Link to="/envios/novo" search={{ personId: person.id }}><Send className="size-4" /> Enviar teste</Link>
+            <Link to="/envios/novo" search={{ personId: person.id, groupId: undefined }}><Send className="size-4" /> Enviar teste</Link>
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -150,7 +150,7 @@ function PersonProfile() {
               <div className="p-8 text-center">
                 <p className="text-sm text-muted-foreground">Esta pessoa ainda não respondeu nenhum teste.</p>
                 <Button asChild size="sm" variant="outline" className="mt-4">
-                  <Link to="/envios/novo" search={{ personId: person.id }}>
+                  <Link to="/envios/novo" search={{ personId: person.id, groupId: undefined }}>
                     <Send className="size-4" /> Enviar um teste
                   </Link>
                 </Button>

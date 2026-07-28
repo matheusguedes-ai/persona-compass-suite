@@ -97,7 +97,7 @@ function EnviosPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Envios</h1>
           <p className="mt-1 text-sm text-muted-foreground">{data.length + batteries.length} disparos registrados.</p>
         </div>
-        <Button asChild><Link to="/envios/novo" search={{ personId: undefined }}><Plus className="size-4" /> Novo envio</Link></Button>
+        <Button asChild><Link to="/envios/novo" search={{ personId: undefined, groupId: undefined }}><Plus className="size-4" /> Novo envio</Link></Button>
       </div>
 
       {inviteLinks.length > 0 && (

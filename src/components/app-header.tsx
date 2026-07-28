@@ -33,7 +33,7 @@ export function AppHeader() {
           <LogOut className="size-4" /> Sair
         </Button>
         <Button asChild size="sm">
-          <Link to="/envios/novo" search={{ personId: undefined }}>
+          <Link to="/envios/novo" search={{ personId: undefined, groupId: undefined }}>
             <Plus className="size-4" /> Novo Envio
           </Link>
         </Button>

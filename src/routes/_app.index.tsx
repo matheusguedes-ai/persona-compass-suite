@@ -119,7 +119,7 @@ function Dashboard() {
             <h2 className="text-base font-medium tracking-tight">Disparo rápido</h2>
             <p className="text-xs text-muted-foreground">Crie um novo envio para um avaliado.</p>
           </div>
-          <Link to="/envios/novo" search={{ personId: undefined }} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
+          <Link to="/envios/novo" search={{ personId: undefined, groupId: undefined }} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
             Novo envio
           </Link>
         </div>

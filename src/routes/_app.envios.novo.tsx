@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listPeople } from "@/lib/data.functions";
+import { getGroup, listPeople } from "@/lib/data.functions";
 import { createInviteLink, listTestVersions, startResponse, startAssessment } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,6 +21,8 @@ export const Route = createFileRoute("/_app/envios/novo")({
   }),
   validateSearch: (s: Record<string, unknown>) => ({
     personId: typeof s.personId === "string" ? s.personId : undefined,
+    // Vindo de um grupo: já entra com os membros e os testes liberados marcados.
+    groupId: typeof s.groupId === "string" ? s.groupId : undefined,
   }),
   component: NovoEnvio,
 });
@@ -29,7 +31,7 @@ const STEPS = ["Testes", "Destinatários", "Revisão"] as const;
 
 function NovoEnvio() {
   const nav = useNavigate();
-  const { personId } = Route.useSearch();
+  const { personId, groupId } = Route.useSearch();
   const [step, setStep] = useState(0);
   const [selectedVersions, setSelV] = useState<string[]>([]);
   const [selectedPeople, setPpl] = useState<string[]>(personId ? [personId] : []);
@@ -47,16 +49,41 @@ function NovoEnvio() {
   const startAssessmentFn = useServerFn(startAssessment);
   const createInviteLinkFn = useServerFn(createInviteLink);
 
+  const getGroupFn = useServerFn(getGroup);
+
   const { data: people = [] } = useQuery({ queryKey: ["people"], queryFn: () => listPeopleFn() });
   const { data: versions = [] } = useQuery({
     queryKey: ["test-versions"],
     queryFn: () => listVersionsFn({ data: {} }),
+  });
+  const { data: groupData } = useQuery({
+    queryKey: ["group", groupId],
+    queryFn: () => getGroupFn({ data: { id: groupId! } }),
+    enabled: !!groupId,
   });
   // Templates publicados podem ser enviados direto — duplicar só é necessário
   // para quem quer editar perguntas. Versões do mentor aparecem primeiro.
   const publishedVersions = versions
     .filter((v) => v.is_published)
     .sort((a, b) => Number(a.is_template) - Number(b.is_template));
+
+  // Pré-seleção do grupo: membros + testes liberados. Roda uma vez só, para
+  // que desmarcar algo não seja desfeito no próximo render.
+  const preenchido = useRef(false);
+  useEffect(() => {
+    if (preenchido.current || !groupId || !groupData || publishedVersions.length === 0) return;
+    preenchido.current = true;
+
+    setPpl(groupData.members.map((m) => m.person_id));
+
+    // Um instrumento pode ter várias versões publicadas; publishedVersions já
+    // vem com as do mentor na frente, então a primeira é a preferida.
+    const liberados = groupData.instruments.map((i) => i.instrument_id);
+    const escolhidas = liberados
+      .map((instr) => publishedVersions.find((v) => v.instrument_id === instr)?.id)
+      .filter((id): id is string => !!id);
+    if (escolhidas.length > 0) setSelV(escolhidas);
+  }, [groupId, groupData, publishedVersions]);
 
   const toggle = (arr: string[], set: (v: string[]) => void, id: string) =>
     set(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
@@ -78,6 +105,7 @@ function NovoEnvio() {
         const row = await createInviteLinkFn({
           data: {
             version_ids: selectedVersions,
+            group_id: groupId ?? null,
             expires_at: expiresIso,
             max_responses: maxResponses ? Number(maxResponses) : null,
           },
@@ -92,7 +120,9 @@ function NovoEnvio() {
       }
       if (useBattery) {
         for (const person_id of selectedPeople) {
-          const row = await startAssessmentFn({ data: { person_id, version_ids: selectedVersions, expires_at: expiresIso } });
+          const row = await startAssessmentFn({
+            data: { person_id, version_ids: selectedVersions, group_id: groupId ?? null, expires_at: expiresIso },
+          });
           const person = people.find((p) => p.id === person_id);
           results.push({
             id: row.id,
@@ -105,7 +135,7 @@ function NovoEnvio() {
       }
       for (const version_id of selectedVersions) {
         for (const person_id of selectedPeople) {
-          const row = await startFn({ data: { version_id, person_id, expires_at: expiresIso } });
+          const row = await startFn({ data: { version_id, person_id, group_id: groupId ?? null, expires_at: expiresIso } });
           const person = people.find((p) => p.id === person_id);
           const test = publishedVersions.find((v) => v.id === version_id);
           results.push({ id: row.id, person: person?.full_name ?? "", test: test?.title ?? "" });
@@ -166,6 +196,14 @@ function NovoEnvio() {
           <ArrowLeft className="size-3" /> Voltar
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Novo envio</h1>
+        {groupData && (
+          <p className="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground ring-1 ring-black/5">
+            Enviando para o grupo <span className="font-medium text-foreground">{groupData.group.name}</span> —
+            {" "}{groupData.members.length} {groupData.members.length === 1 ? "pessoa" : "pessoas"} e
+            {" "}{groupData.instruments.length} {groupData.instruments.length === 1 ? "teste liberado" : "testes liberados"} já
+            {" "}vieram marcados. Você pode ajustar antes de confirmar.
+          </p>
+        )}
       </div>
 
       <ol className="flex items-center gap-2">
