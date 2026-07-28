@@ -53,14 +53,12 @@ function TestesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Testes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Duplique um template para criar sua própria versão editável (perguntas, opções, dimensões e resultados).
+          Edite o modelo direto, ou duplique para manter o original intacto e trabalhar na cópia.
         </p>
       </div>
 
       {instruments.map((inst) => {
         const insts = versions.filter((v) => v.instrument_id === inst.id);
-        const templates = insts.filter((v) => v.is_template);
-        const mine = insts.filter((v) => !v.is_template);
         return (
           <section key={inst.id} className="space-y-3">
             <div className="flex items-baseline justify-between">
@@ -68,54 +66,76 @@ function TestesPage() {
               <span className="font-mono text-[10px] uppercase text-muted-foreground">{inst.short_name}</span>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {templates.map((v) => (
-                <div key={v.id} className="flex flex-col rounded-xl bg-card p-4 ring-1 ring-black/5">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">Template</span>
+              {insts.map((v) => {
+                const emUso = (v.respostas ?? 0) > 0;
+                return (
+                  <div
+                    key={v.id}
+                    className={`flex flex-col rounded-xl bg-card p-4 ring-1 ring-black/5 ${v.is_template ? "" : "ring-2 ring-accent/40"}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                        {v.is_template ? "Modelo" : "Minha versão"}
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${v.is_published ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                        {v.is_published ? "Publicado" : "Rascunho"}
+                      </span>
+                    </div>
+                    <h3 className="mt-2 text-base font-medium">{v.title}</h3>
+                    {v.description && <p className="mt-1 text-xs text-muted-foreground">{v.description}</p>}
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {emUso
+                        ? `Respondido ${v.respostas} vez${v.respostas === 1 ? "" : "es"}`
+                        : "Ainda não foi respondido"}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+                      {v.can_edit && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" title={emUso ? "Não dá para apagar um teste já respondido" : "Apagar esta versão"}>
+                              <Trash2 className="size-3" /> Excluir
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {emUso ? "Não dá para excluir" : `Excluir “${v.title}”?`}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {emUso ? (
+                                  <>
+                                    Este teste já foi respondido <strong>{v.respostas} vez{v.respostas === 1 ? "" : "es"}</strong>.
+                                    Apagar levaria junto as respostas e os relatórios. Se quiser parar de usá-lo,
+                                    abra em <strong>Editar</strong> e desmarque “publicado” — ele some dos envios e o
+                                    histórico continua de pé.
+                                  </>
+                                ) : (
+                                  <>As perguntas, opções, dimensões e textos de resultado desta versão serão removidos. Não dá para desfazer.</>
+                                )}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{emUso ? "Entendi" : "Cancelar"}</AlertDialogCancel>
+                              {!emUso && (
+                                <AlertDialogAction onClick={() => del.mutate(v.id)}>Excluir</AlertDialogAction>
+                              )}
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => dup.mutate(v.id)} disabled={dup.isPending}>
+                        <Copy className="size-3" /> Duplicar
+                      </Button>
+                      {v.can_edit && (
+                        <Button size="sm" onClick={() => nav({ to: "/testes/$versionId/editar", params: { versionId: v.id } })}>
+                          <Pencil className="size-3" /> Editar
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="mt-2 text-base font-medium">{v.title}</h3>
-                  {v.description && <p className="mt-1 text-xs text-muted-foreground">{v.description}</p>}
-                  <div className="mt-4 flex items-center justify-end">
-                    <Button size="sm" onClick={() => dup.mutate(v.id)} disabled={dup.isPending}>
-                      <Copy className="size-3" /> Duplicar para editar
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {mine.map((v) => (
-                <div key={v.id} className="flex flex-col rounded-xl bg-card p-4 ring-1 ring-accent/40 ring-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${v.is_published ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                      {v.is_published ? "Publicado" : "Rascunho"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">minha versão</span>
-                  </div>
-                  <h3 className="mt-2 text-base font-medium">{v.title}</h3>
-                  {v.description && <p className="mt-1 text-xs text-muted-foreground">{v.description}</p>}
-                  <div className="mt-4 flex items-center justify-end gap-2">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="ghost"><Trash2 className="size-3" /> Excluir</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Excluir versão</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Excluir <strong>{v.title}</strong>? Perguntas, dimensões e resultados desta versão serão removidos.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => del.mutate(v.id)}>Excluir</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    <Button size="sm" onClick={() => nav({ to: "/testes/$versionId/editar", params: { versionId: v.id } })}>
-                      <Pencil className="size-3" /> Editar
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {insts.length === 0 && (
                 <div className="col-span-full flex items-center gap-2 rounded-lg bg-muted/40 p-6 text-sm text-muted-foreground ring-1 ring-black/5">
                   <FileText className="size-4" /> Nenhuma versão ainda para este instrumento.

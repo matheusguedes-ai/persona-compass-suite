@@ -29,7 +29,25 @@ export const listTestVersions = createServerFn({ method: "GET" })
     if (data.instrument_id) q = q.eq("instrument_id", data.instrument_id);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    const lista = rows ?? [];
+    if (lista.length === 0) return lista.map((v) => ({ ...v, can_edit: false, respostas: 0 }));
+
+    // A tela precisa de duas coisas que a linha sozinha não diz: se ESTA conta
+    // pode editar, e quantas respostas já existem (apagar uma versão em uso
+    // levaria o histórico junto — o banco barra, e a tela avisa antes).
+    const { data: conta } = await context.supabase.rpc("acting_account");
+    const { data: usos } = await context.supabase
+      .from("test_responses")
+      .select("version_id")
+      .in("version_id", lista.map((v) => v.id));
+    const porVersao = new Map<string, number>();
+    for (const u of usos ?? []) porVersao.set(u.version_id, (porVersao.get(u.version_id) ?? 0) + 1);
+
+    return lista.map((v) => ({
+      ...v,
+      can_edit: !!conta && v.mentor_id === conta,
+      respostas: porVersao.get(v.id) ?? 0,
+    }));
   });
 
 export const getTestVersion = createServerFn({ method: "GET" })
@@ -235,6 +253,9 @@ export const deleteTestVersion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    // O banco tem um gatilho que recusa apagar versão já respondida (a FK é
+    // ON DELETE CASCADE, então sem ele o histórico ia junto). Aqui só
+    // repassamos a mensagem dele, que já é escrita para o mentor ler.
     const { error } = await context.supabase.from("test_versions").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };

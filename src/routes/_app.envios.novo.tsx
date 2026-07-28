@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getGroup, getMyProfile, listPeople } from "@/lib/data.functions";
@@ -68,6 +68,23 @@ function NovoEnvio() {
   const publishedVersions = versions
     .filter((v) => v.is_published)
     .sort((a, b) => Number(a.is_template) - Number(b.is_template));
+
+  /**
+   * Um cartão por inventário, não por versão. Antes, ter o modelo e uma cópia
+   * do mesmo teste fazia os dois aparecerem lado a lado, como se fossem testes
+   * diferentes. As versões do mentor vêm primeiro, então a primeira do grupo é
+   * a sugestão padrão.
+   */
+  const porInstrumento = useMemo(() => {
+    const mapa = new Map<string, typeof publishedVersions>();
+    for (const v of publishedVersions) {
+      const chave = v.instrument_id ?? v.id;
+      const lista = mapa.get(chave) ?? [];
+      lista.push(v);
+      mapa.set(chave, lista);
+    }
+    return Array.from(mapa.entries()).map(([instrumentId, versoes]) => ({ instrumentId, versoes }));
+  }, [publishedVersions]);
 
   // Pré-seleção do grupo: membros + testes liberados. Roda uma vez só, para
   // que desmarcar algo não seja desfeito no próximo render.
@@ -256,8 +273,8 @@ function NovoEnvio() {
         {step === 0 && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Selecione um ou mais testes para enviar. Você pode usar os modelos prontos ou suas próprias versões —
-              para editar perguntas, duplique o modelo em <Link to="/testes" className="underline">Testes</Link>.
+              Selecione um ou mais testes para enviar. Quando você tem mais de uma versão do mesmo
+              inventário, ele aparece uma vez só — escolha a versão no seletor ao lado.
             </p>
             {publishedVersions.length === 0 ? (
               <div className="rounded-lg bg-muted/40 p-6 text-sm text-muted-foreground ring-1 ring-black/5">
@@ -265,27 +282,54 @@ function NovoEnvio() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                {publishedVersions.map((v) => {
-                  const on = selectedVersions.includes(v.id);
+                {porInstrumento.map((grupo) => {
+                  const escolhida = grupo.versoes.find((v) => selectedVersions.includes(v.id)) ?? grupo.versoes[0];
+                  const on = selectedVersions.includes(escolhida.id);
                   return (
-                    <button
-                      key={v.id}
-                      onClick={() => toggle(selectedVersions, setSelV, v.id)}
-                      className={`flex items-start gap-3 rounded-lg p-4 text-left ring-1 transition-colors ${
-                        on ? "bg-accent/10 ring-accent" : "bg-muted/40 ring-black/5 hover:bg-muted"
+                    <div
+                      key={grupo.instrumentId}
+                      className={`rounded-lg p-4 ring-1 transition-colors ${
+                        on ? "bg-accent/10 ring-accent" : "bg-muted/40 ring-black/5"
                       }`}
                     >
-                      <Checkbox checked={on} className="mt-0.5" />
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-medium">{v.title}</span>
-                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            {v.is_template ? "Modelo" : "Minha versão"}
-                          </span>
+                      <button
+                        onClick={() => toggle(selectedVersions, setSelV, escolhida.id)}
+                        className="flex w-full items-start gap-3 text-left"
+                      >
+                        <Checkbox checked={on} className="mt-0.5" />
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium">{escolhida.title}</span>
+                          {escolhida.description && (
+                            <div className="text-xs text-muted-foreground line-clamp-2">{escolhida.description}</div>
+                          )}
                         </div>
-                        {v.description && <div className="text-xs text-muted-foreground line-clamp-2">{v.description}</div>}
-                      </div>
-                    </button>
+                      </button>
+
+                      {/* Só aparece quando há mesmo o que escolher. */}
+                      {grupo.versoes.length > 1 && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-black/5 pt-3">
+                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Versão</span>
+                          {grupo.versoes.map((v) => (
+                            <button
+                              key={v.id}
+                              onClick={() => {
+                                // Escolher uma versão já marca o teste: tira
+                                // qualquer versão deste inventário e põe esta.
+                                const outras = selectedVersions.filter((id) => !grupo.versoes.some((g) => g.id === id));
+                                setSelV([...outras, v.id]);
+                              }}
+                              className={`rounded-full px-2.5 py-1 text-[11px] transition ${
+                                v.id === escolhida.id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+                              }`}
+                            >
+                              {v.is_template ? "Modelo" : v.title.replace(/^.*—\s*/, "")}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
