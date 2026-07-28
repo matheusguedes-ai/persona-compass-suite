@@ -590,3 +590,84 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       recent,
     };
   });
+
+/**
+ * Importa pessoas de uma planilha direto para um grupo.
+ *
+ * Regra que evita a maior dor de importação: **não duplica**. Se já existe
+ * alguém na conta com aquele email, reaproveita o cadastro e só acrescenta ao
+ * grupo — reimportar a mesma planilha não gera 80 pessoas repetidas.
+ *
+ * Os dados vazios da planilha não sobrescrevem o que já está preenchido: quem
+ * exporta do RH costuma trazer colunas incompletas.
+ */
+export const importPeopleToGroup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      group_id: z.string().uuid(),
+      pessoas: z.array(z.object({
+        full_name: z.string().trim().min(1).max(120),
+        email: z.string().trim().email().max(200),
+        phone: z.string().trim().max(40).optional().nullable(),
+        profession: z.string().trim().max(120).optional().nullable(),
+        role_at_company: z.string().trim().max(120).optional().nullable(),
+      })).min(1).max(2000),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: grupo, error: gErr } = await supabase
+      .from("groups").select("id").eq("id", data.group_id).maybeSingle();
+    if (gErr) throw new Error(gErr.message);
+    if (!grupo) throw new Error("Grupo não encontrado ou fora do seu acesso.");
+
+    const emails = Array.from(new Set(data.pessoas.map((p) => p.email.toLowerCase())));
+    const { data: existentes, error: eErr } = await supabase
+      .from("people").select("id, email").in("email", emails);
+    if (eErr) throw new Error(eErr.message);
+    const porEmail = new Map((existentes ?? []).map((p) => [p.email.toLowerCase(), p.id]));
+
+    const novos = data.pessoas.filter((p) => !porEmail.has(p.email.toLowerCase()));
+    let criados = 0;
+    if (novos.length > 0) {
+      const { data: inseridos, error: iErr } = await supabase
+        .from("people")
+        .insert(novos.map((p) => ({
+          mentor_id: userId,
+          full_name: p.full_name,
+          email: p.email.toLowerCase(),
+          phone: p.phone || null,
+          profession: p.profession || null,
+          role_at_company: p.role_at_company || null,
+          role: "colaborador",
+        })))
+        .select("id, email");
+      if (iErr) throw new Error(iErr.message);
+      criados = inseridos?.length ?? 0;
+      for (const p of inseridos ?? []) porEmail.set(p.email.toLowerCase(), p.id);
+    }
+
+    // Quem já estava no grupo não entra de novo.
+    const ids = Array.from(new Set(data.pessoas.map((p) => porEmail.get(p.email.toLowerCase())!).filter(Boolean)));
+    const { data: jaNoGrupo, error: mErr } = await supabase
+      .from("group_members").select("person_id").eq("group_id", data.group_id).in("person_id", ids);
+    if (mErr) throw new Error(mErr.message);
+    const dentro = new Set((jaNoGrupo ?? []).map((m) => m.person_id));
+    const aAdicionar = ids.filter((id) => !dentro.has(id));
+
+    if (aAdicionar.length > 0) {
+      const { error: addErr } = await supabase
+        .from("group_members")
+        .insert(aAdicionar.map((person_id) => ({ group_id: data.group_id, person_id })));
+      if (addErr) throw new Error(addErr.message);
+    }
+
+    return {
+      criados,
+      reaproveitados: ids.length - criados,
+      adicionados_ao_grupo: aAdicionar.length,
+      ja_estavam_no_grupo: dentro.size,
+    };
+  });

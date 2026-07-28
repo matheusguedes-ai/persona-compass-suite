@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Plus, Send, Trash2 } from "lucide-react";
+import { ImportarPlanilha } from "@/components/importar-planilha";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -141,7 +142,8 @@ function GroupDetail() {
         </TabsContent>
 
         <TabsContent value="pessoas" className="mt-4 space-y-3">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            <ImportarPlanilha groupId={id} />
             <AddPeopleDialog groupId={id} excludeIds={members.map((m) => m.person_id)} />
           </div>
           <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
