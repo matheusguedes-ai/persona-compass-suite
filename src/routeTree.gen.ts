@@ -25,6 +25,7 @@ import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
+import { Route as AlunoComunidadeRouteImport } from './routes/aluno.comunidade'
 import { Route as AlunoCriarSenhaRouteImport } from './routes/aluno.criar-senha'
 import { Route as AlunoDevolutivasRouteImport } from './routes/aluno.devolutivas'
 import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
@@ -136,6 +137,11 @@ const AppTestesRoute = AppTestesRouteImport.update({
 const AlunoIndexRoute = AlunoIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoComunidadeRoute = AlunoComunidadeRouteImport.update({
+  id: '/comunidade',
+  path: '/comunidade',
   getParentRoute: () => AlunoRoute,
 } as any)
 const AlunoCriarSenhaRoute = AlunoCriarSenhaRouteImport.update({
@@ -313,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
+  '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
@@ -354,6 +361,7 @@ export interface FileRoutesByTo {
   '/colaboradores': typeof AppColaboradoresRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/mentores': typeof AppMentoresRoute
+  '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
@@ -404,6 +412,7 @@ export interface FileRoutesById {
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
+  '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
@@ -455,6 +464,7 @@ export interface FileRouteTypes {
     | '/mentores'
     | '/pessoas'
     | '/testes'
+    | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/devolutivas'
     | '/aluno/perfil'
@@ -496,6 +506,7 @@ export interface FileRouteTypes {
     | '/colaboradores'
     | '/configuracoes'
     | '/mentores'
+    | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/devolutivas'
     | '/aluno/perfil'
@@ -545,6 +556,7 @@ export interface FileRouteTypes {
     | '/_app/mentores'
     | '/_app/pessoas'
     | '/_app/testes'
+    | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/devolutivas'
     | '/aluno/perfil'
@@ -715,6 +727,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/aluno/'
       preLoaderRoute: typeof AlunoIndexRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/comunidade': {
+      id: '/aluno/comunidade'
+      path: '/comunidade'
+      fullPath: '/aluno/comunidade'
+      preLoaderRoute: typeof AlunoComunidadeRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/aluno/criar-senha': {
@@ -1038,6 +1057,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AlunoRouteChildren {
+  AlunoComunidadeRoute: typeof AlunoComunidadeRoute
   AlunoCriarSenhaRoute: typeof AlunoCriarSenhaRoute
   AlunoDevolutivasRoute: typeof AlunoDevolutivasRoute
   AlunoPerfilRoute: typeof AlunoPerfilRoute
@@ -1047,6 +1067,7 @@ interface AlunoRouteChildren {
 }
 
 const AlunoRouteChildren: AlunoRouteChildren = {
+  AlunoComunidadeRoute: AlunoComunidadeRoute,
   AlunoCriarSenhaRoute: AlunoCriarSenhaRoute,
   AlunoDevolutivasRoute: AlunoDevolutivasRoute,
   AlunoPerfilRoute: AlunoPerfilRoute,

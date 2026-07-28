@@ -43,6 +43,24 @@ export type Database = {
           },
         ]
       }
+      community_posts: {
+        Row: { id: string; group_id: string; author_id: string; author_name: string; body: string; file_url: string | null; file_kind: string | null; link_url: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; group_id: string; author_id: string; author_name: string; body: string; file_url?: string | null; file_kind?: string | null; link_url?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; group_id?: string; author_id?: string; author_name?: string; body?: string; file_url?: string | null; file_kind?: string | null; link_url?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      community_comments: {
+        Row: { id: string; post_id: string; author_id: string; author_name: string; body: string; created_at: string }
+        Insert: { id?: string; post_id: string; author_id: string; author_name: string; body: string; created_at?: string }
+        Update: { id?: string; post_id?: string; author_id?: string; author_name?: string; body?: string; created_at?: string }
+        Relationships: []
+      }
+      community_reactions: {
+        Row: { post_id: string; user_id: string; created_at: string }
+        Insert: { post_id: string; user_id: string; created_at?: string }
+        Update: { post_id?: string; user_id?: string; created_at?: string }
+        Relationships: []
+      }
       devolutivas: {
         Row: {
           agreements: string | null
@@ -1310,6 +1328,8 @@ export type Database = {
         Returns: { id: string; kind: string; owner_id: string }[]
       }
       acting_account: { Args: Record<string, never>; Returns: string }
+      meus_grupos_como_avaliado: { Args: Record<string, never>; Returns: string[] }
+      posso_ver_grupo: { Args: { p_group_id: string }; Returns: boolean }
       nome_do_mentor: { Args: { p_user_id: string }; Returns: string | null }
       claim_student_profile: { Args: Record<string, never>; Returns: number }
       update_my_person: {
