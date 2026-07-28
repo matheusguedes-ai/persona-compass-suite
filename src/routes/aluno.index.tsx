@@ -53,7 +53,7 @@ function MeusResultados() {
       const feitas = partes.filter((p) => p.submitted_at).length;
       return {
         id: b.id,
-        titulo: partes.length > 0 ? `Bateria — ${partes.length} testes` : "Bateria",
+        titulo: partes.length > 0 ? `Bateria — ${partes.length} teste${partes.length === 1 ? "" : "s"}` : "Bateria",
         detalhe: partes.map((p) => p.test_versions?.title).filter(Boolean).join(" · "),
         concluido: !!b.submitted_at,
         parcial: feitas > 0 && feitas < partes.length ? `${feitas} de ${partes.length}` : null,
