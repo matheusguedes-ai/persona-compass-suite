@@ -723,3 +723,95 @@ export const setInviteLinkActive = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return row;
   });
+
+// ============================================================
+// Reteste autorizado
+// O avaliado só refaz quando o mentor libera. Cada autorização cria uma NOVA
+// aplicação encadeada à anterior — nada é sobrescrito, o histórico fica inteiro.
+// ============================================================
+
+export const authorizeRetake = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    response_id: z.string().uuid(),
+    expires_at: z.string().datetime().optional().nullable(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: prev, error } = await supabase
+      .from("test_responses")
+      .select("id, person_id, version_id, group_id, mentor_id, attempt, submitted_at")
+      .eq("id", data.response_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!prev || prev.mentor_id !== userId) throw new Error("Resposta não encontrada ou não pertence a você.");
+    if (!prev.submitted_at) throw new Error("Esta aplicação ainda não foi concluída. Não há o que refazer.");
+
+    const { data: row, error: insErr } = await supabase.from("test_responses").insert({
+      version_id: prev.version_id,
+      person_id: prev.person_id,
+      group_id: prev.group_id,
+      mentor_id: userId,
+      kind: "self",
+      status: "pending",
+      attempt: (prev.attempt ?? 1) + 1,
+      previous_response_id: prev.id,
+      expires_at: data.expires_at ?? null,
+    }).select().single();
+    if (insErr) throw new Error(insErr.message);
+    return row;
+  });
+
+export const authorizeRetakeAssessment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    assessment_id: z.string().uuid(),
+    expires_at: z.string().datetime().optional().nullable(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: prev, error } = await supabase
+      .from("assessment_responses")
+      .select("id, person_id, group_id, mentor_id, attempt")
+      .eq("id", data.assessment_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!prev || prev.mentor_id !== userId) throw new Error("Bateria não encontrada ou não pertence a você.");
+
+    // Refaz exatamente os mesmos testes, na mesma ordem da aplicação anterior.
+    const { data: parts, error: pErr } = await supabase
+      .from("test_responses")
+      .select("version_id, assessment_sort")
+      .eq("assessment_response_id", prev.id)
+      .order("assessment_sort");
+    if (pErr) throw new Error(pErr.message);
+    if (!parts || parts.length === 0) throw new Error("Bateria sem testes para refazer.");
+
+    const { data: assessment, error: aErr } = await supabase.from("assessment_responses").insert({
+      mentor_id: userId,
+      person_id: prev.person_id,
+      group_id: prev.group_id,
+      status: "pending",
+      attempt: (prev.attempt ?? 1) + 1,
+      previous_assessment_id: prev.id,
+      expires_at: data.expires_at ?? null,
+    }).select("id").single();
+    if (aErr) throw new Error(aErr.message);
+
+    const { error: rErr } = await supabase.from("test_responses").insert(
+      parts.map((p, idx) => ({
+        version_id: p.version_id,
+        person_id: prev.person_id,
+        group_id: prev.group_id,
+        mentor_id: userId,
+        kind: "self",
+        status: "pending",
+        assessment_response_id: assessment.id,
+        assessment_sort: p.assessment_sort ?? idx,
+        attempt: (prev.attempt ?? 1) + 1,
+        expires_at: data.expires_at ?? null,
+      })),
+    );
+    if (rErr) throw new Error(rErr.message);
+    return assessment;
+  });

@@ -6,10 +6,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, FileText, Mail, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Link as LinkIcon, Mail, RotateCcw, Send, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getPerson, deletePerson } from "@/lib/data.functions";
+import { authorizeRetake, authorizeRetakeAssessment } from "@/lib/tests.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/pessoas/$id")({
@@ -44,6 +45,20 @@ function PersonProfile() {
       qc.invalidateQueries({ queryKey: ["people"] });
       toast.success("Pessoa removida");
       nav({ to: "/pessoas" });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const retakeFn = useServerFn(authorizeRetake);
+  const retakeAssessmentFn = useServerFn(authorizeRetakeAssessment);
+  const retake = useMutation({
+    mutationFn: (item: HistoryItem) =>
+      item.assessmentId
+        ? retakeAssessmentFn({ data: { assessment_id: item.assessmentId } })
+        : retakeFn({ data: { response_id: item.responseId! } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["person", id] });
+      toast.success("Novo teste liberado. O link já aparece no histórico.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -145,7 +160,14 @@ function PersonProfile() {
                 {history.map((item) => (
                   <li key={item.key} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{item.title}</p>
+                      <p className="truncate text-sm font-medium">
+                      {item.title}
+                      {item.attempt > 1 && (
+                        <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          {item.attempt}ª aplicação
+                        </span>
+                      )}
+                    </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {item.done === item.total
                           ? `Respondido em ${formatDate(item.date)}`
@@ -178,6 +200,29 @@ function PersonProfile() {
                             </Link>
                           </Button>
                         ))}
+                      {/* Só faz sentido refazer o que já foi concluído. */}
+                      {item.done === item.total && (
+                        <Button
+                          variant="ghost" size="sm"
+                          onClick={() => retake.mutate(item)}
+                          disabled={retake.isPending}
+                          title="Libera uma nova aplicação deste teste, mantendo a anterior no histórico"
+                        >
+                          <RotateCcw className="size-3" /> Refazer
+                        </Button>
+                      )}
+                      {item.done < item.total && (
+                        <Button asChild variant="ghost" size="sm">
+                          <Link
+                            to={item.assessmentId ? "/bateria/$assessmentId" : "/responder/$responseId"}
+                            params={item.assessmentId
+                              ? { assessmentId: item.assessmentId }
+                              : { responseId: item.responseId! }}
+                          >
+                            <LinkIcon className="size-3" /> Link
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -216,6 +261,7 @@ type ResponseRow = {
   submitted_at: string | null;
   created_at: string;
   assessment_response_id: string | null;
+  attempt?: number | null;
   test_versions: { title: string; instrument_id: string } | null;
 };
 
@@ -227,6 +273,7 @@ type HistoryItem = {
   total: number;
   assessmentId: string | null;
   responseId: string | null;
+  attempt: number;
 };
 
 const formatDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR") : "—");
@@ -255,6 +302,7 @@ function buildHistory(rows: ResponseRow[]): HistoryItem[] {
     const dates = parts.map((p) => p.submitted_at).filter((d): d is string => !!d).sort();
     items.push({
       key: `b-${assessmentId}`,
+      attempt: Math.max(...parts.map((p) => p.attempt ?? 1)),
       title: `Bateria — ${parts.length} ${parts.length === 1 ? "teste" : "testes"}`,
       date: dates.at(-1) ?? parts.map((p) => p.created_at).sort().at(0) ?? null,
       done,
@@ -266,6 +314,7 @@ function buildHistory(rows: ResponseRow[]): HistoryItem[] {
   for (const r of singles) {
     items.push({
       key: `r-${r.id}`,
+      attempt: r.attempt ?? 1,
       title: r.test_versions?.title ?? "Teste",
       date: r.submitted_at ?? r.created_at,
       done: r.submitted_at ? 1 : 0,

@@ -61,7 +61,7 @@ export const getPerson = createServerFn({ method: "GET" })
     const { data: responses, error: rErr } = await context.supabase
       .from("test_responses")
       .select(
-        "id, status, submitted_at, started_at, created_at, assessment_response_id, assessment_sort, test_versions(title, instrument_id)",
+        "id, status, submitted_at, started_at, created_at, assessment_response_id, assessment_sort, attempt, test_versions(title, instrument_id)",
       )
       .eq("person_id", data.id)
       .eq("mentor_id", context.userId)
