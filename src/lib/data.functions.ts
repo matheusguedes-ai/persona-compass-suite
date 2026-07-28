@@ -81,7 +81,15 @@ export const createPerson = createServerFn({ method: "POST" })
       .insert({ ...data, mentor_id: context.userId })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      // O índice único do banco é quem garante; aqui vira frase legível.
+      // Dois cadastros com o mesmo e-mail quebram o primeiro acesso do aluno,
+      // que casa a pessoa ao usuário justamente pelo e-mail.
+      if (error.code === "23505") {
+        throw new Error("Já existe uma pessoa cadastrada com este e-mail.");
+      }
+      throw new Error(error.message);
+    }
     return row;
   });
 
@@ -96,7 +104,13 @@ export const updatePerson = createServerFn({ method: "POST" })
       .eq("id", id)
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Trocar o e-mail para um que já existe cria o mesmo problema.
+      if (error.code === "23505") {
+        throw new Error("Já existe outra pessoa cadastrada com este e-mail.");
+      }
+      throw new Error(error.message);
+    }
     return row;
   });
 
