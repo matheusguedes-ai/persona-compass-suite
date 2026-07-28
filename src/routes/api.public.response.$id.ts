@@ -449,16 +449,23 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       if (escolhas.length < 2) return;
       paresValidos++;
       const [a, b] = escolhas;
-      // Contradição forte: o que foi "mais a minha cara" num bloco virou
-      // "menos a minha cara" no bloco equivalente.
+      // Só conta a INVERSÃO: o que foi "mais a minha cara" num bloco virou
+      // "menos a minha cara" no bloco equivalente. Isso é contradição de
+      // verdade — não dá para preferir e rejeitar a mesma coisa.
+      //
+      // Escolher dimensões DIFERENTES nos dois blocos não é contradição: é
+      // ambivalência, e é o que acontece com quem está genuinamente dividido
+      // entre dois fatores. A primeira versão contava isso como erro e punia
+      // quem tinha perfil equilibrado — uma pessoa com S e C empatados levou
+      // ressalva depois de 80 segundos por bloco, lendo com todo o cuidado.
+      // Quem não leu continua sendo pego pela mania de posição e pelo ritmo,
+      // que separam os dois casos com folga.
       const inverteu = (a.mais && a.mais === b.menos) || (b.mais && b.mais === a.menos);
-      if (inverteu || a.mais !== b.mais) paresContraditorios++;
+      if (inverteu) paresContraditorios++;
     });
     const contradicoes = paresValidos > 0 ? paresContraditorios / paresValidos : null;
-    // Metade dos pares discordando já é mais do que a variação normal de quem
-    // está atento: os blocos equivalentes descrevem a mesma coisa com outras palavras.
     if (contradicoes != null && contradicoes > 0.5) {
-      motivos.push("escolhas opostas em blocos que descrevem a mesma coisa");
+      motivos.push("preferiu e rejeitou a mesma coisa em blocos equivalentes");
     }
 
     // 2. mania de posição
