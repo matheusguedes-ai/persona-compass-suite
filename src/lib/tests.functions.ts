@@ -836,3 +836,68 @@ export const authorizeRetakeAssessment = createServerFn({ method: "POST" })
     if (rErr) throw new Error(rErr.message);
     return assessment;
   });
+
+// ============================================================
+// Cancelar e excluir envio
+// ============================================================
+/**
+ * Cancelar ≠ excluir.
+ *
+ * Cancelar derruba o link e mantém o registro — é reversível, e é o que se
+ * quer quando o envio foi para a pessoa errada ou a aplicação foi adiada.
+ * Excluir some com tudo, inclusive respostas e relatório.
+ */
+export const setResponseCanceled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), canceled: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: row, error } = await context.supabase
+      .from("test_responses")
+      .update({ canceled_at: data.canceled ? new Date().toISOString() : null })
+      .eq("id", data.id)
+      .select("id, canceled_at")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const setAssessmentCanceled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), canceled: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const quando = data.canceled ? new Date().toISOString() : null;
+    const { data: row, error } = await context.supabase
+      .from("assessment_responses")
+      .update({ canceled_at: quando })
+      .eq("id", data.id)
+      .select("id, canceled_at")
+      .single();
+    if (error) throw new Error(error.message);
+    // As etapas acompanham a bateria: cancelar a bateria e deixar as etapas
+    // abertas deixaria o link de cada teste ainda funcionando.
+    const { error: pErr } = await context.supabase
+      .from("test_responses")
+      .update({ canceled_at: quando })
+      .eq("assessment_response_id", data.id);
+    if (pErr) throw new Error(pErr.message);
+    return row;
+  });
+
+export const deleteResponse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("test_responses").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteAssessment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    // As etapas caem junto pela FK (ON DELETE CASCADE).
+    const { error } = await context.supabase.from("assessment_responses").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

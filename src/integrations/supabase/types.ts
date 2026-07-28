@@ -46,6 +46,7 @@ export type Database = {
       assessment_responses: {
         Row: {
           previous_assessment_id: string | null
+          canceled_at: string | null
           attempt: number
           expires_at: string | null
           created_at: string
@@ -59,6 +60,7 @@ export type Database = {
         }
         Insert: {
           previous_assessment_id?: string | null
+          canceled_at?: string | null
           attempt?: number
           expires_at?: string | null
           created_at?: string
@@ -72,6 +74,7 @@ export type Database = {
         }
         Update: {
           previous_assessment_id?: string | null
+          canceled_at?: string | null
           attempt?: number
           expires_at?: string | null
           created_at?: string
@@ -998,6 +1001,7 @@ export type Database = {
       test_responses: {
         Row: {
           previous_response_id: string | null
+          canceled_at: string | null
           attempt: number
           expires_at: string | null
           assessment_response_id: string | null
@@ -1021,6 +1025,7 @@ export type Database = {
         }
         Insert: {
           previous_response_id?: string | null
+          canceled_at?: string | null
           attempt?: number
           expires_at?: string | null
           assessment_response_id?: string | null
@@ -1044,6 +1049,7 @@ export type Database = {
         }
         Update: {
           previous_response_id?: string | null
+          canceled_at?: string | null
           attempt?: number
           expires_at?: string | null
           assessment_response_id?: string | null

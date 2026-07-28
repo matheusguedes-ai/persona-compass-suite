@@ -38,6 +38,7 @@ const MENSAGEM_ERRO: Record<string, string> = {
   not_found:
     "Este link não está mais disponível. Ele pode ter sido cancelado ou substituído — peça um novo ao seu mentor.",
   expired: "Este link expirou. Peça um novo ao seu mentor.",
+  canceled: "Este link foi cancelado pelo seu mentor. Se isso não era esperado, fale com ele.",
 };
 
 export function ResponseForm({

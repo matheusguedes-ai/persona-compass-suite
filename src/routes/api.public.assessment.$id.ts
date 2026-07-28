@@ -10,10 +10,11 @@ async function loadAssessment(id: string) {
   const supabase = await getAdmin();
   const { data: assessment } = await supabase
     .from("assessment_responses")
-    .select("id, status, expires_at, mentor_id, people(full_name)")
+    .select("id, status, expires_at, canceled_at, mentor_id, people(full_name)")
     .eq("id", id)
     .maybeSingle();
   if (!assessment) return null;
+  if (assessment.canceled_at && assessment.status !== "submitted") return "canceled" as const;
   // Prazo vencido bloqueia o acesso, mas quem já concluiu continua podendo ver.
   if (assessment.expires_at && assessment.status !== "submitted") {
     if (new Date(assessment.expires_at).getTime() < Date.now()) return "expired" as const;
@@ -68,6 +69,12 @@ export const Route = createFileRoute("/api/public/assessment/$id")({
           const payload = await loadAssessment(params.id);
           if (!payload) {
             return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { "content-type": "application/json" } });
+          }
+          if (payload === "canceled") {
+            return new Response(
+              JSON.stringify({ error: "canceled", message: "Este link foi cancelado pelo seu mentor. Se isso não era esperado, fale com ele." }),
+              { status: 410, headers: { "content-type": "application/json" } },
+            );
           }
           if (payload === "expired") {
             return new Response(

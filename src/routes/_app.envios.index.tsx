@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listResponses, listAssessments, createObserverInvite, listInviteLinks, setInviteLinkActive } from "@/lib/tests.functions";
+import {
+  listResponses, listAssessments, createObserverInvite, listInviteLinks, setInviteLinkActive,
+  setResponseCanceled, setAssessmentCanceled, deleteResponse, deleteAssessment,
+} from "@/lib/tests.functions";
+import { AcoesDoEnvio } from "@/components/acoes-do-envio";
 import { Button } from "@/components/ui/button";
 import { Copy, FileText, Plus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -21,6 +25,7 @@ export const Route = createFileRoute("/_app/envios/")({
 type ResponseRow = {
   id: string;
   status: string;
+  canceled_at?: string | null;
   created_at: string;
   observers_invited?: number;
   observers_answered?: number;
@@ -38,6 +43,7 @@ const STATUS_LABEL: Record<string, string> = {
 type AssessmentRow = {
   id: string;
   status: string;
+  canceled_at?: string | null;
   created_at: string;
   total: number;
   done: number;
@@ -67,6 +73,35 @@ function EnviosPage() {
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar"),
   });
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+  const cancelarRespostaFn = useServerFn(setResponseCanceled);
+  const cancelarBateriaFn = useServerFn(setAssessmentCanceled);
+  const excluirRespostaFn = useServerFn(deleteResponse);
+  const excluirBateriaFn = useServerFn(deleteAssessment);
+  const recarregar = () => {
+    refetch();
+    qc.invalidateQueries({ queryKey: ["assessments"] });
+  };
+  const cancelarResposta = useMutation({
+    mutationFn: (v: { id: string; canceled: boolean }) => cancelarRespostaFn({ data: v }),
+    onSuccess: (_d, v) => { recarregar(); toast.success(v.canceled ? "Envio cancelado — o link parou de funcionar" : "Envio reativado"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const cancelarBateria = useMutation({
+    mutationFn: (v: { id: string; canceled: boolean }) => cancelarBateriaFn({ data: v }),
+    onSuccess: (_d, v) => { recarregar(); toast.success(v.canceled ? "Bateria cancelada — os links pararam de funcionar" : "Bateria reativada"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const excluirResposta = useMutation({
+    mutationFn: (id: string) => excluirRespostaFn({ data: { id } }),
+    onSuccess: () => { recarregar(); toast.success("Envio excluído"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const excluirBateria = useMutation({
+    mutationFn: (id: string) => excluirBateriaFn({ data: { id } }),
+    onSuccess: () => { recarregar(); toast.success("Bateria excluída"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: batteries = [] } = useQuery({
     queryKey: ["assessments"],
@@ -167,7 +202,7 @@ function EnviosPage() {
                   <td className="px-6 py-4 font-medium">{b.people?.full_name ?? "—"}</td>
                   <td className="px-6 py-4 text-muted-foreground">Bateria — {b.total} testes</td>
                   <td className="px-6 py-4 text-muted-foreground">
-                    {complete ? "Concluído" : `${b.done}/${b.total} respondidos`}
+                    {b.canceled_at ? "Cancelado" : complete ? "Concluído" : `${b.done}/${b.total} respondidos`}
                   </td>
                   <td className="px-6 py-4 text-muted-foreground">—</td>
                   <td className="px-6 py-4 text-muted-foreground">{new Date(b.created_at).toLocaleDateString("pt-BR")}</td>
@@ -182,6 +217,15 @@ function EnviosPage() {
                     <Button variant="ghost" size="sm" onClick={() => copyLink(b.id, "bateria")}>
                       <Copy className="size-3" /> Link
                     </Button>
+                    <AcoesDoEnvio
+                      nome={b.people?.full_name ?? "este avaliado"}
+                      respondido={b.status === "submitted"}
+                      cancelado={!!b.canceled_at}
+                      bateria
+                      onCancelar={(c) => cancelarBateria.mutate({ id: b.id, canceled: c })}
+                      onExcluir={() => excluirBateria.mutate(b.id)}
+                      ocupado={cancelarBateria.isPending || excluirBateria.isPending}
+                    />
                   </td>
                 </tr>
               );
@@ -190,7 +234,11 @@ function EnviosPage() {
               <tr key={r.id} className="hover:bg-muted/40">
                 <td className="px-6 py-4 font-medium">{r.people?.full_name ?? "—"}</td>
                 <td className="px-6 py-4 text-muted-foreground">{r.test_versions?.title ?? "—"}</td>
-                <td className="px-6 py-4 text-muted-foreground">{STATUS_LABEL[r.status] ?? r.status}</td>
+                <td className="px-6 py-4 text-muted-foreground">
+                  {r.canceled_at
+                    ? <span className="rounded-full bg-muted px-2 py-0.5 text-xs">Cancelado</span>
+                    : (STATUS_LABEL[r.status] ?? r.status)}
+                </td>
                 <td className="px-6 py-4 text-muted-foreground">
                   {(r.observers_invited ?? 0) === 0
                     ? "—"
@@ -213,6 +261,14 @@ function EnviosPage() {
                   <Button variant="ghost" size="sm" onClick={() => copyLink(r.id)}>
                     <Copy className="size-3" /> Link
                   </Button>
+                  <AcoesDoEnvio
+                    nome={r.people?.full_name ?? "este avaliado"}
+                    respondido={r.status === "submitted"}
+                    cancelado={!!r.canceled_at}
+                    onCancelar={(c) => cancelarResposta.mutate({ id: r.id, canceled: c })}
+                    onExcluir={() => excluirResposta.mutate(r.id)}
+                    ocupado={cancelarResposta.isPending || excluirResposta.isPending}
+                  />
                 </td>
               </tr>
             ))}

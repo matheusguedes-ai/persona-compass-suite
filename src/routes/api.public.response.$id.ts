@@ -13,7 +13,7 @@ async function loadResponsePayload(id: string) {
   const supabase = await getAdmin();
   const { data: response } = await supabase
     .from("test_responses")
-    .select("id, submitted_at, expires_at, version_id, kind, mentor_id, people(full_name), test_versions(title, description)")
+    .select("id, submitted_at, expires_at, canceled_at, version_id, kind, mentor_id, people(full_name), test_versions(title, description)")
     .eq("id", id)
     .maybeSingle();
   if (!response) return null;
@@ -23,6 +23,9 @@ async function loadResponsePayload(id: string) {
   if (response.submitted_at) {
     return { submitted: true as const, kind: response.kind ?? "self", brand };
   }
+  // Cancelado só barra quem ainda ia responder: quem já enviou continua vendo
+  // o resultado (o retorno acima).
+  if (response.canceled_at) return "canceled" as const;
   // Quem já enviou não é barrado (retorno acima); só bloqueia quem ainda responderia.
   if (response.expires_at && new Date(response.expires_at).getTime() < Date.now()) {
     return "expired" as const;
@@ -436,6 +439,12 @@ export const Route = createFileRoute("/api/public/response/$id")({
                 message: "Este link não está mais disponível. Ele pode ter sido cancelado ou substituído — peça um novo ao seu mentor.",
               }),
               { status: 404, headers: { "content-type": "application/json" } },
+            );
+          }
+          if (payload === "canceled") {
+            return new Response(
+              JSON.stringify({ error: "canceled", message: "Este link foi cancelado pelo seu mentor. Se isso não era esperado, fale com ele." }),
+              { status: 410, headers: { "content-type": "application/json" } },
             );
           }
           if (payload === "expired") {
