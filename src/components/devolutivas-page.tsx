@@ -11,10 +11,9 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link } from "@tanstack/react-router";
 import {
   listarFila, listarDevolutivas, agendarDevolutiva, registrarDevolutiva,
-  atualizarDevolutiva, excluirDevolutiva, STATUS_LABEL, type ItemDaFila,
+  atualizarDevolutiva, excluirDevolutiva, type ItemDaFila,
 } from "@/lib/devolutivas.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +25,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, CheckCircle2, FileText, Trash2, Clock, MessageSquare } from "lucide-react";
+import { CalendarClock, CheckCircle2, FileText, Trash2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +83,10 @@ export function DevolutivasPage() {
   const [combinados, setCombinados] = useState("");
   const [proxima, setProxima] = useState("");
   const [excluindo, setExcluindo] = useState<Registro | null>(null);
+  // Remarcar é caso comum: a devolutiva nasce sem data (agendar já tira da fila)
+  // e a data entra depois, quando a pessoa responde o convite.
+  const [remarcando, setRemarcando] = useState<Registro | null>(null);
+  const [novaData, setNovaData] = useState("");
 
   const recarregar = () => {
     qc.invalidateQueries({ queryKey: ["devolutivas"] });
@@ -131,6 +134,16 @@ export function DevolutivasPage() {
   const cancelar = useMutation({
     mutationFn: (id: string) => atualizarFn({ data: { id, status: "cancelada" } }),
     onSuccess: () => { toast.success("Devolutiva cancelada."); recarregar(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const remarcar = useMutation({
+    mutationFn: () => atualizarFn({ data: { id: remarcando!.id, scheduled_at: paraIso(novaData) } }),
+    onSuccess: () => {
+      toast.success(novaData ? "Data atualizada." : "Data removida.");
+      setRemarcando(null); setNovaData("");
+      recarregar();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -228,6 +241,16 @@ export function DevolutivasPage() {
                   </a>
                 </Button>
               )}
+              <Button
+                variant="ghost" size="sm"
+                onClick={() => {
+                  setRemarcando(d);
+                  // `datetime-local` só aceita o formato local sem fuso.
+                  setNovaData(d.scheduled_at ? new Date(d.scheduled_at).toISOString().slice(0, 16) : "");
+                }}
+              >
+                <CalendarClock className="size-3.5" /> {d.scheduled_at ? "Remarcar" : "Marcar data"}
+              </Button>
               <Button variant="ghost" size="sm" onClick={() => cancelar.mutate(d.id)}>Cancelar</Button>
               <Button size="sm" onClick={() => { setRegistrando(d); setConversa(d.notes ?? ""); }}>
                 <CheckCircle2 className="size-3.5" /> Registrar
@@ -321,6 +344,32 @@ export function DevolutivasPage() {
             <Button variant="ghost" onClick={() => setAgendando(null)}>Cancelar</Button>
             <Button onClick={() => agendar.mutate()} disabled={agendar.isPending}>
               {agendar.isPending ? "Agendando…" : "Agendar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ------------------------------------------------ diálogo remarcar --- */}
+      <Dialog open={!!remarcando} onOpenChange={(v) => !v && setRemarcando(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{remarcando?.scheduled_at ? "Remarcar devolutiva" : "Marcar data"}</DialogTitle>
+            <DialogDescription>{remarcando?.person_name}</DialogDescription>
+          </DialogHeader>
+          <div>
+            <label className="text-sm font-medium">Quando</label>
+            <Input
+              type="datetime-local" value={novaData}
+              onChange={(e) => setNovaData(e.target.value)} className="mt-1.5"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Deixar em branco tira a data e mantém a devolutiva como pendente de marcar.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRemarcando(null)}>Cancelar</Button>
+            <Button onClick={() => remarcar.mutate()} disabled={remarcar.isPending}>
+              {remarcar.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
