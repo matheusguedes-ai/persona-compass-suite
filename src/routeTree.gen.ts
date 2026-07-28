@@ -45,6 +45,7 @@ import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
 import { Route as AlunoEducacaoIndexRouteImport } from './routes/aluno.educacao.index'
 import { Route as AlunoEducacaoTrackIdRouteImport } from './routes/aluno.educacao.$trackId'
+import { Route as AppDevolutivasIdPainelRouteImport } from './routes/_app.devolutivas.$id.painel'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
 import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
@@ -236,6 +237,11 @@ const AlunoEducacaoTrackIdRoute = AlunoEducacaoTrackIdRouteImport.update({
   path: '/educacao/$trackId',
   getParentRoute: () => AlunoRoute,
 } as any)
+const AppDevolutivasIdPainelRoute = AppDevolutivasIdPainelRouteImport.update({
+  id: '/$id/painel',
+  path: '/$id/painel',
+  getParentRoute: () => AppDevolutivasRoute,
+} as any)
 const AppTestesVersionIdEditarRoute =
   AppTestesVersionIdEditarRouteImport.update({
     id: '/$versionId/editar',
@@ -283,7 +289,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/colaboradores': typeof AppColaboradoresRoute
   '/configuracoes': typeof AppConfiguracoesRoute
-  '/devolutivas': typeof AppDevolutivasRoute
+  '/devolutivas': typeof AppDevolutivasRouteWithChildren
   '/envios': typeof AppEnviosRouteWithChildren
   '/grupos': typeof AppGruposRouteWithChildren
   '/mentores': typeof AppMentoresRoute
@@ -310,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/pessoas/': typeof AppPessoasIndexRoute
   '/testes/': typeof AppTestesIndexRoute
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
+  '/devolutivas/$id/painel': typeof AppDevolutivasIdPainelRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
@@ -325,7 +332,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/colaboradores': typeof AppColaboradoresRoute
   '/configuracoes': typeof AppConfiguracoesRoute
-  '/devolutivas': typeof AppDevolutivasRoute
+  '/devolutivas': typeof AppDevolutivasRouteWithChildren
   '/mentores': typeof AppMentoresRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
@@ -349,6 +356,7 @@ export interface FileRoutesByTo {
   '/pessoas': typeof AppPessoasIndexRoute
   '/testes': typeof AppTestesIndexRoute
   '/aluno/educacao': typeof AlunoEducacaoIndexRoute
+  '/devolutivas/$id/painel': typeof AppDevolutivasIdPainelRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
@@ -367,7 +375,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/colaboradores': typeof AppColaboradoresRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
-  '/_app/devolutivas': typeof AppDevolutivasRoute
+  '/_app/devolutivas': typeof AppDevolutivasRouteWithChildren
   '/_app/envios': typeof AppEnviosRouteWithChildren
   '/_app/grupos': typeof AppGruposRouteWithChildren
   '/_app/mentores': typeof AppMentoresRoute
@@ -395,6 +403,7 @@ export interface FileRoutesById {
   '/_app/pessoas/': typeof AppPessoasIndexRoute
   '/_app/testes/': typeof AppTestesIndexRoute
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
+  '/_app/devolutivas/$id/painel': typeof AppDevolutivasIdPainelRoute
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
@@ -441,6 +450,7 @@ export interface FileRouteTypes {
     | '/pessoas/'
     | '/testes/'
     | '/aluno/educacao/'
+    | '/devolutivas/$id/painel'
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
@@ -480,6 +490,7 @@ export interface FileRouteTypes {
     | '/pessoas'
     | '/testes'
     | '/aluno/educacao'
+    | '/devolutivas/$id/painel'
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
@@ -525,6 +536,7 @@ export interface FileRouteTypes {
     | '/_app/pessoas/'
     | '/_app/testes/'
     | '/aluno/educacao/'
+    | '/_app/devolutivas/$id/painel'
     | '/_app/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
@@ -811,6 +823,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlunoEducacaoTrackIdRouteImport
       parentRoute: typeof AlunoRoute
     }
+    '/_app/devolutivas/$id/painel': {
+      id: '/_app/devolutivas/$id/painel'
+      path: '/$id/painel'
+      fullPath: '/devolutivas/$id/painel'
+      preLoaderRoute: typeof AppDevolutivasIdPainelRouteImport
+      parentRoute: typeof AppDevolutivasRoute
+    }
     '/_app/testes/$versionId/editar': {
       id: '/_app/testes/$versionId/editar'
       path: '/$versionId/editar'
@@ -862,6 +881,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AppDevolutivasRouteChildren {
+  AppDevolutivasIdPainelRoute: typeof AppDevolutivasIdPainelRoute
+}
+
+const AppDevolutivasRouteChildren: AppDevolutivasRouteChildren = {
+  AppDevolutivasIdPainelRoute: AppDevolutivasIdPainelRoute,
+}
+
+const AppDevolutivasRouteWithChildren = AppDevolutivasRoute._addFileChildren(
+  AppDevolutivasRouteChildren,
+)
 
 interface AppEnviosRouteChildren {
   AppEnviosNovoRoute: typeof AppEnviosNovoRoute
@@ -922,7 +953,7 @@ const AppTestesRouteWithChildren = AppTestesRoute._addFileChildren(
 interface AppRouteChildren {
   AppColaboradoresRoute: typeof AppColaboradoresRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
-  AppDevolutivasRoute: typeof AppDevolutivasRoute
+  AppDevolutivasRoute: typeof AppDevolutivasRouteWithChildren
   AppEnviosRoute: typeof AppEnviosRouteWithChildren
   AppGruposRoute: typeof AppGruposRouteWithChildren
   AppMentoresRoute: typeof AppMentoresRoute
@@ -936,7 +967,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppColaboradoresRoute: AppColaboradoresRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
-  AppDevolutivasRoute: AppDevolutivasRoute,
+  AppDevolutivasRoute: AppDevolutivasRouteWithChildren,
   AppEnviosRoute: AppEnviosRouteWithChildren,
   AppGruposRoute: AppGruposRouteWithChildren,
   AppMentoresRoute: AppMentoresRoute,

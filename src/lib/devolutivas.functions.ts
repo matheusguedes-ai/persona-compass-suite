@@ -256,3 +256,115 @@ export const excluirDevolutiva = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/**
+ * Painel da devolutiva: tudo que o mentor precisa ter à vista na conversa.
+ *
+ * Junta numa chamada só o que hoje está espalhado — a pessoa, o resultado
+ * (teste avulso ou bateria inteira), o selo de confiabilidade e o que ficou
+ * combinado da última vez. É essa última parte que faz a conversa começar de
+ * onde parou em vez de recomeçar do zero.
+ */
+export const carregarPainel = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
+    const { data: dev, error } = await supabase
+      .from("devolutivas")
+      .select(
+        "id, person_id, response_id, assessment_id, status, scheduled_at, completed_at, duration_min, notes, agreements, next_at, people(full_name, email)",
+      )
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!dev) throw new Error("Devolutiva não encontrada.");
+
+    // A conversa anterior com esta mesma pessoa. Sem isso, toda devolutiva
+    // recomeça do zero e o combinado da última vez se perde.
+    const { data: anteriores } = await supabase
+      .from("devolutivas")
+      .select("id, completed_at, agreements, next_at")
+      .eq("person_id", dev.person_id)
+      .eq("status", "realizada")
+      .neq("id", dev.id)
+      .order("completed_at", { ascending: false })
+      .limit(1);
+    const anterior = anteriores?.[0] ?? null;
+
+    // Quais respostas alimentam o painel. Bateria vira várias partes.
+    let respostaIds: string[] = [];
+    if (dev.assessment_id) {
+      const { data: partes } = await supabase
+        .from("test_responses")
+        .select("id, assessment_sort, submitted_at")
+        .eq("assessment_response_id", dev.assessment_id)
+        .eq("kind", "self")
+        .not("submitted_at", "is", null)
+        .order("assessment_sort");
+      respostaIds = (partes ?? []).map((p) => p.id);
+    } else if (dev.response_id) {
+      respostaIds = [dev.response_id];
+    }
+
+    // `buildReport` usa service role e não passa pela RLS. A checagem de acesso
+    // já aconteceu acima: se a RLS deixou ler a devolutiva, o mentor pode ver
+    // este resultado. Sem essa ordem, um id de resposta alheio vazaria.
+    const { buildReport } = await import("@/lib/report.server");
+    const construidos = await Promise.all(respostaIds.map((id) => buildReport(id)));
+
+    // Só o que vira cartão. O relatório completo tem 20+ campos e boa parte é
+    // texto longo para leitura solitária — no painel, atrapalha e pesa.
+    const partes = construidos
+      .map((b) => {
+        if (b.status !== 200) return null;
+        const r = b.data;
+        const d = (r.derived ?? {}) as {
+          competencias?: Array<{ name: string; natural: number; adaptado: number; band: string }>;
+          indices?: Array<{ key: string; label: string; value: number }>;
+          dominant?: { key: string; label: string; pct: number };
+        };
+        return {
+          response_id: r.response_id ?? null,
+          titulo: r.test_title,
+          instrumento: r.instrument_id ?? null,
+          is_disc: !!r.is_disc,
+          is_mbti: !!r.is_mbti,
+          mbti: r.mbti ?? null,
+          perfil: r.perfil_indefinido ? null : r.profile,
+          perfil_rotulos: r.profile_labels ?? [],
+          qualidade: r.qualidade ?? null,
+          fatores: r.factors
+            .filter((f) => f.has_data !== false)
+            .map((f) => ({
+              key: f.key,
+              label: f.label,
+              color: f.color,
+              natural: Math.round(f.natural_norm),
+              adaptado: Math.round(f.adaptado_norm),
+              faixa: f.band_natural?.title ?? null,
+            })),
+          competencias: d.competencias ?? [],
+          indices: d.indices ?? [],
+          lideranca: d.dominant ?? null,
+        };
+      })
+      .filter((p): p is NonNullable<typeof p> => p != null);
+
+    return {
+      devolutiva: {
+        id: dev.id,
+        status: dev.status,
+        scheduled_at: dev.scheduled_at,
+        completed_at: dev.completed_at,
+        duration_min: dev.duration_min,
+        notes: dev.notes,
+        agreements: dev.agreements,
+        next_at: dev.next_at,
+        person_name: dev.people?.full_name ?? "—",
+        person_email: dev.people?.email ?? null,
+      },
+      anterior,
+      partes,
+    };
+  });

@@ -9,6 +9,7 @@
  * aparece aqui sozinho. Ninguém precisa lembrar de incluir.
  */
 import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -25,7 +26,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, CheckCircle2, FileText, Trash2, Clock } from "lucide-react";
+import { CalendarClock, CheckCircle2, FileText, Trash2, Clock, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -249,6 +250,11 @@ export function DevolutivasPage() {
                   </a>
                 </Button>
               )}
+              <Button size="sm" variant="secondary" asChild>
+                <Link to="/devolutivas/$id/painel" params={{ id: d.id }}>
+                  <LayoutDashboard className="size-3.5" /> Painel
+                </Link>
+              </Button>
               <Button
                 variant="ghost" size="sm"
                 onClick={() => {
