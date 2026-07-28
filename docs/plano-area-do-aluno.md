@@ -179,13 +179,28 @@ comunidade com moderação (apagar o que não deve estar lá).
 
 ---
 
-## Decisões que preciso de você
+## Decisões — respondidas pelo Matheus em 28/07/2026
 
-1. **O link continua permitindo responder sem conta?** Recomendo que sim, com o
-   cadastro oferecido no fim.
-2. **Compartilhamento de resultado: começamos sem, ou você quer desde já?**
-   Recomendo sem.
-3. **Ranking é visível para o grupo todo ou só para você e o próprio aluno?**
-   Recomendo o segundo em grupo de empresa.
-4. **Ponto por teste exige selo "alta"?** Recomendo que sim — é o que impede o
-   ranking de estragar a medição.
+1. **Responder sem conta: SIM.** Ao fim de cada teste, dois caminhos: "fazer o
+   próximo teste" ou "ir para o meu painel". Sem conta, dá para responder a
+   bateria inteira de uma vez e ver o relatório no fim. Para responder **aos
+   poucos**, o aluno precisa entrar no painel — é lá que as respostas ficam
+   guardadas e os testes liberados aparecem. ✅ **FEITO**
+2. **Comunidade começa SEM resultado de teste.** Só foto, texto, PDF e link.
+3. **Ranking visível para o grupo todo**, como menu dentro do painel do aluno.
+4. **Pontos NÃO ligados aos testes, por enquanto.** Só as demais ações. O peso
+   acompanha o esforço: assistir uma aula vale mais que engajar na comunidade.
+
+### Tabela de pontos (proposta, a partir do critério de esforço)
+
+| Ação | Pontos | Por quê |
+|---|---|---|
+| Concluir uma aula | 20 | Custa tempo e atenção |
+| Comparecer à devolutiva | 15 | Compromisso agendado |
+| Publicar na comunidade | 8 | Exige produzir algo |
+| Completar o perfil | 5 | Uma vez só |
+| Comentar num post | 2 | Barato de fazer |
+| Curtir | 1 | Quase nada |
+
+Teto diário nas ações baratas, senão curtir cem posts vira estratégia de
+ranking. Responder teste fica fora, por decisão do Matheus.

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, LayoutDashboard } from "lucide-react";
 import { ResponseForm } from "@/components/response-form";
 import type { Result, ResultDim, PerDimBand } from "@/components/response-form";
 
@@ -56,11 +56,21 @@ function ResultView({ result, responseId }: { result: Result; responseId: string
         {result.dominant && (
           <p className="mt-2 text-sm text-muted-foreground">Perfil dominante: <strong style={{ color: result.dominant.color ?? undefined }}>{result.dominant.label}</strong></p>
         )}
-        {result.normalized && (
-          <Button asChild className="mt-4">
-            <Link to="/relatorio/$responseId" params={{ responseId }}>Ver relatório completo</Link>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {result.normalized && (
+            <Button asChild>
+              <Link to="/relatorio/$responseId" params={{ responseId }}>Ver relatório completo</Link>
+            </Button>
+          )}
+          {/* Onde ficam os outros testes liberados para esta pessoa. Sem conta,
+              o painel pede login — que é justamente o caminho de quem quer
+              responder aos poucos em vez de tudo de uma vez. */}
+          <Button variant="outline" asChild>
+            <a href="/aluno">
+              <LayoutDashboard className="size-3.5" /> Ir para o meu painel
+            </a>
           </Button>
-        )}
+        </div>
       </div>
       {result.band && (
         <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
+import { CheckCircle2, Circle, ArrowRight, LayoutDashboard } from "lucide-react";
 import { ResponseForm } from "@/components/response-form";
 import { useApplyBrand, type Brand } from "@/lib/brand";
 
@@ -50,11 +50,18 @@ function BateriaPage() {
           <CheckCircle2 className="mx-auto size-10 text-emerald-500" />
           <h1 className="mt-3 text-xl font-semibold">Todas as respostas foram enviadas</h1>
           <p className="mt-1 text-sm text-muted-foreground">Obrigado por concluir a bateria de testes.</p>
-          {hasReport && (
-            <Button asChild className="mt-6">
-              <Link to="/relatorio-bateria/$assessmentId" params={{ assessmentId }}>Ver relatório completo</Link>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {hasReport && (
+              <Button asChild>
+                <Link to="/relatorio-bateria/$assessmentId" params={{ assessmentId }}>Ver relatório completo</Link>
+              </Button>
+            )}
+            <Button variant="outline" asChild>
+              <a href="/aluno">
+                <LayoutDashboard className="size-3.5" /> Ir para o meu painel
+              </a>
             </Button>
-          )}
+          </div>
         </div>
       </Shell>
     );
@@ -72,10 +79,13 @@ function BateriaPage() {
           submitLabel="Concluir etapa"
           onAlreadySubmitted={async () => { setActiveId(null); await load(); }}
           onSubmitted={async () => {
+            // Não emenda sozinho no próximo. Depois de 28 blocos a pessoa
+            // precisa poder escolher se continua agora ou volta depois — e
+            // emendar à força é o que faz a segunda etapa ser respondida no
+            // automático.
             setActiveId(null);
             setJustFinished(idx + 1);
-            const fresh = await load();
-            if (fresh?.current) setActiveId(fresh.current);
+            await load();
           }}
         />
       </Shell>
@@ -89,9 +99,35 @@ function BateriaPage() {
         <p className="mt-1 text-sm text-muted-foreground">Respondendo como: <strong>{payload.person_name}</strong></p>
       )}
       {justFinished != null && (
-        <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          Etapa {justFinished} de {payload.total} concluída.
-        </p>
+        <div className="mt-4 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+          <p className="flex items-center gap-2 text-sm font-medium text-emerald-800">
+            <CheckCircle2 className="size-4" />
+            Etapa {justFinished} de {payload.total} concluída.
+          </p>
+          <p className="mt-1 text-sm text-emerald-700">
+            {payload.current
+              ? "Você pode seguir agora ou voltar depois — o que já respondeu está salvo."
+              : "Você respondeu todas as etapas."}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {payload.current && (
+              <Button onClick={() => setActiveId(payload.current)}>
+                Fazer o próximo teste <ArrowRight className="size-3.5" />
+              </Button>
+            )}
+            <Button variant="outline" asChild>
+              <a href="/aluno">
+                <LayoutDashboard className="size-3.5" /> Ir para o meu painel
+              </a>
+            </Button>
+          </div>
+          {payload.current && (
+            <p className="mt-3 text-xs text-emerald-700">
+              Para responder aos poucos, entre no seu painel: é lá que ficam os testes liberados
+              para você, com o que já foi respondido guardado.
+            </p>
+          )}
+        </div>
       )}
       <ol className="mt-6 space-y-2">
         {payload.parts.map((p, i) => {
