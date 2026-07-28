@@ -101,6 +101,14 @@ export const SECTION_TITLES: Record<string, string> = {
   medos: "Medos e tensões",
   adequacao: "Adequação profissional",
   pontos_desenvolver: "Pontos a desenvolver",
+  perfil: "O que mais pesa em você",
+  trabalho: "Como isso aparece no trabalho",
+  pressao: "Como você fica sob pressão",
+  sombra: "O que menos aparece em você",
+  desenvolvimento: "Por onde começar",
+  equilibrio: "Nenhuma dimensão se destacou",
+  eixo: "O que cada preferência sua quer dizer",
+  atencao: "Pontos cegos de cada preferência",
 };
 
 const FACTOR_THEMES: Array<{ key: string; title: string }> = [

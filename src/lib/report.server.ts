@@ -303,11 +303,68 @@ export async function buildReport(id: string) {
         .filter((s): s is string => s != null)
         .join("\n\n");
 
+    /**
+     * Seções escritas para a dimensão, não para a faixa.
+     *
+     * As de cima (`forca`, `atencao`) percorrem TODAS as dimensões e escolhem o
+     * texto pela faixa em que a pessoa caiu. Estas aqui são outra coisa: leituras
+     * mais longas do que se destacou. Percorrer as seis dimensões de Valores em
+     * quatro seções daria 24 parágrafos — o leitor desiste antes da metade, e o
+     * que é relevante fica enterrado no que não é.
+     *
+     * Então: as duas dimensões mais altas, e só quando realmente se destacam.
+     * Empate geral não gera afirmação nenhuma — vale a mesma regra do DISC.
+     */
+    const ordenadas = [...measured].sort((a, b) => b.natural_norm - a.natural_norm);
+    const amplitudeDim = ordenadas.length > 1
+      ? ordenadas[0].natural_norm - ordenadas[ordenadas.length - 1].natural_norm
+      : 100;
+    const destacadas = amplitudeDim >= 10 ? ordenadas.slice(0, 2) : [];
+
+    const juntar = (suffix: string, titulo: string, dims: typeof ordenadas) => {
+      const corpo = dims
+        .map((d) => pick(`${instrumentId}_${suffix}`, d.key)?.body ?? null)
+        .filter((s): s is string => s != null)
+        .join("\n\n");
+      if (corpo) out.push({ section: suffix, title: titulo, body: corpo });
+    };
+
+    juntar("perfil", "O que mais pesa em você", destacadas);
+
     const forcas = aggregate("forca");
     if (forcas) out.push({ section: "potencialidades", title: "Potencialidades", body: forcas });
+
+    juntar("trabalho", "Como isso aparece no trabalho", destacadas);
+    juntar("relacoes", "Como isso aparece nas relações", destacadas);
+    juntar("pressao", "Como você fica sob pressão", destacadas.slice(0, 1));
+
+    // A dimensão mais baixa costuma explicar tanto quanto a mais alta — e é a
+    // que ninguém olha, porque relatório de perfil só fala do que se destaca.
+    const ultima = ordenadas[ordenadas.length - 1];
+    if (destacadas.length > 0 && ultima) {
+      const sombra = pick(`${instrumentId}_sombra`, ultima.key);
+      if (sombra?.body) {
+        out.push({ section: "sombra", title: "O que menos aparece em você", body: sombra.body });
+      }
+    }
+
     const atencao = aggregate("atencao");
     if (atencao) {
       out.push({ section: "pontos_desenvolver", title: "Pontos de atenção e desenvolvimento", body: atencao });
+    }
+
+    juntar("desenvolvimento", "Por onde começar", destacadas.slice(0, 1));
+
+    if (destacadas.length === 0 && ordenadas.length > 1) {
+      out.push({
+        section: "equilibrio",
+        title: "Nenhuma dimensão se destacou",
+        body:
+          "Suas respostas distribuíram peso quase igual entre todas as dimensões. Isso pode significar " +
+          "duas coisas bem diferentes: que você de fato transita entre elas conforme a situação, ou que " +
+          "o inventário foi respondido sem muita diferenciação. As leituras por dimensão continuam " +
+          "válidas — o que não dá para afirmar aqui é uma predominância.",
+      });
     }
     return out;
   };
