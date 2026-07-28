@@ -204,3 +204,64 @@ comunidade com moderação (apagar o que não deve estar lá).
 
 Teto diário nas ações baratas, senão curtir cem posts vira estratégia de
 ranking. Responder teste fica fora, por decisão do Matheus.
+
+---
+
+# Anexo — Mentor afiliado (pedido em 28/07/2026, para o FIM da fila)
+
+## O diagnóstico: por que "não está funcional"
+
+`team_members` e `team_member_groups` existem e estão completos. O convite gera
+`invite_token`, marca `status = convidado`… **e não envia e-mail nenhum.** O
+mentor nunca fica sabendo que foi convidado. É só isso — a máquina toda está
+pronta atrás de um envio que não acontece.
+
+## O que já existe
+
+| Peça | Estado |
+|---|---|
+| `team_members` (kind mentor/colaborador, token, status) | ✅ |
+| `team_member_groups` com `can_download_reports` **por grupo** | ✅ |
+| Mentor em vários grupos | ✅ a tabela é N-para-N |
+| `acting_account()` dando ao mentor o acesso do dono, limitado aos grupos dele | ✅ |
+| Rota de aceite `/convite-equipe/$token` | ✅ |
+| Envio do convite por e-mail | ❌ **é o que falta** |
+| Criação de senha | ⚠️ existe para aluno; falta reusar |
+| Painel próprio do mentor | ❌ |
+| Permissão de agendar devolutiva **por grupo** | ❌ |
+| Devolutivas dentro do grupo | ❌ |
+
+## Plano
+
+### A. Fazer o convite chegar
+Enviar o e-mail no `inviteTeamMember`, com a marca do mentor, pelo Resend —
+igual ao primeiro acesso do aluno, que já funciona. Reenviar convite também
+manda.
+
+### B. Senha do mentor
+A tela `/aluno/criar-senha` já faz exatamente isso. Generalizar para
+`/criar-senha` e mandar os dois para lá.
+
+### C. Painel do mentor afiliado
+Igual ao do aluno mais o menu **Grupos**. O mentor também é uma pessoa: pode ter
+respondido testes e ter devolutivas próprias. O menu extra aparece por
+`member_kind() = 'mentor'`.
+
+### D. Nova permissão por grupo
+Coluna `can_schedule_devolutivas` em `team_member_groups`. Fica ao lado de
+`can_download_reports`, na mesma tela em que o dono já escolhe os grupos.
+
+### E. Devolutivas dentro do grupo
+Aba **Devolutivas** na tela do grupo, idêntica à do dono — fila, agendar,
+registrar, painel — filtrada por aquele grupo. Aparece para o dono sempre, e
+para o mentor só quando `can_schedule_devolutivas` estiver ligado.
+
+A RLS de `devolutivas` já usa `can_see_person()`, que limita o mentor aos grupos
+dele. Falta só a checagem da permissão de agendar nas funções de escrita.
+
+## Risco a observar
+
+O mentor afiliado enxerga resultado de teste de gente que não é cliente dele
+direto. `can_download_reports` já separa "ver na tela" de "levar embora" — e é
+por isso que essa distinção existe. Vale conferir com o mentor afiliado real
+antes de soltar, porque o estrago aqui é vazamento de dado de terceiro.
