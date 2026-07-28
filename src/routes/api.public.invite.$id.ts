@@ -9,6 +9,9 @@ async function getAdmin() {
 const joinSchema = z.object({
   full_name: z.string().trim().min(2).max(160),
   email: z.string().trim().email().max(160),
+  // Formato livre de propósito: aceita (11) 99999-0000, +55…, com ou sem
+  // pontuação. Só garante que não é um punhado de caracteres solto.
+  phone: z.string().trim().min(8).max(40),
 });
 
 type Reason = "not_found" | "inactive" | "expired" | "full";
@@ -107,6 +110,7 @@ export const Route = createFileRoute("/api/public/invite/$id")({
               mentor_id: link.mentor_id,
               full_name: body.full_name,
               email: body.email,
+              phone: body.phone,
               role: "aluno",
               invite_link_id: link.id,
             })
@@ -162,7 +166,9 @@ export const Route = createFileRoute("/api/public/invite/$id")({
           if (rErr) throw new Error(rErr.message);
           return json({ kind: "response", id: response.id });
         } catch (e) {
-          if (e instanceof z.ZodError) return json({ error: "Dados inválidos. Confira nome e email." }, 400);
+          if (e instanceof z.ZodError) {
+            return json({ error: "Dados inválidos. Confira nome, email e telefone." }, 400);
+          }
           return json({ error: e instanceof Error ? e.message : "erro" }, 500);
         }
       },

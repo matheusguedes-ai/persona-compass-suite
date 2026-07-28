@@ -35,6 +35,7 @@ function ConvitePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -67,7 +68,7 @@ function ConvitePage() {
       const r = await fetch(`/api/public/invite/${linkId}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ full_name: fullName, email }),
+        body: JSON.stringify({ full_name: fullName, email, phone }),
       });
       const json = (await r.json()) as { kind?: string; id?: string; message?: string; error?: string };
       if (!r.ok) {
@@ -142,6 +143,13 @@ function ConvitePage() {
           <Input
             id="email" type="email" required maxLength={160} placeholder="voce@exemplo.com"
             value={email} onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="telefone">Telefone</Label>
+          <Input
+            id="telefone" type="tel" required minLength={8} maxLength={40} placeholder="(11) 99999-0000"
+            value={phone} onChange={(e) => setPhone(e.target.value)}
           />
         </div>
         {submitError && <p className="text-sm text-destructive" role="alert">{submitError}</p>}
