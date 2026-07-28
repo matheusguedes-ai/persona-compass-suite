@@ -53,9 +53,18 @@ export type ReportSettings = {
   hidden_blocks: string[];
 };
 
+export type QualidadeResposta = {
+  nivel: "alta" | "media" | "baixa";
+  motivos: string[];
+  consistencia: number | null;
+  variacao: number;
+  segundos_por_item: number | null;
+};
+
 export type Report = {
   brand?: ReportBrand | null;
   settings?: ReportSettings | null;
+  qualidade?: QualidadeResposta | null;
   response_id?: string;
   person_name: string | null;
   instrument_id?: string | null;
@@ -536,6 +545,31 @@ export function ActionPlanSection({ responseId, questions }: { responseId: strin
         </Button>
       </div>
     </Section>
+  );
+}
+
+/**
+ * Ressalva de confiabilidade.
+ *
+ * Aparece só quando há sinal de preenchimento apressado ou contraditório. O
+ * relatório sai inteiro do mesmo jeito — o que muda é avisar como ler. Um
+ * resultado apresentado com a mesma segurança de sempre, vindo de quem clicou
+ * no automático, é o oposto de um relatório honesto.
+ */
+export function AvisoDeConfiabilidade({ q }: { q?: QualidadeResposta | null }) {
+  if (!q || q.nivel === "alta") return null;
+  const grave = q.nivel === "baixa";
+  return (
+    <div className={`report-section rounded-xl p-5 ring-1 ${grave ? "bg-amber-50 ring-amber-200" : "bg-muted/50 ring-black/5"}`}>
+      <p className={`text-sm font-medium ${grave ? "text-amber-900" : "text-foreground"}`}>
+        {grave ? "Leia este relatório com cautela" : "Uma ressalva sobre a leitura"}
+      </p>
+      <p className={`mt-1 text-sm leading-relaxed ${grave ? "text-amber-800" : "text-muted-foreground"}`}>
+        O jeito como o inventário foi preenchido sugere {q.motivos.join(" e ")}. Isso não invalida o
+        resultado, mas reduz a confiança nele: o retrato pode estar mais borrado do que o normal.
+        Se algo aqui não fizer sentido, o melhor caminho é responder de novo com calma.
+      </p>
+    </div>
   );
 }
 

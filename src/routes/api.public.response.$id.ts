@@ -156,6 +156,15 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   // Sanitized payloads to persist (dedup + type-safe)
   const sanitized = new Map<string, Record<string, unknown>>();
 
+  /**
+   * Respostas de escala, guardadas para medir a QUALIDADE do preenchimento.
+   * `direcionado` já corrige as frases invertidas, então pares equivalentes
+   * podem ser comparados diretamente.
+   */
+  const escalaRespondida: Array<{
+    questionId: string; bruto: number; direcionado: number; min: number; max: number; cfg: Json;
+  }> = [];
+
   for (const q of questions ?? []) {
     const payload = givenMap.get(q.id);
     if (q.required && !hasContent(q.type, payload)) {
@@ -186,7 +195,17 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       const dimId = typeof cfg.dimension_id === "string" ? cfg.dimension_id : undefined;
       const dimKey = typeof cfg.dimension_key === "string" ? cfg.dimension_key : undefined;
       const dim = (dimId && dimById.get(dimId)) || (dimKey && dimByKey.get(dimKey)) || undefined;
-      if (dim) { addPoints(dim.id, value); addOther(dim.id, value); }
+      // Frase invertida: concordar com "me irrito à toa" precisa DIMINUIR a
+      // estabilidade, não aumentar. Sem isto, quem tende a concordar com tudo
+      // sai com todos os traços altos — e o relatório trata isso como perfil.
+      const mn = Number(cfg.min ?? 1);
+      const mx = Number(cfg.max ?? 5);
+      const ehInvertida = cfg.reverse === true;
+      const valorDirecionado = ehInvertida && Number.isFinite(mn) && Number.isFinite(mx)
+        ? mn + mx - value
+        : value;
+      escalaRespondida.push({ questionId: q.id, bruto: value, direcionado: valorDirecionado, min: mn, max: mx, cfg });
+      if (dim) { addPoints(dim.id, valorDirecionado); addOther(dim.id, valorDirecionado); }
     } else if (q.type === "ranking" || q.type === "drag_order") {
       const raw = Array.isArray(payload.ordered_option_ids) ? (payload.ordered_option_ids as unknown[]).filter((x): x is string => typeof x === "string") : [];
       const ordered = dedupe(raw);
@@ -347,7 +366,76 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     if (insErr) throw new Error(insErr.message);
   }
 
+  /**
+   * Selo de confiabilidade da resposta.
+   *
+   * O relatório não pode tratar igual quem leu com atenção e quem clicou no
+   * automático. Três sinais independentes, só com o que já temos:
+   *
+   * 1. CONSISTÊNCIA — pares de frases equivalentes (`config.check_group`), uma
+   *    delas invertida. Como `direcionado` já corrige a inversão, as duas
+   *    deveriam receber notas parecidas. Discordância grande = leu no automático.
+   * 2. VARIAÇÃO — responder tudo igual ("3, 3, 3, 3...") não descreve ninguém.
+   * 3. RITMO — rápido demais para ter lido as frases.
+   *
+   * É um aviso de leitura, não uma acusação: o relatório sai igual, com a
+   * ressalva na frente.
+   */
+  function medirQualidade() {
+    if (escalaRespondida.length < 5) return null;
+    const motivos: string[] = [];
+
+    // 1. pares equivalentes
+    const grupos = new Map<string, number[]>();
+    for (const r of escalaRespondida) {
+      const g = (r.cfg as { check_group?: unknown })?.check_group;
+      if (typeof g === "string" && g) {
+        const lista = grupos.get(g) ?? [];
+        lista.push(r.direcionado);
+        grupos.set(g, lista);
+      }
+    }
+    const discrepancias: number[] = [];
+    grupos.forEach((vals) => {
+      if (vals.length < 2) return;
+      discrepancias.push(Math.max(...vals) - Math.min(...vals));
+    });
+    const consistencia = discrepancias.length > 0
+      ? discrepancias.reduce((a, b) => a + b, 0) / discrepancias.length
+      : null;
+    // Numa escala de 1 a 5, discordar 2 pontos entre frases equivalentes já é muito.
+    if (consistencia != null && consistencia >= 2) motivos.push("respostas contraditórias entre perguntas equivalentes");
+
+    // 2. variação
+    const brutos = escalaRespondida.map((r) => r.bruto);
+    const media = brutos.reduce((a, b) => a + b, 0) / brutos.length;
+    const desvio = Math.sqrt(brutos.reduce((a, b) => a + (b - media) ** 2, 0) / brutos.length);
+    if (desvio < 0.35) motivos.push("quase todas as respostas iguais");
+
+    // 3. ritmo
+    let segundosPorItem: number | null = null;
+    const inicio = response?.started_at;
+    if (inicio) {
+      const ms = Date.now() - new Date(inicio).getTime();
+      if (Number.isFinite(ms) && ms > 0) {
+        segundosPorItem = ms / 1000 / Math.max(1, (questions ?? []).length);
+        if (segundosPorItem < 2.5) motivos.push("preenchido rápido demais para ter lido as frases");
+      }
+    }
+
+    const nivel = motivos.length === 0 ? "alta" : motivos.length === 1 ? "media" : "baixa";
+    return {
+      nivel,
+      motivos,
+      consistencia: consistencia == null ? null : Math.round(consistencia * 100) / 100,
+      variacao: Math.round(desvio * 100) / 100,
+      segundos_por_item: segundosPorItem == null ? null : Math.round(segundosPorItem * 10) / 10,
+    };
+  }
+
   const computed: Record<string, unknown> = { total: totals };
+  const qualidade = medirQualidade();
+  if (qualidade) computed.qualidade = qualidade;
   if (hasNormalized) {
     computed.natural = rawNatural;
     computed.adaptado = rawAdaptado;

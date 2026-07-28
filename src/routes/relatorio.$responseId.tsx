@@ -10,6 +10,7 @@ import {
   PLANO_ACAO_GENERICO,
   PRINT_CSS,
   ReportBody,
+  AvisoDeConfiabilidade,
   ReportBrandHeader,
   ReportFooter,
   Section,
@@ -87,6 +88,8 @@ function RelatorioPage() {
           </div>
         </dl>
       </Section>
+
+      <AvisoDeConfiabilidade q={data.qualidade} />
 
       <ReportBody data={data} />
 

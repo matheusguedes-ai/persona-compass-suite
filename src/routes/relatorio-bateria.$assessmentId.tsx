@@ -11,6 +11,7 @@ import {
   PLANO_ACAO_GENERICO,
   PRINT_CSS,
   ReportBody,
+  AvisoDeConfiabilidade,
   ReportBrandHeader,
   ReportFooter,
   Section,
@@ -115,6 +116,14 @@ function RelatorioBateriaPage() {
           </p>
         )}
       </Section>
+
+      {/* Basta uma etapa preenchida no automático para valer a ressalva. */}
+      <AvisoDeConfiabilidade
+        q={data.parts.map((p) => p.qualidade).filter(Boolean).sort((a, b) => {
+          const peso = { baixa: 0, media: 1, alta: 2 } as const;
+          return peso[a!.nivel] - peso[b!.nivel];
+        })[0] ?? null}
+      />
 
       {/* Sumário do que foi respondido */}
       <Section>

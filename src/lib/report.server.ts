@@ -86,6 +86,13 @@ export async function buildReport(id: string) {
     natural?: Record<string, number>;
     adaptado?: Record<string, number>;
     normalized?: NormMap;
+    qualidade?: {
+      nivel: "alta" | "media" | "baixa";
+      motivos: string[];
+      consistencia: number | null;
+      variacao: number;
+      segundos_por_item: number | null;
+    };
   };
   const normalized = computed.normalized;
   if (!normalized || Object.keys(normalized).length === 0) {
@@ -335,6 +342,7 @@ export async function buildReport(id: string) {
     data: {
       brand,
       settings,
+      qualidade: computed.qualidade ?? null,
       response_id: id,
       person_name: response.people?.full_name ?? null,
       instrument_id: instrumentId,
