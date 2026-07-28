@@ -25,12 +25,14 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Link2, Plus, RefreshCw, Search, Settings2, Trash2, UserPlus } from "lucide-react";
+import { Avatar } from "@/components/avatar-upload";
 import { toast } from "sonner";
 
 type MemberGroup = { group_id: string; can_download_reports: boolean; groups: { id: string; name: string } | null };
 type Member = {
   id: string; name: string; email: string; kind: string; status: string;
   invite_token: string; invite_expires_at: string | null; permissions: string[];
+  avatar_url?: string | null;
   team_member_groups: MemberGroup[];
 };
 
@@ -144,8 +146,13 @@ export function TeamPage({ kind }: { kind: "mentor" | "colaborador" }) {
                 return (
                   <tr key={m.id}>
                     <td className="px-6 py-4">
-                      <div className="font-medium">{m.name}</div>
-                      <div className="text-xs text-muted-foreground">{m.email}</div>
+                      <div className="flex items-center gap-3">
+                        <Avatar url={m.avatar_url} nome={m.name} size={32} />
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{m.name}</div>
+                          <div className="truncate text-xs text-muted-foreground">{m.email}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${st.classe}`}>

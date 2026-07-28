@@ -15,6 +15,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { getMyMembership } from "@/lib/team.functions";
 import { useCurrentUser } from "@/lib/role-context";
 import { BrandMark, useBrand } from "@/lib/brand";
+import { Avatar } from "@/components/avatar-upload";
+import { getMyProfile } from "@/lib/data.functions";
 import { cn } from "@/lib/utils";
 
 // `perm` = permissão de colaborador que libera o item; `soDono` = item de
@@ -37,6 +39,8 @@ export function AppSidebar() {
   const brand = useBrand();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const membershipFn = useServerFn(getMyMembership);
+  const perfilFn = useServerFn(getMyProfile);
+  const { data: meuPerfil } = useQuery({ queryKey: ["my-profile"], queryFn: () => perfilFn(), staleTime: 60_000 });
   const { data: membership } = useQuery({
     queryKey: ["my-membership"],
     queryFn: () => membershipFn(),
@@ -91,9 +95,7 @@ export function AppSidebar() {
 
       <div className="border-t border-black/5 p-4">
         <div className="flex items-center gap-3">
-          <div className="grid size-8 place-items-center rounded-full bg-zinc-200 text-[11px] font-semibold text-zinc-600 ring-1 ring-black/5">
-            {displayName.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
-          </div>
+          <Avatar url={meuPerfil?.profile?.avatar_url} nome={displayName} size={32} />
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-xs font-medium">{displayName}</span>
             <span className="truncate text-[10px] text-muted-foreground">{email}</span>

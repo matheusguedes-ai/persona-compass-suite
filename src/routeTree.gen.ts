@@ -24,6 +24,7 @@ import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
+import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
 import { Route as ConviteEquipeTokenRouteImport } from './routes/convite-equipe.$token'
 import { Route as ConviteLinkIdRouteImport } from './routes/convite.$linkId'
@@ -125,6 +126,11 @@ const AppTestesRoute = AppTestesRouteImport.update({
 const AlunoIndexRoute = AlunoIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoPerfilRoute = AlunoPerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
   getParentRoute: () => AlunoRoute,
 } as any)
 const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
@@ -276,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
+  '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -312,6 +319,7 @@ export interface FileRoutesByTo {
   '/colaboradores': typeof AppColaboradoresRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/mentores': typeof AppMentoresRoute
+  '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -356,6 +364,7 @@ export interface FileRoutesById {
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
+  '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -401,6 +410,7 @@ export interface FileRouteTypes {
     | '/mentores'
     | '/pessoas'
     | '/testes'
+    | '/aluno/perfil'
     | '/bateria/$assessmentId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
@@ -437,6 +447,7 @@ export interface FileRouteTypes {
     | '/colaboradores'
     | '/configuracoes'
     | '/mentores'
+    | '/aluno/perfil'
     | '/bateria/$assessmentId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
@@ -480,6 +491,7 @@ export interface FileRouteTypes {
     | '/_app/mentores'
     | '/_app/pessoas'
     | '/_app/testes'
+    | '/aluno/perfil'
     | '/bateria/$assessmentId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
@@ -638,6 +650,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/aluno/'
       preLoaderRoute: typeof AlunoIndexRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/perfil': {
+      id: '/aluno/perfil'
+      path: '/perfil'
+      fullPath: '/aluno/perfil'
+      preLoaderRoute: typeof AlunoPerfilRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/bateria/$assessmentId': {
@@ -910,12 +929,14 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AlunoRouteChildren {
+  AlunoPerfilRoute: typeof AlunoPerfilRoute
   AlunoIndexRoute: typeof AlunoIndexRoute
   AlunoEducacaoTrackIdRoute: typeof AlunoEducacaoTrackIdRoute
   AlunoEducacaoIndexRoute: typeof AlunoEducacaoIndexRoute
 }
 
 const AlunoRouteChildren: AlunoRouteChildren = {
+  AlunoPerfilRoute: AlunoPerfilRoute,
   AlunoIndexRoute: AlunoIndexRoute,
   AlunoEducacaoTrackIdRoute: AlunoEducacaoTrackIdRoute,
   AlunoEducacaoIndexRoute: AlunoEducacaoIndexRoute,

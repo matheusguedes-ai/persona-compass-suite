@@ -555,6 +555,7 @@ export type Database = {
           phone: string | null
           profession: string | null
           role: string
+          avatar_url: string | null
           role_at_company: string | null
           updated_at: string
           user_id: string | null
@@ -570,6 +571,7 @@ export type Database = {
           phone?: string | null
           profession?: string | null
           role?: string
+          avatar_url?: string | null
           role_at_company?: string | null
           updated_at?: string
           user_id?: string | null
@@ -585,6 +587,7 @@ export type Database = {
           phone?: string | null
           profession?: string | null
           role?: string
+          avatar_url?: string | null
           role_at_company?: string | null
           updated_at?: string
           user_id?: string | null
@@ -593,6 +596,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           brand_color: string | null
           brand_accent_color: string | null
           invite_message: string | null
@@ -611,6 +615,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           brand_color?: string | null
           brand_accent_color?: string | null
           invite_message?: string | null
@@ -629,6 +634,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           brand_color?: string | null
           brand_accent_color?: string | null
           invite_message?: string | null
@@ -1175,6 +1181,10 @@ export type Database = {
       }
       acting_account: { Args: Record<string, never>; Returns: string }
       claim_student_profile: { Args: Record<string, never>; Returns: number }
+      update_my_person: {
+        Args: { _full_name: string; _phone?: string | null; _avatar_url?: string | null }
+        Returns: number
+      }
       can_see_track: { Args: { _track_id: string }; Returns: boolean }
       can_edit_track: { Args: { _track_id: string }; Returns: boolean }
       member_kind: { Args: Record<string, never>; Returns: string }

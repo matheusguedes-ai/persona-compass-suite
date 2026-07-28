@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getMyProfile, upsertMyProfile, REPORT_BLOCKS } from "@/lib/data.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandMark, MARCA_PADRAO } from "@/lib/brand";
+import { AvatarUpload } from "@/components/avatar-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +73,7 @@ function ConfiguracoesPage() {
   const [brandColor, setBrandColor] = useState("#164e63");
   const [accentColor, setAccentColor] = useState("#0e7490");
   const [logoUrl, setLogoUrl] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [siteUrl, setSiteUrl] = useState("");
   const [supportEmail, setSupportEmail] = useState("");
   const [allowPdf, setAllowPdf] = useState(true);
@@ -91,6 +93,7 @@ function ConfiguracoesPage() {
     setBrandColor(p.brand_color ?? "#164e63");
     setAccentColor(p.brand_accent_color ?? "#0e7490");
     setLogoUrl(p.logo_url ?? "");
+    setAvatarUrl(p.avatar_url ?? null);
     setSiteUrl(p.site_url ?? "");
     setSupportEmail(p.support_email ?? "");
     setAllowPdf(p.report_allow_pdf ?? true);
@@ -170,9 +173,19 @@ function ConfiguracoesPage() {
         {/* ---------------- Perfil ---------------- */}
         <TabsContent value="perfil" className="mt-6">
           <form
-            onSubmit={(e) => { e.preventDefault(); save.mutate({ full_name: fullName.trim() || null }); }}
+            onSubmit={(e) => { e.preventDefault(); save.mutate({ full_name: fullName.trim() || null, avatar_url: avatarUrl }); }}
             className="max-w-xl space-y-4 rounded-xl bg-card p-6 ring-1 ring-black/5"
           >
+            <div className="space-y-2">
+              <Label>Sua foto</Label>
+              <AvatarUpload
+                url={avatarUrl} nome={fullName || data?.email || null} userId={data?.user_id}
+                onChange={(u) => { setAvatarUrl(u); save.mutate({ avatar_url: u }); }}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Aparece no menu e para a sua equipe. PNG, JPG ou WEBP, até 2 MB.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label>Nome</Label>
               <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Seu nome" disabled={isLoading} />

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, FileText, Link as LinkIcon, Mail, RotateCcw, Send, Trash2, Eye } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Avatar } from "@/components/avatar-upload";
 import { useServerFn } from "@tanstack/react-start";
 import { getPerson, deletePerson } from "@/lib/data.functions";
 import { authorizeRetake, authorizeRetakeAssessment } from "@/lib/tests.functions";
@@ -77,9 +78,7 @@ function PersonProfile() {
 
       <div className="flex items-start justify-between rounded-xl bg-card p-6 ring-1 ring-black/5">
         <div className="flex items-center gap-4">
-          <div className="grid size-16 place-items-center rounded-full bg-zinc-200 text-lg font-semibold text-zinc-600 ring-1 ring-black/5">
-            {person.full_name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-          </div>
+          <Avatar url={person.avatar_url} nome={person.full_name} size={64} />
           <div>
             <h1 className="text-xl font-semibold tracking-tight">{person.full_name}</h1>
             <p className="text-sm text-muted-foreground">{person.email}</p>

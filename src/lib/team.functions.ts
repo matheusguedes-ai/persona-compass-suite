@@ -72,7 +72,20 @@ export const listTeamMembers = createServerFn({ method: "GET" })
     if (data.kind) q = q.eq("kind", data.kind);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    const lista = rows ?? [];
+
+    // A foto de quem já aceitou o convite mora em `profiles` (é a foto da conta
+    // dela, que ela mesma escolhe em Configurações).
+    const ids = lista.map((m) => m.user_id).filter((id): id is string => !!id);
+    if (ids.length === 0) return lista.map((m) => ({ ...m, avatar_url: null as string | null }));
+
+    const { data: perfis } = await supabase
+      .from("profiles").select("user_id, avatar_url").in("user_id", ids);
+    const porUsuario = new Map((perfis ?? []).map((p) => [p.user_id, p.avatar_url]));
+    return lista.map((m) => ({
+      ...m,
+      avatar_url: m.user_id ? porUsuario.get(m.user_id) ?? null : null,
+    }));
   });
 
 export const createTeamMember = createServerFn({ method: "POST" })

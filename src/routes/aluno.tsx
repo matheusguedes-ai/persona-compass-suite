@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandMark } from "@/lib/brand";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Eye, GraduationCap, LayoutList, LogOut } from "lucide-react";
+import { ArrowLeft, Eye, GraduationCap, LayoutList, LogOut, UserRound } from "lucide-react";
 import { ThemeToggle } from "@/lib/theme";
 
 export const Route = createFileRoute("/aluno")({
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/aluno")({
 const NAV = [
   { to: "/aluno", label: "Meus resultados", icon: LayoutList, exato: true },
   { to: "/aluno/educacao", label: "Educação", icon: GraduationCap, exato: false },
+  { to: "/aluno/perfil", label: "Meu perfil", icon: UserRound, exato: false },
 ] as const;
 
 function AlunoLayout() {

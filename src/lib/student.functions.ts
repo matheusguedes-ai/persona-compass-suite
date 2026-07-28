@@ -91,3 +91,51 @@ async function montarArea(
     baterias: baterias.data ?? [],
   };
 }
+
+/** Dados que o aluno pode editar do próprio cadastro. */
+export const getMyStudentProfile = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { error: claimErr } = await supabase.rpc("claim_student_profile");
+    if (claimErr) throw new Error(claimErr.message);
+
+    const { data, error } = await supabase
+      .from("people")
+      .select("id, full_name, email, phone, avatar_url")
+      .eq("user_id", userId)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+
+    const email = (context.claims as { email?: string })?.email ?? null;
+    return { pessoa: data, email_login: email, user_id: userId };
+  });
+
+/**
+ * Salva nome, telefone e foto do aluno.
+ *
+ * Vai por função do banco (`update_my_person`) em vez de UPDATE direto: a RLS
+ * decide por linha, não por coluna — com UPDATE aberto o aluno poderia mexer em
+ * `mentor_id`, `role` ou nas anotações do mentor. Como grava na tabela `people`,
+ * o mentor vê a mudança na hora seguinte que abrir a tela.
+ */
+export const updateMyStudentProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      full_name: z.string().trim().min(2).max(160),
+      phone: z.string().trim().max(40).optional().nullable(),
+      avatar_url: z.string().trim().max(600).optional().nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("update_my_person", {
+      _full_name: data.full_name,
+      _phone: data.phone ?? null,
+      _avatar_url: data.avatar_url ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
