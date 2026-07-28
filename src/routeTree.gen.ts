@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as AlunoRouteImport } from './routes/aluno'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -22,6 +23,7 @@ import { Route as AppGruposRouteImport } from './routes/_app.grupos'
 import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
+import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
 import { Route as ConviteEquipeTokenRouteImport } from './routes/convite-equipe.$token'
 import { Route as ConviteLinkIdRouteImport } from './routes/convite.$linkId'
@@ -30,6 +32,8 @@ import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$res
 import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as AppEducacaoIndexRouteImport } from './routes/_app.educacao.index'
+import { Route as AppEducacaoTrackIdRouteImport } from './routes/_app.educacao.$trackId'
 import { Route as AppEnviosIndexRouteImport } from './routes/_app.envios.index'
 import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 import { Route as AppGruposIndexRouteImport } from './routes/_app.grupos.index'
@@ -37,6 +41,8 @@ import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
 import { Route as AppPessoasIndexRouteImport } from './routes/_app.pessoas.index'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
+import { Route as AlunoEducacaoIndexRouteImport } from './routes/aluno.educacao.index'
+import { Route as AlunoEducacaoTrackIdRouteImport } from './routes/aluno.educacao.$trackId'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
 import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
@@ -47,6 +53,11 @@ import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.res
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlunoRoute = AlunoRouteImport.update({
+  id: '/aluno',
+  path: '/aluno',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -111,6 +122,11 @@ const AppTestesRoute = AppTestesRouteImport.update({
   path: '/testes',
   getParentRoute: () => AppRoute,
 } as any)
+const AlunoIndexRoute = AlunoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AlunoRoute,
+} as any)
 const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
   id: '/bateria/$assessmentId',
   path: '/bateria/$assessmentId',
@@ -153,6 +169,16 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppEducacaoIndexRoute = AppEducacaoIndexRouteImport.update({
+  id: '/educacao/',
+  path: '/educacao/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEducacaoTrackIdRoute = AppEducacaoTrackIdRouteImport.update({
+  id: '/educacao/$trackId',
+  path: '/educacao/$trackId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEnviosIndexRoute = AppEnviosIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -187,6 +213,16 @@ const AppTestesIndexRoute = AppTestesIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppTestesRoute,
+} as any)
+const AlunoEducacaoIndexRoute = AlunoEducacaoIndexRouteImport.update({
+  id: '/educacao/',
+  path: '/educacao/',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoEducacaoTrackIdRoute = AlunoEducacaoTrackIdRouteImport.update({
+  id: '/educacao/$trackId',
+  path: '/educacao/$trackId',
+  getParentRoute: () => AlunoRoute,
 } as any)
 const AppTestesVersionIdEditarRoute =
   AppTestesVersionIdEditarRouteImport.update({
@@ -228,6 +264,7 @@ const ApiPublicResponseIdRoute = ApiPublicResponseIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/aluno': typeof AlunoRouteWithChildren
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -245,15 +282,20 @@ export interface FileRoutesByFullPath {
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
+  '/aluno/': typeof AlunoIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/educacao/$trackId': typeof AppEducacaoTrackIdRoute
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
+  '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/educacao/': typeof AppEducacaoIndexRoute
   '/envios/': typeof AppEnviosIndexRoute
   '/grupos/': typeof AppGruposIndexRoute
   '/pessoas/': typeof AppPessoasIndexRoute
   '/testes/': typeof AppTestesIndexRoute
+  '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
@@ -277,15 +319,20 @@ export interface FileRoutesByTo {
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/': typeof AppIndexRoute
+  '/aluno': typeof AlunoIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/educacao/$trackId': typeof AppEducacaoTrackIdRoute
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
+  '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/educacao': typeof AppEducacaoIndexRoute
   '/envios': typeof AppEnviosIndexRoute
   '/grupos': typeof AppGruposIndexRoute
   '/pessoas': typeof AppPessoasIndexRoute
   '/testes': typeof AppTestesIndexRoute
+  '/aluno/educacao': typeof AlunoEducacaoIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
@@ -297,6 +344,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/aluno': typeof AlunoRouteWithChildren
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -315,15 +363,20 @@ export interface FileRoutesById {
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/_app/': typeof AppIndexRoute
+  '/aluno/': typeof AlunoIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_app/educacao/$trackId': typeof AppEducacaoTrackIdRoute
   '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
+  '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/_app/educacao/': typeof AppEducacaoIndexRoute
   '/_app/envios/': typeof AppEnviosIndexRoute
   '/_app/grupos/': typeof AppGruposIndexRoute
   '/_app/pessoas/': typeof AppPessoasIndexRoute
   '/_app/testes/': typeof AppTestesIndexRoute
+  '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
@@ -336,6 +389,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/aluno'
     | '/auth'
     | '/mcp'
     | '/.mcp/list-tools'
@@ -353,15 +407,20 @@ export interface FileRouteTypes {
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
+    | '/aluno/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/educacao/$trackId'
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
+    | '/aluno/educacao/$trackId'
+    | '/educacao/'
     | '/envios/'
     | '/grupos/'
     | '/pessoas/'
     | '/testes/'
+    | '/aluno/educacao/'
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
@@ -385,15 +444,20 @@ export interface FileRouteTypes {
     | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/'
+    | '/aluno'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/educacao/$trackId'
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
+    | '/aluno/educacao/$trackId'
+    | '/educacao'
     | '/envios'
     | '/grupos'
     | '/pessoas'
     | '/testes'
+    | '/aluno/educacao'
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
@@ -404,6 +468,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/aluno'
     | '/auth'
     | '/mcp'
     | '/.mcp/list-tools'
@@ -422,15 +487,20 @@ export interface FileRouteTypes {
     | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/_app/'
+    | '/aluno/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/_app/educacao/$trackId'
     | '/_app/envios/novo'
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
+    | '/aluno/educacao/$trackId'
+    | '/_app/educacao/'
     | '/_app/envios/'
     | '/_app/grupos/'
     | '/_app/pessoas/'
     | '/_app/testes/'
+    | '/aluno/educacao/'
     | '/_app/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
@@ -442,6 +512,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  AlunoRoute: typeof AlunoRouteWithChildren
   AuthRoute: typeof AuthRoute
   McpRoute: typeof McpRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
@@ -469,6 +540,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aluno': {
+      id: '/aluno'
+      path: '/aluno'
+      fullPath: '/aluno'
+      preLoaderRoute: typeof AlunoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -555,6 +633,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTestesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/aluno/': {
+      id: '/aluno/'
+      path: '/'
+      fullPath: '/aluno/'
+      preLoaderRoute: typeof AlunoIndexRouteImport
+      parentRoute: typeof AlunoRoute
+    }
     '/bateria/$assessmentId': {
       id: '/bateria/$assessmentId'
       path: '/bateria/$assessmentId'
@@ -611,6 +696,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/educacao/': {
+      id: '/_app/educacao/'
+      path: '/educacao'
+      fullPath: '/educacao/'
+      preLoaderRoute: typeof AppEducacaoIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/educacao/$trackId': {
+      id: '/_app/educacao/$trackId'
+      path: '/educacao/$trackId'
+      fullPath: '/educacao/$trackId'
+      preLoaderRoute: typeof AppEducacaoTrackIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/envios/': {
       id: '/_app/envios/'
       path: '/'
@@ -659,6 +758,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/testes/'
       preLoaderRoute: typeof AppTestesIndexRouteImport
       parentRoute: typeof AppTestesRoute
+    }
+    '/aluno/educacao/': {
+      id: '/aluno/educacao/'
+      path: '/educacao'
+      fullPath: '/aluno/educacao/'
+      preLoaderRoute: typeof AlunoEducacaoIndexRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/educacao/$trackId': {
+      id: '/aluno/educacao/$trackId'
+      path: '/educacao/$trackId'
+      fullPath: '/aluno/educacao/$trackId'
+      preLoaderRoute: typeof AlunoEducacaoTrackIdRouteImport
+      parentRoute: typeof AlunoRoute
     }
     '/_app/testes/$versionId/editar': {
       id: '/_app/testes/$versionId/editar'
@@ -777,6 +890,8 @@ interface AppRouteChildren {
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
   AppTestesRoute: typeof AppTestesRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
+  AppEducacaoTrackIdRoute: typeof AppEducacaoTrackIdRoute
+  AppEducacaoIndexRoute: typeof AppEducacaoIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -788,12 +903,29 @@ const AppRouteChildren: AppRouteChildren = {
   AppPessoasRoute: AppPessoasRouteWithChildren,
   AppTestesRoute: AppTestesRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
+  AppEducacaoTrackIdRoute: AppEducacaoTrackIdRoute,
+  AppEducacaoIndexRoute: AppEducacaoIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface AlunoRouteChildren {
+  AlunoIndexRoute: typeof AlunoIndexRoute
+  AlunoEducacaoTrackIdRoute: typeof AlunoEducacaoTrackIdRoute
+  AlunoEducacaoIndexRoute: typeof AlunoEducacaoIndexRoute
+}
+
+const AlunoRouteChildren: AlunoRouteChildren = {
+  AlunoIndexRoute: AlunoIndexRoute,
+  AlunoEducacaoTrackIdRoute: AlunoEducacaoTrackIdRoute,
+  AlunoEducacaoIndexRoute: AlunoEducacaoIndexRoute,
+}
+
+const AlunoRouteWithChildren = AlunoRoute._addFileChildren(AlunoRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  AlunoRoute: AlunoRouteWithChildren,
   AuthRoute: AuthRoute,
   McpRoute: McpRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,

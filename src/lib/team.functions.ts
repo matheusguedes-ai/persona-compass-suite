@@ -240,15 +240,23 @@ export const getMyMembership = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
     if (!row) {
+      // Não é da equipe. Pode ser o dono da conta ou um avaliado que criou
+      // login: o que separa os dois é ter cadastro próprio (`user_id`) sem ter
+      // avaliados sob a sua gestão (`mentor_id`).
+      const [souAvaliado, tenhoAvaliados] = await Promise.all([
+        supabase.from("people").select("id", { count: "exact", head: true }).eq("user_id", userId),
+        supabase.from("people").select("id", { count: "exact", head: true }).eq("mentor_id", userId),
+      ]);
+      const ehAluno = (souAvaliado.count ?? 0) > 0 && (tenhoAvaliados.count ?? 0) === 0;
       return {
-        kind: "owner" as const,
-        permissions: [...PERMISSOES] as string[],
+        kind: (ehAluno ? "aluno" : "owner") as "owner" | "aluno",
+        permissions: ehAluno ? [] : ([...PERMISSOES] as string[]),
         account_id: userId,
         member_id: null as string | null,
       };
     }
     return {
-      kind: row.kind as "mentor" | "colaborador",
+      kind: row.kind as "mentor" | "colaborador" | "owner" | "aluno",
       // Mentor não tem permissões de funcionalidade: ele acessa os grupos dele.
       permissions: row.kind === "colaborador" ? row.permissions : ["relatorios"],
       account_id: row.owner_id,

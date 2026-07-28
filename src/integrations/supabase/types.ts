@@ -348,6 +348,201 @@ export type Database = {
           },
         ]
       }
+      learning_tracks: {
+        Row: {
+          audience: string
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_published: boolean
+          owner_id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          owner_id: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          owner_id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      learning_modules: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          parent_id: string | null
+          sort_order: number
+          title: string
+          track_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          parent_id?: string | null
+          sort_order?: number
+          title: string
+          track_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          parent_id?: string | null
+          sort_order?: number
+          title?: string
+          track_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_modules_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "learning_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_lessons: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration_min: number | null
+          id: string
+          is_published: boolean
+          module_id: string
+          sort_order: number
+          title: string
+          track_id: string
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration_min?: number | null
+          id?: string
+          is_published?: boolean
+          module_id: string
+          sort_order?: number
+          title: string
+          track_id: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration_min?: number | null
+          id?: string
+          is_published?: boolean
+          module_id?: string
+          sort_order?: number
+          title?: string
+          track_id?: string
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_lessons_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "learning_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_materials: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          lesson_id: string
+          sort_order: number
+          title: string
+          track_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          lesson_id: string
+          sort_order?: number
+          title: string
+          track_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          lesson_id?: string
+          sort_order?: number
+          title?: string
+          track_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_materials_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "learning_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_progress: {
+        Row: {
+          completed_at: string
+          id: string
+          lesson_id: string
+          track_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          id?: string
+          lesson_id: string
+          track_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          lesson_id?: string
+          track_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       people: {
         Row: {
           invite_link_id: string | null
@@ -362,6 +557,7 @@ export type Database = {
           role: string
           role_at_company: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           invite_link_id?: string | null
@@ -376,6 +572,7 @@ export type Database = {
           role?: string
           role_at_company?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           invite_link_id?: string | null
@@ -390,6 +587,7 @@ export type Database = {
           role?: string
           role_at_company?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -976,6 +1174,9 @@ export type Database = {
         Returns: { id: string; kind: string; owner_id: string }[]
       }
       acting_account: { Args: Record<string, never>; Returns: string }
+      claim_student_profile: { Args: Record<string, never>; Returns: number }
+      can_see_track: { Args: { _track_id: string }; Returns: boolean }
+      can_edit_track: { Args: { _track_id: string }; Returns: boolean }
       member_kind: { Args: Record<string, never>; Returns: string }
       claim_invite_link: {
         Args: { link_id: string }

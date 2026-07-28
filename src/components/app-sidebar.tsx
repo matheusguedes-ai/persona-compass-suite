@@ -8,6 +8,7 @@ import {
   GraduationCap,
   FlaskConical,
   UserCog,
+  BookOpen,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -25,6 +26,7 @@ const NAV = [
   { to: "/pessoas", label: "Pessoas", icon: Users, perm: "pessoas" },
   { to: "/mentores", label: "Mentores", icon: GraduationCap, soDono: true },
   { to: "/colaboradores", label: "Colaboradores", icon: UserCog, soDono: true },
+  { to: "/educacao", label: "Educação", icon: BookOpen, perm: "educacao" },
   { to: "/testes", label: "Testes", icon: FlaskConical, perm: "testes" },
   { to: "/envios", label: "Envios", icon: Send, perm: "envios" },
   { to: "/configuracoes", label: "Configurações", icon: Settings, perm: "configuracoes" },
