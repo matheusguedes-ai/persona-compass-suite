@@ -82,7 +82,7 @@ preenche depois, sozinha. O deles é construído na conversa. É a diferença en
 
 ## 4. Plano
 
-### Fase 1 — Painel de resultados (a base)
+### Fase 1 — Painel de resultados (a base) — ✅ FEITO em 28/07/2026
 
 Rota `/devolutivas/$id/painel`, aberta a partir da devolutiva agendada.
 
@@ -96,7 +96,11 @@ Rota `/devolutivas/$id/painel`, aberta a partir da devolutiva agendada.
 - **O que ficou combinado na devolutiva anterior**, puxado do registro.
   Também não têm.
 
-*Entrega: o mentor já consegue conduzir a conversa olhando uma tela só.*
+*Entregue: rota `/devolutivas/$id/painel`, botão "Painel" na devolutiva agendada.*
+
+Verificado em produção com uma bateria de 4 inventários: a ressalva de
+confiabilidade aparece antes dos números, os eixos empatados do MBTI são
+declarados empatados, e cada inventário vira um cartão.
 
 ### Fase 2 — Cronômetro e nota rápida
 
