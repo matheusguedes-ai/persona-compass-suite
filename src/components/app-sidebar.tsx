@@ -7,26 +7,50 @@ import {
   FolderKanban,
   GraduationCap,
   FlaskConical,
+  UserCog,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyMembership } from "@/lib/team.functions";
 import { useCurrentUser } from "@/lib/role-context";
 import { BrandMark, useBrand } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
+// `perm` = permissão de colaborador que libera o item; `soDono` = item de
+// administração da conta. O menu escondido é só conforto: quem barra de
+// verdade é a RLS do banco.
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/grupos", label: "Grupos", icon: FolderKanban },
-  { to: "/pessoas", label: "Pessoas", icon: Users },
-  { to: "/mentores", label: "Mentores", icon: GraduationCap },
-  { to: "/testes", label: "Testes", icon: FlaskConical },
-  { to: "/envios", label: "Envios", icon: Send },
-  { to: "/configuracoes", label: "Configurações", icon: Settings },
+  { to: "/grupos", label: "Grupos", icon: FolderKanban, perm: "grupos" },
+  { to: "/pessoas", label: "Pessoas", icon: Users, perm: "pessoas" },
+  { to: "/mentores", label: "Mentores", icon: GraduationCap, soDono: true },
+  { to: "/colaboradores", label: "Colaboradores", icon: UserCog, soDono: true },
+  { to: "/testes", label: "Testes", icon: FlaskConical, perm: "testes" },
+  { to: "/envios", label: "Envios", icon: Send, perm: "envios" },
+  { to: "/configuracoes", label: "Configurações", icon: Settings, perm: "configuracoes" },
 ] as const;
 
 export function AppSidebar() {
   const user = useCurrentUser();
   const brand = useBrand();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const items = NAV;
+  const membershipFn = useServerFn(getMyMembership);
+  const { data: membership } = useQuery({
+    queryKey: ["my-membership"],
+    queryFn: () => membershipFn(),
+    staleTime: 300_000,
+  });
+
+  // Sem resposta ainda, mostra o menu do dono: é o caso da esmagadora maioria
+  // e evita o menu "piscar" itens aparecendo aos poucos.
+  const kind = membership?.kind ?? "owner";
+  const permissions = membership?.permissions ?? [];
+  const items = NAV.filter((item) => {
+    if (kind === "owner") return true;
+    if ("soDono" in item && item.soDono) return false;
+    if (!("perm" in item)) return true;
+    return permissions.includes(item.perm);
+  });
   const displayName = user?.displayName ?? "—";
   const email = user?.email ?? "";
 

@@ -500,6 +500,90 @@ export type Database = {
           },
         ]
       }
+      team_members: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          id: string
+          invite_expires_at: string | null
+          invite_token: string
+          kind: string
+          name: string
+          owner_id: string
+          permissions: string[]
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invite_expires_at?: string | null
+          invite_token?: string
+          kind: string
+          name: string
+          owner_id: string
+          permissions?: string[]
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invite_expires_at?: string | null
+          invite_token?: string
+          kind?: string
+          name?: string
+          owner_id?: string
+          permissions?: string[]
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      team_member_groups: {
+        Row: {
+          can_download_reports: boolean
+          created_at: string
+          group_id: string
+          team_member_id: string
+        }
+        Insert: {
+          can_download_reports?: boolean
+          created_at?: string
+          group_id: string
+          team_member_id: string
+        }
+        Update: {
+          can_download_reports?: boolean
+          created_at?: string
+          group_id?: string
+          team_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_member_groups_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_member_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_answers: {
         Row: {
           created_at: string
@@ -887,6 +971,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_team_invite: {
+        Args: { _token: string }
+        Returns: { id: string; kind: string; owner_id: string }[]
+      }
+      acting_account: { Args: Record<string, never>; Returns: string }
+      member_kind: { Args: Record<string, never>; Returns: string }
       claim_invite_link: {
         Args: { link_id: string }
         Returns: Database["public"]["Tables"]["invite_links"]["Row"][]

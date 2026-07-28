@@ -15,6 +15,7 @@ import { Route as McpRouteImport } from './routes/mcp'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppColaboradoresRouteImport } from './routes/_app.colaboradores'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppEnviosRouteImport } from './routes/_app.envios'
 import { Route as AppGruposRouteImport } from './routes/_app.grupos'
@@ -22,6 +23,7 @@ import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
+import { Route as ConviteEquipeTokenRouteImport } from './routes/convite-equipe.$token'
 import { Route as ConviteLinkIdRouteImport } from './routes/convite.$linkId'
 import { Route as RelatorioBateriaAssessmentIdRouteImport } from './routes/relatorio-bateria.$assessmentId'
 import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$responseId'
@@ -74,6 +76,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppColaboradoresRoute = AppColaboradoresRouteImport.update({
+  id: '/colaboradores',
+  path: '/colaboradores',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
@@ -107,6 +114,11 @@ const AppTestesRoute = AppTestesRouteImport.update({
 const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
   id: '/bateria/$assessmentId',
   path: '/bateria/$assessmentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConviteEquipeTokenRoute = ConviteEquipeTokenRouteImport.update({
+  id: '/convite-equipe/$token',
+  path: '/convite-equipe/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConviteLinkIdRoute = ConviteLinkIdRouteImport.update({
@@ -220,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/colaboradores': typeof AppColaboradoresRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/envios': typeof AppEnviosRouteWithChildren
   '/grupos': typeof AppGruposRouteWithChildren
@@ -227,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
@@ -253,9 +267,11 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/colaboradores': typeof AppColaboradoresRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/mentores': typeof AppMentoresRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
@@ -285,6 +301,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_app/colaboradores': typeof AppColaboradoresRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/envios': typeof AppEnviosRouteWithChildren
   '/_app/grupos': typeof AppGruposRouteWithChildren
@@ -292,6 +309,7 @@ export interface FileRoutesById {
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
@@ -322,6 +340,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/colaboradores'
     | '/configuracoes'
     | '/envios'
     | '/grupos'
@@ -329,6 +348,7 @@ export interface FileRouteTypes {
     | '/pessoas'
     | '/testes'
     | '/bateria/$assessmentId'
+    | '/convite-equipe/$token'
     | '/convite/$linkId'
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
@@ -355,9 +375,11 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/colaboradores'
     | '/configuracoes'
     | '/mentores'
     | '/bateria/$assessmentId'
+    | '/convite-equipe/$token'
     | '/convite/$linkId'
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
@@ -386,6 +408,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_app/colaboradores'
     | '/_app/configuracoes'
     | '/_app/envios'
     | '/_app/grupos'
@@ -393,6 +416,7 @@ export interface FileRouteTypes {
     | '/_app/pessoas'
     | '/_app/testes'
     | '/bateria/$assessmentId'
+    | '/convite-equipe/$token'
     | '/convite/$linkId'
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
@@ -423,6 +447,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   BateriaAssessmentIdRoute: typeof BateriaAssessmentIdRoute
+  ConviteEquipeTokenRoute: typeof ConviteEquipeTokenRoute
   ConviteLinkIdRoute: typeof ConviteLinkIdRoute
   RelatorioBateriaAssessmentIdRoute: typeof RelatorioBateriaAssessmentIdRoute
   RelatorioResponseIdRoute: typeof RelatorioResponseIdRoute
@@ -481,6 +506,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/colaboradores': {
+      id: '/_app/colaboradores'
+      path: '/colaboradores'
+      fullPath: '/colaboradores'
+      preLoaderRoute: typeof AppColaboradoresRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/configuracoes': {
       id: '/_app/configuracoes'
       path: '/configuracoes'
@@ -528,6 +560,13 @@ declare module '@tanstack/react-router' {
       path: '/bateria/$assessmentId'
       fullPath: '/bateria/$assessmentId'
       preLoaderRoute: typeof BateriaAssessmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/convite-equipe/$token': {
+      id: '/convite-equipe/$token'
+      path: '/convite-equipe/$token'
+      fullPath: '/convite-equipe/$token'
+      preLoaderRoute: typeof ConviteEquipeTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/convite/$linkId': {
@@ -730,6 +769,7 @@ const AppTestesRouteWithChildren = AppTestesRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppColaboradoresRoute: typeof AppColaboradoresRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppEnviosRoute: typeof AppEnviosRouteWithChildren
   AppGruposRoute: typeof AppGruposRouteWithChildren
@@ -740,6 +780,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppColaboradoresRoute: AppColaboradoresRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppEnviosRoute: AppEnviosRouteWithChildren,
   AppGruposRoute: AppGruposRouteWithChildren,
@@ -759,6 +800,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   BateriaAssessmentIdRoute: BateriaAssessmentIdRoute,
+  ConviteEquipeTokenRoute: ConviteEquipeTokenRoute,
   ConviteLinkIdRoute: ConviteLinkIdRoute,
   RelatorioBateriaAssessmentIdRoute: RelatorioBateriaAssessmentIdRoute,
   RelatorioResponseIdRoute: RelatorioResponseIdRoute,
