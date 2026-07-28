@@ -377,3 +377,106 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return row;
   });
+/**
+ * DNA do grupo: média das dimensões por instrumento entre os membros.
+ *
+ * Regras de honestidade:
+ * - Só respostas `self` concluídas entram.
+ * - Agrega por **key** da dimensão (D, I, S, C…), não por id: versões
+ *   diferentes do mesmo teste têm ids diferentes para a mesma dimensão.
+ * - Só entra dimensão que foi de fato medida (presente em `normalized`).
+ * - Devolve o tamanho da amostra por instrumento para a tela poder avisar
+ *   quando ainda são poucas pessoas.
+ */
+export const getGroupDna = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ group_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: group } = await supabase
+      .from("groups").select("id, mentor_id").eq("id", data.group_id).maybeSingle();
+    if (!group || group.mentor_id !== userId) throw new Error("Grupo não encontrado ou não pertence a você.");
+
+    const { data: members, error: mErr } = await supabase
+      .from("group_members").select("person_id").eq("group_id", data.group_id);
+    if (mErr) throw new Error(mErr.message);
+    const personIds = (members ?? []).map((m) => m.person_id);
+    if (personIds.length === 0) return { members: 0, instruments: [] };
+
+    const { data: responses, error: rErr } = await supabase
+      .from("test_responses")
+      .select("id, person_id, version_id, computed_scores, test_versions(instrument_id, instruments(name))")
+      .in("person_id", personIds)
+      .eq("mentor_id", userId)
+      .eq("kind", "self")
+      .not("submitted_at", "is", null);
+    if (rErr) throw new Error(rErr.message);
+    if (!responses || responses.length === 0) return { members: personIds.length, instruments: [] };
+
+    const versionIds = Array.from(new Set(responses.map((r) => r.version_id)));
+    const { data: dims, error: dErr } = await supabase
+      .from("test_dimensions")
+      .select("id, version_id, key, label, color, sort_order")
+      .in("version_id", versionIds);
+    if (dErr) throw new Error(dErr.message);
+    const dimsByVersion = new Map<string, typeof dims>();
+    for (const d of dims ?? []) {
+      const list = dimsByVersion.get(d.version_id) ?? [];
+      list.push(d);
+      dimsByVersion.set(d.version_id, list);
+    }
+
+    type Agg = { key: string; label: string; color: string | null; sort: number; values: number[] };
+    const byInstrument = new Map<string, { name: string; people: Set<string>; dims: Map<string, Agg> }>();
+
+    for (const r of responses) {
+      const instrumentId = r.test_versions?.instrument_id;
+      if (!instrumentId) continue;
+      const normalized = (r.computed_scores as { normalized?: Record<string, { natural?: number }> } | null)?.normalized;
+      if (!normalized) continue;
+
+      const entry = byInstrument.get(instrumentId) ?? {
+        name: r.test_versions?.instruments?.name ?? instrumentId,
+        people: new Set<string>(),
+        dims: new Map<string, Agg>(),
+      };
+      entry.people.add(r.person_id);
+
+      for (const d of dimsByVersion.get(r.version_id) ?? []) {
+        const value = normalized[d.id]?.natural;
+        if (typeof value !== "number") continue; // dimensão não medida nesta resposta
+        const agg = entry.dims.get(d.key) ?? {
+          key: d.key, label: d.label, color: d.color, sort: d.sort_order ?? 0, values: [],
+        };
+        agg.values.push(value);
+        entry.dims.set(d.key, agg);
+      }
+      byInstrument.set(instrumentId, entry);
+    }
+
+    const instrumentsOut = Array.from(byInstrument.entries())
+      .map(([instrument_id, e]) => ({
+        instrument_id,
+        name: e.name,
+        sample: e.people.size,
+        dimensions: Array.from(e.dims.values())
+          .map((a) => {
+            const avg = a.values.reduce((x, y) => x + y, 0) / a.values.length;
+            return {
+              key: a.key,
+              label: a.label,
+              color: a.color,
+              sort: a.sort,
+              average: Math.round(avg * 10) / 10,
+              min: Math.round(Math.min(...a.values) * 10) / 10,
+              max: Math.round(Math.max(...a.values) * 10) / 10,
+              count: a.values.length,
+            };
+          })
+          .sort((x, y) => x.sort - y.sort || x.key.localeCompare(y.key)),
+      }))
+      .sort((a, b) => b.sample - a.sample || a.name.localeCompare(b.name));
+
+    return { members: personIds.length, instruments: instrumentsOut };
+  });

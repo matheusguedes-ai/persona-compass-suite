@@ -13,11 +13,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  getGroup, deleteGroup, addGroupMembers, removeGroupMember,
+  getGroup, getGroupDna, deleteGroup, addGroupMembers, removeGroupMember,
   setGroupInstruments, listPeople, listInstruments,
 } from "@/lib/data.functions";
 import { listResponses } from "@/lib/tests.functions";
@@ -281,7 +280,6 @@ function AddPeopleDialog({ groupId, excludeIds }: { groupId: string; excludeIds:
 type MemberRow = { person_id: string; people: { id: string; full_name: string; email: string; role: string } | null };
 type InstrRow = { instrument_id: string; instruments: { id: string; name: string; short_name: string | null; category: string; duration_min: number } | null };
 
-const DNA_COLORS = ["#0891b2", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#22c55e", "#3b82f6", "#ec4899"];
 
 type ResponseRow = {
   id: string;
@@ -321,25 +319,6 @@ function GroupDashboard({ groupId, members, instruments }: { groupId: string; me
   const answered = submitted.length;
   const completion = total > 0 ? Math.round((answered / total) * 100) : 0;
 
-  const dnaCounts: Record<string, number> = {};
-  for (const r of submitted) {
-    if (!r.dominant_dimension_id) continue;
-    dnaCounts[r.dominant_dimension_id] = (dnaCounts[r.dominant_dimension_id] ?? 0) + 1;
-  }
-  const dnaSum = Object.values(dnaCounts).reduce((a, b) => a + b, 0) || 1;
-  const dnaData = Object.entries(dnaCounts).map(([id, count]) => ({
-    name: id.slice(0, 6),
-    value: +((count / dnaSum) * 100).toFixed(1),
-  }));
-
-  const perInstrumentDNA: Record<string, Record<string, number>> = {};
-  for (const r of submitted) {
-    const inst = instruments.find((i) => i.instrument_id === r.test_versions?.instrument_id)?.instruments;
-    if (!inst || !r.dominant_dimension_id) continue;
-    const bucket = (perInstrumentDNA[inst.name] ??= {});
-    const key = r.dominant_dimension_id.slice(0, 6);
-    bucket[key] = (bucket[key] ?? 0) + 1;
-  }
 
   const perPerson = new Map<string, { answered: number; total: number }>();
   for (const m of members) perPerson.set(m.person_id, { answered: 0, total: 0 });
@@ -368,29 +347,9 @@ function GroupDashboard({ groupId, members, instruments }: { groupId: string; me
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
-          <h3 className="text-sm font-medium">DNA do grupo</h3>
-          <p className="text-xs text-muted-foreground">Distribuição das dimensões dominantes das respostas concluídas.</p>
-          <div className="mt-4 h-72">
-            {dnaData.length === 0 ? (
-              <div className="grid h-full place-items-center text-xs text-muted-foreground">Nenhuma resposta ainda.</div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={dnaData} dataKey="value" nameKey="name" outerRadius={100} label={(e) => `${e.name} ${e.value}%`}>
-                    {dnaData.map((_, idx) => (
-                      <Cell key={idx} fill={DNA_COLORS[idx % DNA_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => `${v}%`} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
+      <GroupDna groupId={groupId} />
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
           <h3 className="text-sm font-medium">Status por pessoa</h3>
           <p className="text-xs text-muted-foreground">Testes enviados vs. respondidos por pessoa.</p>
@@ -424,42 +383,88 @@ function GroupDashboard({ groupId, members, instruments }: { groupId: string; me
         </div>
       </div>
 
-      {Object.keys(perInstrumentDNA).length > 0 && (
-        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
-          <h3 className="text-sm font-medium">Distribuição por teste</h3>
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {Object.entries(perInstrumentDNA).map(([name, bucket]) => {
-            const sum = Object.values(bucket).reduce((a, b) => a + b, 0) || 1;
-            const data = Object.entries(bucket).map(([k, v]) => ({ name: k, value: +((v / sum) * 100).toFixed(1) }));
-            return (
-              <div key={name} className="rounded-lg border border-black/5 p-3">
-                <p className="text-xs font-medium">{name}</p>
-                <div className="h-40">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={data} dataKey="value" nameKey="name" outerRadius={55}>
-                        {data.map((_, idx) => (
-                          <Cell key={idx} fill={DNA_COLORS[idx % DNA_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: number) => `${v}%`} />
-                    </PieChart>
-                  </ResponsiveContainer>
+    </div>
+  );
+}
+/**
+ * DNA do grupo: média de cada dimensão, separada por instrumento.
+ * Cada teste tem sua própria escala e dimensões, então NÃO se mistura tudo
+ * num gráfico só — isso produziria um número sem significado.
+ */
+function GroupDna({ groupId }: { groupId: string }) {
+  const dnaFn = useServerFn(getGroupDna);
+  const { data, isLoading } = useQuery({
+    queryKey: ["group-dna", groupId],
+    queryFn: () => dnaFn({ data: { group_id: groupId } }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground ring-1 ring-black/5">
+        Calculando o DNA do grupo…
+      </div>
+    );
+  }
+  const instruments = data?.instruments ?? [];
+  if (instruments.length === 0) {
+    return (
+      <div className="rounded-xl bg-card p-8 text-center ring-1 ring-black/5">
+        <p className="text-sm font-medium">DNA do grupo</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Aparece aqui quando alguém do grupo concluir um teste.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-medium">DNA do grupo</h3>
+        <p className="text-xs text-muted-foreground">
+          Média de cada dimensão entre quem já concluiu. Cada inventário tem escala própria, então aparece separado.
+        </p>
+      </div>
+
+      {instruments.map((inst) => (
+        <div key={inst.instrument_id} className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h4 className="text-sm font-medium">{inst.name}</h4>
+            <span className="text-xs text-muted-foreground">
+              {inst.sample} {inst.sample === 1 ? "pessoa" : "pessoas"}
+            </span>
+          </div>
+
+          {inst.sample < 3 && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">
+              Amostra pequena: com {inst.sample === 1 ? "uma pessoa" : `${inst.sample} pessoas`} a média ainda descreve
+              indivíduos, não o grupo. Leia com cautela.
+            </p>
+          )}
+
+          <div className="mt-4 space-y-3">
+            {inst.dimensions.map((d) => (
+              <div key={d.key}>
+                <div className="flex items-baseline justify-between text-sm">
+                  <span className="font-medium">
+                    {d.label} <span className="text-xs text-muted-foreground">({d.key})</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    média {Math.round(d.average)}
+                    {d.count > 1 && ` · varia de ${Math.round(d.min)} a ${Math.round(d.max)}`}
+                  </span>
                 </div>
-                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
-                  {data.map((d, idx) => (
-                    <span key={d.name} className="inline-flex items-center gap-1">
-                      <span className="inline-block size-2 rounded-sm" style={{ background: DNA_COLORS[idx % DNA_COLORS.length] }} />
-                      {d.name} {d.value}%
-                    </span>
-                  ))}
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${Math.max(0, Math.min(100, d.average))}%`, background: d.color ?? "var(--muted-foreground)" }}
+                  />
                 </div>
               </div>
-            );
-            })}
+            ))}
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }
