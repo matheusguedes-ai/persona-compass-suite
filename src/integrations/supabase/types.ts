@@ -396,6 +396,15 @@ export type Database = {
       profiles: {
         Row: {
           brand_color: string | null
+          brand_accent_color: string | null
+          invite_message: string | null
+          reminder_message: string | null
+          report_allow_pdf: boolean
+          report_hidden_blocks: string[]
+          report_show_brand: boolean
+          result_message: string | null
+          site_url: string | null
+          support_email: string | null
           company_name: string | null
           created_at: string
           full_name: string | null
@@ -405,6 +414,15 @@ export type Database = {
         }
         Insert: {
           brand_color?: string | null
+          brand_accent_color?: string | null
+          invite_message?: string | null
+          reminder_message?: string | null
+          report_allow_pdf?: boolean
+          report_hidden_blocks?: string[]
+          report_show_brand?: boolean
+          result_message?: string | null
+          site_url?: string | null
+          support_email?: string | null
           company_name?: string | null
           created_at?: string
           full_name?: string | null
@@ -414,6 +432,15 @@ export type Database = {
         }
         Update: {
           brand_color?: string | null
+          brand_accent_color?: string | null
+          invite_message?: string | null
+          reminder_message?: string | null
+          report_allow_pdf?: boolean
+          report_hidden_blocks?: string[]
+          report_show_brand?: boolean
+          result_message?: string | null
+          site_url?: string | null
+          support_email?: string | null
           company_name?: string | null
           created_at?: string
           full_name?: string | null

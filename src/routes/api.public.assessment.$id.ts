@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { loadBrandAndSettings } from "@/lib/brand.server";
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -9,7 +10,7 @@ async function loadAssessment(id: string) {
   const supabase = await getAdmin();
   const { data: assessment } = await supabase
     .from("assessment_responses")
-    .select("id, status, expires_at, people(full_name)")
+    .select("id, status, expires_at, mentor_id, people(full_name)")
     .eq("id", id)
     .maybeSingle();
   if (!assessment) return null;
@@ -45,7 +46,11 @@ async function loadAssessment(id: string) {
       .is("started_at", null);
   }
 
+  // Marca do mentor dono da bateria — quem responde não tem conta.
+  const { brand } = await loadBrandAndSettings(assessment.mentor_id);
+
   return {
+    brand,
     person_name: assessment.people?.full_name ?? null,
     parts: list,
     current: list.find((p) => !p.submitted)?.response_id ?? null,

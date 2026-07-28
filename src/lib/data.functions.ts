@@ -345,11 +345,23 @@ export const deleteMentor = createServerFn({ method: "POST" })
 // ============================================================
 // Profile (per-user settings, single row)
 // ============================================================
+/** Blocos do relatório que o mentor pode desligar. */
+export const REPORT_BLOCKS = ["fatores", "narrativas", "derivados", "plano_acao", "observadores"] as const;
+
 const profileSchema = z.object({
   full_name: z.string().trim().max(160).optional().nullable(),
   company_name: z.string().trim().max(160).optional().nullable(),
   brand_color: z.string().trim().max(32).optional().nullable(),
+  brand_accent_color: z.string().trim().max(32).optional().nullable(),
   logo_url: z.string().trim().max(500).optional().nullable(),
+  support_email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
+  site_url: z.string().trim().max(300).optional().nullable(),
+  invite_message: z.string().trim().max(2000).optional().nullable(),
+  reminder_message: z.string().trim().max(2000).optional().nullable(),
+  result_message: z.string().trim().max(2000).optional().nullable(),
+  report_allow_pdf: z.boolean().optional(),
+  report_show_brand: z.boolean().optional(),
+  report_hidden_blocks: z.array(z.enum(REPORT_BLOCKS)).optional(),
 });
 
 export const getMyProfile = createServerFn({ method: "GET" })
@@ -369,9 +381,14 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => profileSchema.parse(d))
   .handler(async ({ data, context }) => {
+    // Campo esvaziado na tela chega como "" — guardar null mantém a checagem
+    // "tem valor?" simples em quem lê (um `??` resolve).
+    const limpo = Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, v === "" ? null : v]),
+    );
     const { data: row, error } = await context.supabase
       .from("profiles")
-      .upsert({ user_id: context.userId, ...data }, { onConflict: "user_id" })
+      .upsert({ user_id: context.userId, ...limpo }, { onConflict: "user_id" })
       .select()
       .single();
     if (error) throw new Error(error.message);

@@ -37,7 +37,25 @@ export type Derived = {
   };
 };
 
+/** Marca do mentor dono do link — quem abre o relatório não tem conta. */
+export type ReportBrand = {
+  company_name: string | null;
+  logo_url: string | null;
+  brand_color: string | null;
+  brand_accent_color: string | null;
+  site_url: string | null;
+  support_email: string | null;
+};
+
+export type ReportSettings = {
+  allow_pdf: boolean;
+  show_brand: boolean;
+  hidden_blocks: string[];
+};
+
 export type Report = {
+  brand?: ReportBrand | null;
+  settings?: ReportSettings | null;
   response_id?: string;
   person_name: string | null;
   instrument_id?: string | null;
@@ -192,12 +210,15 @@ export function ReportBody({
   const byKey = new Map(data.factors.map((f) => [f.key, f]));
   const isDisc = data.is_disc !== false;
   const rankedFactors = [...data.factors].sort((a, b) => b.natural_norm - a.natural_norm);
+  // Blocos que o mentor desligou nas Configurações. Ausente = mostra tudo.
+  const oculto = data.settings?.hidden_blocks ?? [];
+  const mostrar = (bloco: string) => !oculto.includes(bloco);
 
   return (
     <>
       {showIntro && <IntroSection isDisc={isDisc} />}
 
-      {isDisc ? (
+      {mostrar("fatores") && (isDisc ? (
         <Section>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold">Natural × Adaptado</h2>
@@ -260,9 +281,9 @@ export function ReportBody({
             ))}
           </div>
         </Section>
-      )}
+      ))}
 
-      {!isDisc && rankedFactors.some((f) => f.band_natural) && (
+      {mostrar("fatores") && !isDisc && rankedFactors.some((f) => f.band_natural) && (
         <Section>
           <h2 className="text-lg font-semibold">Leitura de cada dimensão</h2>
           <div className="mt-5 space-y-4">
@@ -286,7 +307,7 @@ export function ReportBody({
         </Section>
       )}
 
-      {data.external && (
+      {mostrar("observadores") && data.external && (
         <Section>
           <h2 className="text-lg font-semibold">Como o meio percebe você</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -341,7 +362,7 @@ export function ReportBody({
         </Section>
       )}
 
-      {data.sections.map((s) => (
+      {mostrar("narrativas") && data.sections.map((s) => (
         <Section key={s.section}>
           <h2 className="text-lg font-semibold">{s.title ?? SECTION_TITLES[s.section] ?? s.section}</h2>
           <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
@@ -350,7 +371,7 @@ export function ReportBody({
         </Section>
       ))}
 
-      {isDisc && FACTOR_THEMES.map((theme) => {
+      {mostrar("narrativas") && isDisc && FACTOR_THEMES.map((theme) => {
         const f = byKey.get(theme.key);
         if (!f) return null;
         return (
@@ -381,7 +402,7 @@ export function ReportBody({
         );
       })}
 
-      {isDisc && data.factors.some((f) => f.descritores.length > 0) && (
+      {mostrar("narrativas") && isDisc && data.factors.some((f) => f.descritores.length > 0) && (
         <Section>
           <h2 className="text-lg font-semibold">Régua de descritores</h2>
           <p className="mt-1 text-sm text-muted-foreground">A faixa destacada corresponde à sua intensidade natural em cada fator.</p>
@@ -412,7 +433,7 @@ export function ReportBody({
         </Section>
       )}
 
-      {isDisc && data.derived && <DerivedSections d={data.derived} mbtiReal={mbtiReal ?? null} />}
+      {mostrar("derivados") && isDisc && data.derived && <DerivedSections d={data.derived} mbtiReal={mbtiReal ?? null} />}
 
       {isDisc && (
         <Section>
@@ -518,13 +539,40 @@ export function ActionPlanSection({ responseId, questions }: { responseId: strin
   );
 }
 
-export function ReportFooter() {
+export function ReportFooter({ brand }: { brand?: ReportBrand | null }) {
+  const nome = brand?.company_name?.trim();
+  const site = brand?.site_url?.trim();
+  const email = brand?.support_email?.trim();
   return (
-    <footer className="report-section px-2 pb-8 text-xs leading-relaxed text-muted-foreground">
-      Este relatório é uma ferramenta de autoconhecimento e desenvolvimento. Ele descreve tendências de comportamento
-      autorrelatadas em um momento específico e não deve ser usado isoladamente para decisões de seleção, promoção ou
-      desligamento. Recomenda-se a leitura acompanhada por um mentor ou profissional qualificado.
+    <footer className="report-section space-y-3 px-2 pb-8 text-xs leading-relaxed text-muted-foreground">
+      <p>
+        Este relatório é uma ferramenta de autoconhecimento e desenvolvimento. Ele descreve tendências de comportamento
+        autorrelatadas em um momento específico e não deve ser usado isoladamente para decisões de seleção, promoção ou
+        desligamento. Recomenda-se a leitura acompanhada por um mentor ou profissional qualificado.
+      </p>
+      {(nome || site || email) && (
+        <p className="border-t border-black/5 pt-3">
+          {nome && <span className="font-medium text-foreground">{nome}</span>}
+          {site && <> · <a href={site} className="hover:underline" target="_blank" rel="noreferrer">{site.replace(/^https?:\/\//, "")}</a></>}
+          {email && <> · <a href={`mailto:${email}`} className="hover:underline">{email}</a></>}
+        </p>
+      )}
     </footer>
+  );
+}
+
+/** Cabeçalho de marca da capa do relatório. Só aparece se o mentor configurou. */
+export function ReportBrandHeader({ brand }: { brand?: ReportBrand | null }) {
+  if (!brand) return null;
+  const nome = brand.company_name?.trim();
+  if (!brand.logo_url && !nome) return null;
+  return (
+    <div className="mb-5 flex items-center gap-3">
+      {brand.logo_url && <img src={brand.logo_url} alt={nome ?? "Logo"} className="h-9 max-w-44 object-contain" />}
+      {nome && !brand.logo_url && (
+        <span className="text-sm font-semibold uppercase tracking-tight">{nome}</span>
+      )}
+    </div>
   );
 }
 

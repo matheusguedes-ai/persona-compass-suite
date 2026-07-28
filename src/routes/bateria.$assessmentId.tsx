@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
 import { ResponseForm } from "@/components/response-form";
+import { useApplyBrand, type Brand } from "@/lib/brand";
 
 export const Route = createFileRoute("/bateria/$assessmentId")({
   head: () => ({ meta: [{ title: "Bateria de testes" }, { name: "robots", content: "noindex" }] }),
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/bateria/$assessmentId")({
 });
 
 type Part = { response_id: string; title: string; instrument_id: string | null; sort: number; submitted: boolean };
-type Payload = { person_name: string | null; parts: Part[]; current: string | null; total: number; done: number; status: string };
+type Payload = { brand?: Brand | null; person_name: string | null; parts: Part[]; current: string | null; total: number; done: number; status: string };
 
 function BateriaPage() {
   const { assessmentId } = Route.useParams();
@@ -18,6 +19,7 @@ function BateriaPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [justFinished, setJustFinished] = useState<number | null>(null);
+  useApplyBrand(payload?.brand);
 
   const load = useCallback(async () => {
     try {

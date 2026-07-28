@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
+import { BrandMark, useApplyBrand, type Brand } from "@/lib/brand";
 
 export const Route = createFileRoute("/convite/$linkId")({
   head: () => ({ meta: [{ title: "Convite para responder" }, { name: "robots", content: "noindex" }] }),
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/convite/$linkId")({
 
 type Info = {
   id: string;
+  brand?: Brand | null;
   title: string | null;
   tests: string[];
   expires_at: string | null;
@@ -38,6 +40,7 @@ function ConvitePage() {
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  useApplyBrand(info?.brand);
 
   useEffect(() => {
     let alive = true;
@@ -110,6 +113,7 @@ function ConvitePage() {
 
   return (
     <Shell>
+      {info.brand && <div className="mb-5"><BrandMark brand={info.brand} size={28} /></div>}
       <h1 className="text-xl font-semibold tracking-tight">{info.title || "Convite para responder"}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Preencha seus dados para começar. Leva poucos minutos e suas respostas ficam com o mentor que enviou o convite.

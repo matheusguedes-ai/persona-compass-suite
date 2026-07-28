@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import { useApplyBrand } from "@/lib/brand";
 import {
   ActionPlanSection,
   IntroSection,
@@ -9,6 +10,7 @@ import {
   PLANO_ACAO_GENERICO,
   PRINT_CSS,
   ReportBody,
+  ReportBrandHeader,
   ReportFooter,
   Section,
   type JungPares,
@@ -30,6 +32,8 @@ export const Route = createFileRoute("/relatorio-bateria/$assessmentId")({
 
 type BatteryReport = {
   assessment_id: string;
+  brand?: Report["brand"];
+  settings?: Report["settings"];
   person_name: string | null;
   submitted_at: string;
   duration: string | null;
@@ -55,6 +59,9 @@ function RelatorioBateriaPage() {
       .catch(() => setError("Falha de conexão. Tente novamente."));
   }, [assessmentId]);
 
+  // A marca é a do mentor dono do link, não a de quem abre (ninguém está logado).
+  useApplyBrand(data?.brand);
+
   if (error) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">{error}</div>;
   if (!data) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Carregando relatório…</div>;
 
@@ -67,12 +74,15 @@ function RelatorioBateriaPage() {
     <div className="report-root mx-auto max-w-3xl space-y-6 p-6 print:max-w-none print:p-0">
       <style>{PRINT_CSS}</style>
 
-      <div className="flex justify-end print:hidden">
-        <Button onClick={() => window.print()}><Printer className="size-4" /> Baixar PDF</Button>
-      </div>
+      {data.settings?.allow_pdf !== false && (
+        <div className="flex justify-end print:hidden">
+          <Button onClick={() => window.print()}><Printer className="size-4" /> Baixar PDF</Button>
+        </div>
+      )}
 
       {/* Capa unificada */}
       <Section>
+        <ReportBrandHeader brand={data.brand} />
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Relatório completo</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{data.person_name ?? "Avaliado"}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -142,9 +152,11 @@ function RelatorioBateriaPage() {
         </div>
       ))}
 
-      {planResponseId && <ActionPlanSection responseId={planResponseId} questions={planQuestions} />}
+      {planResponseId && !(data.settings?.hidden_blocks ?? []).includes("plano_acao") && (
+        <ActionPlanSection responseId={planResponseId} questions={planQuestions} />
+      )}
 
-      <ReportFooter />
+      <ReportFooter brand={data.brand} />
     </div>
   );
 }

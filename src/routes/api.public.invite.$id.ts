@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { loadBrandAndSettings } from "@/lib/brand.server";
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -49,7 +50,7 @@ export const Route = createFileRoute("/api/public/invite/$id")({
           const supabase = await getAdmin();
           const { data: link } = await supabase
             .from("invite_links")
-            .select("id, title, version_ids, expires_at, max_responses, response_count, is_active")
+            .select("id, title, version_ids, expires_at, max_responses, response_count, is_active, mentor_id")
             .eq("id", params.id)
             .maybeSingle();
           if (!link) return json({ error: "not_found", message: MESSAGES.not_found }, 404);
@@ -64,8 +65,10 @@ export const Route = createFileRoute("/api/public/invite/$id")({
             .map((vid) => versions?.find((v) => v.id === vid)?.title)
             .filter((t): t is string => !!t);
 
+          const { brand } = await loadBrandAndSettings(link.mentor_id);
           return json({
             id: link.id,
+            brand,
             title: link.title,
             tests: titles,
             expires_at: link.expires_at,

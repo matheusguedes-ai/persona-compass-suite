@@ -4,6 +4,7 @@
  * (/api/public/report-bateria/$id).
  */
 import { computeDerived, type DerivedConfig, type FactorMap } from "@/lib/derivations";
+import { loadBrandAndSettings } from "@/lib/brand.server";
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -72,7 +73,7 @@ export async function buildReport(id: string) {
   const { data: response } = await supabase
     .from("test_responses")
     .select(
-      "id, submitted_at, started_at, computed_scores, version_id, people(full_name), test_versions(title, description, derived_config, instrument_id)",
+      "id, submitted_at, started_at, computed_scores, version_id, mentor_id, people(full_name), test_versions(title, description, derived_config, instrument_id)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -327,9 +328,13 @@ export async function buildReport(id: string) {
     }
   }
 
+  const { brand, settings } = await loadBrandAndSettings(response.mentor_id);
+
   return {
     status: 200 as const,
     data: {
+      brand,
+      settings,
       response_id: id,
       person_name: response.people?.full_name ?? null,
       instrument_id: instrumentId,

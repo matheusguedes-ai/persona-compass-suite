@@ -9,6 +9,7 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { useCurrentUser } from "@/lib/role-context";
+import { BrandMark, useBrand } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -23,6 +24,7 @@ const NAV = [
 
 export function AppSidebar() {
   const user = useCurrentUser();
+  const brand = useBrand();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = NAV;
   const displayName = user?.displayName ?? "—";
@@ -31,11 +33,8 @@ export function AppSidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-black/5 bg-sidebar lg:flex">
       <div className="flex h-16 items-center px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="size-6 rounded bg-primary" />
-          <span className="text-sm font-semibold uppercase tracking-tight">
-            Métrica Humana
-          </span>
+        <Link to="/">
+          <BrandMark brand={brand} />
         </Link>
       </div>
 

@@ -64,6 +64,10 @@ async function buildBatteryReport(assessmentId: string) {
     status: 200 as const,
     data: {
       assessment_id: assessmentId,
+      // Todas as etapas são do mesmo mentor, então a marca da primeira vale
+      // para a bateria inteira.
+      brand: parts[0]?.brand ?? null,
+      settings: parts[0]?.settings ?? null,
       person_name: assessment.people?.full_name ?? parts[0]?.person_name ?? null,
       submitted_at: lastEnd,
       duration: formatDuration(firstStart, lastEnd),

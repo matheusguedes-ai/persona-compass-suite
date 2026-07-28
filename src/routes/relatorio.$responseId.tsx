@@ -2,12 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import { useApplyBrand } from "@/lib/brand";
 import {
   ActionPlanSection,
   PLANO_ACAO,
   PLANO_ACAO_GENERICO,
   PRINT_CSS,
   ReportBody,
+  ReportBrandHeader,
   ReportFooter,
   Section,
   type Report,
@@ -41,6 +43,9 @@ function RelatorioPage() {
       .catch(() => setError("Falha de conexão. Tente novamente."));
   }, [responseId]);
 
+  // A marca é a do mentor dono do link, não a de quem abre (ninguém está logado).
+  useApplyBrand(data?.brand);
+
   if (error) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">{error}</div>;
   if (!data) return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Carregando relatório…</div>;
 
@@ -51,11 +56,14 @@ function RelatorioPage() {
     <div className="report-root mx-auto max-w-3xl space-y-6 p-6 print:max-w-none print:p-0">
       <style>{PRINT_CSS}</style>
 
-      <div className="flex justify-end print:hidden">
-        <Button onClick={() => window.print()}><Printer className="size-4" /> Baixar PDF</Button>
-      </div>
+      {data.settings?.allow_pdf !== false && (
+        <div className="flex justify-end print:hidden">
+          <Button onClick={() => window.print()}><Printer className="size-4" /> Baixar PDF</Button>
+        </div>
+      )}
 
       <Section>
+        <ReportBrandHeader brand={data.brand} />
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Relatório comportamental</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{data.person_name ?? "Avaliado"}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{data.test_title}</p>
@@ -79,9 +87,11 @@ function RelatorioPage() {
 
       <ReportBody data={data} />
 
-      <ActionPlanSection responseId={responseId} questions={isDisc ? PLANO_ACAO : PLANO_ACAO_GENERICO} />
+      {!(data.settings?.hidden_blocks ?? []).includes("plano_acao") && (
+        <ActionPlanSection responseId={responseId} questions={isDisc ? PLANO_ACAO : PLANO_ACAO_GENERICO} />
+      )}
 
-      <ReportFooter />
+      <ReportFooter brand={data.brand} />
     </div>
   );
 }

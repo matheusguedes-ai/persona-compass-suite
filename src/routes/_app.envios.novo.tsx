@@ -2,14 +2,14 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getGroup, listPeople } from "@/lib/data.functions";
+import { getGroup, getMyProfile, listPeople } from "@/lib/data.functions";
 import { createInviteLink, listTestVersions, startResponse, startAssessment } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ArrowRight, Check, Copy } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/envios/novo")({
@@ -56,6 +56,8 @@ function NovoEnvio() {
     queryKey: ["test-versions"],
     queryFn: () => listVersionsFn({ data: {} }),
   });
+  const getProfileFn = useServerFn(getMyProfile);
+  const { data: profile } = useQuery({ queryKey: ["my-profile"], queryFn: () => getProfileFn(), staleTime: 60_000 });
   const { data: groupData } = useQuery({
     queryKey: ["group", groupId],
     queryFn: () => getGroupFn({ data: { id: groupId! } }),
@@ -161,12 +163,33 @@ function NovoEnvio() {
     toast.success("Link copiado");
   };
 
+  // Texto pronto das Configurações com {nome} e {link} preenchidos.
+  const modelo = profile?.profile?.invite_message?.trim() || "";
+  const mensagemPara = (r: { id: string; person: string; battery?: boolean; invite?: boolean }) =>
+    modelo.replaceAll("{nome}", r.person || "").replaceAll("{link}", linkFor(r));
+
+  const copyMensagem = (r: { id: string; person: string; battery?: boolean; invite?: boolean }) => {
+    navigator.clipboard.writeText(mensagemPara(r));
+    toast.success("Mensagem copiada");
+  };
+
   if (createdLinks) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Envios criados</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Copie e compartilhe o link com cada avaliado.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {modelo
+              ? "Copie o link, ou a mensagem pronta já com o nome e o link preenchidos."
+              : "Copie e compartilhe o link com cada avaliado."}
+          </p>
+          {!modelo && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Dica: escreva sua mensagem de convite em{" "}
+              <Link to="/configuracoes" className="font-medium text-accent hover:underline">Configurações → Mensagens</Link>{" "}
+              e ela passa a sair pronta aqui.
+            </p>
+          )}
         </div>
         <div className="rounded-xl bg-card p-4 ring-1 ring-black/5 divide-y divide-black/5">
           {createdLinks.map((r) => (
@@ -176,9 +199,16 @@ function NovoEnvio() {
                 <div className="text-xs text-muted-foreground truncate">{r.test}</div>
                 <div className="text-xs text-muted-foreground truncate">{linkFor(r)}</div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => copy(r)}>
-                <Copy className="size-3" /> Copiar
-              </Button>
+              <div className="flex shrink-0 gap-1">
+                {modelo && (
+                  <Button variant="ghost" size="sm" onClick={() => copyMensagem(r)} title="Copia sua mensagem de convite com o nome e o link preenchidos">
+                    <MessageSquare className="size-3" /> Mensagem
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => copy(r)}>
+                  <Copy className="size-3" /> Link
+                </Button>
+              </div>
             </div>
           ))}
         </div>

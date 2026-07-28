@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { loadBrandAndSettings } from "@/lib/brand.server";
 
 type Json = { [k: string]: unknown };
 
@@ -12,12 +13,15 @@ async function loadResponsePayload(id: string) {
   const supabase = await getAdmin();
   const { data: response } = await supabase
     .from("test_responses")
-    .select("id, submitted_at, expires_at, version_id, kind, people(full_name), test_versions(title, description)")
+    .select("id, submitted_at, expires_at, version_id, kind, mentor_id, people(full_name), test_versions(title, description)")
     .eq("id", id)
     .maybeSingle();
   if (!response) return null;
+  // Marca do mentor dono do link: quem responde não tem conta, então a
+  // identidade visual precisa vir junto com os dados.
+  const { brand } = await loadBrandAndSettings(response.mentor_id);
   if (response.submitted_at) {
-    return { submitted: true as const, kind: response.kind ?? "self" };
+    return { submitted: true as const, kind: response.kind ?? "self", brand };
   }
   // Quem já enviou não é barrado (retorno acima); só bloqueia quem ainda responderia.
   if (response.expires_at && new Date(response.expires_at).getTime() < Date.now()) {
@@ -40,6 +44,7 @@ async function loadResponsePayload(id: string) {
     : { data: [] };
   return {
     submitted: false as const,
+    brand,
     kind: (response.kind ?? "self") as "self" | "observer",
     subject_name: response.people?.full_name ?? null,
     response: {
