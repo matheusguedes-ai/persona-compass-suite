@@ -194,3 +194,65 @@ export const getMinhasDevolutivas = createServerFn({ method: "GET" })
       })),
     };
   });
+
+/**
+ * O resultado do avaliado, em forma de gráfico.
+ *
+ * O painel dele listava os testes mas não mostrava nada do que saiu deles — o
+ * resultado só existia dentro do relatório, que é um documento longo. Aqui sai
+ * o resumo visual: as dimensões de cada teste concluído, para o painel abrir
+ * mostrando alguma coisa em vez de uma lista de links.
+ *
+ * A ordem importa por segurança: a leitura das respostas passa pela RLS (só as
+ * dele), e só depois o relatório é montado. `buildReport` roda com service role
+ * e não filtra por dono — se a ordem fosse invertida, bastaria um id alheio.
+ */
+export const getMeusResultados = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ preview_person_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const supabase = context.supabase;
+    let q = supabase
+      .from("test_responses")
+      .select("id, submitted_at, assessment_response_id, test_versions(title, instrument_id)")
+      .not("submitted_at", "is", null)
+      .order("submitted_at", { ascending: false });
+    if (data.preview_person_id) q = q.eq("person_id", data.preview_person_id);
+    const { data: minhas, error } = await q;
+    if (error) throw new Error(error.message);
+    if (!minhas || minhas.length === 0) return { resultados: [] };
+
+    const { buildReport } = await import("@/lib/report.server");
+    const construidos = await Promise.all(minhas.slice(0, 8).map((r) => buildReport(r.id)));
+
+    return {
+      resultados: construidos
+        .map((b, i) => {
+          if (b.status !== 200) return null;
+          const r = b.data;
+          return {
+            response_id: minhas[i].id,
+            titulo: r.test_title,
+            instrumento: r.instrument_id ?? null,
+            respondido_em: minhas[i].submitted_at,
+            da_bateria: minhas[i].assessment_response_id,
+            is_mbti: !!r.is_mbti,
+            tipo_mbti: r.mbti?.tipo ?? null,
+            perfil: r.perfil_indefinido ? null : r.profile,
+            fatores: r.factors
+              .filter((f) => f.has_data !== false)
+              .map((f) => ({
+                key: f.key,
+                label: f.label,
+                color: f.color,
+                valor: Math.round(f.natural_norm),
+                faixa: f.band_natural?.title ?? null,
+              }))
+              .sort((a, b2) => b2.valor - a.valor),
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => x != null),
+    };
+  });

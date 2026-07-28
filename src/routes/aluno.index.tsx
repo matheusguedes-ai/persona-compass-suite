@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getStudentArea } from "@/lib/student.functions";
 import { StatusBadge } from "@/components/status-badge";
 import { FileText, MailQuestion } from "lucide-react";
+import { ResultadosDoAluno } from "@/components/resultados-do-aluno";
 
 export const Route = createFileRoute("/aluno/")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -84,6 +85,9 @@ function MeusResultados() {
           Aqui ficam os testes que você respondeu e os que ainda estão abertos.
         </p>
       </div>
+
+      {/* O resultado vem antes da lista: é o que a pessoa quer ver ao voltar. */}
+      <ResultadosDoAluno previewPersonId={ver ?? null} />
 
       {linhas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
