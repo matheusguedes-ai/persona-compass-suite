@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, ArrowRight, Check, Copy, Mail, MessageSquare } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Mail, MailCheck, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/envios/novo")({
@@ -30,13 +30,23 @@ export const Route = createFileRoute("/_app/envios/novo")({
 
 const STEPS = ["Testes", "Destinatários", "Revisão"] as const;
 
+type Resultado = {
+  id: string; person: string; test: string;
+  battery?: boolean; invite?: boolean;
+  person_id?: string;
+  /** null = não tentamos enviar */
+  email?: { ok: true } | { ok: false; motivo: string } | null;
+};
+
 function NovoEnvio() {
   const nav = useNavigate();
   const { personId, groupId } = Route.useSearch();
   const [step, setStep] = useState(0);
   const [selectedVersions, setSelV] = useState<string[]>([]);
   const [selectedPeople, setPpl] = useState<string[]>(personId ? [personId] : []);
-  const [createdLinks, setCreatedLinks] = useState<{ id: string; person: string; test: string; battery?: boolean; invite?: boolean }[] | null>(null);
+  const [createdLinks, setCreatedLinks] = useState<Resultado[] | null>(null);
+  // Enviar o convite junto com a criação, em vez de link por link depois.
+  const [enviarPorEmail, setEnviarPorEmail] = useState(true);
   const [battery, setBattery] = useState(true);
   // Link aberto: um link só, sem escolher pessoas — quem abre se identifica.
   const [openLink, setOpenLink] = useState(false);
@@ -70,7 +80,10 @@ function NovoEnvio() {
           origin: window.location.origin,
         },
       }),
-    onSuccess: (res) => toast.success(`Convite enviado para ${(res as { para: string }).para}`),
+    onSuccess: (res, r) => {
+      toast.success(`Convite enviado para ${(res as { para: string }).para}`);
+      setCreatedLinks((prev) => prev?.map((x) => (x.id === r.id ? { ...x, email: { ok: true } } : x)) ?? prev);
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -132,12 +145,15 @@ function NovoEnvio() {
     step === 2;
 
   const useBattery = battery && selectedVersions.length > 1;
+  /** Link aberto não tem destinatário: não existe para quem mandar. */
+  const podeEnviarEmail = !!emailStatus?.ativo && !openLink;
+  const semEmail = selectedPeople.filter((id) => !people.find((p) => p.id === id)?.email).length;
   // Converte o horário local digitado para ISO; vazio = sem prazo.
   const expiresIso = expiresAt ? new Date(expiresAt).toISOString() : null;
 
   const confirm = useMutation({
     mutationFn: async () => {
-      const results: { id: string; person: string; test: string; battery?: boolean; invite?: boolean }[] = [];
+      const results: Resultado[] = [];
       if (openLink) {
         const row = await createInviteLinkFn({
           data: {
@@ -166,6 +182,7 @@ function NovoEnvio() {
             person: person?.full_name ?? "",
             test: `Bateria — ${selectedVersions.length} testes`,
             battery: true,
+            person_id,
           });
         }
         return results;
@@ -175,14 +192,42 @@ function NovoEnvio() {
           const row = await startFn({ data: { version_id, person_id, group_id: groupId ?? null, expires_at: expiresIso } });
           const person = people.find((p) => p.id === person_id);
           const test = publishedVersions.find((v) => v.id === version_id);
-          results.push({ id: row.id, person: person?.full_name ?? "", test: test?.title ?? "" });
+          results.push({ id: row.id, person: person?.full_name ?? "", test: test?.title ?? "", person_id });
+        }
+      }
+      // Envio depois de tudo criado: se um email falhar, os links continuam
+      // existindo e dá para reenviar pela própria tela de resultado.
+      if (podeEnviarEmail && enviarPorEmail) {
+        for (const r of results) {
+          const pessoa = people.find((p) => p.id === r.person_id);
+          if (!pessoa?.email) {
+            r.email = { ok: false, motivo: "sem email cadastrado" };
+            continue;
+          }
+          try {
+            await enviarEmailFn({
+              data: {
+                kind: "convite",
+                response_id: r.battery ? null : r.id,
+                assessment_id: r.battery ? r.id : null,
+                origin: window.location.origin,
+              },
+            });
+            r.email = { ok: true };
+          } catch (e) {
+            r.email = { ok: false, motivo: e instanceof Error ? e.message : "falhou" };
+          }
         }
       }
       return results;
     },
     onSuccess: (results) => {
       setCreatedLinks(results);
-      toast.success(`${results.length} envio(s) criados`);
+      const enviados = results.filter((r) => r.email?.ok).length;
+      const falhas = results.filter((r) => r.email && !r.email.ok).length;
+      if (enviados > 0 && falhas === 0) toast.success(`${results.length} envio(s) criados e ${enviados} email(s) enviados`);
+      else if (falhas > 0) toast.warning(`${results.length} criados · ${enviados} email(s) enviados, ${falhas} não`);
+      else toast.success(`${results.length} envio(s) criados`);
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao criar envios"),
   });
@@ -214,9 +259,8 @@ function NovoEnvio() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Envios criados</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {modelo
-              ? "Copie o link, ou a mensagem pronta já com o nome e o link preenchidos."
-              : "Copie e compartilhe o link com cada avaliado."}
+            Cada avaliado tem o link abaixo. Você pode mandar por email daqui, copiar o link, ou copiar a
+            mensagem pronta — as três formas levam ao mesmo lugar.
           </p>
           {!modelo && (
             <p className="mt-2 text-xs text-muted-foreground">
@@ -230,7 +274,22 @@ function NovoEnvio() {
           {createdLinks.map((r) => (
             <div key={r.id} className="flex items-center justify-between gap-3 py-3 text-sm">
               <div className="min-w-0">
-                <div className="font-medium truncate">{r.person}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate font-medium">{r.person}</span>
+                  {r.email?.ok && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-200">
+                      <MailCheck className="size-2.5" /> email enviado
+                    </span>
+                  )}
+                  {r.email && !r.email.ok && (
+                    <span
+                      className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800 ring-1 ring-amber-200"
+                      title={r.email.motivo}
+                    >
+                      email não saiu — {r.email.motivo}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground truncate">{r.test}</div>
                 <div className="text-xs text-muted-foreground truncate">{linkFor(r)}</div>
               </div>
@@ -241,9 +300,9 @@ function NovoEnvio() {
                     variant="ghost" size="sm"
                     onClick={() => mandarEmail.mutate(r)}
                     disabled={mandarEmail.isPending}
-                    title="Enviar o convite por email para o avaliado"
+                    title={r.email?.ok ? "Enviar de novo" : "Enviar o convite por email para o avaliado"}
                   >
-                    <Mail className="size-3" /> Email
+                    <Mail className="size-3" /> {r.email?.ok ? "Reenviar" : "Email"}
                   </Button>
                 )}
                 {modelo && (
@@ -457,6 +516,33 @@ function NovoEnvio() {
               ? <Row label="Limite de respostas" value={maxResponses ? `${maxResponses} pessoa(s)` : "Sem limite"} />
               : <Row label="Total de envios" value={`${(useBattery ? 1 : selectedVersions.length) * selectedPeople.length}`} />}
             <Row label="Disponível até" value={expiresAt ? new Date(expiresAt).toLocaleString("pt-BR") : "Sem prazo"} />
+            {podeEnviarEmail && (
+              <div className="space-y-3 rounded-lg bg-muted/40 p-4 ring-1 ring-black/5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <Label htmlFor="mandaremail" className="text-sm font-medium">Enviar o convite por email agora</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Cada avaliado recebe o link no email dele, com a sua marca e o texto de Mensagens.
+                    </p>
+                  </div>
+                  <Switch id="mandaremail" checked={enviarPorEmail} onCheckedChange={setEnviarPorEmail} />
+                </div>
+                {enviarPorEmail && semEmail > 0 && (
+                  <p className="text-xs text-amber-700">
+                    {semEmail === 1
+                      ? "1 avaliado selecionado não tem email cadastrado — para ele, só o link."
+                      : `${semEmail} avaliados selecionados não têm email cadastrado — para eles, só o link.`}
+                  </p>
+                )}
+              </div>
+            )}
+            {!podeEnviarEmail && !openLink && !emailStatus?.ativo && (
+              <div className="rounded-lg bg-muted/40 p-4 text-xs text-muted-foreground ring-1 ring-black/5">
+                O envio por email ainda não está ligado. Você vai receber os links para compartilhar do seu jeito —
+                dá para ligar o email em <Link to="/configuracoes" className="underline">Configurações → Emails</Link>.
+              </div>
+            )}
+
             <div className="rounded-lg bg-muted/40 p-4 text-xs text-muted-foreground ring-1 ring-black/5">
               {openLink
                 ? "Ao confirmar, será gerado um único link para compartilhar. Cada pessoa que abrir informa nome e email e é cadastrada automaticamente."
@@ -475,7 +561,10 @@ function NovoEnvio() {
             </Button>
           ) : (
             <Button onClick={() => confirm.mutate()} disabled={confirm.isPending}>
-              <Check className="size-4" /> {confirm.isPending ? "Criando…" : "Confirmar envio"}
+              <Check className="size-4" />
+              {confirm.isPending
+                ? (podeEnviarEmail && enviarPorEmail ? "Criando e enviando…" : "Criando…")
+                : (podeEnviarEmail && enviarPorEmail ? "Confirmar e enviar por email" : "Confirmar envio")}
             </Button>
           )}
         </div>
