@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Circle, ArrowRight, LayoutDashboard } from "lucide-react";
 import { ResponseForm } from "@/components/response-form";
+import { CriarContaNoFim } from "@/components/criar-conta-no-fim";
 import { useApplyBrand, type Brand } from "@/lib/brand";
 
 export const Route = createFileRoute("/bateria/$assessmentId")({
@@ -63,6 +64,12 @@ function BateriaPage() {
             </Button>
           </div>
         </div>
+        {/* Âncora: qualquer etapa serve para achar a pessoa. */}
+        {payload.parts[0] && (
+          <div className="mt-4">
+            <CriarContaNoFim responseId={payload.parts[0].response_id} />
+          </div>
+        )}
       </Shell>
     );
   }

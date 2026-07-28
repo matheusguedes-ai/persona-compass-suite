@@ -117,3 +117,94 @@ async function mandar(
     replyTo: perfil?.support_email ?? null,
   });
 }
+
+/**
+ * Dados de quem acabou de responder, para oferecer a conta no fim do teste.
+ *
+ * Público, identificado pelo id da resposta — que é o próprio link que a pessoa
+ * usou para responder. Devolve só nome, telefone e o e-mail PARCIALMENTE
+ * ESCONDIDO: serve para a pessoa reconhecer o próprio endereço ("é esse mesmo")
+ * sem que um link vazado entregue o e-mail inteiro de alguém.
+ */
+export const dadosParaCadastro = createServerFn({ method: "GET" })
+  .inputValidator((d) => z.object({ response_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const supabase = await admin();
+    const { data: r } = await supabase
+      .from("test_responses")
+      .select("person_id, people(full_name, phone, email, user_id)")
+      .eq("id", data.response_id)
+      .maybeSingle();
+    const p = r?.people;
+    if (!p) return { encontrado: false as const };
+    const email = p.email ?? "";
+    const [antes, dominio] = email.split("@");
+    return {
+      encontrado: true as const,
+      nome: p.full_name ?? "",
+      telefone: p.phone ?? "",
+      ja_tem_conta: !!p.user_id,
+      email_mascarado: antes && dominio
+        ? `${antes.slice(0, 2)}${"•".repeat(Math.max(2, antes.length - 2))}@${dominio}`
+        : "",
+    };
+  });
+
+/**
+ * Completa o cadastro no fim do teste e dispara o link de acesso.
+ *
+ * Nome e telefone são gravados na hora — é dado que a pessoa está corrigindo
+ * sobre si mesma, e o mentor se beneficia disso. A CONTA, não: ela nasce do
+ * link enviado ao e-mail, igual ao primeiro acesso.
+ *
+ * Por que não deixar escolher a senha aqui, já que a pessoa tem o link do
+ * teste: porque o link do teste é descartável e a conta não é. Um link
+ * encaminhado por engano daria acesso permanente a todos os resultados daquela
+ * pessoa, não só ao teste que ele abria.
+ */
+export const concluirCadastroPeloLink = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    z.object({
+      response_id: z.string().uuid(),
+      nome: z.string().min(2).max(160).optional(),
+      telefone: z.string().max(40).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const supabase = await admin();
+    const { data: r } = await supabase
+      .from("test_responses")
+      .select("person_id, people(email, full_name, mentor_id)")
+      .eq("id", data.response_id)
+      .maybeSingle();
+    if (!r?.people?.email) throw new Error("Não encontrei o cadastro ligado a este teste.");
+
+    const patch: { full_name?: string; phone?: string } = {};
+    if (data.nome?.trim()) patch.full_name = data.nome.trim();
+    if (data.telefone?.trim()) patch.phone = data.telefone.trim();
+    if (Object.keys(patch).length > 0) {
+      await supabase.from("people").update(patch).eq("id", r.person_id);
+    }
+
+    const site = process.env.SITE_URL || "https://persona-compass-suite.lovable.app";
+    const destino = `${site}/aluno/criar-senha`;
+    const email = r.people.email;
+    let link: string | undefined;
+    const { data: g1, error: e1 } = await supabase.auth.admin.generateLink({
+      type: "magiclink", email, options: { redirectTo: destino },
+    });
+    if (e1) {
+      const { data: g2, error: e2 } = await supabase.auth.admin.generateLink({
+        type: "invite", email, options: { redirectTo: destino },
+      });
+      if (e2) throw new Error(e2.message);
+      link = g2?.properties?.action_link;
+    } else {
+      link = g1?.properties?.action_link;
+    }
+    await mandar(link, email, { full_name: patch.full_name ?? r.people.full_name, mentor_id: r.people.mentor_id }, supabase);
+    return {
+      ok: true as const,
+      mensagem: "Enviamos um link para o seu e-mail. Clique nele para escolher sua senha e entrar.",
+    };
+  });

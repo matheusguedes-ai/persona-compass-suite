@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, LayoutDashboard } from "lucide-react";
+import { CriarContaNoFim } from "@/components/criar-conta-no-fim";
 import { ResponseForm } from "@/components/response-form";
 import type { Result, ResultDim, PerDimBand } from "@/components/response-form";
 
@@ -72,6 +73,8 @@ function ResultView({ result, responseId }: { result: Result; responseId: string
           </Button>
         </div>
       </div>
+      <CriarContaNoFim responseId={responseId} />
+
       {result.band && (
         <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
           <h2 className="text-lg font-semibold">{result.band.title}</h2>
