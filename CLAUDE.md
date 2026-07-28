@@ -55,6 +55,7 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `assessment_responses` | **bateria**: agrupa várias `test_responses` num único link |
 | `report_content` | blocos de texto do relatório (208 registros globais, `version_id` NULL) |
 | `action_plans` | respostas do plano de ação (1 por response) |
+| `devolutivas` | a conversa de resultado: fila, agendamento e o que ficou combinado |
 
 RLS ativa em todas. Padrão: mentor vê o que é seu (`mentor_id = auth.uid()`).
 Endpoints públicos usam **service role** e o UUID do link como token.
@@ -121,8 +122,7 @@ Feito: correção de ~31 bugs; `forced_choice`; relatório completo (Fases 1–3
 360° com observadores; plano de ação interativo; bateria com link único;
 relatório unificado com rótulos de derivação.
 
-Backlog: menu Kanban do funil (enviar → recebeu → começou → respondeu →
-devolutiva) com tempo parado por etapa, e menu de Devolutiva; seleção pergunta a
+Backlog: seleção pergunta a
 pergunta ao montar a bateria (com ajuste da normalização); alpha de Cronbach na
 tela de Estatísticas quando houver amostra; calibração dos pesos de derivação
 com dados reais; revisão do QI.
