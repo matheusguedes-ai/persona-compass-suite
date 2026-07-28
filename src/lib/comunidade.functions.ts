@@ -87,8 +87,20 @@ async function meuNome(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<string> {
+  // 1. O perfil, que é o nome que a própria pessoa editou.
   const { data: perfil } = await supabase.from("profiles").select("full_name").eq("user_id", userId).maybeSingle();
   if (perfil?.full_name?.trim()) return perfil.full_name.trim();
+
+  // 2. O nome da conta de acesso — vem do Google ou do cadastro. É o mesmo que
+  //    a barra lateral mostra, então bate com o que a pessoa espera ver.
+  const { data: sessao } = await supabase.auth.getUser();
+  const meta = sessao.user?.user_metadata as { full_name?: string; name?: string } | undefined;
+  const doLogin = meta?.full_name?.trim() || meta?.name?.trim();
+  if (doLogin) return doLogin;
+
+  // 3. Só então o cadastro de avaliado. Vem por último de propósito: o dono da
+  //    conta pode estar cadastrado como avaliado para testar, e aí publicava
+  //    com o nome do cadastro de teste em vez do nome dele.
   const { data: pessoa } = await supabase.from("people").select("full_name").eq("user_id", userId).limit(1).maybeSingle();
   return pessoa?.full_name?.trim() || "Participante";
 }

@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Heart, MessageCircle, Paperclip, Trash2, FileText, X, Send } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { youtubeId } from "@/lib/learning.functions";
 
 const LIMITE_MB = 8;
 
@@ -188,7 +189,22 @@ export function Comunidade({ groupId }: { groupId: string }) {
               <FileText className="size-4" /> Abrir o PDF
             </a>
           )}
-          {p.link_url && (
+          {/* Link do YouTube vira o vídeo. Um link cru no meio do feed não
+              convida ninguém a clicar; a prévia é o que faz o conteúdo
+              circular. Reusa o mesmo leitor de id da Educação. */}
+          {p.link_url && youtubeId(p.link_url) && (
+            <div className="mt-3 aspect-video overflow-hidden rounded-lg bg-black">
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${youtubeId(p.link_url)}`}
+                title="Vídeo"
+                className="size-full"
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            </div>
+          )}
+          {p.link_url && !youtubeId(p.link_url) && (
             <a
               href={p.link_url} target="_blank" rel="noreferrer"
               className="mt-3 block truncate text-sm text-primary hover:underline"
