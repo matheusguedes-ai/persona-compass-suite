@@ -142,6 +142,22 @@ export async function buildReport(id: string) {
   const profileDims = above.length > 0 ? above : ranked.slice(0, 1);
   const profile = profileDims.map((d) => d.key).join("");
 
+  /**
+   * Resultado achatado não tem perfil, e dizer que tem é mentira.
+   *
+   * Quando todas as dimensões ficam praticamente empatadas, a ordenação acima
+   * ainda elege uma "primeira" — e o relatório saía cravando "Perfil D" para
+   * quem tinha 25 em D, I, S e C. O empate vinha do desempate da lista, não da
+   * pessoa. Dez pontos numa escala de 0 a 100 é pouco demais para separar:
+   * abaixo disso o relatório passa a dizer que não há predominância, e as
+   * seções escritas para um perfil específico saem de cena — as leituras por
+   * dimensão continuam, porque essas são o dado de verdade.
+   */
+  const amplitude = ranked.length > 1
+    ? ranked[0].natural_norm - ranked[ranked.length - 1].natural_norm
+    : 100;
+  const perfilIndefinido = ranked.length > 1 && amplitude < 10;
+
   // Prefer version-specific content over global fallback.
   const rows = content ?? [];
   const pick = (section: string, key: string, mode?: string) => {
@@ -217,7 +233,7 @@ export async function buildReport(id: string) {
     return out;
   };
 
-  const sections = isDisc
+  const sections = isDisc && !perfilIndefinido
     ? COMPOSITE_SECTIONS.map((section) => {
         const block = pick(section, profile) ?? pick(section, profile.slice(0, 1));
         return block ? { section, title: block.title, body: block.body } : { section, title: null, body: null };
@@ -355,8 +371,9 @@ export async function buildReport(id: string) {
       duration: formatDuration(response.started_at, response.submitted_at),
       is_disc: isDisc,
       is_mbti: isMbti,
-      profile: isDisc ? profile : null,
-      profile_labels: isDisc ? profileDims.map((d) => d.label) : [],
+      profile: isDisc && !perfilIndefinido ? profile : null,
+      profile_labels: isDisc && !perfilIndefinido ? profileDims.map((d) => d.label) : [],
+      perfil_indefinido: perfilIndefinido,
       factors,
       sections,
       derived,

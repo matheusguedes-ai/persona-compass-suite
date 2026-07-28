@@ -84,7 +84,12 @@ function RelatorioPage() {
           )}
           <div>
             <dt className="text-xs uppercase text-muted-foreground">Perfil</dt>
-            <dd className="font-medium">{data.profile ?? rankedFactors[0]?.label ?? "—"}</dd>
+            <dd className="font-medium">
+              {/* Empate técnico não vira letra: ver perfilIndefinido em report.server.ts */}
+              {data.perfil_indefinido
+                ? "Sem predominância clara"
+                : (data.profile ?? rankedFactors[0]?.label ?? "—")}
+            </dd>
           </div>
         </dl>
       </Section>

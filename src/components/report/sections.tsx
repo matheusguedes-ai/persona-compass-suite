@@ -82,6 +82,8 @@ export type Report = {
   is_mbti?: boolean;
   profile: string | null;
   profile_labels: string[];
+  /** Dimensões praticamente empatadas: não há perfil a declarar. */
+  perfil_indefinido?: boolean;
   factors: Factor[];
   sections: Array<{ section: string; title: string | null; body: string }>;
   derived?: Derived | null;
@@ -238,8 +240,14 @@ export function ReportBody({
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold">Natural × Adaptado</h2>
             <p className="text-sm text-muted-foreground">
-              Perfil composto: <strong className="text-foreground">{data.profile}</strong>
-              {data.profile_labels.length > 0 && <span> · {data.profile_labels.join(" + ")}</span>}
+              {data.perfil_indefinido ? (
+                <span>Sem predominância clara — os quatro fatores ficaram quase no mesmo nível</span>
+              ) : (
+                <>
+                  Perfil composto: <strong className="text-foreground">{data.profile}</strong>
+                  {data.profile_labels.length > 0 && <span> · {data.profile_labels.join(" + ")}</span>}
+                </>
+              )}
             </p>
           </div>
           <div className="mt-5 space-y-5">
