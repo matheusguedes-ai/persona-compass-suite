@@ -429,7 +429,15 @@ export const Route = createFileRoute("/api/public/response/$id")({
       GET: async ({ params }) => {
         try {
           const payload = await loadResponsePayload(params.id);
-          if (!payload) return new Response(JSON.stringify({ error: "not_found" }), { status: 404, headers: { "content-type": "application/json" } });
+          if (!payload) {
+            return new Response(
+              JSON.stringify({
+                error: "not_found",
+                message: "Este link não está mais disponível. Ele pode ter sido cancelado ou substituído — peça um novo ao seu mentor.",
+              }),
+              { status: 404, headers: { "content-type": "application/json" } },
+            );
+          }
           if (payload === "expired") {
             return new Response(
               JSON.stringify({ error: "expired", message: "Este link expirou. Peça um novo ao seu mentor." }),

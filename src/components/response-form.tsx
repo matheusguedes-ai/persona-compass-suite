@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowUp, ArrowDown } from "lucide-react";
+import { AlertCircle, ArrowUp, ArrowDown } from "lucide-react";
 
 export type Question = { id: string; type: string; prompt: string; required: boolean; config: Record<string, unknown> | null };
 export type Option = { id: string; question_id: string; label: string };
@@ -33,6 +33,13 @@ export type Result = {
  * Formulário de resposta reutilizável: usado tanto na rota /responder/$id
  * quanto em cada etapa da bateria unificada (/bateria/$id).
  */
+/** O avaliado não tem como saber o que é "not_found" — traduzimos. */
+const MENSAGEM_ERRO: Record<string, string> = {
+  not_found:
+    "Este link não está mais disponível. Ele pode ter sido cancelado ou substituído — peça um novo ao seu mentor.",
+  expired: "Este link expirou. Peça um novo ao seu mentor.",
+};
+
 export function ResponseForm({
   responseId,
   onSubmitted,
@@ -61,8 +68,10 @@ export function ResponseForm({
       .then(async (r) => {
         if (!active) return;
         if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          setError(j.error ?? "Não foi possível carregar o teste.");
+          const j = (await r.json().catch(() => ({}))) as { error?: string; message?: string };
+          // A API devolve um código curto ("not_found"); quem está do outro lado
+          // é o avaliado, que precisa de uma frase e de um caminho.
+          setError(j.message ?? MENSAGEM_ERRO[j.error ?? ""] ?? "Não foi possível carregar o teste.");
           return;
         }
         const json = await r.json();
@@ -130,7 +139,14 @@ export function ResponseForm({
     }
   };
 
-  if (error) return <div className="p-10 text-center text-sm text-muted-foreground">{error}</div>;
+  if (error) {
+    return (
+      <div className="mx-auto max-w-md p-10 text-center">
+        <AlertCircle className="mx-auto size-10 text-amber-500" />
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{error}</p>
+      </div>
+    );
+  }
   if (!payload) return <div className="p-10 text-center text-sm text-muted-foreground">Carregando…</div>;
 
   const v = payload.response.test_versions;
