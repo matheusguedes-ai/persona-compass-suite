@@ -25,6 +25,7 @@ import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
+import { Route as AlunoCriarSenhaRouteImport } from './routes/aluno.criar-senha'
 import { Route as AlunoDevolutivasRouteImport } from './routes/aluno.devolutivas'
 import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
@@ -135,6 +136,11 @@ const AppTestesRoute = AppTestesRouteImport.update({
 const AlunoIndexRoute = AlunoIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoCriarSenhaRoute = AlunoCriarSenhaRouteImport.update({
+  id: '/criar-senha',
+  path: '/criar-senha',
   getParentRoute: () => AlunoRoute,
 } as any)
 const AlunoDevolutivasRoute = AlunoDevolutivasRouteImport.update({
@@ -307,6 +313,7 @@ export interface FileRoutesByFullPath {
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
+  '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
@@ -347,6 +354,7 @@ export interface FileRoutesByTo {
   '/colaboradores': typeof AppColaboradoresRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/mentores': typeof AppMentoresRoute
+  '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
@@ -396,6 +404,7 @@ export interface FileRoutesById {
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
+  '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
@@ -446,6 +455,7 @@ export interface FileRouteTypes {
     | '/mentores'
     | '/pessoas'
     | '/testes'
+    | '/aluno/criar-senha'
     | '/aluno/devolutivas'
     | '/aluno/perfil'
     | '/bateria/$assessmentId'
@@ -486,6 +496,7 @@ export interface FileRouteTypes {
     | '/colaboradores'
     | '/configuracoes'
     | '/mentores'
+    | '/aluno/criar-senha'
     | '/aluno/devolutivas'
     | '/aluno/perfil'
     | '/bateria/$assessmentId'
@@ -534,6 +545,7 @@ export interface FileRouteTypes {
     | '/_app/mentores'
     | '/_app/pessoas'
     | '/_app/testes'
+    | '/aluno/criar-senha'
     | '/aluno/devolutivas'
     | '/aluno/perfil'
     | '/bateria/$assessmentId'
@@ -703,6 +715,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/aluno/'
       preLoaderRoute: typeof AlunoIndexRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/criar-senha': {
+      id: '/aluno/criar-senha'
+      path: '/criar-senha'
+      fullPath: '/aluno/criar-senha'
+      preLoaderRoute: typeof AlunoCriarSenhaRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/aluno/devolutivas': {
@@ -1019,6 +1038,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AlunoRouteChildren {
+  AlunoCriarSenhaRoute: typeof AlunoCriarSenhaRoute
   AlunoDevolutivasRoute: typeof AlunoDevolutivasRoute
   AlunoPerfilRoute: typeof AlunoPerfilRoute
   AlunoIndexRoute: typeof AlunoIndexRoute
@@ -1027,6 +1047,7 @@ interface AlunoRouteChildren {
 }
 
 const AlunoRouteChildren: AlunoRouteChildren = {
+  AlunoCriarSenhaRoute: AlunoCriarSenhaRoute,
   AlunoDevolutivasRoute: AlunoDevolutivasRoute,
   AlunoPerfilRoute: AlunoPerfilRoute,
   AlunoIndexRoute: AlunoIndexRoute,

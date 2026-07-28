@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { solicitarAcessoAluno } from "@/lib/acesso-aluno.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,8 +31,9 @@ function AuthPage() {
   const { next } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "acesso">("signin");
   const [busy, setBusy] = useState(false);
+  const pedirAcesso = useServerFn(solicitarAcessoAluno);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
@@ -68,6 +71,19 @@ function AuthPage() {
       // TanStack Router picks up the escaped segment cleanly.
       window.location.href = target;
     };
+    if (mode === "acesso") {
+      // A resposta é sempre a mesma, com cadastro ou sem: ver o cabeçalho de
+      // acesso-aluno.functions.ts. Dizer "e-mail não encontrado" deixaria
+      // qualquer um descobrir quem são os avaliados de um mentor.
+      try {
+        const r = await pedirAcesso({ data: { email } });
+        setInfo(r.mensagem);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Não consegui enviar agora. Tente de novo.");
+      }
+      setBusy(false);
+      return;
+    }
     if (mode === "signin") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
@@ -112,10 +128,12 @@ function AuthPage() {
         <form className="w-full max-w-sm space-y-5" onSubmit={submit}>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              {mode === "signin" ? "Bem-vindo de volta" : "Criar conta"}
+              {mode === "acesso" ? "Primeiro acesso" : mode === "signin" ? "Bem-vindo de volta" : "Criar conta"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {mode === "signin" ? "Entre com suas credenciais." : "Cadastre-se com email e senha."}
+              {mode === "acesso"
+                ? "Se o seu mentor já te cadastrou, informe o e-mail dele e enviamos um link para você entrar e escolher sua senha."
+                : mode === "signin" ? "Entre com suas credenciais." : "Cadastre-se com email e senha."}
             </p>
           </div>
           <Button type="button" variant="outline" className="w-full" disabled={busy} onClick={signInWithGoogle}>
@@ -133,22 +151,37 @@ function AuthPage() {
             <Label>Email</Label>
             <Input type="email" required placeholder="voce@empresa.com" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <div className="space-y-2">
-            <Label>Senha</Label>
-            <Input type="password" required placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
+          {mode !== "acesso" && (
+            <div className="space-y-2">
+              <Label>Senha</Label>
+              <Input type="password" required placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+          )}
           {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
           {info && <p className="text-sm text-accent" role="status">{info}</p>}
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Aguarde…" : mode === "signin" ? "Entrar" : "Criar conta"}
+            {busy ? "Aguarde…" : mode === "acesso" ? "Enviar link de acesso" : mode === "signin" ? "Entrar" : "Criar conta"}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            {mode === "signin" ? (
+            {mode === "acesso" ? (
+              <>Já tem senha?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => { setMode("signin"); setError(null); setInfo(null); }}>Entrar</button></>
+            ) : mode === "signin" ? (
               <>Sem conta?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => { setMode("signup"); setError(null); setInfo(null); }}>Criar agora</button></>
             ) : (
               <>Já tem conta?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => { setMode("signin"); setError(null); setInfo(null); }}>Entrar</button></>
             )}
           </p>
+          {mode !== "acesso" && (
+            <p className="text-center text-xs text-muted-foreground">
+              Seu mentor te cadastrou e você ainda não tem senha?{" "}
+              <button
+                type="button" className="font-medium text-accent hover:underline"
+                onClick={() => { setMode("acesso"); setError(null); setInfo(null); }}
+              >
+                Primeiro acesso
+              </button>
+            </p>
+          )}
           <p className="text-center text-[10px] uppercase tracking-widest text-muted-foreground">
             <Link to="/" className="hover:underline">voltar ao início</Link>
           </p>
