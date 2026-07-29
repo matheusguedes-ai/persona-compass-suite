@@ -17,9 +17,9 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_app/educacao/")({
   head: () => ({
     meta: [
-      { title: "Educação — Métrica Humana" },
+      { title: "Academy — Métrica Humana" },
       { name: "description", content: "Trilhas, módulos e aulas para a sua equipe e seus alunos." },
-      { property: "og:title", content: "Educação — Métrica Humana" },
+      { property: "og:title", content: "Academy — Métrica Humana" },
       { property: "og:description", content: "Plataforma de aulas e materiais." },
     ],
   }),
@@ -57,7 +57,7 @@ function EducacaoPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Educação</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Academy</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Trilhas com módulos, submódulos e aulas. O vídeo entra por link do YouTube e os materiais por
             link (Google Drive, por exemplo).

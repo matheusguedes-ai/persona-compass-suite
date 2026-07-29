@@ -30,7 +30,7 @@ const NAV = [
   { to: "/grupos", label: "Grupos", icon: FolderKanban, perm: "grupos" },
   { to: "/pessoas", label: "Pessoas", icon: Users, perm: "pessoas" },
   { to: "/colaboradores", label: "Colaboradores", icon: UserCog, soDono: true },
-  { to: "/educacao", label: "Educação", icon: BookOpen, perm: "educacao" },
+  { to: "/educacao", label: "Academy", icon: BookOpen, perm: "educacao" },
   // Testes, Envios e Devolutivas são o mesmo assunto em três momentos: o que
   // existe, o que foi disparado, e a conversa depois. Viraram um item só, com
   // abas dentro (ver AbasDeTestes).

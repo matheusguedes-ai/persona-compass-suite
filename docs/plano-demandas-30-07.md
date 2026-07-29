@@ -199,6 +199,30 @@ mentor pelo aluno), com aviso claro de quem vai ver, e com opção de remover.
    não corrigido, remarcar mexendo só no dia move o compromisso 3 horas. Não é
    cosmético; é dado errado, calado.
 
+## Acrescentados em 29/07 (depois do plano original)
+
+**J — Educação vira "Academy".** ✅ Feito. Só o RÓTULO mudou; as rotas continuam
+`/educacao`. Trocar o endereço quebraria links já enviados por e-mail e o mapa
+de destino das notificações — e não traria ganho nenhum.
+
+**K — Dados da empresa no rodapé de todas as páginas.** A definir com ele:
+
+O rodapé aparece em telas de DOIS públicos, e isso muda o que pode ir nele:
+- as telas do mentor e do dono (internas);
+- as telas do avaliado — inclusive **o teste e o relatório, que são abertos por
+  link, sem login**.
+
+CNPJ, endereço e telefone no rodapé de uma página pública ficam expostos a
+quem tiver o link. Para dado de empresa isso costuma ser aceitável — é o que
+vai no rodapé de qualquer site —, mas é escolha dele, não minha.
+
+**Proposta:** um único conjunto de campos em Configurações → Marca (razão
+social, CNPJ, endereço, telefone, site), com uma chave "mostrar também nas
+páginas públicas". Assim ele decide onde aparece sem eu adivinhar.
+
+Encaixa junto do item "perfil do aluno com empresa e redes", da lista de menor
+prioridade — é a mesma mecânica de campos livres de marca.
+
 ## Menor prioridade — lista final
 
 - Bug do fuso no campo "Remarcar" (acima)

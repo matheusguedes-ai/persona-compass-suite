@@ -31,7 +31,7 @@ const NAV = [
   { to: "/aluno/comunidade", label: "Comunidade", icon: Users, exato: false },
   { to: "/aluno/ranking", label: "Ranking", icon: Trophy, exato: false },
   { to: "/aluno/devolutivas", label: "Devolutivas", icon: MessagesSquare, exato: false },
-  { to: "/aluno/educacao", label: "Educação", icon: GraduationCap, exato: false },
+  { to: "/aluno/educacao", label: "Academy", icon: GraduationCap, exato: false },
   { to: "/aluno/perfil", label: "Meu perfil", icon: UserRound, exato: false },
 ] as const;
 

@@ -5,7 +5,7 @@ import { listTracks } from "@/lib/learning.functions";
 import { Prateleira, CatalogoVazio, type TrackCard } from "@/components/learning-catalog";
 
 export const Route = createFileRoute("/aluno/educacao/")({
-  head: () => ({ meta: [{ title: "Educação" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Academy" }, { name: "robots", content: "noindex" }] }),
   component: EducacaoAluno,
 });
 
@@ -17,7 +17,7 @@ function EducacaoAluno() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Educação</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Academy</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Trilhas liberadas para você. Seu progresso fica salvo aula a aula.
         </p>

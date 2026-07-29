@@ -292,7 +292,7 @@ function Panorama() {
       n: equipe.ativos, det: `${equipe.mentores} mentor${equipe.mentores === 1 ? "" : "es"}` },
     { to: "/devolutivas", icone: MessagesSquare, rotulo: "Devolutivas",
       n: devolutivas.naFila, det: `${devolutivas.realizadas} já feitas` },
-    { to: "/educacao", icone: BookOpen, rotulo: "Educação",
+    { to: "/educacao", icone: BookOpen, rotulo: "Academy",
       n: educacao.aulas, det: `${educacao.trilhas} trilha${educacao.trilhas === 1 ? "" : "s"}` },
     { to: "/comunidades", icone: MessagesSquare, rotulo: "Comunidade",
       n: comunidade.posts, det: `${comunidade.comentarios} comentário${comunidade.comentarios === 1 ? "" : "s"}` },
