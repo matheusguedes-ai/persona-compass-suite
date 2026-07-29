@@ -64,3 +64,85 @@ export const excluirMaterial = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/**
+ * Banners do topo da Academy — item G, parte 2.
+ *
+ * Ficam no mesmo arquivo da biblioteca porque são a mesma ideia: curadoria do
+ * master, consumo de todo mundo. Separar em outro módulo só criaria mais um
+ * lugar para procurar.
+ */
+export const listarBanners = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("academy_banners")
+      .select("id, imagem_url, link_url, titulo, ordem, ativo")
+      .eq("ativo", true)
+      .order("ordem");
+    if (error) throw new Error(error.message);
+    return { banners: data ?? [] };
+  });
+
+export const salvarBanner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      imagem_url: z.string().url(),
+      link_url: z.string().url().max(600).nullable().optional(),
+      titulo: z.string().trim().max(120).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    // Entra no fim da fila. Reordenar é outra ação; criar já mexendo na ordem
+    // dos outros seria surpresa.
+    const { data: ultimo } = await context.supabase
+      .from("academy_banners").select("ordem")
+      .order("ordem", { ascending: false }).limit(1).maybeSingle();
+
+    const { error } = await context.supabase.from("academy_banners").insert({
+      mentor_id: context.userId,
+      imagem_url: data.imagem_url,
+      link_url: data.link_url ?? null,
+      titulo: data.titulo?.trim() || null,
+      ordem: (ultimo?.ordem ?? 0) + 1,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const excluirBanner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { error } = await context.supabase
+      .from("academy_banners").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const moverBanner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), direcao: z.enum(["cima", "baixo"]) }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const supabase = context.supabase;
+    const { data: todos, error } = await supabase
+      .from("academy_banners").select("id, ordem").order("ordem");
+    if (error) throw new Error(error.message);
+
+    const lista = todos ?? [];
+    const i = lista.findIndex((b) => b.id === data.id);
+    const j = data.direcao === "cima" ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= lista.length) return { ok: true };
+
+    // Troca as posições dos dois vizinhos. Reescrever a lista inteira seria
+    // mais simples de ler e mais fácil de embaralhar se duas abas mexerem ao
+    // mesmo tempo.
+    await Promise.all([
+      supabase.from("academy_banners").update({ ordem: lista[j].ordem }).eq("id", lista[i].id),
+      supabase.from("academy_banners").update({ ordem: lista[i].ordem }).eq("id", lista[j].id),
+    ]);
+    return { ok: true };
+  });

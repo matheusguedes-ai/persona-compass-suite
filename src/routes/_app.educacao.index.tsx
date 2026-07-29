@@ -1,3 +1,4 @@
+import { BannersAcademy } from "@/components/banners-academy";
 import { Biblioteca } from "@/components/biblioteca";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -64,6 +65,8 @@ function EducacaoPage() {
             link (Google Drive, por exemplo).
           </p>
         </div>
+
+      <BannersAcademy podeEditar />
 
       <Biblioteca podeEditar />
         <Button onClick={() => setAberto(true)}><Plus className="size-4" /> Nova trilha</Button>

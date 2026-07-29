@@ -1,3 +1,4 @@
+import { BannersAcademy } from "@/components/banners-academy";
 import { Biblioteca } from "@/components/biblioteca";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +24,8 @@ function EducacaoAluno() {
           Trilhas liberadas para você. Seu progresso fica salvo aula a aula.
         </p>
       </div>
+
+      <BannersAcademy />
 
       <Biblioteca />
       {isLoading ? (
