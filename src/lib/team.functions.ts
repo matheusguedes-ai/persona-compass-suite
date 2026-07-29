@@ -307,7 +307,7 @@ export const getMyMembership = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data: row, error } = await supabase
       .from("team_members")
-      .select("id, kind, permissions, owner_id, name, status")
+      .select("id, kind, permissions, owner_id, name, status, team_member_groups(group_id, can_download_reports, can_schedule_devolutivas, groups(name))")
       .eq("user_id", userId)
       .eq("status", "ativo")
       .maybeSingle();
@@ -327,6 +327,7 @@ export const getMyMembership = createServerFn({ method: "GET" })
         permissions: ehAluno ? [] : ([...PERMISSOES] as string[]),
         account_id: userId,
         member_id: null as string | null,
+        groups: [] as Array<{ group_id: string; name: string; can_download_reports: boolean; can_schedule_devolutivas: boolean }>,
       };
     }
     return {
@@ -335,6 +336,15 @@ export const getMyMembership = createServerFn({ method: "GET" })
       permissions: row.kind === "colaborador" ? row.permissions : ["relatorios"],
       account_id: row.owner_id,
       member_id: row.id,
+      // Os grupos ATRIBUÍDOS a ele como mentor. Não confundir com os grupos em
+      // que ele participa como avaliado: ser membro de um grupo e cuidar dele
+      // são coisas diferentes, e só a segunda dá acesso aos resultados.
+      groups: (row.team_member_groups ?? []).map((g) => ({
+        group_id: g.group_id,
+        name: g.groups?.name ?? "—",
+        can_download_reports: g.can_download_reports,
+        can_schedule_devolutivas: g.can_schedule_devolutivas ?? false,
+      })),
     };
   });
 

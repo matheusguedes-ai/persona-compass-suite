@@ -46,7 +46,7 @@ function AlunoLayout() {
   });
   const itens =
     membership?.kind === "mentor"
-      ? [...NAV, { to: "/grupos", label: "Grupos", icon: FolderKanban, exato: false } as const]
+      ? [...NAV, { to: "/aluno/grupos", label: "Grupos", icon: FolderKanban, exato: false } as const]
       : NAV;
 
   return (
