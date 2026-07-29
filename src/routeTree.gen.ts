@@ -21,6 +21,7 @@ import { Route as AppComunidadesRouteImport } from './routes/_app.comunidades'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppDevolutivasRouteImport } from './routes/_app.devolutivas'
 import { Route as AppEnviosRouteImport } from './routes/_app.envios'
+import { Route as AppGestaoRouteImport } from './routes/_app.gestao'
 import { Route as AppGruposRouteImport } from './routes/_app.grupos'
 import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
@@ -29,6 +30,7 @@ import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
 import { Route as AlunoComunidadeRouteImport } from './routes/aluno.comunidade'
 import { Route as AlunoCriarSenhaRouteImport } from './routes/aluno.criar-senha'
 import { Route as AlunoDevolutivasRouteImport } from './routes/aluno.devolutivas'
+import { Route as AlunoGestaoRouteImport } from './routes/aluno.gestao'
 import { Route as AlunoGruposRouteImport } from './routes/aluno.grupos'
 import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
 import { Route as AlunoRankingRouteImport } from './routes/aluno.ranking'
@@ -122,6 +124,11 @@ const AppEnviosRoute = AppEnviosRouteImport.update({
   path: '/envios',
   getParentRoute: () => AppRoute,
 } as any)
+const AppGestaoRoute = AppGestaoRouteImport.update({
+  id: '/gestao',
+  path: '/gestao',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppGruposRoute = AppGruposRouteImport.update({
   id: '/grupos',
   path: '/grupos',
@@ -160,6 +167,11 @@ const AlunoCriarSenhaRoute = AlunoCriarSenhaRouteImport.update({
 const AlunoDevolutivasRoute = AlunoDevolutivasRouteImport.update({
   id: '/devolutivas',
   path: '/devolutivas',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoGestaoRoute = AlunoGestaoRouteImport.update({
+  id: '/gestao',
+  path: '/gestao',
   getParentRoute: () => AlunoRoute,
 } as any)
 const AlunoGruposRoute = AlunoGruposRouteImport.update({
@@ -334,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/devolutivas': typeof AppDevolutivasRouteWithChildren
   '/envios': typeof AppEnviosRouteWithChildren
+  '/gestao': typeof AppGestaoRoute
   '/grupos': typeof AppGruposRouteWithChildren
   '/mentores': typeof AppMentoresRoute
   '/pessoas': typeof AppPessoasRouteWithChildren
@@ -341,6 +354,7 @@ export interface FileRoutesByFullPath {
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
+  '/aluno/gestao': typeof AlunoGestaoRoute
   '/aluno/grupos': typeof AlunoGruposRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
@@ -382,10 +396,12 @@ export interface FileRoutesByTo {
   '/colaboradores': typeof AppColaboradoresRoute
   '/comunidades': typeof AppComunidadesRoute
   '/configuracoes': typeof AppConfiguracoesRoute
+  '/gestao': typeof AppGestaoRoute
   '/mentores': typeof AppMentoresRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
+  '/aluno/gestao': typeof AlunoGestaoRoute
   '/aluno/grupos': typeof AlunoGruposRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
@@ -433,6 +449,7 @@ export interface FileRoutesById {
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/devolutivas': typeof AppDevolutivasRouteWithChildren
   '/_app/envios': typeof AppEnviosRouteWithChildren
+  '/_app/gestao': typeof AppGestaoRoute
   '/_app/grupos': typeof AppGruposRouteWithChildren
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
@@ -440,6 +457,7 @@ export interface FileRoutesById {
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/devolutivas': typeof AlunoDevolutivasRoute
+  '/aluno/gestao': typeof AlunoGestaoRoute
   '/aluno/grupos': typeof AlunoGruposRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
@@ -488,6 +506,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/devolutivas'
     | '/envios'
+    | '/gestao'
     | '/grupos'
     | '/mentores'
     | '/pessoas'
@@ -495,6 +514,7 @@ export interface FileRouteTypes {
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/devolutivas'
+    | '/aluno/gestao'
     | '/aluno/grupos'
     | '/aluno/perfil'
     | '/aluno/ranking'
@@ -536,10 +556,12 @@ export interface FileRouteTypes {
     | '/colaboradores'
     | '/comunidades'
     | '/configuracoes'
+    | '/gestao'
     | '/mentores'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/devolutivas'
+    | '/aluno/gestao'
     | '/aluno/grupos'
     | '/aluno/perfil'
     | '/aluno/ranking'
@@ -586,6 +608,7 @@ export interface FileRouteTypes {
     | '/_app/configuracoes'
     | '/_app/devolutivas'
     | '/_app/envios'
+    | '/_app/gestao'
     | '/_app/grupos'
     | '/_app/mentores'
     | '/_app/pessoas'
@@ -593,6 +616,7 @@ export interface FileRouteTypes {
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/devolutivas'
+    | '/aluno/gestao'
     | '/aluno/grupos'
     | '/aluno/perfil'
     | '/aluno/ranking'
@@ -737,6 +761,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEnviosRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/gestao': {
+      id: '/_app/gestao'
+      path: '/gestao'
+      fullPath: '/gestao'
+      preLoaderRoute: typeof AppGestaoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/grupos': {
       id: '/_app/grupos'
       path: '/grupos'
@@ -791,6 +822,13 @@ declare module '@tanstack/react-router' {
       path: '/devolutivas'
       fullPath: '/aluno/devolutivas'
       preLoaderRoute: typeof AlunoDevolutivasRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/gestao': {
+      id: '/aluno/gestao'
+      path: '/gestao'
+      fullPath: '/aluno/gestao'
+      preLoaderRoute: typeof AlunoGestaoRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/aluno/grupos': {
@@ -1089,6 +1127,7 @@ interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDevolutivasRoute: typeof AppDevolutivasRouteWithChildren
   AppEnviosRoute: typeof AppEnviosRouteWithChildren
+  AppGestaoRoute: typeof AppGestaoRoute
   AppGruposRoute: typeof AppGruposRouteWithChildren
   AppMentoresRoute: typeof AppMentoresRoute
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
@@ -1104,6 +1143,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDevolutivasRoute: AppDevolutivasRouteWithChildren,
   AppEnviosRoute: AppEnviosRouteWithChildren,
+  AppGestaoRoute: AppGestaoRoute,
   AppGruposRoute: AppGruposRouteWithChildren,
   AppMentoresRoute: AppMentoresRoute,
   AppPessoasRoute: AppPessoasRouteWithChildren,
@@ -1119,6 +1159,7 @@ interface AlunoRouteChildren {
   AlunoComunidadeRoute: typeof AlunoComunidadeRoute
   AlunoCriarSenhaRoute: typeof AlunoCriarSenhaRoute
   AlunoDevolutivasRoute: typeof AlunoDevolutivasRoute
+  AlunoGestaoRoute: typeof AlunoGestaoRoute
   AlunoGruposRoute: typeof AlunoGruposRoute
   AlunoPerfilRoute: typeof AlunoPerfilRoute
   AlunoRankingRoute: typeof AlunoRankingRoute
@@ -1131,6 +1172,7 @@ const AlunoRouteChildren: AlunoRouteChildren = {
   AlunoComunidadeRoute: AlunoComunidadeRoute,
   AlunoCriarSenhaRoute: AlunoCriarSenhaRoute,
   AlunoDevolutivasRoute: AlunoDevolutivasRoute,
+  AlunoGestaoRoute: AlunoGestaoRoute,
   AlunoGruposRoute: AlunoGruposRoute,
   AlunoPerfilRoute: AlunoPerfilRoute,
   AlunoRankingRoute: AlunoRankingRoute,

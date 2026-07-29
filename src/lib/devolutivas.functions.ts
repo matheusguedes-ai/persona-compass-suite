@@ -21,6 +21,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notificar, nomeDoUsuario } from "@/lib/notificacoes.functions";
 import type { Database } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const STATUS = ["agendada", "realizada", "cancelada"] as const;
 export type StatusDevolutiva = (typeof STATUS)[number];
@@ -58,13 +59,21 @@ function diasDesde(iso: string) {
  * devolutiva é sobre o conjunto, e listar as partes separadas encheria a fila
  * de linhas que representam a mesma conversa.
  */
-export const listarFila = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ group_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
-  )
-  .handler(async ({ context, data }) => {
-    const supabase = context.supabase;
+/**
+ * O cálculo da fila, separado da server function.
+ *
+ * O Kanban do menu Gestão mostra a mesma fila numa das colunas. Se cada tela
+ * fizesse a própria conta, elas divergiriam no primeiro caso de canto — uma
+ * bateria cancelada, um teste sem `submitted_at` — e o sintoma seria o pior
+ * possível: dois números diferentes para a mesma pergunta, sem ninguém saber
+ * qual está certo. Uma conta só, dois consumidores.
+ */
+export async function calcularFila(
+  supabase: SupabaseClient<Database>,
+  groupId?: string | null,
+): Promise<ItemDaFila[]> {
+
+    
 
     const [{ data: baterias, error: e1 }, { data: avulsas, error: e2 }, { data: jaTem, error: e3 }] =
       await Promise.all([
@@ -116,16 +125,25 @@ export const listarFila = createServerFn({ method: "GET" })
     }
     // Filtro por grupo, para a aba dentro do grupo mostrar só quem é dele.
     let recorte = fila;
-    if (data.group_id) {
+    if (groupId) {
       const { data: membros } = await supabase
-        .from("group_members").select("person_id").eq("group_id", data.group_id);
+        .from("group_members").select("person_id").eq("group_id", groupId);
       const doGrupo = new Set((membros ?? []).map((m) => m.person_id));
       recorte = fila.filter((f) => doGrupo.has(f.person_id));
     }
     // Quem espera há mais tempo primeiro: é a ordem que resolve o problema.
     recorte.sort((a, b) => b.dias_esperando - a.dias_esperando);
-    return { fila: recorte };
-  });
+    return recorte;
+}
+
+export const listarFila = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ group_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => ({
+    fila: await calcularFila(context.supabase, data.group_id),
+  }));
 
 export const listarDevolutivas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
