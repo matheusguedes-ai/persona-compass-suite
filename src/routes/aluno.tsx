@@ -8,6 +8,7 @@ import { BrandMark } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Eye, GraduationCap, LayoutList, LogOut, UserRound , MessagesSquare, Users, Trophy, FolderKanban} from "lucide-react";
 import { ThemeToggle } from "@/lib/theme";
+import { Sino } from "@/components/sino";
 
 export const Route = createFileRoute("/aluno")({
   ssr: false,
@@ -72,6 +73,7 @@ function AlunoLayout() {
             })}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            {!ver && <Sino area="aluno" />}
             <ThemeToggle />
             {!ver && (
               <button

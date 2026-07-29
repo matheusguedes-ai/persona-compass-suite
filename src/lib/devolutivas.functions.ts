@@ -19,6 +19,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { notificar, nomeDoUsuario } from "@/lib/notificacoes.functions";
 import type { Database } from "@/integrations/supabase/types";
 
 export const STATUS = ["agendada", "realizada", "cancelada"] as const;
@@ -199,6 +200,26 @@ export const agendarDevolutiva = createServerFn({ method: "POST" })
       if (error.code === "23505") throw new Error("Já existe uma devolutiva para este resultado.");
       throw new Error(error.message);
     }
+    // Avisa o avaliado (é sobre ele) e quem cuida dos grupos dele.
+    const [{ data: quem }, { data: gruposDele }] = await Promise.all([
+      supabase.from("people").select("full_name, user_id").eq("id", data.person_id).maybeSingle(),
+      supabase.from("group_members").select("group_id").eq("person_id", data.person_id),
+    ]);
+    await notificar(supabase, {
+      conta: pessoa.mentor_id,
+      tipo: "devolutiva_agendada",
+      titulo: data.scheduled_at
+        ? `Devolutiva agendada com ${quem?.full_name ?? "um avaliado"}`
+        : `Devolutiva criada para ${quem?.full_name ?? "um avaliado"}`,
+      corpo: data.scheduled_at
+        ? new Date(data.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+        : "Ainda sem data marcada.",
+      link: "/devolutivas",
+      ator: context.userId,
+      atorNome: await nomeDoUsuario(supabase, context.userId),
+      grupos: (gruposDele ?? []).map((g) => g.group_id),
+      pessoaUser: quem?.user_id ?? null,
+    });
     return { id: criada.id };
   });
 
@@ -234,6 +255,23 @@ export const registrarDevolutiva = createServerFn({ method: "POST" })
     if (dev?.people?.user_id) {
       const { darPonto } = await import("@/lib/pontos.functions");
       await darPonto(context.supabase, dev.people.user_id, dev.mentor_id, "devolutiva", data.id);
+    }
+    if (dev) {
+      const { data: quem } = await context.supabase
+        .from("people").select("full_name").eq("id", dev.person_id).maybeSingle();
+      const { data: gruposDele } = await context.supabase
+        .from("group_members").select("group_id").eq("person_id", dev.person_id);
+      await notificar(context.supabase, {
+        conta: dev.mentor_id,
+        tipo: "devolutiva_realizada",
+        titulo: `Devolutiva realizada com ${quem?.full_name ?? "um avaliado"}`,
+        corpo: data.agreements?.trim()?.slice(0, 140) || "Registrada no painel.",
+        link: "/devolutivas",
+        ator: context.userId,
+        atorNome: await nomeDoUsuario(context.supabase, context.userId),
+        grupos: (gruposDele ?? []).map((g) => g.group_id),
+        pessoaUser: dev.people?.user_id ?? null,
+      });
     }
     return { ok: true };
   });

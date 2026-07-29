@@ -19,6 +19,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { darPonto, contaDaPessoa } from "@/lib/pontos.functions";
+import { notificar } from "@/lib/notificacoes.functions";
 
 /**
  * Grupos do lado da EQUIPE — os grupos da conta. Usado pelo menu Comunidades
@@ -195,7 +196,22 @@ export const publicarPost = createServerFn({ method: "POST" })
       throw new Error("Não consegui publicar nestes grupos.");
     }
     const conta = await contaDaPessoa(supabase, context.userId);
-    if (conta) await darPonto(supabase, context.userId, conta, "publicar", postId);
+    if (conta) {
+      await darPonto(supabase, context.userId, conta, "publicar", postId);
+      const autor = await meuNome(supabase, context.userId);
+      await notificar(supabase, {
+        conta,
+        tipo: "comunidade_post",
+        titulo: `${autor} publicou na comunidade`,
+        corpo: data.body.trim().slice(0, 140),
+        link: "/comunidades",
+        ator: context.userId,
+        atorNome: autor,
+        grupos: data.group_ids,
+        // Comunidade é o caso em que o aluno TAMBÉM é avisado: é o feed dele.
+        paraAlunos: true,
+      });
+    }
     return { ok: true };
   });
 
@@ -213,7 +229,24 @@ export const comentar = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const conta = await contaDaPessoa(supabase, context.userId);
     // Referência é o POST: comentar dez vezes no mesmo não vira dez pontos.
-    if (conta) await darPonto(supabase, context.userId, conta, "comentar", data.post_id);
+    if (conta) {
+      await darPonto(supabase, context.userId, conta, "comentar", data.post_id);
+      const autor = await meuNome(supabase, context.userId);
+      // O comentário vale para os mesmos grupos do post — é lá que ele aparece.
+      const { data: vinc } = await supabase
+        .from("community_post_groups").select("group_id").eq("post_id", data.post_id);
+      await notificar(supabase, {
+        conta,
+        tipo: "comunidade_comentario",
+        titulo: `${autor} comentou numa publicação`,
+        corpo: data.body.trim().slice(0, 140),
+        link: "/comunidades",
+        ator: context.userId,
+        atorNome: autor,
+        grupos: (vinc ?? []).map((v) => v.group_id),
+        paraAlunos: true,
+      });
+    }
     return { ok: true };
   });
 

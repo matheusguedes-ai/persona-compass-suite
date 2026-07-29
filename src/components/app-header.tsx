@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ThemeToggle } from "@/lib/theme";
 import { VerComoAluno } from "@/components/ver-como-aluno";
+import { Sino } from "@/components/sino";
 
 export function AppHeader() {
   const user = useCurrentUser();
@@ -31,6 +32,7 @@ export function AppHeader() {
         {user && (
           <span className="text-xs text-muted-foreground truncate max-w-[220px]">{user.email ?? user.displayName}</span>
         )}
+        <Sino />
         <ThemeToggle />
         <VerComoAluno />
         <Button variant="outline" size="sm" onClick={signOut}>

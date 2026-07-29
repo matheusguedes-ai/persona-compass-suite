@@ -43,6 +43,12 @@ export type Database = {
           },
         ]
       }
+      notificacoes: {
+        Row: { id: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo: string | null; link: string | null; ator_nome: string | null; lida_em: string | null; created_at: string }
+        Insert: { id?: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo?: string | null; link?: string | null; ator_nome?: string | null; lida_em?: string | null; created_at?: string }
+        Update: { id?: string; user_id?: string; conta_id?: string; tipo?: string; titulo?: string; corpo?: string | null; link?: string | null; ator_nome?: string | null; lida_em?: string | null; created_at?: string }
+        Relationships: []
+      }
       pontos: {
         Row: { id: string; user_id: string; mentor_id: string; acao: string; pontos: number; referencia: string | null; created_at: string }
         Insert: { id?: string; user_id: string; mentor_id: string; acao: string; pontos: number; referencia?: string | null; created_at?: string }
