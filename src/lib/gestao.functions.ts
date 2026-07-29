@@ -298,6 +298,13 @@ export const criarEvento = createServerFn({ method: "POST" })
       });
     }
 
+    const { sincronizar } = await import("@/lib/google.server");
+    await sincronizar(context.userId, "evento", criado.id, {
+      titulo: data.titulo,
+      descricao: data.descricao ?? null,
+      quando: data.quando,
+      duracaoMin: data.duracao_min ?? null,
+    });
     return { id: criado.id };
   });
 
@@ -308,5 +315,8 @@ export const excluirEvento = createServerFn({ method: "POST" })
     // Os destinos caem por CASCADE.
     const { error } = await context.supabase.from("eventos").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    const { sincronizar } = await import("@/lib/google.server");
+    // `null` = deixou de existir: apaga lá também.
+    await sincronizar(context.userId, "evento", data.id, null);
     return { ok: true };
   });

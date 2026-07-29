@@ -162,3 +162,91 @@ export function verificarEstado(estado: string): string | null {
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   return userId;
 }
+
+/**
+ * Cria, atualiza ou apaga um evento na agenda da plataforma.
+ *
+ * Silenciosa: como a pontuação e as notificações, o Google nunca derruba a ação
+ * que a gerou. Se o calendário estiver fora do ar, a devolutiva é agendada do
+ * mesmo jeito — a agenda de dentro da plataforma não depende dele.
+ *
+ * O erro fica registrado em `google_conexoes.ultimo_erro` para a tela poder
+ * avisar "a última sincronização falhou" em vez de fingir que deu certo.
+ */
+export async function sincronizar(
+  userId: string,
+  origem: "devolutiva" | "evento",
+  origemId: string,
+  dados: { titulo: string; descricao?: string | null; quando: string; duracaoMin?: number | null } | null,
+): Promise<void> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: conexao } = await supabaseAdmin
+      .from("google_conexoes")
+      .select("refresh_token, calendar_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    // Ninguém conectou o Google: não é erro, é o estado normal.
+    if (!conexao?.calendar_id) return;
+
+    const acesso = await renovarAcesso(conexao.refresh_token);
+
+    const { data: jaExiste } = await supabaseAdmin
+      .from("google_eventos")
+      .select("google_event_id")
+      .eq("user_id", userId).eq("origem", origem).eq("origem_id", origemId)
+      .maybeSingle();
+
+    const base = `${CAL}/calendars/${encodeURIComponent(conexao.calendar_id)}/events`;
+    const auth = { Authorization: `Bearer ${acesso}`, "Content-Type": "application/json" };
+
+    // `dados` nulo significa "isto deixou de existir": cancelada ou apagada.
+    if (!dados) {
+      if (jaExiste) {
+        await fetch(`${base}/${jaExiste.google_event_id}`, { method: "DELETE", headers: auth });
+        await supabaseAdmin.from("google_eventos").delete()
+          .eq("user_id", userId).eq("origem", origem).eq("origem_id", origemId);
+      }
+      return;
+    }
+
+    const inicio = new Date(dados.quando);
+    const fim = new Date(inicio.getTime() + (dados.duracaoMin ?? 60) * 60_000);
+    const corpo = JSON.stringify({
+      summary: dados.titulo,
+      description: dados.descricao ?? undefined,
+      start: { dateTime: inicio.toISOString(), timeZone: "America/Sao_Paulo" },
+      end: { dateTime: fim.toISOString(), timeZone: "America/Sao_Paulo" },
+    });
+
+    if (jaExiste) {
+      // ATUALIZA o que já existe. Sem o vínculo guardado, remarcar criaria um
+      // segundo evento e o calendário encheria de duplicatas.
+      const r = await fetch(`${base}/${jaExiste.google_event_id}`, {
+        method: "PATCH", headers: auth, body: corpo,
+      });
+      if (!r.ok) throw new Error(await r.text());
+    } else {
+      const r = await fetch(base, { method: "POST", headers: auth, body: corpo });
+      if (!r.ok) throw new Error(await r.text());
+      const criado = (await r.json()) as { id: string };
+      await supabaseAdmin.from("google_eventos").insert({
+        user_id: userId, origem, origem_id: origemId, google_event_id: criado.id,
+      });
+    }
+
+    await supabaseAdmin.from("google_conexoes")
+      .update({ ultimo_uso_em: new Date().toISOString(), ultimo_erro: null })
+      .eq("user_id", userId);
+  } catch (e) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("google_conexoes")
+        .update({ ultimo_erro: (e as Error).message.slice(0, 500) })
+        .eq("user_id", userId);
+    } catch {
+      // Nem o registro do erro pode derrubar a ação.
+    }
+  }
+}

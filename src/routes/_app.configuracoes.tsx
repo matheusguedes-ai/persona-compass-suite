@@ -16,6 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, CheckCircle2, ImageUp, Loader2, Send, Trash2 } from "lucide-react";
 import { getEmailStatus, listEmailLogs, sendTestEmail } from "@/lib/email.functions";
 import { toast } from "sonner";
+import {
+  estadoDoGoogle, iniciarConexaoGoogle, desconectarGoogle,
+} from "@/lib/google.functions";
 
 export const Route = createFileRoute("/_app/configuracoes")({
   head: () => ({
@@ -169,6 +172,7 @@ function ConfiguracoesPage() {
           <TabsTrigger value="relatorio">Relatório</TabsTrigger>
           <TabsTrigger value="mensagens">Mensagens</TabsTrigger>
           <TabsTrigger value="emails">Emails</TabsTrigger>
+          <TabsTrigger value="agenda">Agenda</TabsTrigger>
         </TabsList>
 
         {/* ---------------- Perfil ---------------- */}
@@ -406,6 +410,10 @@ function ConfiguracoesPage() {
         </TabsContent>
 
         {/* ---------------- Emails ---------------- */}
+        <TabsContent value="agenda" className="mt-6">
+          <GoogleCalendar />
+        </TabsContent>
+
         <TabsContent value="emails" className="mt-6">
           <AbaEmails />
         </TabsContent>
@@ -580,6 +588,81 @@ function AbaEmails() {
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Conectar o Google Calendar.
+ *
+ * Mão única: o que é marcado na plataforma aparece no Google. Nada volta — foi
+ * a decisão do Matheus, e é a que evita conflito de "editou nos dois lados".
+ *
+ * A tela nunca vê o token. Pergunta só se está conectado e com qual e-mail.
+ */
+function GoogleCalendar() {
+  const qc = useQueryClient();
+  const estadoFn = useServerFn(estadoDoGoogle);
+  const conectarFn = useServerFn(iniciarConexaoGoogle);
+  const desconectarFn = useServerFn(desconectarGoogle);
+
+  const { data, isLoading } = useQuery({ queryKey: ["google"], queryFn: () => estadoFn() });
+
+  const conectar = useMutation({
+    mutationFn: () => conectarFn(),
+    // Sai da plataforma para a tela do Google e volta pelo callback.
+    onSuccess: (r) => { window.location.href = r.url; },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const desconectar = useMutation({
+    mutationFn: () => desconectarFn(),
+    onSuccess: () => {
+      toast.success("Google Calendar desconectado.");
+      qc.invalidateQueries({ queryKey: ["google"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+
+  return (
+    <div className="max-w-2xl space-y-4 rounded-xl bg-card p-6 ring-1 ring-black/5">
+      <div>
+        <h2 className="text-base font-medium">Google Calendar</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          As devolutivas e os eventos que você marcar aqui aparecem numa agenda chamada
+          <strong> Métrica Humana</strong> no seu Google. O que você mexer lá não volta para cá.
+        </p>
+      </div>
+
+      {!data?.configurado ? (
+        <div className="rounded-lg bg-amber-500/10 p-4 text-sm">
+          A conexão com o Google ainda não foi configurada nesta plataforma. Falta cadastrar
+          <code className="mx-1 rounded bg-black/10 px-1">GOOGLE_CLIENT_ID</code> e
+          <code className="mx-1 rounded bg-black/10 px-1">GOOGLE_CLIENT_SECRET</code>.
+        </div>
+      ) : data.conectado ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-emerald-500/10 p-4">
+          <p className="text-sm">
+            Conectado{data.email ? ` como ${data.email}` : ""}.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => desconectar.mutate()}
+                  disabled={desconectar.isPending}>
+            Desconectar
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <Button onClick={() => conectar.mutate()} disabled={conectar.isPending}>
+            {conectar.isPending ? "Abrindo o Google…" : "Conectar meu Google Calendar"}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            A plataforma cria uma agenda própria e só mexe nos eventos dela. Não lê, não edita e
+            não apaga nada do seu calendário pessoal.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

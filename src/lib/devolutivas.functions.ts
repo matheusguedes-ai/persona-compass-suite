@@ -245,6 +245,16 @@ export const agendarDevolutiva = createServerFn({ method: "POST" })
       grupos: (gruposDele ?? []).map((g) => g.group_id),
       pessoaUser: quem?.user_id ?? null,
     });
+    // Mão única: o que é marcado aqui aparece lá. Silenciosa — se o Google
+    // falhar, a devolutiva continua agendada.
+    if (data.scheduled_at) {
+      const { sincronizar } = await import("@/lib/google.server");
+      await sincronizar(pessoa.mentor_id, "devolutiva", criada.id, {
+        titulo: `Devolutiva · ${quem?.full_name ?? "avaliado"}`,
+        descricao: data.notes?.trim() || null,
+        quando: data.scheduled_at,
+      });
+    }
     return { id: criada.id };
   });
 
