@@ -394,3 +394,78 @@ export const canDownloadReport = createServerFn({ method: "GET" })
     const allowed = (gruposDoMentor ?? []).some((g) => daPessoa.has(g.group_id) && g.can_download_reports);
     return { allowed };
   });
+
+/**
+ * Dados do convite, para a tela mostrar de quem ele é antes de pedir a senha.
+ *
+ * Público, identificado pelo token — que é o próprio link recebido por e-mail.
+ * Devolve o mínimo: nome, papel e o e-mail, que a pessoa precisa reconhecer
+ * para saber com qual endereço vai entrar depois.
+ */
+export const dadosDoConvite = createServerFn({ method: "GET" })
+  .inputValidator((d) => z.object({ token: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: m } = await supabaseAdmin
+      .from("team_members")
+      .select("name, email, kind, status, invite_expires_at, owner_id")
+      .eq("invite_token", data.token)
+      .maybeSingle();
+    if (!m) return { valido: false as const, motivo: "Convite não encontrado." };
+    if (m.status === "ativo") return { valido: false as const, motivo: "Este convite já foi aceito." };
+    if (m.invite_expires_at && new Date(m.invite_expires_at) < new Date()) {
+      return { valido: false as const, motivo: "Este convite expirou. Peça um novo ao seu mentor." };
+    }
+    const { data: perfil } = await supabaseAdmin
+      .from("profiles").select("company_name").eq("user_id", m.owner_id).maybeSingle();
+    return {
+      valido: true as const,
+      nome: m.name,
+      email: m.email,
+      papel: m.kind === "mentor" ? "mentor" : "colaborador",
+      empresa: perfil?.company_name?.trim() || "Métrica Humana",
+    };
+  });
+
+/**
+ * Cria a conta de quem chegou pelo convite, com a senha que ele escolheu.
+ *
+ * Por que aqui a senha pode ser escolhida direto, diferente do primeiro acesso
+ * do aluno: o TOKEN já é a prova de que o e-mail é da pessoa — ele só existe no
+ * link que foi enviado para aquele endereço. É a mesma lógica de um link de
+ * redefinir senha. Mandar outro e-mail para confirmar o que o primeiro já
+ * confirmou seria só um passo a mais, sem ganho.
+ *
+ * O e-mail NÃO vem do formulário: vem do convite. Assim o token não pode ser
+ * usado para criar conta em nome de outro endereço.
+ */
+export const criarContaDoConvite = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    z.object({ token: z.string().uuid(), senha: z.string().min(8).max(200) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: m } = await supabaseAdmin
+      .from("team_members")
+      .select("email, status, invite_expires_at")
+      .eq("invite_token", data.token)
+      .maybeSingle();
+    if (!m?.email) throw new Error("Convite não encontrado.");
+    if (m.status === "ativo") throw new Error("Este convite já foi aceito.");
+    if (m.invite_expires_at && new Date(m.invite_expires_at) < new Date()) {
+      throw new Error("Este convite expirou. Peça um novo ao seu mentor.");
+    }
+
+    // `email_confirm: true` porque o token já provou o endereço — a pessoa só
+    // chegou aqui porque abriu o e-mail que o continha.
+    const { error } = await supabaseAdmin.auth.admin.createUser({
+      email: m.email,
+      password: data.senha,
+      email_confirm: true,
+    });
+    if (error && !/already|registered|exists/i.test(error.message)) {
+      throw new Error(error.message);
+    }
+    // Já existia: o convite não serve para trocar a senha de uma conta alheia.
+    return { ok: true as const, email: m.email, jaExistia: !!error };
+  });
