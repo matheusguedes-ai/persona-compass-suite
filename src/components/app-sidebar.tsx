@@ -31,9 +31,14 @@ const NAV = [
   { to: "/pessoas", label: "Pessoas", icon: Users, perm: "pessoas" },
   { to: "/colaboradores", label: "Colaboradores", icon: UserCog, soDono: true },
   { to: "/educacao", label: "Educação", icon: BookOpen, perm: "educacao" },
-  { to: "/testes", label: "Testes", icon: FlaskConical, perm: "testes" },
-  { to: "/envios", label: "Envios", icon: Send, perm: "envios" },
-  { to: "/devolutivas", label: "Devolutivas", icon: MessagesSquare, perm: "devolutivas" },
+  // Testes, Envios e Devolutivas são o mesmo assunto em três momentos: o que
+  // existe, o que foi disparado, e a conversa depois. Viraram um item só, com
+  // abas dentro (ver AbasDeTestes).
+  //
+  // `perms` no plural, e o destino é calculado: quem tem só Envios precisa ver
+  // o menu E cair em /envios. Com um `perm` fixo em "testes", esse colaborador
+  // ficaria sem menu nenhum e sem caminho para a tela que é dele.
+  { to: "/testes", label: "Testes", icon: FlaskConical, perms: ["testes", "envios", "devolutivas"] },
   { to: "/agenda", label: "Agenda", icon: CalendarDays, perm: "devolutivas" },
   { to: "/comunidades", label: "Comunidades", icon: Users2, perm: "grupos" },
   { to: "/configuracoes", label: "Configurações", icon: Settings, perm: "configuracoes" },
@@ -61,8 +66,17 @@ export function AppSidebar() {
   const items = NAV.filter((item) => {
     if (kind === "owner") return true;
     if ("soDono" in item && item.soDono) return false;
+    // Item agrupado: basta ter uma das permissões para enxergá-lo.
+    if ("perms" in item) return item.perms.some((p) => permissions.includes(p));
     if (!("perm" in item)) return true;
     return permissions.includes(item.perm);
+  }).map((item) => {
+    // E o destino é a primeira aba que ele realmente pode abrir.
+    if (!("perms" in item) || kind === "owner") return item;
+    const primeira = item.perms.find((p) => permissions.includes(p));
+    const rota = primeira === "envios" ? "/envios"
+      : primeira === "devolutivas" ? "/devolutivas" : "/testes";
+    return { ...item, to: rota as typeof item.to };
   });
   const displayName = user?.displayName ?? "—";
   const email = user?.email ?? "";

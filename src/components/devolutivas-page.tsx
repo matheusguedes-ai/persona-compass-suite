@@ -18,6 +18,7 @@ import {
 } from "@/lib/devolutivas.functions";
 import { Button } from "@/components/ui/button";
 import { QuadroGestao } from "@/components/quadro-gestao";
+import { AbasDeTestes } from "@/components/abas-testes";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -217,6 +218,8 @@ export function DevolutivasPage({ groupId }: { groupId?: string } = {}) {
         </Button>
       </header>
       )}
+
+      {!groupId && <AbasDeTestes />}
 
       {/* O Kanban vive aqui, e não num menu próprio.
           O Matheus usou "Gestão" na prática e viu que não colava: Kanban e

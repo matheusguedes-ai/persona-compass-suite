@@ -1,3 +1,4 @@
+import { AbasDeTestes } from "@/components/abas-testes";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -56,6 +57,8 @@ function TestesPage() {
           Edite o modelo direto, ou duplique para manter o original intacto e trabalhar na cópia.
         </p>
       </div>
+
+      <AbasDeTestes />
 
       {instruments.map((inst) => {
         const insts = versions.filter((v) => v.instrument_id === inst.id);

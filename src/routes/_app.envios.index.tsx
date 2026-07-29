@@ -1,3 +1,4 @@
+import { AbasDeTestes } from "@/components/abas-testes";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -132,6 +133,8 @@ function EnviosPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Envios</h1>
           <p className="mt-1 text-sm text-muted-foreground">{data.length + batteries.length} disparos registrados.</p>
         </div>
+
+      <AbasDeTestes />
         <Button asChild><Link to="/envios/novo" search={{ personId: undefined, groupId: undefined }}><Plus className="size-4" /> Novo envio</Link></Button>
       </div>
 
