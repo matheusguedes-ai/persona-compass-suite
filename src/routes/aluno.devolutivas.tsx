@@ -13,6 +13,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMinhasDevolutivas } from "@/lib/student.functions";
+import { Agenda } from "@/components/agenda";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, CheckCircle2, FileText, MessagesSquare } from "lucide-react";
 
@@ -47,6 +48,16 @@ function Devolutivas() {
           As conversas em que seu resultado foi apresentado, e o que ficou combinado em cada uma.
         </p>
       </header>
+
+      {/* A mesma agenda do mentor, sem mudar nada: a RLS já entrega ao aluno
+          só as devolutivas dele. Só aparece quando há o que mostrar — mês
+          vazio para quem nunca teve devolutiva é ruído. */}
+      {!isLoading && lista.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-medium">No calendário</h2>
+          <Agenda area="aluno" />
+        </section>
+      )}
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 

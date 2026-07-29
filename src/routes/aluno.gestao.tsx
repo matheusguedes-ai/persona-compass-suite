@@ -12,6 +12,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyMembership } from "@/lib/team.functions";
 import { QuadroGestao } from "@/components/quadro-gestao";
+import { Agenda } from "@/components/agenda";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayoutList } from "lucide-react";
 
 function Pagina() {
@@ -37,7 +39,18 @@ function Pagina() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-semibold tracking-tight">Gestão</h1>
-      <QuadroGestao />
+      <Tabs defaultValue="agenda">
+        <TabsList>
+          <TabsTrigger value="agenda">Agenda</TabsTrigger>
+          <TabsTrigger value="quadro">Kanban</TabsTrigger>
+        </TabsList>
+        <TabsContent value="agenda" className="mt-5">
+          <Agenda area="aluno" />
+        </TabsContent>
+        <TabsContent value="quadro" className="mt-5">
+          <QuadroGestao />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

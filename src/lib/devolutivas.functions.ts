@@ -46,9 +46,18 @@ export type ItemDaFila = {
   dias_esperando: number;
 };
 
+/**
+ * Dias em CALENDÁRIO, não em blocos de 24h.
+ *
+ * `floor(ms / 24h)` dizia "concluiu hoje" para quem respondeu ontem às 20h:
+ * quinze horas não fecham um bloco. Para quem lê, ontem é ontem. A fila e o
+ * Kanban mostram esse número na cara do mentor, então ele precisa bater com o
+ * calendário que a pessoa tem na cabeça.
+ */
 function diasDesde(iso: string) {
-  const ms = Date.now() - new Date(iso).getTime();
-  return Math.max(0, Math.floor(ms / 86_400_000));
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const quando = new Date(iso); quando.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.round((hoje.getTime() - quando.getTime()) / 86_400_000));
 }
 
 /**

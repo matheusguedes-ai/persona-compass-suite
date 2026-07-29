@@ -13,6 +13,7 @@
  * mesmo código serve o master e o mentor sem `if` de papel.
  */
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calcularFila } from "@/lib/devolutivas.functions";
 
@@ -94,4 +95,66 @@ export const quadroDeGestao = createServerFn({ method: "GET" })
     realizadas.sort((a, b) => (a.dias ?? 999) - (b.dias ?? 999));
 
     return { semDevolutiva, agendadas, realizadas };
+  });
+
+/** Um compromisso na agenda. */
+export type Compromisso = {
+  id: string;
+  person_id: string;
+  person_name: string;
+  /** ISO completo; pode ter hora ou ser só data. */
+  quando: string;
+  status: "agendada" | "realizada";
+  atrasada: boolean;
+};
+
+/**
+ * A agenda de um período.
+ *
+ * ⚠️ O PERÍODO VEM PRONTO DO NAVEGADOR, em ISO. Não recebe "ano e mês" para o
+ * servidor converter: o servidor roda em **UTC**, então `new Date(2026, 6, 1)`
+ * ali é 1º de julho 00:00 UTC — que no Brasil ainda é 30 de junho, 21h. Uma
+ * devolutiva marcada para o último dia do mês às 22h cairia fora do intervalo e
+ * sumiria da agenda.
+ *
+ * Quem sabe onde o mês começa para o usuário é o navegador dele. É a mesma
+ * armadilha que já fez `next_at` aparecer um dia antes.
+ *
+ * Sem filtro de papel: a RLS já entrega ao mentor só a gente dos grupos dele, e
+ * ao dono a conta inteira.
+ */
+export const agendaDoMes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      de: z.string().datetime({ offset: true }),
+      ate: z.string().datetime({ offset: true }),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { de, ate } = data;
+
+    const { data: devs, error } = await context.supabase
+      .from("devolutivas")
+      .select("id, person_id, status, scheduled_at, completed_at, people(full_name)")
+      .neq("status", "cancelada")
+      .not("scheduled_at", "is", null)
+      .gte("scheduled_at", de)
+      .lt("scheduled_at", ate)
+      .order("scheduled_at");
+    if (error) throw new Error(error.message);
+
+    const agora = Date.now();
+    const compromissos: Compromisso[] = (devs ?? [])
+      .filter((d) => d.scheduled_at)
+      .map((d) => ({
+        id: d.id,
+        person_id: d.person_id,
+        person_name: d.people?.full_name ?? "—",
+        quando: d.scheduled_at!,
+        status: d.status as "agendada" | "realizada",
+        atrasada: d.status === "agendada" && new Date(d.scheduled_at!).getTime() < agora,
+      }));
+
+    return { compromissos };
   });
