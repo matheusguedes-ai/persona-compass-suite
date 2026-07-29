@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ROLE_LABEL, type PersonRole } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
+import { GraduationCap } from "lucide-react";
+import { promoverAMentor, rebaixarMentor, idsDeMentores } from "@/lib/team.functions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -104,6 +106,7 @@ function PersonProfile() {
                 <Eye className="size-4" /> Ver como aluno
               </a>
           </Button>
+          <BotaoMentor personId={person.id} nome={person.full_name} />
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="sm" disabled={del.isPending}>
@@ -336,5 +339,47 @@ function InfoBox({ label, value }: { label: string; value: string | null | undef
       <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm font-medium">{value ?? "—"}</p>
     </div>
+  );
+}
+
+/**
+ * Promover a mentor, na ficha da própria pessoa.
+ *
+ * Substitui o menu Mentores. A ideia é promover quem já está cadastrado, em vez
+ * de convidar de novo — convidar criava um segundo cadastro com o mesmo e-mail,
+ * e daí duas identidades e dois painéis para a mesma pessoa.
+ */
+function BotaoMentor({ personId, nome }: { personId: string; nome: string }) {
+  const qc = useQueryClient();
+  const promoverFn = useServerFn(promoverAMentor);
+  const rebaixarFn = useServerFn(rebaixarMentor);
+  const listaFn = useServerFn(idsDeMentores);
+  const { data } = useQuery({ queryKey: ["mentores"], queryFn: () => listaFn() });
+  const ehMentor = (data?.ids ?? []).includes(personId);
+
+  const acao = useMutation({
+    mutationFn: () =>
+      ehMentor ? rebaixarFn({ data: { person_id: personId } }) : promoverFn({ data: { person_id: personId } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mentores"] });
+      toast.success(ehMentor ? `${nome} deixou de ser mentor.` : `${nome} agora é mentor.`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Button
+      variant={ehMentor ? "secondary" : "outline"}
+      size="sm"
+      onClick={() => acao.mutate()}
+      disabled={acao.isPending}
+      title={
+        ehMentor
+          ? "Tirar o papel de mentor. A pessoa continua avaliada."
+          : "Dar acesso aos grupos que você atribuir. O painel dela continua o mesmo."
+      }
+    >
+      <GraduationCap className="size-4" /> {ehMentor ? "É mentor" : "Promover a mentor"}
+    </Button>
   );
 }

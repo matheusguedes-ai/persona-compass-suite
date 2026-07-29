@@ -1,9 +1,12 @@
 import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyMembership } from "@/lib/team.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandMark } from "@/lib/brand";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Eye, GraduationCap, LayoutList, LogOut, UserRound , MessagesSquare, Users, Trophy} from "lucide-react";
+import { ArrowLeft, Eye, GraduationCap, LayoutList, LogOut, UserRound , MessagesSquare, Users, Trophy, FolderKanban} from "lucide-react";
 import { ThemeToggle } from "@/lib/theme";
 
 export const Route = createFileRoute("/aluno")({
@@ -34,13 +37,25 @@ const NAV = [
 function AlunoLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { ver } = Route.useSearch();
+  // O mentor é um avaliado promovido: mesmo painel, com Grupos a mais. Era o
+  // desenho que faltava — antes ele tinha um cadastro à parte e caía no painel
+  // do dono, vazio.
+  const membershipFn = useServerFn(getMyMembership);
+  const { data: membership } = useQuery({
+    queryKey: ["my-membership"], queryFn: () => membershipFn(), staleTime: 300_000,
+  });
+  const itens =
+    membership?.kind === "mentor"
+      ? [...NAV, { to: "/grupos", label: "Grupos", icon: FolderKanban, exato: false } as const]
+      : NAV;
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground" style={{ fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif" }}>
       <header className="border-b border-black/5 bg-card">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-6 py-4">
           <BrandMark />
           <nav className="flex gap-1">
-            {NAV.map((n) => {
+            {itens.map((n) => {
               const ativo = n.exato ? pathname === n.to : pathname.startsWith(n.to);
               const Icone = n.icon;
               return (

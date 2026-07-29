@@ -871,6 +871,7 @@ export type Database = {
       }
       team_members: {
         Row: {
+          person_id: string | null
           accepted_at: string | null
           created_at: string
           email: string
@@ -886,6 +887,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          person_id?: string | null
           accepted_at?: string | null
           created_at?: string
           email: string
@@ -901,6 +903,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          person_id?: string | null
           accepted_at?: string | null
           created_at?: string
           email?: string
@@ -1351,6 +1354,8 @@ export type Database = {
         Returns: { id: string; kind: string; owner_id: string }[]
       }
       acting_account: { Args: Record<string, never>; Returns: string }
+      promover_a_mentor: { Args: { p_person_id: string }; Returns: string }
+      rebaixar_mentor: { Args: { p_person_id: string }; Returns: undefined }
       meus_grupos_como_avaliado: { Args: Record<string, never>; Returns: string[] }
       posso_ver_grupo: { Args: { p_group_id: string }; Returns: boolean }
       nome_do_mentor: { Args: { p_user_id: string }; Returns: string | null }

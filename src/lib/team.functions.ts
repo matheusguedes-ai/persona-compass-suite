@@ -469,3 +469,39 @@ export const criarContaDoConvite = createServerFn({ method: "POST" })
     // Já existia: o convite não serve para trocar a senha de uma conta alheia.
     return { ok: true as const, email: m.email, jaExistia: !!error };
   });
+
+/**
+ * Promove um avaliado a mentor.
+ *
+ * Substitui o convite de mentor. Quem é promovido já está cadastrado como
+ * pessoa e já tem — ou vai ter, pelo primeiro acesso — o painel de aluno. Não
+ * nasce segundo cadastro, segundo e-mail nem segundo painel: era exatamente
+ * isso que fazia o mesmo e-mail virar duas identidades.
+ */
+export const promoverAMentor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ person_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("promover_a_mentor", { p_person_id: data.person_id });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Tira o papel. A pessoa continua avaliada, com o painel dela. */
+export const rebaixarMentor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ person_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("rebaixar_mentor", { p_person_id: data.person_id });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Quem já é mentor, para a lista de pessoas mostrar o selo. */
+export const idsDeMentores = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("team_members").select("person_id").eq("kind", "mentor").not("person_id", "is", null);
+    return { ids: (data ?? []).map((x) => x.person_id as string) };
+  });

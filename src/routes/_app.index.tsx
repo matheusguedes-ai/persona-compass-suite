@@ -16,7 +16,9 @@ function RedirecionaMentor({ children }: { children: React.ReactNode }) {
   const { data } = useQuery({
     queryKey: ["my-membership"], queryFn: () => membershipFn(), staleTime: 300_000,
   });
-  if (data?.kind === "mentor") return <Navigate to="/grupos" />;
+  // O painel do mentor é o do ALUNO, com Grupos a mais — ele é um avaliado
+  // promovido. O dashboard do dono mostraria números da conta que não são dele.
+  if (data?.kind === "mentor") return <Navigate to="/aluno" search={{ ver: undefined }} />;
   return <>{children}</>;
 }
 
