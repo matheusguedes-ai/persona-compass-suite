@@ -127,6 +127,11 @@ export function LadoDaComunidade({ grupos }: { grupos: Array<{ id: string; name:
           campos nem chegam aqui — o corte é no banco. */}
       <Dialog open={!!vendo} onOpenChange={(v) => !v && setVendo(null)}>
         <DialogContent className="max-w-sm">
+          {perfil && !perfil.perfil && (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Não foi possível abrir este perfil.
+            </p>
+          )}
           {perfil?.perfil && (
             <>
               <DialogHeader>
