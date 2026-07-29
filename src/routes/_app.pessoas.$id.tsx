@@ -1,8 +1,17 @@
+import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ROLE_LABEL, type PersonRole } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { GraduationCap } from "lucide-react";
-import { promoverAMentor, rebaixarMentor, idsDeMentores } from "@/lib/team.functions";
+import {
+  promoverAMentor, rebaixarMentor, idsDeMentores, gruposDoMentor, definirGrupoDoMentor,
+} from "@/lib/team.functions";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FolderKanban } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -368,18 +377,145 @@ function BotaoMentor({ personId, nome }: { personId: string; nome: string }) {
   });
 
   return (
-    <Button
-      variant={ehMentor ? "secondary" : "outline"}
-      size="sm"
-      onClick={() => acao.mutate()}
-      disabled={acao.isPending}
-      title={
-        ehMentor
-          ? "Tirar o papel de mentor. A pessoa continua avaliada."
-          : "Dar acesso aos grupos que você atribuir. O painel dela continua o mesmo."
-      }
-    >
-      <GraduationCap className="size-4" /> {ehMentor ? "É mentor" : "Promover a mentor"}
-    </Button>
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        variant={ehMentor ? "secondary" : "outline"}
+        size="sm"
+        onClick={() => acao.mutate()}
+        disabled={acao.isPending}
+        title={
+          ehMentor
+            ? "Tirar o papel de mentor. A pessoa continua avaliada."
+            : "Dar acesso aos grupos que você atribuir. O painel dela continua o mesmo."
+        }
+      >
+        <GraduationCap className="size-4" /> {ehMentor ? "É mentor" : "Promover a mentor"}
+      </Button>
+      {ehMentor && <GruposDoMentor personId={personId} nome={nome} />}
+    </div>
+  );
+}
+
+/**
+ * Quais grupos este mentor cuida.
+ *
+ * Cuidar não é o mesmo que participar. Adicionar a pessoa a um grupo pelo
+ * cadastro faz dela participante — comunidade e ranking. Acompanhar os
+ * avaliados daquele grupo é outra coisa, e é aqui.
+ *
+ * Ver o relatório dentro da plataforma vem junto com o grupo. Baixar e agendar
+ * devolutiva são liberados um a um: o arquivo baixado sai da plataforma e
+ * deixa de ter controle nenhum, então essa é a chave que merece pensar duas
+ * vezes.
+ */
+function GruposDoMentor({ personId, nome }: { personId: string; nome: string }) {
+  const qc = useQueryClient();
+  const listaFn = useServerFn(gruposDoMentor);
+  const salvarFn = useServerFn(definirGrupoDoMentor);
+  const [aberto, setAberto] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["grupos-do-mentor", personId],
+    queryFn: () => listaFn({ data: { person_id: personId } }),
+    enabled: aberto,
+  });
+
+  const salvar = useMutation({
+    mutationFn: (v: {
+      group_id: string; atribuir: boolean;
+      can_download_reports?: boolean; can_schedule_devolutivas?: boolean;
+    }) => salvarFn({ data: { person_id: personId, ...v } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["grupos-do-mentor", personId] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const grupos = data?.grupos ?? [];
+  const quantos = grupos.filter((g) => g.atribuido).length;
+
+  return (
+    <Dialog open={aberto} onOpenChange={setAberto}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <FolderKanban className="size-4" /> Grupos que acompanha
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Grupos de {nome}</DialogTitle>
+          <DialogDescription>
+            Marque os grupos que {nome.split(" ")[0]} vai acompanhar. Ver o relatório na tela vem
+            junto; baixar e agendar devolutiva você libera separado.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
+
+        {!isLoading && grupos.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Você ainda não tem grupos. Crie um em Grupos e volte aqui.
+          </p>
+        )}
+
+        <ul className="max-h-[55vh] space-y-2 overflow-y-auto">
+          {grupos.map((g) => (
+            <li key={g.group_id} className="rounded-lg border border-black/5 p-3">
+              <label className="flex cursor-pointer items-center gap-2.5">
+                <Checkbox
+                  checked={g.atribuido}
+                  onCheckedChange={(v) =>
+                    salvar.mutate({
+                      group_id: g.group_id,
+                      atribuir: v === true,
+                      can_download_reports: g.can_download_reports,
+                      can_schedule_devolutivas: g.can_schedule_devolutivas,
+                    })
+                  }
+                />
+                <span className="text-sm font-medium">{g.name}</span>
+              </label>
+
+              {g.atribuido && (
+                <div className="mt-3 space-y-2 border-t border-black/5 pt-3 pl-7">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-muted-foreground">Baixar relatórios</span>
+                    <Switch
+                      checked={g.can_download_reports}
+                      onCheckedChange={(v) =>
+                        salvar.mutate({
+                          group_id: g.group_id, atribuir: true,
+                          can_download_reports: v,
+                          can_schedule_devolutivas: g.can_schedule_devolutivas,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-muted-foreground">Agendar devolutivas</span>
+                    <Switch
+                      checked={g.can_schedule_devolutivas}
+                      onCheckedChange={(v) =>
+                        salvar.mutate({
+                          group_id: g.group_id, atribuir: true,
+                          can_download_reports: g.can_download_reports,
+                          can_schedule_devolutivas: v,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        {grupos.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {quantos === 0
+              ? "Nenhum grupo ainda — ele entra no painel dele e não vê nada."
+              : `${quantos} ${quantos === 1 ? "grupo" : "grupos"}. Salva sozinho.`}
+          </p>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

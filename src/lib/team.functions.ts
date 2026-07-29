@@ -515,3 +515,97 @@ export const idsDeMentores = createServerFn({ method: "GET" })
       .from("team_members").select("person_id").eq("kind", "mentor").not("person_id", "is", null);
     return { ids: (data ?? []).map((x) => x.person_id as string) };
   });
+
+/**
+ * Os grupos que um mentor promovido cuida, com as duas chaves de cada um.
+ *
+ * Isto é o que substitui o diálogo do antigo menu Mentores. Devolve TODOS os
+ * grupos da conta, marcando os atribuídos — sem isso a tela não teria como
+ * oferecer os que faltam.
+ *
+ * Cuidar de um grupo é diferente de participar dele. O Matheus adicionou um
+ * mentor a um grupo pelo cadastro e esperou que ele passasse a acompanhá-lo;
+ * são caminhos separados de propósito, porque o mentor também é aluno e pode
+ * estar num grupo só como participante.
+ */
+export const gruposDoMentor = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ person_id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const supabase = context.supabase;
+    const { data: membro, error: eM } = await supabase
+      .from("team_members").select("id").eq("person_id", data.person_id).eq("kind", "mentor").maybeSingle();
+    if (eM) throw new Error(eM.message);
+    if (!membro) return { grupos: [] };
+
+    const [{ data: todos, error: eG }, { data: meus, error: eV }] = await Promise.all([
+      supabase.from("groups").select("id, name").order("name"),
+      supabase.from("team_member_groups")
+        .select("group_id, can_download_reports, can_schedule_devolutivas")
+        .eq("team_member_id", membro.id),
+    ]);
+    if (eG) throw new Error(eG.message);
+    if (eV) throw new Error(eV.message);
+
+    return {
+      grupos: (todos ?? []).map((g) => {
+        const v = (meus ?? []).find((m) => m.group_id === g.id);
+        return {
+          group_id: g.id,
+          name: g.name,
+          atribuido: !!v,
+          can_download_reports: v?.can_download_reports ?? false,
+          can_schedule_devolutivas: v?.can_schedule_devolutivas ?? false,
+        };
+      }),
+    };
+  });
+
+/**
+ * Atribui (ou tira) um grupo, e ajusta as duas chaves.
+ *
+ * Ver dentro da plataforma vem junto com o grupo; baixar o relatório e agendar
+ * devolutiva são opt-in, um de cada vez. Baixar é o mais sensível: o arquivo
+ * sai da plataforma e deixa de ter controle nenhum.
+ */
+export const definirGrupoDoMentor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      person_id: z.string().uuid(),
+      group_id: z.string().uuid(),
+      atribuir: z.boolean(),
+      can_download_reports: z.boolean().optional(),
+      can_schedule_devolutivas: z.boolean().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const supabase = context.supabase;
+
+    // Só o dono da conta mexe nisto. Um mentor não amplia o próprio acesso.
+    const { data: grupo, error: eG } = await supabase
+      .from("groups").select("id").eq("id", data.group_id).eq("mentor_id", context.userId).maybeSingle();
+    if (eG) throw new Error(eG.message);
+    if (!grupo) throw new Error("Este grupo não é seu.");
+
+    const { data: membro, error: eM } = await supabase
+      .from("team_members").select("id").eq("person_id", data.person_id).eq("kind", "mentor").maybeSingle();
+    if (eM) throw new Error(eM.message);
+    if (!membro) throw new Error("Esta pessoa não é mentora.");
+
+    if (!data.atribuir) {
+      const { error } = await supabase.from("team_member_groups")
+        .delete().eq("team_member_id", membro.id).eq("group_id", data.group_id);
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    }
+
+    const { error } = await supabase.from("team_member_groups").upsert({
+      team_member_id: membro.id,
+      group_id: data.group_id,
+      can_download_reports: data.can_download_reports ?? false,
+      can_schedule_devolutivas: data.can_schedule_devolutivas ?? false,
+    }, { onConflict: "team_member_id,group_id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

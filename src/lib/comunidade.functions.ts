@@ -98,7 +98,7 @@ export const listarFeed = createServerFn({ method: "GET" })
     // Quem modera o quê é decidido no banco, não aqui — a tela só pergunta.
     const podeModerar = new Set<string>();
     await Promise.all(ids.map(async (id) => {
-      const { data: ok } = await supabase.rpc("posso_moderar_post", { p_post: id });
+      const { data: ok } = await (supabase.rpc as never as (n: string, a: unknown) => Promise<{ data: boolean | null }>)("posso_moderar_post", { p_post: id });
       if (ok) podeModerar.add(id);
     }));
     if (error) throw new Error(error.message);
