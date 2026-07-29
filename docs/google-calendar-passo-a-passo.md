@@ -1,151 +1,157 @@
-# Google Calendar — o que você precisa fazer
+# Google Calendar — passo a passo, com as telas que você realmente tem
 
-Etapa 4 do menu Gestão. É a única parte que eu não consigo fazer sozinho: mexer
-no Google Cloud exige a sua conta e a sua senha.
+Escrito depois de abrir o seu Google Cloud e olhar cada tela. A primeira versão
+deste documento estava errada: descrevi de memória e o Google reorganizou essa
+área inteira. O que vale é o que está aqui.
 
-Decisões já tomadas: **mão única** (o que é marcado na plataforma vai para o
-Google, nada volta) e **só você conecta**, por enquanto.
-
----
-
-## Antes de começar, o que esperar
-
-Você já tem um projeto no Google Cloud — é o que faz o "Entrar com Google"
-funcionar. **Vamos usar o mesmo projeto**, só acrescentando uma permissão.
-
-Duas coisas que costumam assustar e são normais:
-
-- A tela do Google Cloud muda de nome e de lugar com frequência. Se um botão
-  estiver com outro nome, procure pelo sentido, não pela palavra exata.
-- Vai aparecer aviso de "escopo sensível" e de "app não verificado". Enquanto
-  o app estiver em modo de **teste** e só você usar, isso é esperado e não
-  impede nada.
+**Seu projeto:** `metrica-humana` · **Seu cliente OAuth:** "Cliente Web 1"
 
 ---
 
-## Passo 1 — Ligar a API do Calendar
+## O que mudou em relação ao que eu tinha dito
 
-1. Abra <https://console.cloud.google.com>
-2. No topo, confira se o projeto selecionado é **o mesmo do login** (o nome
-   aparece na barra de cima; se tiver mais de um, é o que você criou quando
-   configuramos o "Entrar com Google").
-3. No menu lateral, vá em **APIs e serviços → Biblioteca**.
-4. Pesquise por **Google Calendar API**.
-5. Clique nela e depois em **Ativar**.
+| Eu disse | Na verdade |
+|---|---|
+| "APIs e serviços → Tela de permissão OAuth" | Agora é uma seção separada, **Google Auth Platform** |
+| "Adicione você como usuário de teste" | **Não existe** no seu caso — seu app é **Interno** |
+| "Vai precisar de verificação do Google" | **Não precisa**, enquanto for Interno |
 
-Pronto quando: a página passa a mostrar "API ativada" ou um botão **Gerenciar**
-no lugar de Ativar.
+**Por que:** seu app está configurado como **Interno**, ou seja, só funciona para
+contas do seu Google Workspace (`@metodointencao.com.br`). App interno **não
+passa por verificação** e não tem lista de usuários de teste. Isso simplifica
+tudo agora — e é a razão de a etapa 4 ter deixado de ser a arriscada.
 
----
-
-## Passo 2 — Pedir a permissão de calendário
-
-1. Ainda em **APIs e serviços**, vá em **Tela de permissão OAuth**
-   (em versões novas pode estar como **Acesso a dados**).
-2. Procure a lista de **escopos** (às vezes dentro de "Editar app" → "Escopos").
-3. Clique em **Adicionar ou remover escopos**.
-4. Na caixa de filtro, cole:
-
-   ```
-   https://www.googleapis.com/auth/calendar.app.created
-   ```
-
-5. Marque a caixa dele e clique em **Atualizar** e depois em **Salvar**.
-
-**Por que esse e não outro:** esse escopo deixa a plataforma criar um calendário
-próprio e mexer **só nos eventos que ela mesma criou**. Ela não lê nem apaga
-nada do seu calendário pessoal. É o mais estreito que serve para o que você
-pediu — e quanto mais estreito, menos exigência o Google faz.
-
-⚠️ Se por algum motivo esse escopo não aparecer na busca, me avise antes de
-escolher outro. O parecido (`calendar.events`) dá acesso a **todos** os seus
-eventos, e eu prefiro não pedir isso sem você saber.
+⚠️ **A consequência aparece depois:** aluno com Gmail pessoal **não vai
+conseguir** conectar o calendário enquanto o app for Interno. Quando você quiser
+abrir para alunos e mentores, aí sim será preciso torná-lo Externo e passar pela
+verificação. Fica anotado.
 
 ---
 
-## Passo 3 — Colocar você como usuário de teste
+## Passo 1 — Ativar a API do Calendar
 
-1. Na mesma tela de permissão OAuth, procure **Público-alvo** ou
-   **Usuários de teste**.
-2. Se o app estiver como **Em produção**, mude para **Teste**.
-3. Clique em **Adicionar usuários** e ponha
-   `matheusguedes@metodointencao.com.br`.
+**Abra direto este endereço** (já vai no projeto certo):
 
-Enquanto estiver em Teste, **só os e-mails dessa lista** conseguem conectar o
-calendário. É de propósito: evita a verificação do Google agora.
+```
+https://console.cloud.google.com/apis/library/calendar-json.googleapis.com?project=metrica-humana
+```
 
----
+Você vai ver o título **Google Calendar API** com o ícone azul do calendário, o
+número 31.
 
-## Passo 4 — Autorizar o endereço de retorno
+Logo abaixo da descrição há dois botões: **Ativar** (azul, à esquerda) e
+**Testar esta API**.
 
-1. Vá em **APIs e serviços → Credenciais**.
-2. Clique no **ID do cliente OAuth** que já existe (o do login).
-3. Em **URIs de redirecionamento autorizados**, clique em **Adicionar URI** e
-   cole:
+👉 Clique em **Ativar**. Espere alguns segundos.
 
-   ```
-   https://persona-compass-suite.lovable.app/api/google/callback
-   ```
-
-4. **Salvar**.
-
-Esse é o endereço para onde o Google devolve você depois de autorizar. Sem ele,
-o Google recusa a conexão com erro de "redirect_uri_mismatch".
+**Deu certo quando:** o botão "Ativar" some e a página passa a mostrar
+**Gerenciar** no lugar dele.
 
 ---
 
-## Passo 5 — Guardar a chave (você faz, eu não vejo)
+## Passo 2 — Adicionar a permissão de calendário
 
-Nesta mesma tela de Credenciais aparecem o **ID do cliente** e a **Chave secreta
-do cliente**.
+**Abra direto:**
 
-**Não me mande esses valores por mensagem.** Eu vou deixar a plataforma
-preparada para lê-los de duas variáveis, e você mesmo cola os valores no painel
-de segredos:
+```
+https://console.cloud.google.com/auth/scopes?project=metrica-humana
+```
+
+O título da página é **Acesso a dados**. Você verá um botão
+**Adicionar ou remover escopos**.
+
+👉 Clique nele. Abre um painel do lado direito.
+
+Nesse painel há uma caixa escrita **Digite o nome, a descrição ou o código do
+escopo** (ou "Filtrar"). Cole exatamente isto:
+
+```
+calendar.app.created
+```
+
+Vai aparecer uma linha com a API **Google Calendar API**. 👉 Marque a caixinha
+dessa linha.
+
+Desça até o fim do painel e clique em **Atualizar**.
+
+De volta à página "Acesso a dados", desça e clique em **Salvar**.
+
+**Deu certo quando:** o escopo aparece listado na página, numa das tabelas
+(provavelmente em "Seus escopos confidenciais").
+
+> **Por que esse escopo e não outro:** `calendar.app.created` deixa a plataforma
+> criar um calendário próprio e mexer **só nos eventos que ela mesma criou**.
+> Ela não lê, não edita e não apaga nada do seu calendário pessoal. Existe um
+> parecido, `calendar.events`, que dá acesso a **todos** os seus compromissos —
+> e eu não quero pedir isso.
+
+---
+
+## Passo 3 — Autorizar o endereço de retorno
+
+**Abra direto:**
+
+```
+https://console.cloud.google.com/auth/clients?project=metrica-humana
+```
+
+O título é **Clientes**. Há uma tabela **IDs do cliente OAuth 2.0** com uma
+linha só: **Cliente Web 1**, do tipo "Aplicativo da Web".
+
+👉 Clique no nome **Cliente Web 1** (é um link azul).
+
+Na página que abre, desça até a seção **URIs de redirecionamento autorizados**.
+Já deve haver um endereço lá (o do login). 👉 Clique em **+ Adicionar URI** e
+cole:
+
+```
+https://persona-compass-suite.lovable.app/api/google/callback
+```
+
+👉 Clique em **Salvar**, no fim da página.
+
+**Deu certo quando:** o novo endereço aparece na lista junto com o que já
+existia. **Não apague o que já estava lá** — é o que faz o login funcionar.
+
+---
+
+## Passo 4 — As chaves (você guarda, eu não vejo)
+
+Na mesma página do **Cliente Web 1**, do lado direito, aparecem:
+
+- **ID do cliente** — algo como `370969471029-10h0...apps.googleusercontent.com`
+- **Chave secreta do cliente** — precisa clicar num olho ou em "mostrar"
+
+**Não me mande esses valores por mensagem.** Eu deixo a plataforma preparada
+para lê-los de duas variáveis, e **você mesmo cola** os valores no painel de
+segredos, como fizemos com a chave do Resend:
 
 | Nome da variável | O que colar |
 |---|---|
 | `GOOGLE_CLIENT_ID` | o ID do cliente |
-| `GOOGLE_CLIENT_SECRET` | a chave secreta do cliente |
+| `GOOGLE_CLIENT_SECRET` | a chave secreta |
 
-É o mesmo caminho que usamos com a chave do Resend. Assim os valores ficam só
-com você e com o servidor — não passam por mim nem ficam no histórico da
-conversa.
-
----
-
-## Quando você terminar
-
-Me avise. Aí eu construo:
-
-- o botão **"Conectar meu Google Calendar"** nas Configurações;
-- o envio automático: agendou uma devolutiva ou criou um evento → aparece no seu
-  Google Calendar;
-- remarcou ou cancelou → atualiza lá também;
-- e a garantia de que, se o Google cair ou você desconectar, **a agenda de dentro
-  da plataforma continua funcionando** — ela nunca depende do Google estar ligado.
+Assim os valores ficam só com você e com o servidor — não passam por mim nem
+ficam guardados no histórico desta conversa.
 
 ---
 
-## Se der errado
+## Se travar
 
-- **"App não verificado"** → normal em modo Teste. Clique em "Avançado" e
-  "Acessar (não seguro)". Só vale para os e-mails da lista de teste.
-- **"redirect_uri_mismatch"** → o endereço do Passo 4 está diferente. Tem que
-  ser idêntico, inclusive o `https://` e sem barra no final.
-- **"acesso bloqueado"** → seu e-mail não está na lista de usuários de teste
-  (Passo 3).
-- **Nada acontece ao conectar** → me chame; provavelmente é a API do Passo 1 que
-  não ficou ativada.
+- **Não acho o projeto certo** → confira o nome na barra de cima; tem que estar
+  escrito **Metrica Humana**. Se estiver outro, clique nele e troque.
+- **"redirect_uri_mismatch"** quando for conectar → o endereço do Passo 3 está
+  diferente. Tem que ser idêntico: `https://`, sem barra no final.
+- **O escopo não aparece na busca** → confira se o Passo 1 foi concluído. O
+  Google só oferece os escopos de APIs já ativadas.
+- **Qualquer outra coisa** → me manda um print da tela que eu te digo onde
+  clicar.
 
 ---
 
-## Depois, quando abrir para alunos e mentores
+## Quando terminar, me avise
 
-Você pediu para não esquecer disso, e não vou esquecer. Só que aí muda uma
-coisa importante: para qualquer pessoa conectar, o app precisa sair do modo
-Teste — e aí o Google **exige verificação**, que leva dias e pede um vídeo
-mostrando como o app usa o calendário.
-
-Por isso começamos só com você: dá para ter a coisa funcionando e decidir depois
-se o trabalho da verificação vale a pena.
+Aí eu construo o botão "Conectar meu Google Calendar" nas Configurações, o envio
+automático (agendou → aparece no Google; remarcou → atualiza lá) e a garantia de
+que, se o Google cair ou você desconectar, a agenda de dentro da plataforma
+continua funcionando igual. Ela nunca depende do Google estar ligado.
