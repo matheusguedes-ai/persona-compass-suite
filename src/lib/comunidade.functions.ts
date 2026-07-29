@@ -334,3 +334,55 @@ export const membrosDosGrupos = createServerFn({ method: "GET" })
 
     return { membros };
   });
+
+/** A chave que a pessoa controla: os colegas veem meus dados ou não. */
+export const definirPerfilVisivel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ visivel: z.boolean() }).parse(d))
+  .handler(async ({ context, data }) => {
+    // Só o próprio cadastro. A RLS de `people` já barra mexer no de outro, mas
+    // o `eq` deixa explícito que isto nunca é ação sobre terceiro.
+    const { error } = await context.supabase
+      .from("people").update({ perfil_visivel: data.visivel }).eq("user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Como está a minha chave hoje. */
+export const meuPerfilVisivel = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("people").select("perfil_visivel").eq("user_id", context.userId).limit(1).maybeSingle();
+    return { visivel: data?.perfil_visivel ?? false };
+  });
+
+/**
+ * O perfil de um colega de grupo, com o que ele autorizou.
+ *
+ * O corte é no banco (`perfil_do_colega`): quando a pessoa não autorizou, o
+ * e-mail nem sai do servidor. Esconder na tela deixaria o dado chegar ao
+ * navegador — e escondido no HTML não é escondido.
+ */
+export const perfilDoColega = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ person_id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    type PerfilColega = {
+      id: string;
+      full_name: string;
+      avatar_url: string | null;
+      role_at_company: string | null;
+      profession: string | null;
+      email: string | null;
+      phone: string | null;
+      autorizou: boolean;
+    };
+    const { data: r, error } = await (context.supabase.rpc as never as (
+      n: string, a: unknown,
+    ) => Promise<{ data: PerfilColega[] | null; error: { message: string } | null }>)(
+      "perfil_do_colega", { p_person: data.person_id },
+    );
+    if (error) throw new Error(error.message);
+    return { perfil: (r ?? [])[0] ?? null };
+  });

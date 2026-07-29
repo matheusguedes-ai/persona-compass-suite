@@ -12,13 +12,23 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { rankingDoGrupo } from "@/lib/pontos.functions";
-import { membrosDosGrupos } from "@/lib/comunidade.functions";
+import { membrosDosGrupos, perfilDoColega } from "@/lib/comunidade.functions";
 import { Avatar } from "@/components/avatar-upload";
-import { Trophy, Users } from "lucide-react";
+import { Trophy, Users, Mail, Phone, Briefcase, Lock } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export function LadoDaComunidade({ grupos }: { grupos: Array<{ id: string; name: string }> }) {
   const [aba, setAba] = useState<"ranking" | "membros">("ranking");
+  const [vendo, setVendo] = useState<string | null>(null);
+  const perfilFn = useServerFn(perfilDoColega);
+  const { data: perfil } = useQuery({
+    queryKey: ["perfil-colega", vendo],
+    queryFn: () => perfilFn({ data: { person_id: vendo! } }),
+    enabled: !!vendo,
+  });
   const rankFn = useServerFn(rankingDoGrupo);
   const membrosFn = useServerFn(membrosDosGrupos);
 
@@ -89,14 +99,19 @@ export function LadoDaComunidade({ grupos }: { grupos: Array<{ id: string; name:
           <>
             <ul className="space-y-2">
               {(mem?.membros ?? []).map((m) => (
-                <li key={m.person_id} className="flex items-center gap-2.5">
-                  <Avatar url={m.avatar_url} nome={m.nome} className="size-7" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm">{m.nome}</p>
-                    {m.cargo && (
-                      <p className="truncate text-xs text-muted-foreground">{m.cargo}</p>
-                    )}
-                  </div>
+                <li key={m.person_id}>
+                  <button
+                    onClick={() => setVendo(m.person_id)}
+                    className="flex w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted"
+                  >
+                    <Avatar url={m.avatar_url} nome={m.nome} className="size-7" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">{m.nome}</p>
+                      {m.cargo && (
+                        <p className="truncate text-xs text-muted-foreground">{m.cargo}</p>
+                      )}
+                    </div>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -108,6 +123,59 @@ export function LadoDaComunidade({ grupos }: { grupos: Array<{ id: string; name:
           </>
         )}
       </div>
+      {/* O perfil do colega, com o que ELE autorizou. Quando não autorizou, os
+          campos nem chegam aqui — o corte é no banco. */}
+      <Dialog open={!!vendo} onOpenChange={(v) => !v && setVendo(null)}>
+        <DialogContent className="max-w-sm">
+          {perfil?.perfil && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-3">
+                  <Avatar
+                    url={perfil.perfil.avatar_url} nome={perfil.perfil.full_name}
+                    className="size-10"
+                  />
+                  <span>{perfil.perfil.full_name}</span>
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-2 text-sm">
+                {perfil.perfil.role_at_company && (
+                  <p className="text-muted-foreground">{perfil.perfil.role_at_company}</p>
+                )}
+
+                {perfil.perfil.autorizou ? (
+                  <>
+                    {perfil.perfil.profession && (
+                      <p className="flex items-center gap-2">
+                        <Briefcase className="size-4 shrink-0 text-muted-foreground" />
+                        {perfil.perfil.profession}
+                      </p>
+                    )}
+                    {perfil.perfil.email && (
+                      <p className="flex items-center gap-2">
+                        <Mail className="size-4 shrink-0 text-muted-foreground" />
+                        {perfil.perfil.email}
+                      </p>
+                    )}
+                    {perfil.perfil.phone && (
+                      <p className="flex items-center gap-2">
+                        <Phone className="size-4 shrink-0 text-muted-foreground" />
+                        {perfil.perfil.phone}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="flex items-start gap-2 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+                    <Lock className="mt-0.5 size-3.5 shrink-0" />
+                    Esta pessoa preferiu não compartilhar os dados de contato com o grupo.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }

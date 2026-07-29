@@ -1,3 +1,5 @@
+import { meuPerfilVisivel, definirPerfilVisivel } from "@/lib/comunidade.functions";
+import { Switch } from "@/components/ui/switch";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -100,6 +102,7 @@ function PerfilAluno() {
 
   return (
     <div className="max-w-xl space-y-6">
+      <VisibilidadeDoPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Meu perfil</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -173,6 +176,55 @@ function PerfilAluno() {
             Se você entra com o Google, não precisa de senha aqui.
           </p>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A pessoa decide se os colegas de grupo veem os dados dela.
+ *
+ * Nasce DESLIGADO para todo mundo, e isso é intencional: ligar por padrão
+ * exporia o contato de quem já estava cadastrado sem ninguém ter sido
+ * perguntado. Aqui é escolha.
+ *
+ * Foto, nome e cargo aparecem sempre — são o que identifica a pessoa na lista
+ * de membros, e sem eles a lista não serve para nada. O que a chave controla é
+ * contato e profissão.
+ */
+function VisibilidadeDoPerfil() {
+  const qc = useQueryClient();
+  const lerFn = useServerFn(meuPerfilVisivel);
+  const salvarFn = useServerFn(definirPerfilVisivel);
+  const { data } = useQuery({ queryKey: ["perfil-visivel"], queryFn: () => lerFn() });
+
+  const salvar = useMutation({
+    mutationFn: (v: boolean) => salvarFn({ data: { visivel: v } }),
+    onSuccess: (_r, v) => {
+      qc.invalidateQueries({ queryKey: ["perfil-visivel"] });
+      toast.success(v ? "Seus dados agora aparecem para o grupo." : "Seus dados ficaram ocultos.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-medium">Meus dados para o grupo</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Quando ligado, quem está nos seus grupos pode ver seu e-mail, telefone e profissão.
+            Sua foto, nome e cargo aparecem de qualquer forma.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Seus resultados de teste nunca aparecem aqui.
+          </p>
+        </div>
+        <Switch
+          checked={data?.visivel ?? false}
+          onCheckedChange={(v) => salvar.mutate(v)}
+          disabled={salvar.isPending}
+        />
       </div>
     </div>
   );

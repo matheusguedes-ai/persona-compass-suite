@@ -736,7 +736,7 @@ export type Database = {
         Relationships: []
       }
       people: {
-        Row: {
+        Row: { perfil_visivel: boolean;
           invite_link_id: string | null
           created_at: string
           email: string
@@ -752,7 +752,7 @@ export type Database = {
           updated_at: string
           user_id: string | null
         }
-        Insert: {
+        Insert: { perfil_visivel?: boolean;
           invite_link_id?: string | null
           created_at?: string
           email: string
@@ -768,7 +768,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Update: {
+        Update: { perfil_visivel?: boolean;
           invite_link_id?: string | null
           created_at?: string
           email?: string
