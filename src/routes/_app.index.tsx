@@ -5,6 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/data.functions";
 import { getMyMembership } from "@/lib/team.functions";
+import { getPanoramaGeral } from "@/lib/painel.functions";
+import { Avatar } from "@/components/avatar-upload";
+import {
+  FolderKanban, Users, MessagesSquare, BookOpen, UsersRound, Trophy, ArrowRight,
+} from "lucide-react";
 
 /**
  * O mentor afiliado não tem dashboard próprio: o do dono mostraria números da
@@ -75,6 +80,8 @@ function Dashboard() {
         <KpiCard label="Pendentes" value={isLoading ? "…" : String(pending)} hintTone={pending > 0 ? "warn" : undefined} />
         <KpiCard label="Pessoas cadastradas" value={isLoading ? "…" : String(data?.people ?? 0)} />
       </section>
+
+      <Panorama />
 
       <section className="grid gap-4 lg:grid-cols-2">
         {/* Ritmo: mostra se o movimento está crescendo ou parou. */}
@@ -188,5 +195,183 @@ function Dashboard() {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * Um indicador de cada menu, e o ranking geral.
+ *
+ * Duas partes, de propósito. Em cima, FRASES: o Matheus abre o Dashboard para
+ * saber o que fazer hoje, e "3 pessoas esperando devolutiva há 12 dias" diz
+ * isso — o número 3 sozinho, não. Embaixo, os cartões, para quem quer o número
+ * e o caminho para o menu.
+ *
+ * As frases são ordenadas por urgência e só aparecem quando têm o que dizer.
+ * Painel que repete "0" em tudo ensina a pessoa a ignorar o painel.
+ */
+function Panorama() {
+  const fn = useServerFn(getPanoramaGeral);
+  const { data, isLoading } = useQuery({ queryKey: ["panorama"], queryFn: () => fn() });
+
+  if (isLoading || !data) {
+    return (
+      <section className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+        <p className="text-sm text-muted-foreground">Levantando o panorama…</p>
+      </section>
+    );
+  }
+
+  const { pessoas, grupos, equipe, devolutivas, educacao, comunidade, ranking } = data;
+
+  const plural = (n: number, um: string, muitos: string) => `${n} ${n === 1 ? um : muitos}`;
+
+  // Cada frase é um recado. Tom: primeiro o que pede ação, depois o que vai bem.
+  const recados: Array<{ texto: string; tom: "acao" | "neutro" }> = [];
+
+  if (devolutivas.naFila > 0) {
+    recados.push({
+      tom: "acao",
+      texto:
+        `${plural(devolutivas.naFila, "pessoa respondeu", "pessoas responderam")} e ainda não teve devolutiva` +
+        (devolutivas.maisAntigaDias > 0
+          ? ` — a mais antiga espera há ${plural(devolutivas.maisAntigaDias, "dia", "dias")}.`
+          : "."),
+    });
+  }
+  if (pessoas.semGrupo > 0) {
+    recados.push({
+      tom: "acao",
+      texto: `${plural(pessoas.semGrupo, "pessoa não está", "pessoas não estão")} em nenhum grupo — ${
+        pessoas.semGrupo === 1 ? "ela não vê" : "elas não veem"
+      } comunidade nem ranking.`,
+    });
+  }
+  if (grupos.vazios > 0) {
+    recados.push({
+      tom: "acao",
+      texto: `${plural(grupos.vazios, "grupo está vazio", "grupos estão vazios")}, sem ninguém dentro.`,
+    });
+  }
+  if (pessoas.total > 0 && pessoas.comLogin === 0) {
+    recados.push({
+      tom: "acao",
+      texto: "Ninguém criou login ainda — sem isso não há painel do aluno, comunidade nem pontos.",
+    });
+  }
+  if (devolutivas.agendadas > 0) {
+    recados.push({
+      tom: "neutro",
+      texto: `${plural(devolutivas.agendadas, "devolutiva agendada", "devolutivas agendadas")} pela frente.`,
+    });
+  }
+  if (comunidade.posts7 > 0 || comunidade.comentarios7 > 0) {
+    recados.push({
+      tom: "neutro",
+      texto: `A comunidade teve ${plural(comunidade.posts7, "publicação", "publicações")} e ${plural(
+        comunidade.comentarios7, "comentário", "comentários",
+      )} nos últimos 7 dias.`,
+    });
+  } else if (comunidade.posts > 0) {
+    recados.push({ tom: "neutro", texto: "A comunidade está parada há mais de uma semana." });
+  }
+  if (educacao.alunosEstudando > 0) {
+    recados.push({
+      tom: "neutro",
+      texto: `${plural(educacao.alunosEstudando, "aluno está", "alunos estão")} estudando, com ${plural(
+        educacao.conclusoes, "aula concluída", "aulas concluídas",
+      )}.`,
+    });
+  }
+
+  const cartoes = [
+    { to: "/grupos", icone: FolderKanban, rotulo: "Grupos",
+      n: grupos.total, det: `${grupos.pessoasEmGrupo} em grupo` },
+    { to: "/pessoas", icone: Users, rotulo: "Pessoas",
+      n: pessoas.total, det: `${pessoas.comLogin} com login` },
+    { to: "/colaboradores", icone: UsersRound, rotulo: "Equipe",
+      n: equipe.ativos, det: `${equipe.mentores} mentor${equipe.mentores === 1 ? "" : "es"}` },
+    { to: "/devolutivas", icone: MessagesSquare, rotulo: "Devolutivas",
+      n: devolutivas.naFila, det: `${devolutivas.realizadas} já feitas` },
+    { to: "/educacao", icone: BookOpen, rotulo: "Educação",
+      n: educacao.aulas, det: `${educacao.trilhas} trilha${educacao.trilhas === 1 ? "" : "s"}` },
+    { to: "/comunidades", icone: MessagesSquare, rotulo: "Comunidade",
+      n: comunidade.posts, det: `${comunidade.comentarios} comentário${comunidade.comentarios === 1 ? "" : "s"}` },
+  ] as const;
+
+  return (
+    <>
+      {recados.length > 0 && (
+        <section className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+          <h2 className="text-sm font-medium tracking-tight">Como está a operação</h2>
+          <ul className="mt-3 space-y-2">
+            {recados.map((r, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-sm">
+                <span
+                  className={`mt-1.5 size-1.5 shrink-0 rounded-full ${
+                    r.tom === "acao" ? "bg-amber-400" : "bg-muted-foreground/40"
+                  }`}
+                />
+                <span className={r.tom === "acao" ? "" : "text-muted-foreground"}>{r.texto}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        {cartoes.map((c) => (
+          <Link
+            key={c.rotulo}
+            to={c.to}
+            className="group rounded-xl bg-card p-4 ring-1 ring-black/5 transition hover:ring-black/15"
+          >
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <c.icone className="size-4" />
+              <span className="text-xs font-medium">{c.rotulo}</span>
+              <ArrowRight className="ml-auto size-3.5 opacity-0 transition group-hover:opacity-60" />
+            </div>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">{c.n}</p>
+            <p className="text-xs text-muted-foreground">{c.det}</p>
+          </Link>
+        ))}
+      </section>
+
+      <section className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+        <div className="flex items-center gap-2">
+          <Trophy className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-medium tracking-tight">Ranking geral</h2>
+          <span className="text-xs text-muted-foreground">todos os alunos, sem separar por grupo</span>
+        </div>
+
+        {!data.alguemPontuou ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Ninguém pontuou ainda. Os pontos vêm de concluir aula, participar de devolutiva,
+            publicar, comentar e curtir — responder teste não pontua.
+          </p>
+        ) : (
+          <ol className="mt-4 space-y-1.5">
+            {ranking.map((l) => (
+              <li key={l.person_id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted/40">
+                <span className="w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                  {l.posicao}
+                </span>
+                <Avatar url={l.avatar_url} nome={l.nome} className="size-7" />
+                <Link
+                  to="/pessoas/$id"
+                  params={{ id: l.person_id }}
+                  className="min-w-0 flex-1 truncate text-sm hover:underline"
+                >
+                  {l.nome}
+                </Link>
+                <span className="text-xs text-muted-foreground">
+                  {l.acoes > 0 ? `${l.acoes} ${l.acoes === 1 ? "ação" : "ações"}` : "—"}
+                </span>
+                <span className="w-12 text-right text-sm font-medium tabular-nums">{l.total}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </>
   );
 }
