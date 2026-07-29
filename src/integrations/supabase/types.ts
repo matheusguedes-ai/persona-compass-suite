@@ -44,9 +44,9 @@ export type Database = {
         ]
       }
       eventos: {
-        Row: { id: string; conta_id: string; titulo: string; descricao: string | null; quando: string; duracao_min: number | null; criado_por: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; conta_id: string; titulo: string; descricao?: string | null; quando: string; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; conta_id?: string; titulo?: string; descricao?: string | null; quando?: string; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; conta_id: string; titulo: string; descricao: string | null; quando: string; termina_em: string | null; imagem_url: string | null; link_url: string | null; duracao_min: number | null; criado_por: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; conta_id: string; titulo: string; descricao?: string | null; quando: string; termina_em?: string | null; imagem_url?: string | null; link_url?: string | null; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; conta_id?: string; titulo?: string; descricao?: string | null; quando?: string; termina_em?: string | null; imagem_url?: string | null; link_url?: string | null; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
         Relationships: []
       }
       evento_destinos: {

@@ -15,7 +15,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { agendaDoMes, type Compromisso } from "@/lib/gestao.functions";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, ExternalLink } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { NovoEvento } from "@/components/novo-evento";
 
 const SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
@@ -54,6 +57,8 @@ export function Agenda({
 }) {
   const hoje = new Date();
   const [ref, setRef] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  // O compromisso aberto no pop-up. Null = fechado.
+  const [aberto, setAberto] = useState<Compromisso | null>(null);
 
   // O intervalo do mês, em horário LOCAL, convertido para ISO com fuso.
   const { de, ate } = useMemo(
@@ -156,15 +161,16 @@ export function Agenda({
                         {c.tipo === "evento" ? (
                           // Evento não é conversa com ninguém: não há para onde
                           // levar, então não vira link.
-                          <div
-                            className="truncate rounded bg-violet-500/10 px-1.5 py-1 text-[11px] leading-tight text-violet-700 dark:text-violet-300"
-                            title={`${c.person_name}${c.descricao ? ` — ${c.descricao}` : ""}`}
+                          <button
+                            onClick={() => setAberto(c)}
+                            className="block w-full truncate rounded bg-violet-500/10 px-1.5 py-1 text-left text-[11px] leading-tight text-violet-700 hover:bg-violet-500/20 dark:text-violet-300"
+                            title="Ver detalhes"
                           >
                             {horaBr(c.quando) && (
                               <span className="font-medium tabular-nums">{horaBr(c.quando)} </span>
                             )}
                             {c.person_name}
-                          </div>
+                          </button>
                         ) : (
                           <Link
                             to={area === "aluno" ? "/aluno/devolutivas" : "/devolutivas"}
@@ -193,6 +199,53 @@ export function Agenda({
         </div>
       </div>
 
+      {/* Tudo do evento junto, num lugar só — era o que faltava: dava para
+          criar com imagem e link e não havia onde vê-los. */}
+      <Dialog open={!!aberto} onOpenChange={(v) => !v && setAberto(null)}>
+        <DialogContent className="max-w-lg">
+          {aberto && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{aberto.person_name}</DialogTitle>
+              </DialogHeader>
+
+              {aberto.imagem_url && (
+                <img
+                  src={aberto.imagem_url} alt=""
+                  className="max-h-56 w-full rounded-lg object-cover"
+                />
+              )}
+
+              <div className="flex items-start gap-2 text-sm">
+                <Clock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <span>
+                  {new Date(aberto.quando).toLocaleDateString("pt-BR", {
+                    weekday: "long", day: "2-digit", month: "long",
+                  })}
+                  {horaBr(aberto.quando) && ` · ${horaBr(aberto.quando)}`}
+                  {aberto.termina_em && horaBr(aberto.termina_em) && ` às ${horaBr(aberto.termina_em)}`}
+                </span>
+              </div>
+
+              {aberto.descricao && (
+                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                  {aberto.descricao}
+                </p>
+              )}
+
+              {aberto.link_url && (
+                <a
+                  href={aberto.link_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+                >
+                  <ExternalLink className="size-3.5" /> Abrir link
+                </a>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* O calendário mostra o mês; esta lista responde "e agora, o que vem?" */}
       <div className="rounded-xl bg-card p-4 ring-1 ring-black/5">
         <h3 className="text-sm font-medium">Próximos</h3>
@@ -204,7 +257,13 @@ export function Agenda({
           <ul className="mt-3 space-y-2">
             {proximos.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-3 text-sm">
-                <span className="truncate">{c.person_name}</span>
+                {c.tipo === "evento" ? (
+                  <button onClick={() => setAberto(c)} className="truncate text-left hover:underline">
+                    {c.person_name}
+                  </button>
+                ) : (
+                  <span className="truncate">{c.person_name}</span>
+                )}
                 <span className="shrink-0 text-xs text-muted-foreground">
                   {new Date(c.quando).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                   {horaBr(c.quando) ? ` · ${horaBr(c.quando)}` : ""}

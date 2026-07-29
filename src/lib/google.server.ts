@@ -177,7 +177,7 @@ export async function sincronizar(
   userId: string,
   origem: "devolutiva" | "evento",
   origemId: string,
-  dados: { titulo: string; descricao?: string | null; quando: string; duracaoMin?: number | null } | null,
+  dados: { titulo: string; descricao?: string | null; quando: string; terminaEm?: string | null; duracaoMin?: number | null } | null,
 ): Promise<void> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -212,7 +212,10 @@ export async function sincronizar(
     }
 
     const inicio = new Date(dados.quando);
-    const fim = new Date(inicio.getTime() + (dados.duracaoMin ?? 60) * 60_000);
+    // Hora de fim informada manda; sem ela, a duração; sem nenhuma, 60 min.
+    const fim = dados.terminaEm
+      ? new Date(dados.terminaEm)
+      : new Date(inicio.getTime() + (dados.duracaoMin ?? 60) * 60_000);
     const corpo = JSON.stringify({
       summary: dados.titulo,
       description: dados.descricao ?? undefined,

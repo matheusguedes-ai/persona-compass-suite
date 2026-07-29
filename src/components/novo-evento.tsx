@@ -23,7 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CalendarPlus } from "lucide-react";
+import { CalendarPlus, ImagePlus, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export function NovoEvento() {
@@ -36,6 +37,30 @@ export function NovoEvento() {
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [quando, setQuando] = useState("");
+  const [terminaEm, setTerminaEm] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [imagemUrl, setImagemUrl] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviarImagem(f: File) {
+    // O limite existe para o celular: banner de 8 MB trava a agenda de quem
+    // abre no 4G, e ninguém liga a lentidão à imagem que subiu semana passada.
+    if (f.size > 3 * 1024 * 1024) return toast.error("Imagem muito grande (máximo 3 MB).");
+    setEnviando(true);
+    try {
+      const { data: sessao } = await supabase.auth.getUser();
+      const ext = f.name.split(".").pop() ?? "jpg";
+      const caminho = `${sessao.user?.id}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("eventos").upload(caminho, f);
+      if (error) throw new Error(error.message);
+      const { data: pub } = supabase.storage.from("eventos").getPublicUrl(caminho);
+      setImagemUrl(pub.publicUrl);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setEnviando(false);
+    }
+  }
   const [grupos, setGrupos] = useState<string[]>([]);
   const [pessoas, setPessoas] = useState<string[]>([]);
 
@@ -57,6 +82,9 @@ export function NovoEvento() {
           // é o que queremos. `toISOString()` converte para UTC com o fuso
           // correto embutido.
           quando: new Date(quando).toISOString(),
+          termina_em: terminaEm ? new Date(terminaEm).toISOString() : null,
+          imagem_url: imagemUrl,
+          link_url: linkUrl.trim() || null,
           group_ids: grupos,
           person_ids: pessoas,
         },
@@ -65,12 +93,16 @@ export function NovoEvento() {
       toast.success("Evento criado.");
       qc.invalidateQueries({ queryKey: ["agenda"] });
       setAberto(false);
-      setTitulo(""); setDescricao(""); setQuando(""); setGrupos([]); setPessoas([]);
+      setTitulo(""); setDescricao(""); setQuando(""); setTerminaEm("");
+      setLinkUrl(""); setImagemUrl(null); setGrupos([]); setPessoas([]);
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const semDestino = grupos.length + pessoas.length === 0;
+  // O banco também barra, mas avisar aqui evita o erro feio depois de preencher
+  // o formulário inteiro.
+  const fimInvalido = !!terminaEm && !!quando && new Date(terminaEm) <= new Date(quando);
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
@@ -102,6 +134,44 @@ export function NovoEvento() {
               id="ev-quando" type="datetime-local" value={quando}
               onChange={(e) => setQuando(e.target.value)}
             />
+          </div>
+          <div>
+            <Label htmlFor="ev-fim">Termina em (opcional)</Label>
+            <Input
+              id="ev-fim" type="datetime-local" value={terminaEm}
+              onChange={(e) => setTerminaEm(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="ev-link">Link externo (opcional)</Label>
+            <Input
+              id="ev-link" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="https://…"
+            />
+          </div>
+          <div>
+            <Label>Imagem (opcional)</Label>
+            {imagemUrl ? (
+              <div className="relative mt-1 overflow-hidden rounded-lg">
+                <img src={imagemUrl} alt="" className="h-28 w-full object-cover" />
+                <button
+                  onClick={() => setImagemUrl(null)}
+                  className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white"
+                  title="Remover imagem"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ) : (
+              <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+                <ImagePlus className="size-4" />
+                {enviando ? "Enviando…" : "Escolher JPG ou PNG (até 3 MB)"}
+                <input
+                  type="file" accept="image/jpeg,image/png" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarImagem(f); }}
+                />
+              </label>
+            )}
           </div>
           <div>
             <Label htmlFor="ev-desc">Descrição (opcional)</Label>
@@ -152,14 +222,14 @@ export function NovoEvento() {
         </div>
 
         <DialogFooter className="items-center gap-3">
-          {semDestino && (
+          {(semDestino || fimInvalido) && (
             <span className="mr-auto text-xs text-muted-foreground">
-              Escolha ao menos um grupo ou pessoa.
+              {fimInvalido ? "O fim precisa ser depois do início." : "Escolha ao menos um grupo ou pessoa."}
             </span>
           )}
           <Button
             onClick={() => salvar.mutate()}
-            disabled={!titulo.trim() || !quando || semDestino || salvar.isPending}
+            disabled={!titulo.trim() || !quando || semDestino || salvar.isPending || fimInvalido || enviando}
           >
             {salvar.isPending ? "Criando…" : "Criar evento"}
           </Button>

@@ -110,6 +110,9 @@ export type Compromisso = {
   /** Devolutiva é conversa com uma pessoa; evento é o que o master publicou. */
   tipo: "devolutiva" | "evento";
   descricao?: string | null;
+  termina_em?: string | null;
+  imagem_url?: string | null;
+  link_url?: string | null;
 };
 
 /**
@@ -188,7 +191,7 @@ export const agendaDoMes = createServerFn({ method: "GET" })
     // o caso mais comum.
     const { data: evs, error: eE2 } = await context.supabase
       .from("eventos")
-      .select("id, titulo, descricao, quando")
+      .select("id, titulo, descricao, quando, termina_em, imagem_url, link_url")
       .gte("quando", de)
       .lt("quando", ate)
       .order("quando");
@@ -204,6 +207,9 @@ export const agendaDoMes = createServerFn({ method: "GET" })
         atrasada: false,
         tipo: "evento",
         descricao: e.descricao,
+        termina_em: e.termina_em,
+        imagem_url: e.imagem_url,
+        link_url: e.link_url,
       });
     }
     compromissos.sort((a, b) => a.quando.localeCompare(b.quando));
@@ -227,6 +233,9 @@ export const criarEvento = createServerFn({ method: "POST" })
       descricao: z.string().trim().max(2000).optional(),
       quando: z.string().datetime({ offset: true }),
       duracao_min: z.number().int().min(5).max(600).nullable().optional(),
+      termina_em: z.string().datetime({ offset: true }).nullable().optional(),
+      imagem_url: z.string().url().nullable().optional(),
+      link_url: z.string().url().max(600).nullable().optional(),
       group_ids: z.array(z.string().uuid()).default([]),
       person_ids: z.array(z.string().uuid()).default([]),
     })
@@ -247,6 +256,9 @@ export const criarEvento = createServerFn({ method: "POST" })
         titulo: data.titulo,
         descricao: data.descricao?.trim() || null,
         quando: data.quando,
+        termina_em: data.termina_em ?? null,
+        imagem_url: data.imagem_url ?? null,
+        link_url: data.link_url ?? null,
         duracao_min: data.duracao_min ?? null,
         criado_por: context.userId,
       })
@@ -303,6 +315,8 @@ export const criarEvento = createServerFn({ method: "POST" })
       titulo: data.titulo,
       descricao: data.descricao ?? null,
       quando: data.quando,
+      // Fim de verdade quando houver; senão a duração fixa de antes.
+      terminaEm: data.termina_em ?? null,
       duracaoMin: data.duracao_min ?? null,
     });
     return { id: criado.id };
