@@ -55,6 +55,18 @@ export type Database = {
         Update: { id?: string; evento_id?: string; group_id?: string | null; person_id?: string | null }
         Relationships: []
       }
+      google_conexoes: {
+        Row: { user_id: string; refresh_token: string; calendar_id: string | null; email: string | null; conectado_em: string; ultimo_erro: string | null; ultimo_uso_em: string | null }
+        Insert: { user_id: string; refresh_token: string; calendar_id?: string | null; email?: string | null; conectado_em?: string; ultimo_erro?: string | null; ultimo_uso_em?: string | null }
+        Update: { user_id?: string; refresh_token?: string; calendar_id?: string | null; email?: string | null; conectado_em?: string; ultimo_erro?: string | null; ultimo_uso_em?: string | null }
+        Relationships: []
+      }
+      google_eventos: {
+        Row: { id: string; user_id: string; origem: string; origem_id: string; google_event_id: string; criado_em: string }
+        Insert: { id?: string; user_id: string; origem: string; origem_id: string; google_event_id: string; criado_em?: string }
+        Update: { id?: string; user_id?: string; origem?: string; origem_id?: string; google_event_id?: string; criado_em?: string }
+        Relationships: []
+      }
       notificacoes: {
         Row: { id: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo: string | null; link: string | null; ator_nome: string | null; lida_em: string | null; created_at: string }
         Insert: { id?: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo?: string | null; link?: string | null; ator_nome?: string | null; lida_em?: string | null; created_at?: string }

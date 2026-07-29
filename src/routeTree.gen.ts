@@ -54,6 +54,7 @@ import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
 import { Route as AlunoEducacaoIndexRouteImport } from './routes/aluno.educacao.index'
 import { Route as AlunoEducacaoTrackIdRouteImport } from './routes/aluno.educacao.$trackId'
+import { Route as ApiGoogleCallbackRouteImport } from './routes/api.google.callback'
 import { Route as AppDevolutivasIdPainelRouteImport } from './routes/_app.devolutivas.$id.painel'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
@@ -291,6 +292,11 @@ const AlunoEducacaoTrackIdRoute = AlunoEducacaoTrackIdRouteImport.update({
   path: '/educacao/$trackId',
   getParentRoute: () => AlunoRoute,
 } as any)
+const ApiGoogleCallbackRoute = ApiGoogleCallbackRouteImport.update({
+  id: '/api/google/callback',
+  path: '/api/google/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppDevolutivasIdPainelRoute = AppDevolutivasIdPainelRouteImport.update({
   id: '/$id/painel',
   path: '/$id/painel',
@@ -372,6 +378,7 @@ export interface FileRoutesByFullPath {
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/devolutivas/': typeof AppDevolutivasIndexRoute
   '/educacao/': typeof AppEducacaoIndexRoute
   '/envios/': typeof AppEnviosIndexRoute
@@ -420,6 +427,7 @@ export interface FileRoutesByTo {
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/devolutivas': typeof AppDevolutivasIndexRoute
   '/educacao': typeof AppEducacaoIndexRoute
   '/envios': typeof AppEnviosIndexRoute
@@ -476,6 +484,7 @@ export interface FileRoutesById {
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/_app/devolutivas/': typeof AppDevolutivasIndexRoute
   '/_app/educacao/': typeof AppEducacaoIndexRoute
   '/_app/envios/': typeof AppEnviosIndexRoute
@@ -532,6 +541,7 @@ export interface FileRouteTypes {
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/aluno/educacao/$trackId'
+    | '/api/google/callback'
     | '/devolutivas/'
     | '/educacao/'
     | '/envios/'
@@ -580,6 +590,7 @@ export interface FileRouteTypes {
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/aluno/educacao/$trackId'
+    | '/api/google/callback'
     | '/devolutivas'
     | '/educacao'
     | '/envios'
@@ -635,6 +646,7 @@ export interface FileRouteTypes {
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
     | '/aluno/educacao/$trackId'
+    | '/api/google/callback'
     | '/_app/devolutivas/'
     | '/_app/educacao/'
     | '/_app/envios/'
@@ -667,6 +679,7 @@ export interface RootRouteChildren {
   ResponderResponseIdRoute: typeof ResponderResponseIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
   ApiPublicActionPlanIdRoute: typeof ApiPublicActionPlanIdRoute
   ApiPublicAssessmentIdRoute: typeof ApiPublicAssessmentIdRoute
   ApiPublicInviteIdRoute: typeof ApiPublicInviteIdRoute
@@ -992,6 +1005,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlunoEducacaoTrackIdRouteImport
       parentRoute: typeof AlunoRoute
     }
+    '/api/google/callback': {
+      id: '/api/google/callback'
+      path: '/api/google/callback'
+      fullPath: '/api/google/callback'
+      preLoaderRoute: typeof ApiGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/devolutivas/$id/painel': {
       id: '/_app/devolutivas/$id/painel'
       path: '/$id/painel'
@@ -1199,6 +1219,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResponderResponseIdRoute: ResponderResponseIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,
   ApiPublicActionPlanIdRoute: ApiPublicActionPlanIdRoute,
   ApiPublicAssessmentIdRoute: ApiPublicAssessmentIdRoute,
   ApiPublicInviteIdRoute: ApiPublicInviteIdRoute,
