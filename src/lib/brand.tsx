@@ -105,6 +105,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
     if (!p) return null;
     return {
       company_name: p.company_name,
+      company_cnpj: p.company_cnpj,
       logo_url: p.logo_url,
       brand_color: p.brand_color,
       brand_accent_color: p.brand_accent_color,

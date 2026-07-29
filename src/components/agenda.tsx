@@ -11,11 +11,17 @@
  */
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { agendaDoMes, type Compromisso } from "@/lib/gestao.functions";
+import { agendaDoMes, excluirEvento, type Compromisso } from "@/lib/gestao.functions";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Clock, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, ExternalLink, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -59,6 +65,17 @@ export function Agenda({
   const [ref, setRef] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   // O compromisso aberto no pop-up. Null = fechado.
   const [aberto, setAberto] = useState<Compromisso | null>(null);
+  const qc = useQueryClient();
+  const excluirFn = useServerFn(excluirEvento);
+  const excluir = useMutation({
+    mutationFn: (id: string) => excluirFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Evento excluído.");
+      qc.invalidateQueries({ queryKey: ["agenda"] });
+      setAberto(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   // O intervalo do mês, em horário LOCAL, convertido para ISO com fuso.
   const { de, ate } = useMemo(
@@ -202,7 +219,7 @@ export function Agenda({
       {/* Tudo do evento junto, num lugar só — era o que faltava: dava para
           criar com imagem e link e não havia onde vê-los. */}
       <Dialog open={!!aberto} onOpenChange={(v) => !v && setAberto(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="flex max-w-lg flex-col">
           {aberto && (
             <>
               <DialogHeader>
@@ -240,6 +257,38 @@ export function Agenda({
                 >
                   <ExternalLink className="size-3.5" /> Abrir link
                 </a>
+              )}
+
+              {/* Só quem cria pode excluir — a mesma condição do botão "Novo
+                  evento". A RLS barra de verdade; isto evita oferecer o que a
+                  pessoa não pode fazer. */}
+              {podeCriar && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm"
+                      className="mt-2 self-start text-destructive hover:text-destructive">
+                      <Trash2 className="size-3.5" /> Excluir evento
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir "{aberto.person_name}"?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        O evento some da agenda de todas as pessoas que o receberam — e também
+                        do seu Google Calendar, se estiver conectado. Não dá para desfazer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => excluir.mutate(aberto.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
             </>
           )}
