@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { LadoDaComunidade } from "@/components/comunidade-lado";
 import { Heart, MessageCircle, Paperclip, Trash2, FileText, X, Send } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -143,6 +144,10 @@ export function Comunidade({
   const posts = data?.posts ?? [];
 
   return (
+    // Feed à esquerda, ranking e membros à direita — no celular, um embaixo do
+    // outro, com a coluna DEPOIS do feed: quem abre a comunidade no telefone
+    // quer ler o que foi publicado, não a tabela de pontos.
+    <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
     <div className="space-y-5">
       {/* ------------------------------------------------- escrever --- */}
       {!somenteLeitura && (
@@ -336,6 +341,8 @@ export function Comunidade({
           </div>
         </article>
       ))}
+    </div>
+      <LadoDaComunidade grupos={grupos} />
     </div>
   );
 }

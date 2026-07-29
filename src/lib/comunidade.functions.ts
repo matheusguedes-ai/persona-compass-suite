@@ -290,3 +290,47 @@ export const apagarComentario = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/**
+ * Quem está nos grupos — para a aba Membros.
+ *
+ * ⚠️ CAMPOS DELIBERADAMENTE POBRES: foto, nome e cargo. Nada de e-mail,
+ * telefone ou resultado.
+ *
+ * O perfil completo existe para o MENTOR, que precisa dele para trabalhar. Aqui
+ * quem olha é o colega de turma, e colega não tem por que ter o telefone e o
+ * perfil comportamental de todo mundo do grupo a um clique. Se um dia isso
+ * mudar, tem de ser decisão explícita — não pode vazar por eu ter escrito
+ * `select("*")` sem pensar.
+ */
+export const membrosDosGrupos = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ group_ids: z.array(z.string().uuid()).min(1) }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const supabase = context.supabase;
+
+    // A RLS de `group_members` já barra grupo que a pessoa não pode ver, então
+    // não há como pedir a lista de um grupo alheio passando o id.
+    const { data: vinculos, error } = await supabase
+      .from("group_members")
+      .select("group_id, person_id, people(id, full_name, avatar_url, role_at_company), groups(name)")
+      .in("group_id", data.group_ids);
+    if (error) throw new Error(error.message);
+
+    // Quem está em dois grupos do mesmo feed aparece uma vez só.
+    const vistos = new Set<string>();
+    const membros = (vinculos ?? [])
+      .filter((v) => v.people && !vistos.has(v.person_id) && vistos.add(v.person_id))
+      .map((v) => ({
+        person_id: v.person_id,
+        nome: v.people!.full_name,
+        avatar_url: v.people!.avatar_url ?? null,
+        cargo: v.people!.role_at_company ?? null,
+        grupo: v.groups?.name ?? null,
+      }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+
+    return { membros };
+  });
