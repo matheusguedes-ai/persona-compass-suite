@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search } from "lucide-react";
 import { ImportarPlanilha } from "@/components/importar-planilha";
+import { ExportarPessoas } from "@/components/exportar-pessoas";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -77,6 +78,7 @@ function PessoasPage() {
         </div>
         <div className="flex flex-wrap gap-2">
         <ImportarPlanilha />
+        <ExportarPessoas pessoas={people.map((p) => ({ id: p.id, full_name: p.full_name }))} />
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
           <DialogTrigger asChild>
             <Button><Plus className="size-4" /> Adicionar pessoa</Button>
