@@ -16,6 +16,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calcularFila } from "@/lib/devolutivas.functions";
+import { notificar } from "@/lib/notificacoes.functions";
 
 export type CartaoGestao = {
   id: string;
@@ -106,6 +107,9 @@ export type Compromisso = {
   quando: string;
   status: "agendada" | "realizada";
   atrasada: boolean;
+  /** Devolutiva é conversa com uma pessoa; evento é o que o master publicou. */
+  tipo: "devolutiva" | "evento";
+  descricao?: string | null;
 };
 
 /**
@@ -173,7 +177,138 @@ export const agendaDoMes = createServerFn({ method: "GET" })
         quando: d.scheduled_at!,
         status: d.status as "agendada" | "realizada",
         atrasada: d.status === "agendada" && new Date(d.scheduled_at!).getTime() < agora,
+        tipo: "devolutiva" as const,
       }));
 
+    // Os eventos do master entram na mesma agenda.
+    //
+    // Aqui NÃO se aplica `somenteMinhas`: o recorte do evento é o destino dele,
+    // e `posso_ver_evento` já resolveu isso na RLS. Filtrar de novo por
+    // `person_id` esconderia do aluno justamente os eventos de grupo — que são
+    // o caso mais comum.
+    const { data: evs, error: eE2 } = await context.supabase
+      .from("eventos")
+      .select("id, titulo, descricao, quando")
+      .gte("quando", de)
+      .lt("quando", ate)
+      .order("quando");
+    if (eE2) throw new Error(eE2.message);
+
+    for (const e of evs ?? []) {
+      compromissos.push({
+        id: e.id,
+        person_id: "",
+        person_name: e.titulo,
+        quando: e.quando,
+        status: "agendada",
+        atrasada: false,
+        tipo: "evento",
+        descricao: e.descricao,
+      });
+    }
+    compromissos.sort((a, b) => a.quando.localeCompare(b.quando));
+
     return { compromissos };
+  });
+
+/**
+ * Cria um evento e escolhe quem vê.
+ *
+ * Só o master. O mentor não cria evento para os grupos dele: quem publica
+ * novidade na conta é o master, por decisão do Matheus. A policy `eventos_write`
+ * é quem barra de verdade; aqui a checagem existe para devolver mensagem legível
+ * em vez de um erro de RLS na cara.
+ */
+export const criarEvento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      titulo: z.string().trim().min(1).max(200),
+      descricao: z.string().trim().max(2000).optional(),
+      quando: z.string().datetime({ offset: true }),
+      duracao_min: z.number().int().min(5).max(600).nullable().optional(),
+      group_ids: z.array(z.string().uuid()).default([]),
+      person_ids: z.array(z.string().uuid()).default([]),
+    })
+     // Evento sem destino não aparece para ninguém — nem para quem o criou na
+     // agenda dos outros. Barra aqui em vez de gravar lixo invisível.
+     .refine((v) => v.group_ids.length + v.person_ids.length > 0, {
+       message: "Escolha ao menos um grupo ou uma pessoa.",
+     })
+     .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const supabase = context.supabase;
+
+    const { data: criado, error } = await supabase
+      .from("eventos")
+      .insert({
+        conta_id: context.userId,
+        titulo: data.titulo,
+        descricao: data.descricao?.trim() || null,
+        quando: data.quando,
+        duracao_min: data.duracao_min ?? null,
+        criado_por: context.userId,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+
+    const destinos = [
+      ...data.group_ids.map((g) => ({ evento_id: criado.id, group_id: g, person_id: null })),
+      ...data.person_ids.map((p) => ({ evento_id: criado.id, group_id: null, person_id: p })),
+    ];
+    const { error: eD } = await supabase.from("evento_destinos").insert(destinos);
+    if (eD) {
+      // Evento sem destino é invisível e vira lixo: desfaz, como no post da
+      // comunidade.
+      await supabase.from("eventos").delete().eq("id", criado.id);
+      throw new Error("Não consegui direcionar o evento a esses destinos.");
+    }
+
+    // Avisa quem vai vê-lo. O leque das notificações já sabe a regra por grupo;
+    // para destino por pessoa, `pessoaUser` entrega direto a ela.
+    const { data: pessoas } = data.person_ids.length
+      ? await supabase.from("people").select("user_id").in("id", data.person_ids)
+      : { data: [] as Array<{ user_id: string | null }> };
+
+    const quandoBr = new Date(data.quando).toLocaleString("pt-BR", {
+      dateStyle: "short", timeStyle: "short",
+    });
+    if (data.group_ids.length) {
+      await notificar(supabase, {
+        conta: context.userId,
+        tipo: "evento_novo",
+        titulo: `Novo na agenda: ${data.titulo}`,
+        corpo: quandoBr,
+        link: "/gestao",
+        ator: context.userId,
+        grupos: data.group_ids,
+        paraAlunos: true,
+      });
+    }
+    for (const p of pessoas ?? []) {
+      if (!p.user_id) continue;
+      await notificar(supabase, {
+        conta: context.userId,
+        tipo: "evento_novo",
+        titulo: `Novo na agenda: ${data.titulo}`,
+        corpo: quandoBr,
+        link: "/gestao",
+        ator: context.userId,
+        pessoaUser: p.user_id,
+      });
+    }
+
+    return { id: criado.id };
+  });
+
+export const excluirEvento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    // Os destinos caem por CASCADE.
+    const { error } = await context.supabase.from("eventos").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

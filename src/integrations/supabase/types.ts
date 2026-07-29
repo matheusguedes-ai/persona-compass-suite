@@ -43,6 +43,18 @@ export type Database = {
           },
         ]
       }
+      eventos: {
+        Row: { id: string; conta_id: string; titulo: string; descricao: string | null; quando: string; duracao_min: number | null; criado_por: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; conta_id: string; titulo: string; descricao?: string | null; quando: string; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; conta_id?: string; titulo?: string; descricao?: string | null; quando?: string; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      evento_destinos: {
+        Row: { id: string; evento_id: string; group_id: string | null; person_id: string | null }
+        Insert: { id?: string; evento_id: string; group_id?: string | null; person_id?: string | null }
+        Update: { id?: string; evento_id?: string; group_id?: string | null; person_id?: string | null }
+        Relationships: []
+      }
       notificacoes: {
         Row: { id: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo: string | null; link: string | null; ator_nome: string | null; lida_em: string | null; created_at: string }
         Insert: { id?: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo?: string | null; link?: string | null; ator_nome?: string | null; lida_em?: string | null; created_at?: string }

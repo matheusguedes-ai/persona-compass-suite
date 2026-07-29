@@ -16,6 +16,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { agendaDoMes, type Compromisso } from "@/lib/gestao.functions";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { NovoEvento } from "@/components/novo-evento";
 
 const SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
@@ -44,9 +45,12 @@ function horaBr(iso: string): string | null {
 export function Agenda({
   area = "dono",
   somenteMinhas = false,
+  podeCriar = false,
 }: {
   area?: "dono" | "aluno";
   somenteMinhas?: boolean;
+  /** Só o master cria evento — o mentor não publica novidade para os grupos. */
+  podeCriar?: boolean;
 }) {
   const hoje = new Date();
   const [ref, setRef] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1));
@@ -115,6 +119,7 @@ export function Agenda({
           Hoje
         </Button>
         {isLoading && <span className="text-xs text-muted-foreground">carregando…</span>}
+        {podeCriar && <NovoEvento />}
       </div>
 
       <div className="overflow-x-auto">
@@ -148,22 +153,36 @@ export function Agenda({
                   <ul className="mt-1 space-y-1">
                     {itens.map((c) => (
                       <li key={c.id}>
-                        <Link
-                          to={area === "aluno" ? "/aluno/devolutivas" : "/devolutivas"}
-                          className={`block truncate rounded px-1.5 py-1 text-[11px] leading-tight ${
-                            c.status === "realizada"
-                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                              : c.atrasada
-                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                : "bg-sky-500/10 text-sky-700 dark:text-sky-300"
-                          }`}
-                          title={`${c.person_name}${horaBr(c.quando) ? ` · ${horaBr(c.quando)}` : ""}`}
-                        >
-                          {horaBr(c.quando) && (
-                            <span className="font-medium tabular-nums">{horaBr(c.quando)} </span>
-                          )}
-                          {c.person_name}
-                        </Link>
+                        {c.tipo === "evento" ? (
+                          // Evento não é conversa com ninguém: não há para onde
+                          // levar, então não vira link.
+                          <div
+                            className="truncate rounded bg-violet-500/10 px-1.5 py-1 text-[11px] leading-tight text-violet-700 dark:text-violet-300"
+                            title={`${c.person_name}${c.descricao ? ` — ${c.descricao}` : ""}`}
+                          >
+                            {horaBr(c.quando) && (
+                              <span className="font-medium tabular-nums">{horaBr(c.quando)} </span>
+                            )}
+                            {c.person_name}
+                          </div>
+                        ) : (
+                          <Link
+                            to={area === "aluno" ? "/aluno/devolutivas" : "/devolutivas"}
+                            className={`block truncate rounded px-1.5 py-1 text-[11px] leading-tight ${
+                              c.status === "realizada"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                : c.atrasada
+                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                  : "bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                            }`}
+                            title={`${c.person_name}${horaBr(c.quando) ? ` · ${horaBr(c.quando)}` : ""}`}
+                          >
+                            {horaBr(c.quando) && (
+                              <span className="font-medium tabular-nums">{horaBr(c.quando)} </span>
+                            )}
+                            {c.person_name}
+                          </Link>
+                        )}
                       </li>
                     ))}
                   </ul>

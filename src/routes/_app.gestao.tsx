@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_app/gestao")({
           <TabsTrigger value="quadro">Kanban</TabsTrigger>
         </TabsList>
         <TabsContent value="agenda" className="mt-5">
-          <Agenda />
+          <Agenda podeCriar />
         </TabsContent>
         <TabsContent value="quadro" className="mt-5">
           <QuadroGestao />
