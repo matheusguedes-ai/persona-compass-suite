@@ -55,7 +55,7 @@ function Devolutivas() {
       {!isLoading && lista.length > 0 && (
         <section>
           <h2 className="mb-3 text-sm font-medium">No calendário</h2>
-          <Agenda area="aluno" />
+          <Agenda area="aluno" somenteMinhas />
         </section>
       )}
 

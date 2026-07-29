@@ -32,7 +32,22 @@ function horaBr(iso: string): string | null {
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function Agenda({ area = "dono" }: { area?: "dono" | "aluno" }) {
+/**
+ * `area` decide só para ONDE o compromisso leva — o mentor e o aluno vivem os
+ * dois em /aluno, então ela não serve para decidir escopo.
+ *
+ * `somenteMinhas` é separado de propósito: o mentor abre a agenda em
+ * `/aluno/gestao` e precisa ver o GRUPO dele; o aluno abre em
+ * `/aluno/devolutivas` e precisa ver só o que é dele. Amarrar as duas coisas na
+ * mesma prop deixaria o mentor com uma agenda quase sempre vazia.
+ */
+export function Agenda({
+  area = "dono",
+  somenteMinhas = false,
+}: {
+  area?: "dono" | "aluno";
+  somenteMinhas?: boolean;
+}) {
   const hoje = new Date();
   const [ref, setRef] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1));
 
@@ -47,8 +62,8 @@ export function Agenda({ area = "dono" }: { area?: "dono" | "aluno" }) {
 
   const fn = useServerFn(agendaDoMes);
   const { data, isLoading } = useQuery({
-    queryKey: ["agenda", de, ate],
-    queryFn: () => fn({ data: { de, ate } }),
+    queryKey: ["agenda", de, ate, somenteMinhas],
+    queryFn: () => fn({ data: { de, ate, somenteMinhas } }),
   });
 
   const compromissos = data?.compromissos ?? [];

@@ -129,10 +129,28 @@ export const agendaDoMes = createServerFn({ method: "GET" })
     z.object({
       de: z.string().datetime({ offset: true }),
       ate: z.string().datetime({ offset: true }),
+      /** Painel do aluno: só as devolutivas dele, não as da conta. */
+      somenteMinhas: z.boolean().optional(),
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { de, ate } = data;
+
+    // No painel do aluno o recorte da RLS não basta.
+    //
+    // Para o AVALIADO a RLS já entrega só o que é dele. Mas na prévia "Ver como
+    // aluno" quem está autenticado é o DONO — e para ele a RLS entrega a conta
+    // inteira. Sem este filtro, a agenda da prévia mostraria todos os
+    // compromissos da conta como se fossem daquela pessoa. Foi exatamente o que
+    // aconteceu com a comunidade antes de `gruposDoAvaliado` existir.
+    let meus: string[] | null = null;
+    if (data.somenteMinhas) {
+      const { data: eu, error: eE } = await context.supabase
+        .from("people").select("id").eq("user_id", context.userId);
+      if (eE) throw new Error(eE.message);
+      meus = (eu ?? []).map((p) => p.id);
+      if (meus.length === 0) return { compromissos: [] };
+    }
 
     const { data: devs, error } = await context.supabase
       .from("devolutivas")
@@ -141,7 +159,8 @@ export const agendaDoMes = createServerFn({ method: "GET" })
       .not("scheduled_at", "is", null)
       .gte("scheduled_at", de)
       .lt("scheduled_at", ate)
-      .order("scheduled_at");
+      .order("scheduled_at")
+      .then((r) => (meus ? { ...r, data: (r.data ?? []).filter((d) => meus!.includes(d.person_id)) } : r));
     if (error) throw new Error(error.message);
 
     const agora = Date.now();
