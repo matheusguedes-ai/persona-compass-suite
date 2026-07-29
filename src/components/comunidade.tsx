@@ -233,13 +233,15 @@ export function Comunidade({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{quando(p.created_at)}</span>
-              <button
-                onClick={() => apagar.mutate(p.id)}
-                className="text-muted-foreground hover:text-destructive"
-                title={p.meu ? "Apagar minha publicação" : "Remover do grupo"}
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+              {(p.meu || p.modero) && (
+                <button
+                  onClick={() => apagar.mutate(p.id)}
+                  className="text-muted-foreground hover:text-destructive"
+                  title={p.meu ? "Apagar minha publicação" : "Remover do grupo"}
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -300,9 +302,11 @@ export function Comunidade({
                     <span className="font-medium">{c.author_name}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{quando(c.created_at)}</span>
-                      <button onClick={() => apagarCom.mutate(c.id)} className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="size-3" />
-                      </button>
+                      {(c.meu || p.modero) && (
+                        <button onClick={() => apagarCom.mutate(c.id)} className="text-muted-foreground hover:text-destructive">
+                          <Trash2 className="size-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <p className="mt-1 whitespace-pre-wrap">{c.body}</p>

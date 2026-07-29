@@ -95,6 +95,12 @@ export const listarFeed = createServerFn({ method: "GET" })
         .in("post_id", ids).order("created_at"),
       supabase.from("community_reactions").select("post_id, user_id").in("post_id", ids),
     ]);
+    // Quem modera o quê é decidido no banco, não aqui — a tela só pergunta.
+    const podeModerar = new Set<string>();
+    await Promise.all(ids.map(async (id) => {
+      const { data: ok } = await supabase.rpc("posso_moderar_post", { p_post: id });
+      if (ok) podeModerar.add(id);
+    }));
     if (error) throw new Error(error.message);
 
     const eu = context.userId;
@@ -103,6 +109,8 @@ export const listarFeed = createServerFn({ method: "GET" })
       posts: (posts ?? []).map((p) => ({
         ...p,
         meu: p.author_id === eu,
+        // Só aparece lixeira em post alheio para quem realmente pode moderar.
+        modero: podeModerar.has(p.id),
         // Em qual grupo aparece — só faz diferença para quem enxerga vários.
         grupos: (vinculos ?? []).filter((v) => v.post_id === p.id)
           .map((v) => v.groups?.name).filter((n): n is string => !!n),
