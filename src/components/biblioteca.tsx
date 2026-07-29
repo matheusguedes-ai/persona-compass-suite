@@ -20,9 +20,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   FileText, FileSpreadsheet, Video, Music, Link as LinkIcon, Paperclip, Plus, Trash2, Search,
+  Upload, Image as ImageIcon, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const ICONE = {
   pdf: FileText, planilha: FileSpreadsheet, video: Video,
@@ -38,7 +40,44 @@ export function Biblioteca({ podeEditar = false }: { podeEditar?: boolean }) {
   const [busca, setBusca] = useState("");
   const [categoria, setCategoria] = useState<string | null>(null);
   const [aberto, setAberto] = useState(false);
-  const [form, setForm] = useState({ titulo: "", descricao: "", url: "", kind: "link", categoria: "" });
+  const [form, setForm] = useState({
+    titulo: "", descricao: "", url: "", kind: "link", categoria: "", capa_url: "",
+  });
+  // "link" ou "arquivo". Era o que faltava: escolher o tipo "pdf" não adiantava
+  // nada, porque o formulário só aceitava colar URL.
+  const [origem, setOrigem] = useState<"link" | "arquivo">("link");
+  const [enviando, setEnviando] = useState<null | "arquivo" | "capa">(null);
+
+  async function enviar(f: File, alvo: "arquivo" | "capa") {
+    const limite = alvo === "capa" ? 3 : 25;
+    if (f.size > limite * 1024 * 1024) {
+      return toast.error(`Arquivo muito grande (máximo ${limite} MB).`);
+    }
+    setEnviando(alvo);
+    try {
+      const { data: sessao } = await supabase.auth.getUser();
+      const ext = f.name.split(".").pop() ?? "bin";
+      const caminho = `${sessao.user?.id}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("biblioteca").upload(caminho, f);
+      if (error) throw new Error(error.message);
+      const { data: pub } = supabase.storage.from("biblioteca").getPublicUrl(caminho);
+      if (alvo === "capa") {
+        setForm((v) => ({ ...v, capa_url: pub.publicUrl }));
+      } else {
+        // O título vem do nome do arquivo quando ainda está vazio: poupa
+        // digitação e evita material sem nome.
+        setForm((v) => ({
+          ...v,
+          url: pub.publicUrl,
+          titulo: v.titulo || f.name.replace(/\.[^.]+$/, ""),
+        }));
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setEnviando(null);
+    }
+  }
 
   const { data, isLoading } = useQuery({ queryKey: ["biblioteca"], queryFn: () => listaFn() });
 
@@ -51,13 +90,15 @@ export function Biblioteca({ podeEditar = false }: { podeEditar?: boolean }) {
           url: form.url,
           kind: form.kind as (typeof TIPOS)[number],
           categoria: form.categoria || undefined,
+          capa_url: form.capa_url || null,
         },
       }),
     onSuccess: () => {
       toast.success("Material adicionado.");
       qc.invalidateQueries({ queryKey: ["biblioteca"] });
       setAberto(false);
-      setForm({ titulo: "", descricao: "", url: "", kind: "link", categoria: "" });
+      setForm({ titulo: "", descricao: "", url: "", kind: "link", categoria: "", capa_url: "" });
+      setOrigem("link");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -106,9 +147,62 @@ export function Biblioteca({ podeEditar = false }: { podeEditar?: boolean }) {
                     onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
                 </div>
                 <div>
-                  <Label htmlFor="b-url">Link</Label>
-                  <Input id="b-url" value={form.url} placeholder="https://…"
-                    onChange={(e) => setForm({ ...form, url: e.target.value })} />
+                  <Label>Conteúdo</Label>
+                  <div className="mt-1 inline-flex rounded-lg bg-muted p-1">
+                    {(["link", "arquivo"] as const).map((o) => (
+                      <button
+                        key={o} type="button" onClick={() => setOrigem(o)}
+                        className={cn(
+                          "rounded-md px-3 py-1 text-xs font-medium",
+                          origem === o ? "bg-background shadow-sm" : "text-muted-foreground",
+                        )}
+                      >
+                        {o === "link" ? "Colar link" : "Enviar arquivo"}
+                      </button>
+                    ))}
+                  </div>
+
+                  {origem === "link" ? (
+                    <Input className="mt-2" value={form.url} placeholder="https://…"
+                      onChange={(e) => setForm({ ...form, url: e.target.value })} />
+                  ) : form.url ? (
+                    <div className="mt-2 flex items-center gap-2 rounded-lg bg-muted/60 p-2.5 text-sm">
+                      <Paperclip className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate">Arquivo enviado</span>
+                      <button type="button" onClick={() => setForm({ ...form, url: "" })}
+                        title="Remover">
+                        <X className="size-3.5 text-muted-foreground" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+                      <Upload className="size-4" />
+                      {enviando === "arquivo" ? "Enviando…" : "Escolher arquivo (até 25 MB)"}
+                      <input type="file" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) enviar(f, "arquivo"); }} />
+                    </label>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Capa (opcional)</Label>
+                  {form.capa_url ? (
+                    <div className="relative mt-1 overflow-hidden rounded-lg">
+                      <img src={form.capa_url} alt="" className="h-24 w-full object-cover" />
+                      <button type="button" onClick={() => setForm({ ...form, capa_url: "" })}
+                        className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white"
+                        title="Remover capa">
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+                      <ImageIcon className="size-4" />
+                      {enviando === "capa" ? "Enviando…" : "JPG ou PNG (até 3 MB)"}
+                      <input type="file" accept="image/jpeg,image/png" className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) enviar(f, "capa"); }} />
+                    </label>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -135,7 +229,7 @@ export function Biblioteca({ podeEditar = false }: { podeEditar?: boolean }) {
               </div>
               <DialogFooter>
                 <Button onClick={() => salvar.mutate()}
-                  disabled={!form.titulo.trim() || !form.url.trim() || salvar.isPending}>
+                  disabled={!form.titulo.trim() || !form.url.trim() || salvar.isPending || !!enviando}>
                   {salvar.isPending ? "Salvando…" : "Adicionar"}
                 </Button>
               </DialogFooter>
@@ -185,6 +279,10 @@ export function Biblioteca({ podeEditar = false }: { podeEditar?: boolean }) {
           return (
             <li key={m.id} className="group relative rounded-xl bg-card p-4 ring-1 ring-black/5">
               <a href={m.url} target="_blank" rel="noopener noreferrer" className="block">
+                {m.capa_url && (
+                  <img src={m.capa_url} alt=""
+                    className="mb-3 -mt-1 h-28 w-full rounded-lg object-cover" />
+                )}
                 <Icone className="size-5 text-muted-foreground" />
                 <p className="mt-2 text-sm font-medium leading-snug">{m.titulo}</p>
                 {m.descricao && (

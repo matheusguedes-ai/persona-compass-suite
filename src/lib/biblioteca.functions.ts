@@ -16,7 +16,7 @@ export const listarBiblioteca = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("biblioteca_materiais")
-      .select("id, titulo, descricao, url, kind, categoria, created_at")
+      .select("id, titulo, descricao, url, kind, categoria, capa_url, created_at")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
 
@@ -38,6 +38,7 @@ export const salvarMaterial = createServerFn({ method: "POST" })
       url: z.string().url().max(1000),
       kind: z.enum(TIPOS).default("link"),
       categoria: z.string().trim().max(80).optional(),
+      capa_url: z.string().url().nullable().optional(),
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
@@ -48,6 +49,7 @@ export const salvarMaterial = createServerFn({ method: "POST" })
       url: data.url,
       kind: data.kind,
       categoria: data.categoria?.trim() || null,
+      capa_url: data.capa_url ?? null,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
