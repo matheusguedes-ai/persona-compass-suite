@@ -16,7 +16,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calcularFila } from "@/lib/devolutivas.functions";
-import { notificar } from "@/lib/notificacoes.functions";
+import { notificar, quandoBr } from "@/lib/notificacoes.functions";
 
 export type CartaoGestao = {
   id: string;
@@ -272,15 +272,13 @@ export const criarEvento = createServerFn({ method: "POST" })
       ? await supabase.from("people").select("user_id").in("id", data.person_ids)
       : { data: [] as Array<{ user_id: string | null }> };
 
-    const quandoBr = new Date(data.quando).toLocaleString("pt-BR", {
-      dateStyle: "short", timeStyle: "short",
-    });
+    const texto = quandoBr(data.quando);
     if (data.group_ids.length) {
       await notificar(supabase, {
         conta: context.userId,
         tipo: "evento_novo",
         titulo: `Novo na agenda: ${data.titulo}`,
-        corpo: quandoBr,
+        corpo: texto,
         link: "/gestao",
         ator: context.userId,
         grupos: data.group_ids,
@@ -293,7 +291,7 @@ export const criarEvento = createServerFn({ method: "POST" })
         conta: context.userId,
         tipo: "evento_novo",
         titulo: `Novo na agenda: ${data.titulo}`,
-        corpo: quandoBr,
+        corpo: texto,
         link: "/gestao",
         ator: context.userId,
         pessoaUser: p.user_id,

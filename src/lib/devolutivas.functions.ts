@@ -19,7 +19,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { notificar, nomeDoUsuario } from "@/lib/notificacoes.functions";
+import { notificar, nomeDoUsuario, quandoBr } from "@/lib/notificacoes.functions";
 import type { Database } from "@/integrations/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -238,9 +238,7 @@ export const agendarDevolutiva = createServerFn({ method: "POST" })
       titulo: data.scheduled_at
         ? `Devolutiva agendada com ${quem?.full_name ?? "um avaliado"}`
         : `Devolutiva criada para ${quem?.full_name ?? "um avaliado"}`,
-      corpo: data.scheduled_at
-        ? new Date(data.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
-        : "Ainda sem data marcada.",
+      corpo: data.scheduled_at ? quandoBr(data.scheduled_at) : "Ainda sem data marcada.",
       link: "/devolutivas",
       ator: context.userId,
       atorNome: await nomeDoUsuario(supabase, context.userId),

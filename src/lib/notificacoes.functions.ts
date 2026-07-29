@@ -53,6 +53,23 @@ export async function notificar(
   }
 }
 
+
+/**
+ * Data e hora para LER, sempre em horário de Brasília.
+ *
+ * `toLocaleString("pt-BR")` sem `timeZone` usa o fuso de quem executa — e quem
+ * executa é o servidor, que roda em UTC. O texto saía três horas adiantado: um
+ * evento às 15:00 virava "18:00" na notificação. A interface é pt-BR e o
+ * público é brasileiro, então o fuso é fixo e explícito.
+ */
+export function quandoBr(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  });
+}
+
 /** O nome que aparece no "fulano publicou". Mesma ordem de busca do feed. */
 export async function nomeDoUsuario(supabase: Cliente, userId: string): Promise<string> {
   const { data: perfil } = await supabase
