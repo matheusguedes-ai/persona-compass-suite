@@ -339,3 +339,50 @@ funciona sem agrupamento.
 e comentário não notificam o dono, e comunidade vira resumo diário. Se ele
 quiser tudo na hora, dá para fazer — mas em poucas semanas a caixa vira algo que
 ele para de abrir, e aí o aviso que importava se perde junto.
+
+---
+
+# Anexo 3 — Mentor é um aluno promovido (redesenho, 29/07/2026)
+
+O Matheus percebeu, testando: **o mentor afiliado é um aluno com privilégios
+extras**, não um tipo de usuário à parte. O que muda nele é só o que o dono
+libera por grupo — ver relatório e agendar devolutiva.
+
+## O problema que isso resolve
+
+Hoje há dois cadastros independentes: `people` (avaliado) e `team_members`
+(equipe). O mesmo e-mail cadastrado nos dois vira **duas identidades e dois
+painéis**. Não é hipótese: o próprio Matheus é "Teste VAK" em `people` e dono em
+`profiles`, e isso já causou o nome errado na comunidade.
+
+E o modelo atual não tem como "promover": só como convidar de novo, duplicando.
+
+## O desenho novo
+
+- **Uma pessoa, um cadastro, um painel.** O painel é o do aluno.
+- **Promover a mentor** vira uma ação na ficha da pessoa, em Pessoas.
+- Promovido, ele ganha o menu **Grupos** dentro do painel de aluno, com os
+  grupos que o dono atribuir.
+- Por grupo, o dono liga ou desliga: **ver relatório** e **agendar devolutiva**
+  (as duas colunas já existem em `team_member_groups`).
+- **O menu Mentores some.** Não há mais "convidar mentor" — há "promover
+  alguém que já está cadastrado".
+
+## O que precisa mudar
+
+1. `team_members` passa a apontar para `people` (`person_id`), em vez de guardar
+   nome e e-mail próprios. A pessoa é a fonte da verdade.
+2. `promoverAMentor(person_id)` / `rebaixar(person_id)` no lugar de
+   `createTeamMember` para o tipo mentor.
+3. O primeiro acesso do mentor vira o **mesmo do aluno** — link por e-mail. O
+   fluxo de convite com token deixa de existir para mentor.
+4. Painel: `/aluno` ganha o menu Grupos quando a pessoa é mentor.
+5. **Colaborador continua como está.** Ele não é aluno — é alguém da operação,
+   com permissões de funcionalidade. Os dois papéis não se confundem.
+
+## Cuidado na migração
+
+Já existe um mentor convidado pelo modelo antigo, com conta criada. Ao migrar,
+ele precisa virar uma pessoa em `people` (ou ser ligado à que já existir com
+aquele e-mail), sem perder o acesso nem duplicar. O índice único de e-mail em
+`people`, criado em 28/07, ajuda: garante que o vínculo seja com uma pessoa só.
