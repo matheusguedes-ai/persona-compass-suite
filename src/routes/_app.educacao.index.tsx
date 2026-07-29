@@ -1,3 +1,4 @@
+import { Biblioteca } from "@/components/biblioteca";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -63,6 +64,8 @@ function EducacaoPage() {
             link (Google Drive, por exemplo).
           </p>
         </div>
+
+      <Biblioteca podeEditar />
         <Button onClick={() => setAberto(true)}><Plus className="size-4" /> Nova trilha</Button>
       </div>
 

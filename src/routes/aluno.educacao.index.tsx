@@ -1,3 +1,4 @@
+import { Biblioteca } from "@/components/biblioteca";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -22,6 +23,8 @@ function EducacaoAluno() {
           Trilhas liberadas para você. Seu progresso fica salvo aula a aula.
         </p>
       </div>
+
+      <Biblioteca />
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : lista.length === 0 ? (

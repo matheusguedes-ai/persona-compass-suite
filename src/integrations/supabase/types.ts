@@ -67,6 +67,12 @@ export type Database = {
         Update: { id?: string; user_id?: string; origem?: string; origem_id?: string; google_event_id?: string; criado_em?: string }
         Relationships: []
       }
+      biblioteca_materiais: {
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; url: string; kind: string; categoria: string | null; created_at: string }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; url: string; kind?: string; categoria?: string | null; created_at?: string }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; url?: string; kind?: string; categoria?: string | null; created_at?: string }
+        Relationships: []
+      }
       notificacoes: {
         Row: { id: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo: string | null; link: string | null; ator_nome: string | null; lida_em: string | null; created_at: string }
         Insert: { id?: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo?: string | null; link?: string | null; ator_nome?: string | null; lida_em?: string | null; created_at?: string }
