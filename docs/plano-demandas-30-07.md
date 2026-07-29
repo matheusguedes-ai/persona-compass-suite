@@ -182,12 +182,28 @@ mentor pelo aluno), com aviso claro de quem vai ver, e com opção de remover.
 
 ---
 
-## O que eu preciso de você para começar
+## Decisões do Matheus — 29/07/2026
 
-1. **Item I** — confirma que quer inverter a decisão de não publicar resultado?
-2. **Item C** — o export leva só cadastro, ou resultados também?
-3. **Item H** — voto de enquete anônimo (recomendo) ou identificado?
-4. **Ordem** — concorda em começar por A e B (estrutura) antes do visual?
+1. **Publicar resultado na comunidade: SIM.** Ele confirmou a inversão da
+   decisão de 28/07, ciente de que publicar é irreversível na prática e do risco
+   de pressão em grupo de empresa. As salvaguardas do item I valem: só o próprio
+   avaliado publica o dele, com aviso de quem vai ver e opção de remover.
+2. **Export leva SÓ o cadastro.** Nada de resultados, respostas ou devolutivas —
+   o que reduz muito o risco do arquivo. O seletor de seções do plano original
+   sai: não há o que escolher.
+3. **Enquete com voto IDENTIFICADO.** Contra a minha recomendação, e ele decidiu
+   sabendo: eu apontei o constrangimento em grupo de empresa. Fica registrado
+   para não ser relitigado — se um dia incomodar, é mudança de produto, não bug.
+4. **Ordem confirmada:** estrutura (A, B) antes do visual.
+5. **Bug do fuso no Remarcar → menor prioridade**, a pedido dele. ⚠️ Enquanto
+   não corrigido, remarcar mexendo só no dia move o compromisso 3 horas. Não é
+   cosmético; é dado errado, calado.
 
-Os itens A, B, C, D e E não dependem de nenhuma dessas respostas. Posso começar
-por eles enquanto você pensa.
+## Menor prioridade — lista final
+
+- Bug do fuso no campo "Remarcar" (acima)
+- Design dos relatórios
+- Perfil do aluno com empresa, banner e redes
+- Domínio personalizado
+- Assistente de IA na Educação (⚠️ custo recorrente)
+- Menu Integrações via API (⚠️ o mais arriscado)
