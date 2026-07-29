@@ -1,3 +1,4 @@
+import { SeloEmpresa } from "@/components/selo-empresa";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -167,6 +168,7 @@ function ConvitePage() {
         {info.remaining != null && (
           <p>{info.remaining === 1 ? "Resta 1 vaga" : `Restam ${info.remaining} vagas`}</p>
         )}
+        <SeloEmpresa nome={info?.brand?.company_name} cnpj={info?.brand?.company_cnpj} className="mt-10" />
       </div>
     </Shell>
   );

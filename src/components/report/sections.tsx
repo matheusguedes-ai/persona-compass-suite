@@ -39,6 +39,7 @@ export type Derived = {
 
 /** Marca do mentor dono do link — quem abre o relatório não tem conta. */
 export type ReportBrand = {
+  company_cnpj?: string | null;
   company_name: string | null;
   logo_url: string | null;
   brand_color: string | null;

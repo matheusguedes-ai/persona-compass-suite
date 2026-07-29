@@ -14,6 +14,7 @@ import { getMyProfile } from "@/lib/data.functions";
  */
 export type Brand = {
   company_name?: string | null;
+  company_cnpj?: string | null;
   logo_url?: string | null;
   brand_color?: string | null;
   brand_accent_color?: string | null;

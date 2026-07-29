@@ -13,6 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/lib/theme";
 import { Sino } from "@/components/sino";
+import { SeloDaConta } from "@/components/selo-da-conta";
 
 export const Route = createFileRoute("/aluno")({
   ssr: false,
@@ -183,6 +184,7 @@ function AlunoLayout() {
         <main className="mx-auto max-w-5xl px-6 py-8">
           <Outlet />
         </main>
+        <SeloDaConta />
       </div>
       <Toaster position="top-right" />
     </div>

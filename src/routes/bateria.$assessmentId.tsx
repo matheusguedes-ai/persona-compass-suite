@@ -1,3 +1,4 @@
+import { SeloEmpresa } from "@/components/selo-empresa";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -134,6 +135,7 @@ function BateriaPage() {
               para você, com o que já foi respondido guardado.
             </p>
           )}
+          <SeloEmpresa nome={payload?.brand?.company_name} cnpj={payload?.brand?.company_cnpj} className="mt-10" />
         </div>
       )}
       <ol className="mt-6 space-y-2">

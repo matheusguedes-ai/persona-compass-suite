@@ -1,3 +1,4 @@
+import { SeloEmpresa } from "@/components/selo-empresa";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -169,6 +170,7 @@ function RelatorioBateriaPage() {
       )}
 
       <ReportFooter brand={data.brand} />
+      <SeloEmpresa nome={data?.brand?.company_name} cnpj={data?.brand?.company_cnpj} className="mt-10" />
     </div>
   );
 }

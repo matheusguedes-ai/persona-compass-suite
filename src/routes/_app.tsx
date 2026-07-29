@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { SeloDaConta } from "@/components/selo-da-conta";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { Toaster } from "@/components/ui/sonner";
@@ -37,6 +38,7 @@ function AppLayout() {
           <main className="p-8">
             <Outlet />
           </main>
+          <SeloDaConta />
         </div>
         <Toaster position="top-right" />
       </div>
