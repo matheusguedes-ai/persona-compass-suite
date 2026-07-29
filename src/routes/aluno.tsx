@@ -34,7 +34,6 @@ export const Route = createFileRoute("/aluno")({
 const NAV = [
   { to: "/aluno", label: "Meus resultados", icon: LayoutList, exato: true },
   { to: "/aluno/comunidade", label: "Comunidade", icon: Users, exato: false },
-  { to: "/aluno/ranking", label: "Ranking", icon: Trophy, exato: false },
   { to: "/aluno/devolutivas", label: "Devolutivas", icon: MessagesSquare, exato: false },
   { to: "/aluno/agenda", label: "Agenda", icon: CalendarDays, exato: false },
   { to: "/aluno/educacao", label: "Academy", icon: GraduationCap, exato: false },

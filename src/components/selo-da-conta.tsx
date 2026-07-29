@@ -9,5 +9,5 @@ import { SeloEmpresa } from "@/components/selo-empresa";
 
 export function SeloDaConta() {
   const brand = useBrand();
-  return <SeloEmpresa nome={brand?.company_name} cnpj={brand?.company_cnpj} />;
+  return <SeloEmpresa nome={brand?.company_seal_name} cnpj={brand?.company_cnpj} />;
 }

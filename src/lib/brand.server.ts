@@ -47,7 +47,7 @@ export async function loadBrandAndSettings(
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "company_name, company_cnpj, logo_url, brand_color, brand_accent_color, site_url, support_email, report_allow_pdf, report_show_brand, report_hidden_blocks",
+      "company_name, company_cnpj, company_seal_name, logo_url, brand_color, brand_accent_color, site_url, support_email, report_allow_pdf, report_show_brand, report_hidden_blocks",
     )
     .eq("user_id", mentorId)
     .maybeSingle();

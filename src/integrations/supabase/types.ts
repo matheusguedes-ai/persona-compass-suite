@@ -793,7 +793,7 @@ export type Database = {
         Relationships: []
       }
       profiles: {
-        Row: { company_cnpj: string | null; company_address: string | null; company_phone: string | null; company_footer_public: boolean;
+        Row: { company_cnpj: string | null; company_seal_name: string | null; company_phone: string | null;
           avatar_url: string | null
           email_from: string | null
           brand_color: string | null
@@ -813,7 +813,7 @@ export type Database = {
           updated_at: string
           user_id: string
         }
-        Insert: { company_cnpj?: string | null; company_address?: string | null; company_phone?: string | null; company_footer_public?: boolean;
+        Insert: { company_cnpj?: string | null; company_seal_name?: string | null; company_phone?: string | null;
           avatar_url?: string | null
           email_from?: string | null
           brand_color?: string | null
@@ -833,7 +833,7 @@ export type Database = {
           updated_at?: string
           user_id: string
         }
-        Update: { company_cnpj?: string | null; company_address?: string | null; company_phone?: string | null; company_footer_public?: boolean;
+        Update: { company_cnpj?: string | null; company_seal_name?: string | null; company_phone?: string | null;
           avatar_url?: string | null
           email_from?: string | null
           brand_color?: string | null

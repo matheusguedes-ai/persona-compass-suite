@@ -15,6 +15,7 @@ import { getMyProfile } from "@/lib/data.functions";
 export type Brand = {
   company_name?: string | null;
   company_cnpj?: string | null;
+  company_seal_name?: string | null;
   logo_url?: string | null;
   brand_color?: string | null;
   brand_accent_color?: string | null;
@@ -106,6 +107,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
     return {
       company_name: p.company_name,
       company_cnpj: p.company_cnpj,
+      company_seal_name: p.company_seal_name,
       logo_url: p.logo_url,
       brand_color: p.brand_color,
       brand_accent_color: p.brand_accent_color,

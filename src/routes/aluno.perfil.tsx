@@ -102,7 +102,6 @@ function PerfilAluno() {
 
   return (
     <div className="max-w-xl space-y-6">
-      <VisibilidadeDoPerfil />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Meu perfil</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -177,6 +176,7 @@ function PerfilAluno() {
           </p>
         </form>
       </div>
+    <VisibilidadeDoPerfil />
     </div>
   );
 }

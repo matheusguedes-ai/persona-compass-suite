@@ -170,7 +170,7 @@ function RelatorioBateriaPage() {
       )}
 
       <ReportFooter brand={data.brand} />
-      <SeloEmpresa nome={data?.brand?.company_name} cnpj={data?.brand?.company_cnpj} className="mt-10" />
+      <SeloEmpresa nome={data?.brand?.company_seal_name} cnpj={data?.brand?.company_cnpj} className="mt-10" />
     </div>
   );
 }

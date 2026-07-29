@@ -50,6 +50,18 @@ function dataHoraBr(iso: string | null) {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
 }
+/**
+ * A hora local no formato que o `datetime-local` entende (sem fuso).
+ *
+ * Montada a partir das PARTES da data local, nunca de `toISOString()` — aquele
+ * devolve UTC, e o campo trataria como local.
+ */
+function paraCampoLocal(iso: string) {
+  const d = new Date(iso);
+  const z = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+
 /** `datetime-local` do navegador não tem fuso; converte para ISO com offset. */
 function paraIso(local: string) {
   return local ? new Date(local).toISOString() : null;
@@ -318,8 +330,12 @@ export function DevolutivasPage({ groupId }: { groupId?: string } = {}) {
                 variant="ghost" size="sm"
                 onClick={() => {
                   setRemarcando(d);
-                  // `datetime-local` só aceita o formato local sem fuso.
-                  setNovaData(d.scheduled_at ? new Date(d.scheduled_at).toISOString().slice(0, 16) : "");
+                  // `datetime-local` só aceita o formato local SEM FUSO — e é
+                  // aí que estava o bug: `toISOString()` devolve UTC, e o campo
+                  // exibia essa hora como se fosse local. Uma devolutiva das
+                  // 14:00 abria mostrando 17:00, e quem mexesse só no dia
+                  // empurrava o compromisso três horas sem perceber.
+                  setNovaData(d.scheduled_at ? paraCampoLocal(d.scheduled_at) : "");
                 }}
               >
                 <CalendarClock className="size-3.5" /> {d.scheduled_at ? "Remarcar" : "Marcar data"}
