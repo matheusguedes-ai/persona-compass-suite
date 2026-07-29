@@ -11,7 +11,7 @@ import {
   BookOpen,
   MessagesSquare,
   Users2,
-  LayoutList,
+  CalendarDays,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -34,7 +34,7 @@ const NAV = [
   { to: "/testes", label: "Testes", icon: FlaskConical, perm: "testes" },
   { to: "/envios", label: "Envios", icon: Send, perm: "envios" },
   { to: "/devolutivas", label: "Devolutivas", icon: MessagesSquare, perm: "devolutivas" },
-  { to: "/gestao", label: "Gestão", icon: LayoutList, perm: "devolutivas" },
+  { to: "/agenda", label: "Agenda", icon: CalendarDays, perm: "devolutivas" },
   { to: "/comunidades", label: "Comunidades", icon: Users2, perm: "grupos" },
   { to: "/configuracoes", label: "Configurações", icon: Settings, perm: "configuracoes" },
 ] as const;

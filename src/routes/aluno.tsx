@@ -50,7 +50,7 @@ function AlunoLayout() {
       ? [
           ...NAV,
           { to: "/aluno/grupos", label: "Grupos", icon: FolderKanban, exato: false } as const,
-          { to: "/aluno/gestao", label: "Gestão", icon: LayoutList, exato: false } as const,
+          { to: "/aluno/agenda", label: "Agenda", icon: LayoutList, exato: false } as const,
         ]
       : NAV;
 

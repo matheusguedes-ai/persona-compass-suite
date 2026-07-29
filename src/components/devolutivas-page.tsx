@@ -17,6 +17,7 @@ import {
   atualizarDevolutiva, excluirDevolutiva, listarPessoasParaDevolutiva, type ItemDaFila,
 } from "@/lib/devolutivas.functions";
 import { Button } from "@/components/ui/button";
+import { QuadroGestao } from "@/components/quadro-gestao";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -215,6 +216,27 @@ export function DevolutivasPage({ groupId }: { groupId?: string } = {}) {
           <Plus className="size-4" /> Nova devolutiva
         </Button>
       </header>
+      )}
+
+      {/* O Kanban vive aqui, e não num menu próprio.
+          O Matheus usou "Gestão" na prática e viu que não colava: Kanban e
+          agenda respondem a perguntas diferentes. O Kanban é sobre devolutivas,
+          então o lugar dele é nesta tela. Fica recolhido por padrão — quem abre
+          Devolutivas quer agir na fila; o quadro é para olhar o todo. */}
+      {!groupId && (
+        <details className="group rounded-xl border border-black/5 bg-card p-5">
+          <summary className="cursor-pointer list-none text-lg font-semibold marker:hidden">
+            <span className="inline-flex items-center gap-2">
+              Visão em quadro
+              <span className="text-sm font-normal text-muted-foreground group-open:hidden">
+                — clique para abrir
+              </span>
+            </span>
+          </summary>
+          <div className="mt-4">
+            <QuadroGestao />
+          </div>
+        </details>
       )}
 
       {/* ---------------------------------------------------------- FILA --- */}
