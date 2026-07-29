@@ -337,6 +337,23 @@ export const atualizarDevolutiva = createServerFn({ method: "POST" })
 
     const { error } = await context.supabase.from("devolutivas").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
+
+    // Remarcar e cancelar também precisam chegar ao Google — senão o
+    // compromisso fica no calendário na data velha, ou fica lá depois de
+    // cancelado. Faltava: só o agendamento inicial sincronizava.
+    const { data: dev } = await context.supabase
+      .from("devolutivas")
+      .select("mentor_id, status, scheduled_at, notes, people(full_name)")
+      .eq("id", id).maybeSingle();
+    if (dev) {
+      const { sincronizar } = await import("@/lib/google.server");
+      const some = dev.status === "cancelada" || !dev.scheduled_at;
+      await sincronizar(dev.mentor_id, "devolutiva", id, some ? null : {
+        titulo: `Devolutiva · ${dev.people?.full_name ?? "avaliado"}`,
+        descricao: dev.notes ?? null,
+        quando: dev.scheduled_at!,
+      });
+    }
     return { ok: true };
   });
 
@@ -344,8 +361,17 @@ export const excluirDevolutiva = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    // Descobre de quem é ANTES de apagar: depois a linha não existe mais.
+    const { data: dev } = await context.supabase
+      .from("devolutivas").select("mentor_id").eq("id", data.id).maybeSingle();
+
     const { error } = await context.supabase.from("devolutivas").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    if (dev) {
+      const { sincronizar } = await import("@/lib/google.server");
+      await sincronizar(dev.mentor_id, "devolutiva", data.id, null);
+    }
     return { ok: true };
   });
 
