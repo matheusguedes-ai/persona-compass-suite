@@ -43,156 +43,8 @@ export type Database = {
           },
         ]
       }
-      eventos: {
-        Row: { id: string; conta_id: string; titulo: string; descricao: string | null; quando: string; duracao_min: number | null; criado_por: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; conta_id: string; titulo: string; descricao?: string | null; quando: string; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; conta_id?: string; titulo?: string; descricao?: string | null; quando?: string; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
-        Relationships: []
-      }
-      evento_destinos: {
-        Row: { id: string; evento_id: string; group_id: string | null; person_id: string | null }
-        Insert: { id?: string; evento_id: string; group_id?: string | null; person_id?: string | null }
-        Update: { id?: string; evento_id?: string; group_id?: string | null; person_id?: string | null }
-        Relationships: []
-      }
-      google_conexoes: {
-        Row: { user_id: string; refresh_token: string; calendar_id: string | null; email: string | null; conectado_em: string; ultimo_erro: string | null; ultimo_uso_em: string | null }
-        Insert: { user_id: string; refresh_token: string; calendar_id?: string | null; email?: string | null; conectado_em?: string; ultimo_erro?: string | null; ultimo_uso_em?: string | null }
-        Update: { user_id?: string; refresh_token?: string; calendar_id?: string | null; email?: string | null; conectado_em?: string; ultimo_erro?: string | null; ultimo_uso_em?: string | null }
-        Relationships: []
-      }
-      google_eventos: {
-        Row: { id: string; user_id: string; origem: string; origem_id: string; google_event_id: string; criado_em: string }
-        Insert: { id?: string; user_id: string; origem: string; origem_id: string; google_event_id: string; criado_em?: string }
-        Update: { id?: string; user_id?: string; origem?: string; origem_id?: string; google_event_id?: string; criado_em?: string }
-        Relationships: []
-      }
-      notificacoes: {
-        Row: { id: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo: string | null; link: string | null; ator_nome: string | null; lida_em: string | null; created_at: string }
-        Insert: { id?: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo?: string | null; link?: string | null; ator_nome?: string | null; lida_em?: string | null; created_at?: string }
-        Update: { id?: string; user_id?: string; conta_id?: string; tipo?: string; titulo?: string; corpo?: string | null; link?: string | null; ator_nome?: string | null; lida_em?: string | null; created_at?: string }
-        Relationships: []
-      }
-      pontos: {
-        Row: { id: string; user_id: string; mentor_id: string; acao: string; pontos: number; referencia: string | null; created_at: string }
-        Insert: { id?: string; user_id: string; mentor_id: string; acao: string; pontos: number; referencia?: string | null; created_at?: string }
-        Update: { id?: string; user_id?: string; mentor_id?: string; acao?: string; pontos?: number; referencia?: string | null; created_at?: string }
-        Relationships: []
-      }
-      community_post_groups: {
-        Row: { post_id: string; group_id: string }
-        Insert: { post_id: string; group_id: string }
-        Update: { post_id?: string; group_id?: string }
-        Relationships: [
-          {
-            foreignKeyName: "community_post_groups_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      community_posts: {
-        Row: { id: string; author_id: string; author_name: string; body: string; file_url: string | null; file_kind: string | null; link_url: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; author_id: string; author_name: string; body: string; file_url?: string | null; file_kind?: string | null; link_url?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; author_id?: string; author_name?: string; body?: string; file_url?: string | null; file_kind?: string | null; link_url?: string | null; created_at?: string; updated_at?: string }
-        Relationships: []
-      }
-      community_comments: {
-        Row: { id: string; post_id: string; author_id: string; author_name: string; body: string; created_at: string }
-        Insert: { id?: string; post_id: string; author_id: string; author_name: string; body: string; created_at?: string }
-        Update: { id?: string; post_id?: string; author_id?: string; author_name?: string; body?: string; created_at?: string }
-        Relationships: []
-      }
-      community_reactions: {
-        Row: { post_id: string; user_id: string; created_at: string }
-        Insert: { post_id: string; user_id: string; created_at?: string }
-        Update: { post_id?: string; user_id?: string; created_at?: string }
-        Relationships: []
-      }
-      devolutivas: {
-        Row: {
-          agreements: string | null
-          assessment_id: string | null
-          completed_at: string | null
-          created_at: string
-          created_by: string | null
-          duration_min: number | null
-          id: string
-          mentor_id: string
-          next_at: string | null
-          notes: string | null
-          person_id: string
-          response_id: string | null
-          scheduled_at: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          agreements?: string | null
-          assessment_id?: string | null
-          completed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          duration_min?: number | null
-          id?: string
-          mentor_id: string
-          next_at?: string | null
-          notes?: string | null
-          person_id: string
-          response_id?: string | null
-          scheduled_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          agreements?: string | null
-          assessment_id?: string | null
-          completed_at?: string | null
-          created_at?: string
-          created_by?: string | null
-          duration_min?: number | null
-          id?: string
-          mentor_id?: string
-          next_at?: string | null
-          notes?: string | null
-          person_id?: string
-          response_id?: string | null
-          scheduled_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "devolutivas_person_id_fkey"
-            columns: ["person_id"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devolutivas_response_id_fkey"
-            columns: ["response_id"]
-            isOneToOne: false
-            referencedRelation: "test_responses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devolutivas_assessment_id_fkey"
-            columns: ["assessment_id"]
-            isOneToOne: false
-            referencedRelation: "assessment_responses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       assessment_responses: {
         Row: {
-          previous_assessment_id: string | null
-          canceled_at: string | null
-          attempt: number
-          expires_at: string | null
           created_at: string
           group_id: string | null
           id: string
@@ -203,10 +55,6 @@ export type Database = {
           submitted_at: string | null
         }
         Insert: {
-          previous_assessment_id?: string | null
-          canceled_at?: string | null
-          attempt?: number
-          expires_at?: string | null
           created_at?: string
           group_id?: string | null
           id?: string
@@ -217,10 +65,6 @@ export type Database = {
           submitted_at?: string | null
         }
         Update: {
-          previous_assessment_id?: string | null
-          canceled_at?: string | null
-          attempt?: number
-          expires_at?: string | null
           created_at?: string
           group_id?: string | null
           id?: string
@@ -239,51 +83,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      email_logs: {
-        Row: {
-          assessment_id: string | null
-          created_at: string
-          error: string | null
-          id: string
-          kind: string
-          mentor_id: string
-          person_id: string | null
-          provider_id: string | null
-          response_id: string | null
-          status: string
-          subject: string
-          to_email: string
-        }
-        Insert: {
-          assessment_id?: string | null
-          created_at?: string
-          error?: string | null
-          id?: string
-          kind: string
-          mentor_id: string
-          person_id?: string | null
-          provider_id?: string | null
-          response_id?: string | null
-          status: string
-          subject: string
-          to_email: string
-        }
-        Update: {
-          assessment_id?: string | null
-          created_at?: string
-          error?: string | null
-          id?: string
-          kind?: string
-          mentor_id?: string
-          person_id?: string | null
-          provider_id?: string | null
-          response_id?: string | null
-          status?: string
-          subject?: string
-          to_email?: string
-        }
-        Relationships: []
       }
       group_instruments: {
         Row: {
@@ -391,53 +190,6 @@ export type Database = {
         }
         Relationships: []
       }
-      invite_links: {
-        Row: {
-          created_at: string
-          expires_at: string | null
-          group_id: string | null
-          id: string
-          is_active: boolean
-          max_responses: number | null
-          mentor_id: string
-          response_count: number
-          title: string | null
-          version_ids: string[]
-        }
-        Insert: {
-          created_at?: string
-          expires_at?: string | null
-          group_id?: string | null
-          id?: string
-          is_active?: boolean
-          max_responses?: number | null
-          mentor_id: string
-          response_count?: number
-          title?: string | null
-          version_ids: string[]
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string | null
-          group_id?: string | null
-          id?: string
-          is_active?: boolean
-          max_responses?: number | null
-          mentor_id?: string
-          response_count?: number
-          title?: string | null
-          version_ids?: string[]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "invite_links_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       instruments: {
         Row: {
           accent: string | null
@@ -540,204 +292,8 @@ export type Database = {
           },
         ]
       }
-      learning_tracks: {
-        Row: {
-          audience: string
-          cover_url: string | null
-          created_at: string
-          description: string | null
-          id: string
-          is_published: boolean
-          owner_id: string
-          sort_order: number
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          audience?: string
-          cover_url?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_published?: boolean
-          owner_id: string
-          sort_order?: number
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          audience?: string
-          cover_url?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_published?: boolean
-          owner_id?: string
-          sort_order?: number
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      learning_modules: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          parent_id: string | null
-          sort_order: number
-          title: string
-          track_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          parent_id?: string | null
-          sort_order?: number
-          title: string
-          track_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          parent_id?: string | null
-          sort_order?: number
-          title?: string
-          track_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "learning_modules_track_id_fkey"
-            columns: ["track_id"]
-            isOneToOne: false
-            referencedRelation: "learning_tracks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      learning_lessons: {
-        Row: {
-          created_at: string
-          description: string | null
-          duration_min: number | null
-          id: string
-          is_published: boolean
-          module_id: string
-          sort_order: number
-          title: string
-          track_id: string
-          updated_at: string
-          video_url: string | null
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          duration_min?: number | null
-          id?: string
-          is_published?: boolean
-          module_id: string
-          sort_order?: number
-          title: string
-          track_id: string
-          updated_at?: string
-          video_url?: string | null
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          duration_min?: number | null
-          id?: string
-          is_published?: boolean
-          module_id?: string
-          sort_order?: number
-          title?: string
-          track_id?: string
-          updated_at?: string
-          video_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "learning_lessons_module_id_fkey"
-            columns: ["module_id"]
-            isOneToOne: false
-            referencedRelation: "learning_modules"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      learning_materials: {
-        Row: {
-          created_at: string
-          id: string
-          kind: string
-          lesson_id: string
-          sort_order: number
-          title: string
-          track_id: string
-          url: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          kind?: string
-          lesson_id: string
-          sort_order?: number
-          title: string
-          track_id: string
-          url: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          kind?: string
-          lesson_id?: string
-          sort_order?: number
-          title?: string
-          track_id?: string
-          url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "learning_materials_lesson_id_fkey"
-            columns: ["lesson_id"]
-            isOneToOne: false
-            referencedRelation: "learning_lessons"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      learning_progress: {
-        Row: {
-          completed_at: string
-          id: string
-          lesson_id: string
-          track_id: string
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string
-          id?: string
-          lesson_id: string
-          track_id: string
-          user_id: string
-        }
-        Update: {
-          completed_at?: string
-          id?: string
-          lesson_id?: string
-          track_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       people: {
         Row: {
-          invite_link_id: string | null
           created_at: string
           email: string
           full_name: string
@@ -747,13 +303,10 @@ export type Database = {
           phone: string | null
           profession: string | null
           role: string
-          avatar_url: string | null
           role_at_company: string | null
           updated_at: string
-          user_id: string | null
         }
         Insert: {
-          invite_link_id?: string | null
           created_at?: string
           email: string
           full_name: string
@@ -763,13 +316,10 @@ export type Database = {
           phone?: string | null
           profession?: string | null
           role?: string
-          avatar_url?: string | null
           role_at_company?: string | null
           updated_at?: string
-          user_id?: string | null
         }
         Update: {
-          invite_link_id?: string | null
           created_at?: string
           email?: string
           full_name?: string
@@ -779,27 +329,14 @@ export type Database = {
           phone?: string | null
           profession?: string | null
           role?: string
-          avatar_url?: string | null
           role_at_company?: string | null
           updated_at?: string
-          user_id?: string | null
         }
         Relationships: []
       }
       profiles: {
         Row: {
-          avatar_url: string | null
-          email_from: string | null
           brand_color: string | null
-          brand_accent_color: string | null
-          invite_message: string | null
-          reminder_message: string | null
-          report_allow_pdf: boolean
-          report_hidden_blocks: string[]
-          report_show_brand: boolean
-          result_message: string | null
-          site_url: string | null
-          support_email: string | null
           company_name: string | null
           created_at: string
           full_name: string | null
@@ -808,18 +345,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          avatar_url?: string | null
-          email_from?: string | null
           brand_color?: string | null
-          brand_accent_color?: string | null
-          invite_message?: string | null
-          reminder_message?: string | null
-          report_allow_pdf?: boolean
-          report_hidden_blocks?: string[]
-          report_show_brand?: boolean
-          result_message?: string | null
-          site_url?: string | null
-          support_email?: string | null
           company_name?: string | null
           created_at?: string
           full_name?: string | null
@@ -828,18 +354,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          avatar_url?: string | null
-          email_from?: string | null
           brand_color?: string | null
-          brand_accent_color?: string | null
-          invite_message?: string | null
-          reminder_message?: string | null
-          report_allow_pdf?: boolean
-          report_hidden_blocks?: string[]
-          report_show_brand?: boolean
-          result_message?: string | null
-          site_url?: string | null
-          support_email?: string | null
           company_name?: string | null
           created_at?: string
           full_name?: string | null
@@ -895,96 +410,6 @@ export type Database = {
             columns: ["version_id"]
             isOneToOne: false
             referencedRelation: "test_versions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      team_members: {
-        Row: {
-          person_id: string | null
-          accepted_at: string | null
-          created_at: string
-          email: string
-          id: string
-          invite_expires_at: string | null
-          invite_token: string
-          kind: string
-          name: string
-          owner_id: string
-          permissions: string[]
-          status: string
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          person_id?: string | null
-          accepted_at?: string | null
-          created_at?: string
-          email: string
-          id?: string
-          invite_expires_at?: string | null
-          invite_token?: string
-          kind: string
-          name: string
-          owner_id: string
-          permissions?: string[]
-          status?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          person_id?: string | null
-          accepted_at?: string | null
-          created_at?: string
-          email?: string
-          id?: string
-          invite_expires_at?: string | null
-          invite_token?: string
-          kind?: string
-          name?: string
-          owner_id?: string
-          permissions?: string[]
-          status?: string
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      team_member_groups: {
-        Row: {
-          can_download_reports: boolean
-          can_schedule_devolutivas: boolean
-          created_at: string
-          group_id: string
-          team_member_id: string
-        }
-        Insert: {
-          can_download_reports?: boolean
-          can_schedule_devolutivas?: boolean
-          created_at?: string
-          group_id: string
-          team_member_id: string
-        }
-        Update: {
-          can_download_reports?: boolean
-          can_schedule_devolutivas?: boolean
-          created_at?: string
-          group_id?: string
-          team_member_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "team_member_groups_team_member_id_fkey"
-            columns: ["team_member_id"]
-            isOneToOne: false
-            referencedRelation: "team_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "team_member_groups_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
             referencedColumns: ["id"]
           },
         ]
@@ -1150,10 +575,6 @@ export type Database = {
       }
       test_responses: {
         Row: {
-          previous_response_id: string | null
-          canceled_at: string | null
-          attempt: number
-          expires_at: string | null
           assessment_response_id: string | null
           assessment_sort: number
           computed_scores: Json | null
@@ -1174,10 +595,6 @@ export type Database = {
           version_id: string
         }
         Insert: {
-          previous_response_id?: string | null
-          canceled_at?: string | null
-          attempt?: number
-          expires_at?: string | null
           assessment_response_id?: string | null
           assessment_sort?: number
           computed_scores?: Json | null
@@ -1198,10 +615,6 @@ export type Database = {
           version_id: string
         }
         Update: {
-          previous_response_id?: string | null
-          canceled_at?: string | null
-          attempt?: number
-          expires_at?: string | null
           assessment_response_id?: string | null
           assessment_sort?: number
           computed_scores?: Json | null
@@ -1379,28 +792,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_team_invite: {
-        Args: { _token: string }
-        Returns: { id: string; kind: string; owner_id: string }[]
-      }
-      acting_account: { Args: Record<string, never>; Returns: string }
-      promover_a_mentor: { Args: { p_person_id: string }; Returns: string }
-      rebaixar_mentor: { Args: { p_person_id: string }; Returns: undefined }
-      meus_grupos_como_avaliado: { Args: Record<string, never>; Returns: string[] }
-      posso_ver_grupo: { Args: { p_group_id: string }; Returns: boolean }
-      nome_do_mentor: { Args: { p_user_id: string }; Returns: string | null }
-      claim_student_profile: { Args: Record<string, never>; Returns: number }
-      update_my_person: {
-        Args: { _full_name: string; _phone?: string | null; _avatar_url?: string | null }
-        Returns: number
-      }
-      can_see_track: { Args: { _track_id: string }; Returns: boolean }
-      can_edit_track: { Args: { _track_id: string }; Returns: boolean }
-      member_kind: { Args: Record<string, never>; Returns: string }
-      claim_invite_link: {
-        Args: { link_id: string }
-        Returns: Database["public"]["Tables"]["invite_links"]["Row"][]
-      }
       option_version_id: { Args: { _option_id: string }; Returns: string }
       owns_test_version: { Args: { _version_id: string }; Returns: boolean }
       question_version_id: { Args: { _question_id: string }; Returns: string }
