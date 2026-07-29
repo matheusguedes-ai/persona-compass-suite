@@ -65,7 +65,7 @@ function Espera({ dias }: { dias: number }) {
   );
 }
 
-export function DevolutivasPage() {
+export function DevolutivasPage({ groupId }: { groupId?: string } = {}) {
   const qc = useQueryClient();
   const filaFn = useServerFn(listarFila);
   const listaFn = useServerFn(listarDevolutivas);
@@ -75,7 +75,8 @@ export function DevolutivasPage() {
   const excluirFn = useServerFn(excluirDevolutiva);
 
   const { data: filaData, isLoading: carregandoFila } = useQuery({
-    queryKey: ["devolutivas-fila"], queryFn: () => filaFn(),
+    queryKey: ["devolutivas-fila", groupId ?? null],
+    queryFn: () => filaFn({ data: { group_id: groupId ?? null } }),
   });
   const { data: listaData, isLoading: carregandoLista } = useQuery({
     queryKey: ["devolutivas"], queryFn: () => listaFn(),
@@ -202,6 +203,7 @@ export function DevolutivasPage() {
 
   return (
     <div className="space-y-8">
+      {!groupId && (
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Devolutivas</h1>
@@ -213,6 +215,7 @@ export function DevolutivasPage() {
           <Plus className="size-4" /> Nova devolutiva
         </Button>
       </header>
+      )}
 
       {/* ---------------------------------------------------------- FILA --- */}
       <section className="rounded-xl border border-black/5 bg-card p-5">

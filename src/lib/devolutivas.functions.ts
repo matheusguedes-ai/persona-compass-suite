@@ -59,7 +59,10 @@ function diasDesde(iso: string) {
  */
 export const listarFila = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) =>
+    z.object({ group_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
     const supabase = context.supabase;
 
     const [{ data: baterias, error: e1 }, { data: avulsas, error: e2 }, { data: jaTem, error: e3 }] =
@@ -110,9 +113,17 @@ export const listarFila = createServerFn({ method: "GET" })
         dias_esperando: diasDesde(r.submitted_at),
       });
     }
+    // Filtro por grupo, para a aba dentro do grupo mostrar só quem é dele.
+    let recorte = fila;
+    if (data.group_id) {
+      const { data: membros } = await supabase
+        .from("group_members").select("person_id").eq("group_id", data.group_id);
+      const doGrupo = new Set((membros ?? []).map((m) => m.person_id));
+      recorte = fila.filter((f) => doGrupo.has(f.person_id));
+    }
     // Quem espera há mais tempo primeiro: é a ordem que resolve o problema.
-    fila.sort((a, b) => b.dias_esperando - a.dias_esperando);
-    return { fila };
+    recorte.sort((a, b) => b.dias_esperando - a.dias_esperando);
+    return { fila: recorte };
   });
 
 export const listarDevolutivas = createServerFn({ method: "GET" })

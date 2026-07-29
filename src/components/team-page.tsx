@@ -28,7 +28,7 @@ import { Link2, Plus, RefreshCw, Search, Settings2, Trash2, UserPlus } from "luc
 import { Avatar } from "@/components/avatar-upload";
 import { toast } from "sonner";
 
-type MemberGroup = { group_id: string; can_download_reports: boolean; groups: { id: string; name: string } | null };
+type MemberGroup = { group_id: string; can_download_reports: boolean; can_schedule_devolutivas: boolean; groups: { id: string; name: string } | null };
 type Member = {
   id: string; name: string; email: string; kind: string; status: string;
   invite_token: string; invite_expires_at: string | null; permissions: string[];
@@ -323,8 +323,15 @@ function AcessoDialog({
   const setGroupsFn = useServerFn(setMemberGroups);
   const { data: grupos = [] } = useQuery({ queryKey: ["groups"], queryFn: () => listGroupsFn(), enabled: ehMentor });
 
-  const [sel, setSel] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries((membro.team_member_groups ?? []).map((g) => [g.group_id, g.can_download_reports])),
+  // Duas permissões por grupo: baixar relatório e agendar devolutiva. São
+  // independentes de propósito — um mentor pode conduzir a conversa sem levar
+  // o relatório embora, e o contrário também acontece.
+  type PermsDoGrupo = { baixar: boolean; agendar: boolean };
+  const [sel, setSel] = useState<Record<string, PermsDoGrupo>>(() =>
+    Object.fromEntries((membro.team_member_groups ?? []).map((g) => [
+      g.group_id,
+      { baixar: g.can_download_reports, agendar: g.can_schedule_devolutivas ?? false },
+    ])),
   );
   const [perms, setPerms] = useState<Permissao[]>((membro.permissions ?? []) as Permissao[]);
 
@@ -333,7 +340,11 @@ function AcessoDialog({
       setGroupsFn({
         data: {
           member_id: membro.id,
-          groups: Object.entries(sel).map(([group_id, can_download_reports]) => ({ group_id, can_download_reports })),
+          groups: Object.entries(sel).map(([group_id, p]) => ({
+            group_id,
+            can_download_reports: p.baixar,
+            can_schedule_devolutivas: p.agendar,
+          })),
         },
       }),
     onSuccess: () => {
@@ -349,7 +360,7 @@ function AcessoDialog({
     setSel((prev) => {
       const next = { ...prev };
       if (Object.prototype.hasOwnProperty.call(next, id)) delete next[id];
-      else next[id] = false;
+      else next[id] = { baixar: false, agendar: false };
       return next;
     });
 
@@ -382,17 +393,33 @@ function AcessoDialog({
                   )}
                 </label>
                 {marcado(g.id) && (
-                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-black/5 pt-3 pl-7">
-                    <div>
-                      <p className="text-xs font-medium">Pode baixar os relatórios</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Desligado, ele lê o relatório na tela mas não consegue salvar em PDF.
-                      </p>
+                  <div className="mt-3 space-y-3 border-t border-black/5 pt-3 pl-7">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium">Pode baixar os relatórios</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Desligado, ele lê o relatório na tela mas não consegue salvar em PDF.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={sel[g.id]?.baixar ?? false}
+                        onCheckedChange={(v) =>
+                          setSel((prev) => ({ ...prev, [g.id]: { ...prev[g.id], baixar: v } }))}
+                      />
                     </div>
-                    <Switch
-                      checked={sel[g.id] ?? false}
-                      onCheckedChange={(v) => setSel((prev) => ({ ...prev, [g.id]: v }))}
-                    />
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium">Pode agendar devolutivas</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Desligado, ele acompanha a fila mas não marca nem registra a conversa.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={sel[g.id]?.agendar ?? false}
+                        onCheckedChange={(v) =>
+                          setSel((prev) => ({ ...prev, [g.id]: { ...prev[g.id], agendar: v } }))}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

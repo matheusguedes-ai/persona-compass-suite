@@ -68,7 +68,7 @@ export const listTeamMembers = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     let q = supabase
       .from("team_members")
-      .select("*, team_member_groups(group_id, can_download_reports, groups(id, name))")
+      .select("*, team_member_groups(group_id, can_download_reports, can_schedule_devolutivas, groups(id, name))")
       .eq("owner_id", userId)
       .order("created_at", { ascending: false });
     if (data.kind) q = q.eq("kind", data.kind);
@@ -119,8 +119,64 @@ export const createTeamMember = createServerFn({ method: "POST" })
       }
       throw new Error(error.message);
     }
+    // O convite existia mas nunca saía do banco: o token era gerado e ninguém
+    // avisava a pessoa. Era isso que fazia "adicionar mentor" parecer quebrado.
+    await mandarConvite(supabase, userId, row.id);
     return row;
   });
+
+/**
+ * Manda o convite para o e-mail do membro.
+ *
+ * Silencioso de propósito: se o envio falhar, o convite continua válido e o
+ * dono pode reenviar. Derrubar a criação por causa do e-mail deixaria o dono
+ * sem entender o que aconteceu — e o link, que é o que importa, já existe.
+ */
+async function mandarConvite(
+  supabase: SupabaseClient<Database>,
+  ownerId: string,
+  memberId: string,
+): Promise<void> {
+  try {
+    const { data: m } = await supabase
+      .from("team_members")
+      .select("name, email, kind, invite_token")
+      .eq("id", memberId)
+      .maybeSingle();
+    if (!m?.invite_token || !m.email) return;
+
+    const { data: perfil } = await supabase
+      .from("profiles")
+      .select("company_name, brand_color, site_url, support_email, email_from")
+      .eq("user_id", ownerId)
+      .maybeSingle();
+
+    const { enviarEmail, montarHtml } = await import("@/lib/email.server");
+    const site = process.env.SITE_URL || "https://persona-compass-suite.lovable.app";
+    const marca = perfil?.company_name?.trim() || "Métrica Humana";
+    const papel = m.kind === "mentor" ? "mentor" : "colaborador";
+    const primeiro = (m.name ?? "").split(" ")[0] || "Olá";
+
+    await enviarEmail({
+      to: m.email,
+      subject: `Convite para ${papel} em ${marca}`,
+      html: montarHtml({
+        corpo:
+          `${primeiro}, você foi convidado para atuar como ${papel} em ${marca}.\n\n` +
+          "Clique no botão abaixo para aceitar o convite. Na primeira vez você vai escolher uma " +
+          "senha; depois disso, é só entrar com o seu e-mail e essa senha.\n\n" +
+          "Se você não esperava este convite, pode ignorar esta mensagem.",
+        link: `${site}/convite-equipe/${m.invite_token}`,
+        rotuloBotao: "Aceitar o convite",
+        marca: perfil ?? null,
+      }),
+      from: perfil?.email_from ?? null,
+      replyTo: perfil?.support_email ?? null,
+    });
+  } catch {
+    // Ver o comentário acima: o convite vale mesmo sem o e-mail ter saído.
+  }
+}
 
 export const updateTeamMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -183,6 +239,8 @@ export const resetInviteToken = createServerFn({ method: "POST" })
       .select("id, invite_token")
       .single();
     if (error) throw new Error(error.message);
+    // Reenviar também manda o e-mail: era o botão que não fazia nada visível.
+    await mandarConvite(supabase, userId, data.id);
     return row;
   });
 
@@ -199,6 +257,7 @@ export const setMemberGroups = createServerFn({ method: "POST" })
       groups: z.array(z.object({
         group_id: z.string().uuid(),
         can_download_reports: z.boolean().default(false),
+        can_schedule_devolutivas: z.boolean().default(false),
       })).max(200),
     }).parse(d),
   )

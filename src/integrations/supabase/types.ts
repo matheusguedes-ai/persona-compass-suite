@@ -920,18 +920,21 @@ export type Database = {
       team_member_groups: {
         Row: {
           can_download_reports: boolean
+          can_schedule_devolutivas: boolean
           created_at: string
           group_id: string
           team_member_id: string
         }
         Insert: {
           can_download_reports?: boolean
+          can_schedule_devolutivas?: boolean
           created_at?: string
           group_id: string
           team_member_id: string
         }
         Update: {
           can_download_reports?: boolean
+          can_schedule_devolutivas?: boolean
           created_at?: string
           group_id?: string
           team_member_id?: string
