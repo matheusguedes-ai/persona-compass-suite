@@ -1,9 +1,24 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { KpiCard } from "@/components/kpi-card";
 import { StatusBadge } from "@/components/status-badge";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/data.functions";
+import { getMyMembership } from "@/lib/team.functions";
+
+/**
+ * O mentor afiliado não tem dashboard próprio: o do dono mostraria números da
+ * conta inteira, que não são dele. Vai direto para Grupos, que é o trabalho
+ * dele na plataforma.
+ */
+function RedirecionaMentor({ children }: { children: React.ReactNode }) {
+  const membershipFn = useServerFn(getMyMembership);
+  const { data } = useQuery({
+    queryKey: ["my-membership"], queryFn: () => membershipFn(), staleTime: 300_000,
+  });
+  if (data?.kind === "mentor") return <Navigate to="/grupos" />;
+  return <>{children}</>;
+}
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({
@@ -14,7 +29,11 @@ export const Route = createFileRoute("/_app/")({
       { property: "og:description", content: "Visão geral dos testes enviados, respondidos e pendentes na plataforma de assessments." },
     ],
   }),
-  component: Dashboard,
+  component: () => (
+    <RedirecionaMentor>
+      <Dashboard />
+    </RedirecionaMentor>
+  ),
 });
 
 function Dashboard() {

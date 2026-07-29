@@ -55,12 +55,29 @@ export function AppSidebar() {
   // e evita o menu "piscar" itens aparecendo aos poucos.
   const kind = membership?.kind ?? "owner";
   const permissions = membership?.permissions ?? [];
-  const items = NAV.filter((item) => {
-    if (kind === "owner") return true;
-    if ("soDono" in item && item.soDono) return false;
-    if (!("perm" in item)) return true;
-    return permissions.includes(item.perm);
-  });
+  // O mentor afiliado tem um menu PRÓPRIO, não o do dono filtrado.
+  //
+  // O acesso dele não vem de permissões de funcionalidade — vem dos grupos que
+  // o dono atribuiu. Com o filtro por permissão, tudo sumia e sobrava um
+  // Dashboard vazio, que é o painel do dono sem os dados dele. O papel do
+  // mentor é acompanhar os grupos e conduzir devolutivas; é isso que o menu
+  // dele precisa oferecer.
+  const MENU_DO_MENTOR = [
+    { to: "/grupos", label: "Grupos", icon: FolderKanban },
+    { to: "/devolutivas", label: "Devolutivas", icon: MessagesSquare },
+    { to: "/comunidades", label: "Comunidades", icon: Users2 },
+    { to: "/educacao", label: "Educação", icon: BookOpen },
+  ] as const;
+
+  const items =
+    kind === "mentor"
+      ? MENU_DO_MENTOR
+      : NAV.filter((item) => {
+          if (kind === "owner") return true;
+          if ("soDono" in item && item.soDono) return false;
+          if (!("perm" in item)) return true;
+          return permissions.includes(item.perm);
+        });
   const displayName = user?.displayName ?? "—";
   const email = user?.email ?? "";
 
