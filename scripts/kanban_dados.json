@@ -1064,10 +1064,10 @@
    "titulo": "SPF, DKIM e DMARC no Registro.br",
    "descricao": "Zona do metodointencao.com.br com SPF do Google, DMARC p=none, DKIM do Workspace e os registros do Resend; verificado em quatro resolvedores.",
    "area": "Infra",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "dns-registro-br-autenticacao-email.md",
-   "prova": "Dado como feito, mas não achei o artefato no repositório. Nenhum artefato no repositório — é configuração de zona DNS externa. A única evidência é a nota em memory/dns-registro-br-autenticacao-email.md (SPF do Google,",
+   "prova": "docs/autenticacao-de-email.md, escrito consultando o DNS ao vivo. Registra o que está publicado e por que o SPF da raiz não citar o Resend NÃO é defeito. Achado: DMARC em p=none não protege nada — o caminho para p=quarantine está no documento, não executado por ser DNS do domínio dele.",
    "prioridade": 107
   },
   {
@@ -1077,7 +1077,7 @@
    "status": "Precisa de melhorias",
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § item K · git log 238e88a",
-   "prova": "O selo não aparece justamente na tela onde a pessoa responde o teste, que é a página mais vista de todas — nem no login e no convite de equipe; e na bateria ele só surge depois que a pessoa termina uma etapa.",
+   "prova": "Feito na tela que mais importa: /responder aplicava a marca padrão porque ResponseForm ignorava o `brand` que o endpoint sempre devolveu — não era só o selo, era cor e logo também. Selo nos quatro finais da tela. /convite já tinha. FALTA: /convite-equipe (dá para fazer: o token identifica a conta e dadosDoConvite existe, mas a tela nem chama). /auth NÃO dá: é o login da plataforma inteira e a conta só se conhece depois de entrar.",
    "prioridade": 108
   },
   {
