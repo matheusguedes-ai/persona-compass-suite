@@ -116,6 +116,20 @@ export function AppSidebar() {
             </Link>
           );
         })}
+        {/* Quem tem conta própria E é avaliado em outra. Sem este atalho, a
+            área de aluno dele existe e responde, mas nenhum caminho da
+            interface leva até lá — ele só chegaria digitando /aluno. Separado
+            do menu por uma linha: é a outra conta, não mais um item desta. */}
+        {membership?.tambem_avaliado && (
+          <Link
+            to="/aluno"
+            search={{ ver: undefined }}
+            className="mt-4 flex items-center gap-3 rounded-md border-t border-black/5 px-3 pb-2 pt-4 text-sm font-medium text-muted-foreground transition-colors hover:text-sidebar-accent-foreground"
+          >
+            <GraduationCap className="size-4 shrink-0" />
+            Minha área de aluno
+          </Link>
+        )}
       </nav>
 
       <div className="border-t border-black/5 p-4">

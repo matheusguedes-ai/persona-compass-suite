@@ -186,6 +186,19 @@ function AlunoLayout() {
             </button>
             <div className="lg:hidden"><BrandMark /></div>
             <div className="ml-auto flex items-center gap-2">
+              {/* O caminho de volta de quem tem conta própria E é avaliado em
+                  outra. O aviso âmbar logo abaixo só aparece na PRÉVIA (`ver`);
+                  quem vem aqui como aluno de verdade ficava sem saída a não ser
+                  o botão do navegador. Nunca para aluno puro: ele não tem
+                  painel de mentor para onde voltar. */}
+              {!ver && membership?.tambem_avaliado && membership.kind !== "mentor" && (
+                <Link
+                  to="/"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="size-3.5" /> Meu painel
+                </Link>
+              )}
               {!ver && <Sino area="aluno" />}
               <ThemeToggle />
               {!ver && (
