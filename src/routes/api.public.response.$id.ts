@@ -92,6 +92,83 @@ function hasContent(qType: string, payload: Record<string, unknown> | undefined)
   return Object.keys(payload).length > 0;
 }
 
+/**
+ * "Fulano respondeu." O aviso que faltava — e que o próprio banco já previa.
+ *
+ * O comentário da RPC `notificar` cita o caso literalmente ("'fulano respondeu
+ * o teste' não [vai para os colegas]"), mas nada nunca a chamava daqui. O
+ * mentor descobria a resposta abrindo a tela e reparando na mudança: no
+ * produto inteiro, o evento mais importante era o único silencioso.
+ *
+ * Três decisões que este bloco carrega:
+ *
+ * 1. `paraAlunos: false` e sem `pessoaUser`. Quem respondeu não precisa de
+ *    aviso do que acabou de fazer, e os COLEGAS de grupo não têm nada a ver com
+ *    isso — resultado de teste é a informação mais sensível da plataforma.
+ * 2. Numa BATERIA, só avisa quando a última etapa entra. Seis testes num link
+ *    gerariam seis notificações do mesmo evento, e o sino viraria ruído que se
+ *    aprende a ignorar.
+ * 3. Resposta de OBSERVADOR (`kind = 'observer'`) avisa com outro texto: para o
+ *    mentor, "a Ana respondeu o 360° sobre o João" e "o João respondeu" são
+ *    coisas diferentes, e o link é o mesmo relatório.
+ *
+ * Silencioso como as outras notificações: `notificar` engole a falha. O teste
+ * já está gravado quando isto roda — aviso não pode derrubar resposta.
+ */
+async function avisarQueRespondeu(
+  supabase: Awaited<ReturnType<typeof getAdmin>>,
+  response: Record<string, unknown>,
+  assessmentId: string | null,
+  bateriaFechou: boolean,
+) {
+  try {
+    if (assessmentId && !bateriaFechou) return;
+    const conta = response.mentor_id as string | null;
+    if (!conta) return;
+
+    const personId = response.person_id as string | null;
+    const { data: pessoa } = personId
+      ? await supabase.from("people").select("full_name").eq("id", personId).maybeSingle()
+      : { data: null };
+    const { data: versao } = await supabase
+      .from("test_versions").select("title").eq("id", response.version_id as string).maybeSingle();
+
+    // Os GRUPOS de quem respondeu. Sem isto, `p_grupos` vai nulo, a RPC trata o
+    // aviso como anúncio da conta inteira e TODO mentor da equipe fica sabendo
+    // de toda resposta — inclusive de turmas que não são dele. Resultado de
+    // teste é o dado mais sensível daqui; ele segue o recorte da equipe.
+    //
+    // Pessoa sem grupo nenhum continua com `null`: aí só o dono recebe (o ramo
+    // 1 da RPC), que é o comportamento certo — não há mentor a quem avisar.
+    const { data: vinculos } = personId
+      ? await supabase.from("group_members").select("group_id").eq("person_id", personId)
+      : { data: null };
+    const grupos = (vinculos ?? []).map((v) => v.group_id);
+
+    const nome = pessoa?.full_name ?? "Alguém";
+    const teste = versao?.title ?? "um teste";
+    const observador = (response.kind as string | null) === "observer";
+    const avaliador = (response.rater_name as string | null) ?? "Um observador";
+
+    const { notificar } = await import("@/lib/notificacoes.functions");
+    await notificar(supabase as never, {
+      conta,
+      tipo: observador ? "observador_respondeu" : "teste_respondido",
+      titulo: observador
+        ? `${avaliador} respondeu o 360° sobre ${nome}`
+        : assessmentId
+          ? `${nome} concluiu a bateria`
+          : `${nome} respondeu ${teste}`,
+      corpo: observador || assessmentId ? teste : null,
+      link: assessmentId ? `/relatorio-bateria/${assessmentId}` : `/relatorio/${response.id as string}`,
+      grupos: grupos.length ? grupos : null,
+      paraAlunos: false,
+    });
+  } catch {
+    // Ver o comentário acima: aviso nunca derruba a resposta já gravada.
+  }
+}
+
 async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) {
   const supabase = await getAdmin();
   const { data: response } = await supabase.from("test_responses").select("*").eq("id", id).maybeSingle();
@@ -573,18 +650,22 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
 
   // Se a resposta faz parte de uma bateria, fecha a bateria quando for a última etapa.
   const assessmentId = (response as { assessment_response_id?: string | null }).assessment_response_id ?? null;
+  let bateriaFechou = false;
   if (assessmentId) {
     const { data: siblings } = await supabase
       .from("test_responses")
       .select("id, submitted_at")
       .eq("assessment_response_id", assessmentId);
     const pending = (siblings ?? []).filter((s) => !s.submitted_at && s.id !== id);
+    bateriaFechou = pending.length === 0;
     await supabase.from("assessment_responses").update(
-      pending.length === 0
+      bateriaFechou
         ? { status: "submitted", submitted_at: new Date().toISOString() }
         : { status: "in_progress" },
     ).eq("id", assessmentId);
   }
+
+  await avisarQueRespondeu(supabase, response, assessmentId, bateriaFechou);
 
   // Build friendly result summary
   const dominantDim = dominantDimId != null ? dimById.get(dominantDimId) : undefined;
