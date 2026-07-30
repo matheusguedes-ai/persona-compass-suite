@@ -12,6 +12,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
+import { urlOpcional } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -202,7 +203,7 @@ export const updateTreinamento = createServerFn({ method: "POST" })
       id: z.string().uuid(),
       titulo: z.string().trim().min(2).max(200).optional(),
       descricao: z.string().trim().max(2000).optional().nullable(),
-      capa_url: z.string().trim().max(600).optional().nullable(),
+      capa_url: urlOpcional,
       publicado: z.boolean().optional(),
       // O mesmo intervalo do CHECK do banco. Validar aqui também dá mensagem
       // legível em vez de erro cru do Postgres.

@@ -14,6 +14,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { urlOpcional } from "@/lib/url-segura";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
@@ -53,7 +54,7 @@ export function youtubeId(url: string | null | undefined): string | null {
 const trackSchema = z.object({
   title: z.string().trim().min(2).max(200),
   description: z.string().trim().max(2000).optional().nullable(),
-  cover_url: z.string().trim().max(600).optional().nullable(),
+  cover_url: urlOpcional,
   audience: z.enum(["equipe", "alunos", "ambos"]).default("alunos"),
   is_published: z.boolean().default(false),
 });
@@ -384,7 +385,7 @@ export const saveLesson = createServerFn({ method: "POST" })
       module_id: z.string().uuid(),
       title: z.string().trim().min(1).max(200),
       description: z.string().trim().max(4000).optional().nullable(),
-      video_url: z.string().trim().max(600).optional().nullable(),
+      video_url: urlOpcional,
       duration_min: z.number().int().min(0).max(1000).optional().nullable(),
       sort_order: z.number().int().min(0).max(9999).optional(),
       is_published: z.boolean().optional(),

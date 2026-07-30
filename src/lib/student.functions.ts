@@ -7,6 +7,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { urlOpcional } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -127,7 +128,7 @@ export const updateMyStudentProfile = createServerFn({ method: "POST" })
     z.object({
       full_name: z.string().trim().min(2).max(160),
       phone: z.string().trim().max(40).optional().nullable(),
-      avatar_url: z.string().trim().max(600).optional().nullable(),
+      avatar_url: urlOpcional,
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
