@@ -1,16 +1,6 @@
 {
  "demandas": [
   {
-   "titulo": "GRANT EXECUTE nas funções SECURITY DEFINER",
-   "descricao": "As policies de teste dependem dessas funções; o scanner do Lovable já revogou o grant uma vez e derrubou o app inteiro.",
-   "area": "Infra",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "CLAUDE.md § Modelo de dados",
-   "prova": "Se o scanner revogar de novo, o app inteiro cai — já aconteceu uma vez.",
-   "prioridade": 1
-  },
-  {
    "titulo": "Conferir vazamento de dado com o mentor afiliado real",
    "descricao": "O mentor afiliado enxerga resultado de teste de quem não é cliente direta dele; validar antes de soltar.",
    "area": "Infra",
@@ -18,37 +8,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 1, Risco a observar",
    "prova": "Hoje um mentor afiliado enxerga resultado de quem não é cliente dele.",
-   "prioridade": 2
-  },
-  {
-   "titulo": "Alerta crítico do scanner do Lovable sobre report_content",
-   "descricao": "A policy rc_read_authenticated (USING true) deixa qualquer usuário logado ler o conteúdo de relatório de todos os mentores. Está assim por design (o conteúdo é global e compartilhado), mas o alerta continua aberto no painel do Lov",
-   "area": "Segurança / RLS",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "memory/publicacao-exige-cutover.md, seção \"⚠️ Alertas do scanner do Lovable — NÃO clicar em Try to fix all\" (a",
-   "prova": "Alerta Critical aberto e o botão 'Try to fix' pode derrubar o acesso ao conteúdo.",
-   "prioridade": 3
-  },
-  {
-   "titulo": "'Não pode baixar' é só trava de interface",
-   "descricao": "O link do relatório é aberto, então quem tiver o link imprime pelo navegador mesmo sem can_download_reports.",
-   "area": "Relatórios",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "arquitetura-equipe-e-permissoes.md, aviso final",
-   "prova": "Quem tem o link imprime o relatório mesmo sem permissão.",
-   "prioridade": 4
-  },
-  {
-   "titulo": "Cadeado e áreas sem teste com login de aluno real",
-   "descricao": "A verificação foi pela prévia 'ver como aluno' mais o predicado do banco; as policies com auth.uid() de aluno não foram exercitadas.",
-   "area": "Academy",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "feature-cadeado-e-areas-do-grupo.md § Como testei",
-   "prova": "A tranca nunca foi testada com aluno de verdade; se falhar, aluno vê o que não é dele.",
-   "prioridade": 5
+   "prioridade": 1
   },
   {
    "titulo": "As migrações não reconstroem o banco",
@@ -58,7 +18,7 @@
    "depende_de": "Claude",
    "origem": "memory/migracao-supabase-proprio.md (\"⚠️ As migrações estavam incompletas… report_content nem existia nelas\");",
    "prova": "Se precisar recriar o banco hoje, conteúdo e policies não voltam.",
-   "prioridade": 6
+   "prioridade": 2
   },
   {
    "titulo": "Bug de fuso: data aparecendo um dia antes",
@@ -68,7 +28,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 2, Testar · git log 562907c",
    "prova": "A pessoa lê uma data errada na tela e se programa pelo dia errado.",
-   "prioridade": 7
+   "prioridade": 3
   },
   {
    "titulo": "Repasse do link ao vivo ainda fura o QR rotativo",
@@ -78,7 +38,7 @@
    "depende_de": "Claude",
    "origem": "docs/analise-classroom.md § O que a etapa 4 decidiu na prática, item 2",
    "prova": "Dá para marcar presença de casa, e a lista é documento que vai para o RH.",
-   "prioridade": 8
+   "prioridade": 4
   },
   {
    "titulo": "Aluno sem login fica fora do ranking mesmo com presença registrada",
@@ -88,7 +48,7 @@
    "depende_de": "Claude",
    "origem": "src/components/lista-de-presenca.tsx:316-321 (texto da tela); consequência do desenho da etapa 6",
    "prova": "Quem compareceu aparece zerado na única tela que a turma inteira vê.",
-   "prioridade": 9
+   "prioridade": 5
   },
   {
    "titulo": "Aviso ao mudar o horário de uma aula que já tem presença",
@@ -98,7 +58,7 @@
    "depende_de": "Claude",
    "origem": "Tabela de achados da revisão do check-in (sessão 30/07, linha T14+T15); grep confirma que não existe AlertDial",
    "prova": "Mudar o horário recalcula o atraso de todo mundo em silêncio.",
-   "prioridade": 10
+   "prioridade": 6
   },
   {
    "titulo": "Derivações não calibradas e MBTI derivado sem J/P",
@@ -108,7 +68,7 @@
    "depende_de": "Claude",
    "origem": "avaliacao-bateria-e-relatorios.md § Outros achados · CLAUDE.md § Estado atual (calibração dos pesos)",
    "prova": "O relatório entrega interpretação com peso chutado e um eixo faltando.",
-   "prioridade": 11
+   "prioridade": 7
   },
   {
    "titulo": "Revisão do teste de QI",
@@ -118,7 +78,7 @@
    "depende_de": "Claude",
    "origem": "estado-atual-e-fila.md item 14 · revisao-perguntas-dos-testes.md · CLAUDE.md § Estado atual e § Conteúdo",
    "prova": "Único instrumento sem revisão; gabarito errado vira resultado errado.",
-   "prioridade": 12
+   "prioridade": 8
   },
   {
    "titulo": "Academy: layout em fileiras (estilo Netflix)",
@@ -128,7 +88,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § G item 3 · estado-atual-e-fila.md § Fila depois do Classroom",
    "prova": "As prateleiras horizontais já existiam desde o commit c8df882 — a descrição do G-3 estava desatualizada. O que faltava de verdade era o cabeçalho quebrado, corrigido agora. Segue aberto: setas de rolagem, 'continue assistindo' e barra de progresso no card.",
-   "prioridade": 13
+   "prioridade": 9
   },
   {
    "titulo": "BUG: select 'Dimensão pontuada' abre vazio",
@@ -138,7 +98,7 @@
    "depende_de": "Claude",
    "origem": "avaliacao-bateria-e-relatorios.md § Outros achados",
    "prova": "Bug barato de consertar que faz o editor parecer ter perdido a dimensão.",
-   "prioridade": 14
+   "prioridade": 10
   },
   {
    "titulo": "Limiar de atraso do Classroom fixo em 10 minutos",
@@ -148,7 +108,7 @@
    "depende_de": "Claude",
    "origem": "Mensagem de entrega da etapa 5 do Classroom (sessão 30/07): seção \"Duas coisas que deixei de fora, de propósit",
    "prova": "Turma corporativa pode querer outro número; vira um campo por treinamento.",
-   "prioridade": 15
+   "prioridade": 11
   },
   {
    "titulo": "Disparos de notificação que faltam ligar",
@@ -158,7 +118,7 @@
    "depende_de": "Claude",
    "origem": "feature-notificacoes.md linhas 36-38",
    "prova": "Três eventos já mapeados não avisam ninguém.",
-   "prioridade": 16
+   "prioridade": 12
   },
   {
    "titulo": "Mentor não pode ser aluno de outro mentor",
@@ -168,7 +128,7 @@
    "depende_de": "Claude",
    "origem": "feature-educacao-e-area-do-aluno.md, aviso",
    "prova": "A regra decide o papel por exclusão e barra um caso real.",
-   "prioridade": 17
+   "prioridade": 13
   },
   {
    "titulo": "Migrar o mentor já convidado sem duplicar",
@@ -178,7 +138,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 3, Cuidado na migração",
    "prova": "Ficou meio dentro meio fora do modelo novo; quanto antes, menos bagunça.",
-   "prioridade": 18
+   "prioridade": 14
   },
   {
    "titulo": "Limpeza: versões '(cópia)' e dados da Ana Teste",
@@ -188,7 +148,7 @@
    "depende_de": "Claude",
    "origem": "roadmap-proximas-features.md parágrafo final",
    "prova": "Lixo de teste no banco confunde qualquer contagem e é rápido de tirar.",
-   "prioridade": 19
+   "prioridade": 15
   },
   {
    "titulo": "Fechar o material Aula01_Slides, que continua visível aos alunos",
@@ -198,7 +158,7 @@
    "depende_de": "Matheus",
    "origem": "Mensagem de entrega do commit c342813 (sessão 30/07): \"seu Aula01_Slides continua visível para os alunos\"",
    "prova": "Só ele decide se aquele material continua aberto para a turma.",
-   "prioridade": 20
+   "prioridade": 16
   },
   {
    "titulo": "Apagar dois eventos órfãos no Google Calendar",
@@ -208,7 +168,7 @@
    "depende_de": "Matheus",
    "origem": "estado-atual-e-fila.md § Pendências que são DELE",
    "prova": "São dois eventos fantasma na agenda dele, apagados na mão.",
-   "prioridade": 21
+   "prioridade": 17
   },
   {
    "titulo": "Classroom não testado com login de colaborador",
@@ -218,7 +178,7 @@
    "depende_de": "Matheus",
    "origem": "estado-atual-e-fila.md § Classroom, bullet final",
    "prova": "Falta a senha de um colaborador de verdade para exercitar o papel.",
-   "prioridade": 22
+   "prioridade": 18
   },
   {
    "titulo": "Abas de Testes nunca conferidas com login de colaborador de permissão única",
@@ -228,17 +188,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-demandas-30-07.md, item A (\"Testar:\"); src/components/app-sidebar.tsx:43-46",
    "prova": "Precisa entrar como colaborador real para provar que as outras abas não existem.",
-   "prioridade": 23
-  },
-  {
-   "titulo": "Ranking: caso do aluno não exercitado com login real",
-   "descricao": "A correção da conta em que o ponto nasce foi testada pelo mesmo código, mas pela conta do dono.",
-   "area": "Comunidade",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "estado-atual-e-fila.md, aviso após a lista do ranking",
-   "prova": "A correção foi conferida pela conta do dono, não pela do aluno.",
-   "prioridade": 24
+   "prioridade": 19
   },
   {
    "titulo": "Exportação de Pessoas não conferida no Excel e no Google Sheets",
@@ -248,7 +198,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md, item C, bloco \"Testar\"",
    "prova": "É o arquivo que sai com dado pessoal e a acentuação costuma quebrar.",
-   "prioridade": 25
+   "prioridade": 20
   },
   {
    "titulo": "Rastro da exportação e titularidade no rodapé do PDF",
@@ -258,7 +208,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § C, bloco de alerta",
    "prova": "Dado pessoal saindo da plataforma precisa de registro de quem levou.",
-   "prioridade": 26
+   "prioridade": 21
   },
   {
    "titulo": "Decisão: a exportação leva só o cadastro",
@@ -268,7 +218,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-demandas-30-07.md § Decisões, item 2",
    "prova": "Decisão dele já tomada: sem resultados nem devolutivas no arquivo.",
-   "prioridade": 27
+   "prioridade": 22
   },
   {
    "titulo": "Limite de tamanho e recorte de capas e banners",
@@ -278,7 +228,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § G, bloco Cuidado",
    "prova": "Capa pesada trava o carregamento no celular do aluno.",
-   "prioridade": 28
+   "prioridade": 23
   },
   {
    "titulo": "Generalizar /aluno/criar-senha para /criar-senha",
@@ -288,7 +238,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 1 plano B",
    "prova": "Uma tela só para os dois papéis; barato e destrava o acesso do mentor.",
-   "prioridade": 29
+   "prioridade": 24
   },
   {
    "titulo": "Google Cloud: ativar a Calendar API e o escopo",
@@ -298,7 +248,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-menu-gestao.md § Etapa 4 · docs/google-calendar-passo-a-passo.md Passos 1 e 2",
    "prova": "Sem esse passo dele nada da agenda conversa com o Google.",
-   "prioridade": 30
+   "prioridade": 25
   },
   {
    "titulo": "Google Cloud: autorizar o URI de retorno",
@@ -308,7 +258,7 @@
    "depende_de": "Matheus",
    "origem": "docs/google-calendar-passo-a-passo.md Passo 3",
    "prova": "Passo seguinte no painel do Google, sem apagar o endereço do login.",
-   "prioridade": 31
+   "prioridade": 26
   },
   {
    "titulo": "Colar GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET",
@@ -318,7 +268,7 @@
    "depende_de": "Matheus",
    "origem": "docs/google-calendar-passo-a-passo.md Passo 4",
    "prova": "As chaves são dele e não passam por mim.",
-   "prioridade": 32
+   "prioridade": 27
   },
   {
    "titulo": "Renovação automática do token do Google",
@@ -328,7 +278,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 4, Adequação provável",
    "prova": "Token vencido não pode falhar calado; tem que avisar.",
-   "prioridade": 33
+   "prioridade": 28
   },
   {
    "titulo": "Mandar o fim real do evento para o Google Calendar",
@@ -338,7 +288,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § D, bloco Cuidado",
    "prova": "Hoje todo evento vai com 60 minutos fixos, o que é hora errada na agenda.",
-   "prioridade": 34
+   "prioridade": 29
   },
   {
    "titulo": "Notificar ao criar um evento",
@@ -348,7 +298,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 3",
    "prova": "Evento criado e ninguém avisado; o sino já existe para isso.",
-   "prioridade": 35
+   "prioridade": 30
   },
   {
    "titulo": "Definir o escopo das notificações do dono",
@@ -358,7 +308,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-area-do-aluno.md § Anexo 2, Decisão que preciso do Matheus",
    "prova": "Ele escolhe entre 'tudo' e 'tudo que importa' antes de eu mexer no resto.",
-   "prioridade": 36
+   "prioridade": 31
   },
   {
    "titulo": "Agrupar notificações por natureza e por tempo",
@@ -368,7 +318,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 2, O problema",
    "prova": "Sem agrupar, com 200 avaliados a caixa vira ruído e ele ignora tudo.",
-   "prioridade": 37
+   "prioridade": 32
   },
   {
    "titulo": "Preferências de notificação por pessoa",
@@ -378,7 +328,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 2 item 4",
    "prova": "Cada papel precisa escolher o que recebe, senão desliga tudo.",
-   "prioridade": 38
+   "prioridade": 33
   },
   {
    "titulo": "Cortar a coluna Realizada por período",
@@ -388,7 +338,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 1, Adequação provável",
    "prova": "A coluna cresce para sempre e some com a informação útil.",
-   "prioridade": 39
+   "prioridade": 34
   },
   {
    "titulo": "Decidir o destino do plano de ação de 6 perguntas",
@@ -398,7 +348,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-painel-devolutiva.md § 5 decisão 1 · referencia-cis-painel-devolutiva.md",
    "prova": "Fica, sai ou vira SWOT — sem isso as abas novas se sobrepõem ao que já existe.",
-   "prioridade": 40
+   "prioridade": 35
   },
   {
    "titulo": "Decidir se a devolutiva cobre bateria ou teste avulso",
@@ -408,7 +358,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-painel-devolutiva.md § 5 decisão 4 · referencia-cis-painel-devolutiva.md",
    "prova": "Muda quantos cartões o painel precisa aguentar antes de eu desenhá-lo.",
-   "prioridade": 41
+   "prioridade": 36
   },
   {
    "titulo": "Decidir a fonte do conteúdo de medos e pontos",
@@ -418,7 +368,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-painel-devolutiva.md § 5 decisão 2 · referencia-cis-painel-devolutiva.md",
    "prova": "Reaproveitar o conteúdo do DISC ou escrever listas novas muda o trabalho todo.",
-   "prioridade": 42
+   "prioridade": 37
   },
   {
    "titulo": "Plano de ação ainda é questionário respondido sozinho",
@@ -428,7 +378,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 3 · referencia-cis-painel-devolutiva.md",
    "prova": "O plano devia nascer na conversa, não num formulário preenchido depois.",
-   "prioridade": 43
+   "prioridade": 38
   },
   {
    "titulo": "Tabela devolutiva_itens e abas de trabalho (Fase 3)",
@@ -438,7 +388,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 3",
    "prova": "É a base que todas as abas da devolutiva usam; sem ela nada mais anda.",
-   "prioridade": 44
+   "prioridade": 39
   },
   {
    "titulo": "Cronômetro de sessão da devolutiva (Fase 2)",
@@ -448,7 +398,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 2",
    "prova": "Peça pequena da Fase 2 que já deixa a sessão utilizável.",
-   "prioridade": 45
+   "prioridade": 40
   },
   {
    "titulo": "Nota rápida durante a devolutiva (Fase 2)",
@@ -458,7 +408,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 2",
    "prova": "Anotar sem sair da tela é o que faz o painel virar ficha de trabalho.",
-   "prioridade": 46
+   "prioridade": 41
   },
   {
    "titulo": "Aba Medos com nota 0-10 e decisão",
@@ -468,7 +418,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 3",
    "prova": "Primeira aba de trabalho depois que a tabela de itens existir.",
-   "prioridade": 47
+   "prioridade": 42
   },
   {
    "titulo": "Aba Pontos a desenvolver (checklist)",
@@ -478,7 +428,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 3",
    "prova": "Monta a partir de conteúdo que já existe, então sai rápido.",
-   "prioridade": 48
+   "prioridade": 43
   },
   {
    "titulo": "Aba Competências-alvo (até 8 das 16)",
@@ -488,7 +438,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 3",
    "prova": "É o que dá foco ao plano de ação combinado na conversa.",
-   "prioridade": 49
+   "prioridade": 44
   },
   {
    "titulo": "Aba SWOT com quatro quadrantes",
@@ -498,7 +448,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 3",
    "prova": "Fecha o conjunto de abas da devolutiva.",
-   "prioridade": 50
+   "prioridade": 45
   },
   {
    "titulo": "Exportar o painel preenchido em PDF com a marca",
@@ -508,7 +458,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 4",
    "prova": "Fechamento da sessão usando o white label que já está pronto.",
-   "prioridade": 51
+   "prioridade": 46
   },
   {
    "titulo": "Enviar o painel por e-mail ao avaliado",
@@ -518,7 +468,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 4",
    "prova": "O Resend já está ligado; é só o último passo da devolutiva.",
-   "prioridade": 52
+   "prioridade": 47
   },
   {
    "titulo": "Aba Livros por competência",
@@ -528,7 +478,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-painel-devolutiva.md § 4 Fase 4 e § 5 decisão 3 · referencia-cis-painel-devolutiva.md",
    "prova": "Só faz sentido depois que ele montar o acervo curado.",
-   "prioridade": 53
+   "prioridade": 48
   },
   {
    "titulo": "Design dos relatórios",
@@ -538,7 +488,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § Menor prioridade · estado-atual-e-fila.md item 15",
    "prova": "O conteúdo já está fechado; falta o visual, e ele mesmo disse: estrutura antes.",
-   "prioridade": 54
+   "prioridade": 49
   },
   {
    "titulo": "Link do teste levando ao painel, não direto ao teste",
@@ -548,7 +498,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § 1 item 2",
    "prova": "Muda a porta de entrada de todo mundo, então vem antes das telas novas do aluno.",
-   "prioridade": 55
+   "prioridade": 50
   },
   {
    "titulo": "Mentor vê pontuação e ranking na tela do grupo",
@@ -558,7 +508,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § 5",
    "prova": "Tudo que o aluno vê o mentor precisa ver, dentro da tela do grupo.",
-   "prioridade": 56
+   "prioridade": 51
   },
   {
    "titulo": "Perfil do aluno com empresa, banner e redes",
@@ -568,7 +518,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § Menor prioridade · estado-atual-e-fila.md item 9",
    "prova": "Enriquece o perfil e alimenta a comunidade que vem depois.",
-   "prioridade": 57
+   "prioridade": 52
   },
   {
    "titulo": "Publicar o resultado do teste na comunidade",
@@ -578,7 +528,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § I · docs/plano-area-do-aluno.md § 3 e Ordem de execução item 7 · estado-atual-e",
    "prova": "Ele autorizou; publicar é irreversível, então precisa de aviso claro e botão de remover.",
-   "prioridade": 58
+   "prioridade": 53
   },
   {
    "titulo": "Enquete na comunidade",
@@ -588,7 +538,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § H · estado-atual-e-fila.md item 13",
    "prova": "Pedido dele para o feed, sem dependência de nada.",
-   "prioridade": 59
+   "prioridade": 54
   },
   {
    "titulo": "Menções com @ na comunidade",
@@ -598,7 +548,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § H · estado-atual-e-fila.md item 13",
    "prova": "Usa o sino que já existe; é engajamento barato.",
-   "prioridade": 60
+   "prioridade": 55
   },
   {
    "titulo": "Evento no feed da comunidade",
@@ -608,7 +558,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § H · estado-atual-e-fila.md item 13",
    "prova": "Reaproveita o evento da Agenda como cartão, sem estrutura nova.",
-   "prioridade": 61
+   "prioridade": 56
   },
   {
    "titulo": "Decidir quem paga e qual o teto do assistente de IA",
@@ -618,7 +568,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-demandas-30-07.md, \"Menor prioridade\" (⚠️ custo recorrente) e tabela de pendências apresentada a el",
    "prova": "É o único item com custo por uso; sem teto definido vira surpresa na fatura.",
-   "prioridade": 62
+   "prioridade": 57
   },
   {
    "titulo": "Assistente de IA na plataforma",
@@ -628,7 +578,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-demandas-30-07.md § Menor prioridade · estado-atual-e-fila.md item 18",
    "prova": "Travado até a decisão de custo sair.",
-   "prioridade": 63
+   "prioridade": 58
   },
   {
    "titulo": "Desenhar escopo por chave, uso e revogação antes do menu Integrações",
@@ -638,7 +588,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md, \"Menor prioridade\" (⚠️ o mais arriscado)",
    "prova": "Chave de API sem escopo abre os dados de todo mundo; o desenho vem antes do código.",
-   "prioridade": 64
+   "prioridade": 59
   },
   {
    "titulo": "Menu Integrações via API",
@@ -648,7 +598,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § Menor prioridade · estado-atual-e-fila.md item 19",
    "prova": "Só começa depois que o desenho de escopo e revogação estiver de pé.",
-   "prioridade": 65
+   "prioridade": 60
   },
   {
    "titulo": "Tela de consentimento do Google é Internal",
@@ -658,7 +608,7 @@
    "depende_de": "Matheus",
    "origem": "publicacao-exige-cutover.md item 4",
    "prova": "Enquanto for Interno só o domínio dele entra com Google.",
-   "prioridade": 66
+   "prioridade": 61
   },
   {
    "titulo": "Abrir o Google Calendar para alunos e mentores",
@@ -668,7 +618,7 @@
    "depende_de": "Matheus",
    "origem": "docs/google-calendar-passo-a-passo.md linhas 24-29 · backlog-menu-gestao.md item 2 · estado-atual-e-fila.md it",
    "prova": "Exige virar Externo e passar pela verificação do Google — decisão e trabalho dele.",
-   "prioridade": 67
+   "prioridade": 62
   },
   {
    "titulo": "'Confirm email' ainda ligado no projeto novo",
@@ -678,7 +628,7 @@
    "depende_de": "Matheus",
    "origem": "migracao-supabase-proprio.md § Falta ainda",
    "prova": "É uma chave no painel do Supabase e afeta só o cadastro por e-mail e senha.",
-   "prioridade": 68
+   "prioridade": 63
   },
   {
    "titulo": "Domínio personalizado",
@@ -688,7 +638,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-demandas-30-07.md § Menor prioridade · estado-atual-e-fila.md item 16",
    "prova": "Quase tudo é DNS dele, e a troca mexe no retorno do login Google.",
-   "prioridade": 69
+   "prioridade": 64
   },
   {
    "titulo": "Decidir o nome da marca da plataforma",
@@ -698,7 +648,7 @@
    "depende_de": "Matheus",
    "origem": "estado-atual-e-fila.md § Pendências que são DELE",
    "prova": "Tecnicamente é preencher um campo; falta ele escolher o nome.",
-   "prioridade": 70
+   "prioridade": 65
   },
   {
    "titulo": "Subir o DMARC de p=none para p=quarantine",
@@ -708,7 +658,7 @@
    "depende_de": "Matheus",
    "origem": "estado-atual-e-fila.md § Com data · dns-registro-br-autenticacao-email.md",
    "prova": "Tem data marcada para meados de agosto e é mexida no DNS dele.",
-   "prioridade": 71
+   "prioridade": 66
   },
   {
    "titulo": "Push do navegador (Web Push)",
@@ -718,7 +668,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 2 item 5 · feature-notificacoes.md linhas 40-42",
    "prova": "Trabalho grande e no iPhone só funciona com o app instalado; o sino já cobre o essencial.",
-   "prioridade": 72
+   "prioridade": 67
   },
   {
    "titulo": "Seleção pergunta a pergunta ao montar a bateria",
@@ -728,7 +678,7 @@
    "depende_de": "Claude",
    "origem": "CLAUDE.md § Estado atual e próximos passos",
    "prova": "Mexe na normalização do resultado, então só com tempo e calma.",
-   "prioridade": 73
+   "prioridade": 68
   },
   {
    "titulo": "Sem testes automatizados; lint só acusa formatação",
@@ -738,7 +688,7 @@
    "depende_de": "Claude",
    "origem": "run-local-e-supabase-env.md § Lint/testes",
    "prova": "Rede de proteção que ninguém vê, mas que evita repetir bugs já corrigidos.",
-   "prioridade": 74
+   "prioridade": 69
   },
   {
    "titulo": "Avaliar gitignorar o .env commitado",
@@ -748,7 +698,7 @@
    "depende_de": "Claude",
    "origem": "run-local-e-supabase-env.md § .env no git",
    "prova": "Só valores públicos hoje; antes de tirar preciso confirmar que o build do Lovable não depende dele.",
-   "prioridade": 75
+   "prioridade": 70
   },
   {
    "titulo": "Comparar aplicações de reteste (gráfico de evolução)",
@@ -758,7 +708,7 @@
    "depende_de": "Depende de dados",
    "origem": "estado-atual-e-fila.md item 12 · roadmap-proximas-features.md item 4",
    "prova": "Só tem graça quando existir gente com segunda aplicação na base.",
-   "prioridade": 76
+   "prioridade": 71
   },
   {
    "titulo": "Alpha de Cronbach na tela de Estatísticas",
@@ -768,7 +718,7 @@
    "depende_de": "Depende de dados",
    "origem": "CLAUDE.md § Estado atual e próximos passos",
    "prova": "Sem amostra suficiente o número mente mais do que informa.",
-   "prioridade": 77
+   "prioridade": 72
   },
   {
    "titulo": "Evento recorrente fica fora por enquanto",
@@ -778,7 +728,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 3, Adequação provável",
    "prova": "Já ficou combinado adiar; recorrência é uma caixa de complexidade própria.",
-   "prioridade": 78
+   "prioridade": 73
   },
   {
    "titulo": "Decisão: estrutura antes do visual",
@@ -788,7 +738,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-demandas-30-07.md § Decisões, item 4",
    "prova": "Decisão fechada que manda na ordem desta lista inteira.",
-   "prioridade": 79
+   "prioridade": 74
   },
   {
    "titulo": "Decisão: publicar resultado na comunidade — SIM",
@@ -798,7 +748,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-demandas-30-07.md § Decisões, item 1",
    "prova": "Ele inverteu a decisão de 28/07 e autorizou, ciente de que é irreversível.",
-   "prioridade": 80
+   "prioridade": 75
   },
   {
    "titulo": "Decisão: enquete com voto identificado",
@@ -808,7 +758,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-demandas-30-07.md § Decisões, item 3",
    "prova": "Decisão dele contra a recomendação de voto anônimo, já ciente do risco.",
-   "prioridade": 81
+   "prioridade": 76
   },
   {
    "titulo": "Decisão: ranking visível para o grupo todo",
@@ -818,7 +768,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-area-do-aluno.md § Decisões, item 3",
    "prova": "Ranking público dentro do grupo, já fechado.",
-   "prioridade": 82
+   "prioridade": 77
   },
   {
    "titulo": "Decisão: responder teste não pontua",
@@ -828,7 +778,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-area-do-aluno.md § Decisões, item 4 · fila-area-do-aluno.md linhas 35-37",
    "prova": "Ponto não sai de teste, para não premiar quem clica rápido.",
-   "prioridade": 83
+   "prioridade": 78
   },
   {
    "titulo": "Decisão: responder aos poucos exige entrar no painel",
@@ -838,7 +788,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-area-do-aluno.md § Decisões, item 1",
    "prova": "Resposta parcial só dentro do painel do aluno; já combinado.",
-   "prioridade": 84
+   "prioridade": 79
   },
   {
    "titulo": "Decisão: responder sem conta continua permitido",
@@ -848,7 +798,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-area-do-aluno.md § Decisões, item 1 · fila-area-do-aluno.md linhas 31-32",
    "prova": "O link aberto continua valendo; nada a fazer, é registro.",
-   "prioridade": 85
+   "prioridade": 80
   },
   {
    "titulo": "Decisão: QR rotativo com janela de validade dele",
@@ -858,7 +808,7 @@
    "depende_de": "Matheus",
    "origem": "docs/analise-classroom.md § Decisões do Matheus, item 1",
    "prova": "Duas travas somadas, já definidas por ele.",
-   "prioridade": 86
+   "prioridade": 81
   },
   {
    "titulo": "Decisão: presença manual pelo professor entra",
@@ -868,7 +818,7 @@
    "depende_de": "Matheus",
    "origem": "docs/analise-classroom.md § Decisões do Matheus, item 2",
    "prova": "Cobre celular sem bateria e aluno sem smartphone; já decidido.",
-   "prioridade": 87
+   "prioridade": 82
   },
   {
    "titulo": "Decisão: o check-in abre a câmera do telefone",
@@ -878,7 +828,7 @@
    "depende_de": "Matheus",
    "origem": "docs/analise-classroom.md § Decisões do Matheus, item 3",
    "prova": "Sem leitor de QR dentro do app, por causa do Safari do iPhone.",
-   "prioridade": 88
+   "prioridade": 83
   },
   {
    "titulo": "Decisão: aluno sem senha usa o primeiro acesso",
@@ -888,7 +838,7 @@
    "depende_de": "Matheus",
    "origem": "docs/analise-classroom.md § Decisões do Matheus, item 6",
    "prova": "Fluxo com validação por e-mail; a presença manual cobre o imprevisto do dia.",
-   "prioridade": 89
+   "prioridade": 84
   },
   {
    "titulo": "Decisão: resultado de teste fora da lista de presença",
@@ -898,7 +848,7 @@
    "depende_de": "Matheus",
    "origem": "docs/analise-classroom.md § A tabela de presença — definitiva",
    "prova": "A lista circula pelo RH, então perfil comportamental não entra nela.",
-   "prioridade": 90
+   "prioridade": 85
   },
   {
    "titulo": "Decisão: Classroom com estrutura própria",
@@ -908,7 +858,7 @@
    "depende_de": "Matheus",
    "origem": "docs/analise-classroom.md § Decisões do Matheus, item 4",
    "prova": "Sem reaproveitar as tabelas da Academy; já implementado assim.",
-   "prioridade": 91
+   "prioridade": 86
   },
   {
    "titulo": "Decisão: Kanban é do master e dos mentores",
@@ -918,7 +868,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-menu-gestao.md § Três decisões, item 3 · backlog-menu-gestao.md item 3",
    "prova": "Ele incluiu os mentores e manteve o aluno fora do quadro.",
-   "prioridade": 92
+   "prioridade": 87
   },
   {
    "titulo": "Decisão: Google Calendar em mão única",
@@ -928,7 +878,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-menu-gestao.md § Três decisões, item 1 · backlog-menu-gestao.md item 1",
    "prova": "Vai da plataforma para o Google e nada volta, para evitar conflito.",
-   "prioridade": 93
+   "prioridade": 88
   },
   {
    "titulo": "Decisão: só o master conecta o Google, por enquanto",
@@ -938,7 +888,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-menu-gestao.md § Três decisões, item 2 · backlog-menu-gestao.md item 2",
    "prova": "Uma conta só, para não cair na verificação do Google agora.",
-   "prioridade": 94
+   "prioridade": 89
   },
   {
    "titulo": "Decisão: colaborador continua como está",
@@ -948,7 +898,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-area-do-aluno.md § Anexo 3, item 5",
    "prova": "Colaborador é da operação, não é aluno; já fechado.",
-   "prioridade": 95
+   "prioridade": 90
   },
   {
    "titulo": "Decisão: comunidade começou sem resultado de teste",
@@ -958,7 +908,7 @@
    "depende_de": "Matheus",
    "origem": "docs/plano-area-do-aluno.md § Decisões, item 2",
    "prova": "Registro histórico de 28/07, já invertido pela decisão de 29/07.",
-   "prioridade": 96
+   "prioridade": 91
   },
   {
    "titulo": "Agenda visual na plataforma (mês e semana)",
@@ -968,7 +918,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 2 · backlog-menu-gestao.md § 1 · git log 562907c",
    "prova": "Só existe a visão de mês; a visão de semana, que fazia parte do pedido, não foi construída.",
-   "prioridade": 97
+   "prioridade": 92
   },
   {
    "titulo": "Anotações do professor fora do alcance do aluno",
@@ -978,7 +928,7 @@
    "depende_de": "Claude",
    "origem": "estado-atual-e-fila.md § Privacidade resolvida na etapa 3 · git log f13e284",
    "prova": "O mentor que vai conduzir a aula não consegue ler nem escrever as anotações dela — só o dono da conta tem acesso.",
-   "prioridade": 98
+   "prioridade": 93
   },
   {
    "titulo": "Aviso na véspera de quem ainda não tem senha",
@@ -988,7 +938,7 @@
    "depende_de": "Claude",
    "origem": "docs/analise-classroom.md § O que a etapa 4 decidiu na prática, item 4",
    "prova": "O aviso só aparece se o professor abrir a tela de check-in; não existe lembrete na véspera, que era justamente o objetivo.",
-   "prioridade": 99
+   "prioridade": 94
   },
   {
    "titulo": "Cadastros reais e autenticação",
@@ -998,17 +948,7 @@
    "depende_de": "Claude",
    "origem": "git log 04d05ca",
    "prova": "Sobrou uma lista de testes fixa, de exemplo, dentro do código: quem consultar o catálogo pela integração recebe a lista antiga, sem o teste de Valores.",
-   "prioridade": 100
-  },
-  {
-   "titulo": "Cadeado da Academy: trilha liberada por pessoa e grupo",
-   "descricao": "O professor escolhe quem abre cada trilha; quem não foi escolhido vê o card em cinza com cadeado e motivo, e a tranca vale no banco.",
-   "area": "Academy",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "feature-cadeado-e-areas-do-grupo.md § 1 · git log 31ee5bd",
-   "prova": "A tranca nunca foi aberta por um aluno de verdade, só pela prévia feita da sua própria conta — se ela não segurar, o aluno enxerga trilha que ninguém liberou para ele.",
-   "prioridade": 101
+   "prioridade": 95
   },
   {
    "titulo": "Conteúdo interpretativo de Valores, Temperamentos e VAK",
@@ -1018,7 +958,7 @@
    "depende_de": "Claude",
    "origem": "avaliacao-bateria-e-relatorios.md § Outros achados",
    "prova": "Esses textos só existem no banco que está no ar; numa troca ou restauração de banco o conteúdo se perde e o relatório fica mais pobre sem avisar.",
-   "prioridade": 102
+   "prioridade": 96
   },
   {
    "titulo": "Correção de ~31 bugs",
@@ -1028,7 +968,7 @@
    "depende_de": "Claude",
    "origem": "CLAUDE.md § Estado atual e próximos passos",
    "prova": "Não existe lista nenhuma do que foi corrigido: ninguém consegue dizer quais eram os bugs, se todos saíram ou se algum voltou — o melhor caminho é anotar hoje o que ainda incomoda na plataforma.",
-   "prioridade": 103
+   "prioridade": 97
   },
   {
    "titulo": "Equipe: mentor por grupo, colaborador por funcionalidade",
@@ -1038,7 +978,7 @@
    "depende_de": "Claude",
    "origem": "arquitetura-equipe-e-permissoes.md · fila-area-do-aluno.md tabela linha 21 · git log 0b81d22",
    "prova": "Ninguém nunca entrou de fato como colaborador ou mentor convidado; as regras de quem vê o quê seguem sem prova real, e uma delas já tinha nascido quebrada.",
-   "prioridade": 104
+   "prioridade": 98
   },
   {
    "titulo": "Fotos de perfil (avatares)",
@@ -1048,7 +988,7 @@
    "depende_de": "Claude",
    "origem": "feature-tema-fotos-e-ver-como-aluno.md · git log 7b97f42",
    "prova": "As fotos ficam abertas na internet: quem tiver o endereço vê a foto de qualquer avaliado sem precisar de login.",
-   "prioridade": 105
+   "prioridade": 99
   },
   {
    "titulo": "Integração com o Google Calendar",
@@ -1058,7 +998,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 4 · docs/google-calendar-passo-a-passo.md · git log 08b0ade · git log a3141e",
    "prova": "Se a sincronia com o Google falhar, ninguém fica sabendo: o erro é guardado no banco mas nenhuma tela mostra, e o compromisso simplesmente não aparece na agenda.",
-   "prioridade": 106
+   "prioridade": 100
   },
   {
    "titulo": "Marcar e remarcar a data da devolutiva",
@@ -1068,7 +1008,7 @@
    "depende_de": "Claude",
    "origem": "feature-devolutivas.md linhas 38-42 · git log 22ae517",
    "prova": "Remarcar mexendo só no dia move o compromisso 3 horas do horário combinado, sem avisar ninguém.",
-   "prioridade": 107
+   "prioridade": 101
   },
   {
    "titulo": "Mentor afiliado: convite por e-mail e conta no link",
@@ -1078,7 +1018,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 1 plano A · fila-area-do-aluno.md § Mentor afiliado · seguranca-primeiro-a",
    "prova": "Ninguém de fora chegou a receber e aceitar um convite, e se o e-mail falhar você não fica sabendo — convide um parceiro de verdade e acompanhe até ele entrar.",
-   "prioridade": 108
+   "prioridade": 102
   },
   {
    "titulo": "Mentor vira aluno promovido: um cadastro, um painel",
@@ -1088,7 +1028,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 3 itens 1, 2 e 4 · fila-area-do-aluno.md tabela linha 22 · git log bd83548",
    "prova": "A tela antiga de Mentores continua no ar pelo endereço direto e ainda cria cadastro solto, fora do novo desenho; falta também conferir se a virada duplicou alguma pessoa.",
-   "prioridade": 109
+   "prioridade": 103
   },
   {
    "titulo": "Menu Gestão com abas Agenda e Kanban",
@@ -1098,7 +1038,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 1 · backlog-menu-gestao.md",
    "prova": "Dado como feito, mas não achei o artefato no repositório. src/routes/_app.gestao.tsx e src/routes/aluno.gestao.tsx foram CRIADOS em c734857 e APAGADOS em b0e60a4 ('Gestão sai; Agenda vira menu e o Kanban vai para Devol",
-   "prioridade": 110
+   "prioridade": 104
   },
   {
    "titulo": "Permissão de baixar PDF do relatório",
@@ -1108,17 +1048,7 @@
    "depende_de": "Claude",
    "origem": "git log b89c970",
    "prova": "Ninguém entrou como mentor convidado para conferir se o botão de PDF some mesmo, e se a checagem falhar o botão continua aparecendo.",
-   "prioridade": 111
-  },
-  {
-   "titulo": "Pontuação e ranking do grupo",
-   "descricao": "Pesos por esforço (aula 20, devolutiva 15, publicar 8, perfil 5, comentar 2, curtir 1) com teto diário nas ações baratas.",
-   "area": "Comunidade",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "docs/plano-area-do-aluno.md § 4 e Tabela de pontos · fila-area-do-aluno.md tabela linha 20 · git log 5cd972d",
-   "prova": "A contagem de pontos nunca rodou com um aluno de verdade logado, só pela conta do dono — e foi exatamente aí que já apareceram três erros de conta e de pontuação; vale conferir com um aluno antes de a turma ver o ranking.",
-   "prioridade": 112
+   "prioridade": 105
   },
   {
    "titulo": "Ranking e aba Membros ao lado do feed",
@@ -1128,7 +1058,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § F · git log ba4f628",
    "prova": "Quem participa de mais de um grupo só enxerga o ranking de um deles; falta um jeito de trocar de grupo na tela.",
-   "prioridade": 113
+   "prioridade": 106
   },
   {
    "titulo": "SPF, DKIM e DMARC no Registro.br",
@@ -1138,7 +1068,7 @@
    "depende_de": "Claude",
    "origem": "dns-registro-br-autenticacao-email.md",
    "prova": "Dado como feito, mas não achei o artefato no repositório. Nenhum artefato no repositório — é configuração de zona DNS externa. A única evidência é a nota em memory/dns-registro-br-autenticacao-email.md (SPF do Google,",
-   "prioridade": 114
+   "prioridade": 107
   },
   {
    "titulo": "Selo da empresa no rodapé de todas as páginas",
@@ -1148,7 +1078,7 @@
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § item K · git log 238e88a",
    "prova": "O selo não aparece justamente na tela onde a pessoa responde o teste, que é a página mais vista de todas — nem no login e no convite de equipe; e na bateria ele só surge depois que a pessoa termina uma etapa.",
-   "prioridade": 115
+   "prioridade": 108
   },
   {
    "titulo": "Tipo de pergunta forced_choice",
@@ -1158,37 +1088,7 @@
    "depende_de": "Claude",
    "origem": "CLAUDE.md § Estado atual e § Motor de pontuação · git log dbb083a",
    "prova": "O botão 'Convidar observador' aparece em todo teste respondido, mas em Big Five e QI ele só devolve erro — nesses dois deveria ficar escondido.",
-   "prioridade": 116
-  },
-  {
-   "titulo": "Três defeitos do ranking corrigidos",
-   "descricao": "Devolutiva nunca pontuava, contaDaPessoa gravava na conta errada para aluno, e o teto da comunidade virou 16 pts/dia com virada à meia-noite de Brasília.",
-   "area": "Comunidade",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "estado-atual-e-fila.md lista numerada 1-3",
-   "prova": "A correção mais importante — o ponto cair na conta certa do aluno — nunca foi conferida com alguém entrando de verdade como aluno.",
-   "prioridade": 117
-  },
-  {
-   "titulo": "Área do aluno com login do avaliado",
-   "descricao": "people.user_id liga o cadastro a auth.users e claim_student_profile() casa por e-mail; em /aluno o avaliado vê os próprios testes e trilhas.",
-   "area": "Plataforma",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "roadmap-proximas-features.md item 5 · feature-educacao-e-area-do-aluno.md · git log c8df882",
-   "prova": "Nenhum aluno de verdade entrou ainda: o caminho foi conferido pela sua própria conta, então antes de usar numa turma real é preciso criar um aluno com e-mail próprio e percorrer tudo.",
-   "prioridade": 118
-  },
-  {
-   "titulo": "Áreas do painel do aluno por grupo",
-   "descricao": "groups.areas_aluno define os menus que o aluno vê; NULL = tudo, união entre grupos, e a tranca vale nas policies.",
-   "area": "Plataforma",
-   "status": "Precisa de melhorias",
-   "depende_de": "Claude",
-   "origem": "feature-cadeado-e-areas-do-grupo.md § 2 · git log b156b8c",
-   "prova": "A trava dos menus do aluno nunca foi conferida com um aluno de verdade logado, só pela prévia do dono — e um aviso já levou aluno para uma tela bloqueada.",
-   "prioridade": 119
+   "prioridade": 109
   },
   {
    "titulo": "'Continue assistindo' e progresso no card da trilha",
@@ -1198,7 +1098,7 @@
    "depende_de": "Claude",
    "origem": "levantamento do G-3, 30/07",
    "prova": "",
-   "prioridade": 120
+   "prioridade": 110
   },
   {
    "titulo": "Arquivo da biblioteca continua acessível por link direto",
@@ -1208,7 +1108,7 @@
    "depende_de": "Claude",
    "origem": "levantamento das pastas, 30/07",
    "prova": "supabase/migrations/20260730110000: policy de leitura do bucket é `bucket_id = 'biblioteca'`, sem filtro",
-   "prioridade": 121
+   "prioridade": 111
   },
   {
    "titulo": "Capa de trilha sem limite de tamanho",
@@ -1218,7 +1118,7 @@
    "depende_de": "Claude",
    "origem": "levantamento do G-3, 30/07",
    "prova": "src/components/track-view.tsx: campo 'Imagem de capa (link)' aceita qualquer string até 600 chars",
-   "prioridade": 122
+   "prioridade": 112
   },
   {
    "titulo": "Prateleiras sem seta de rolagem",
@@ -1228,6 +1128,106 @@
    "depende_de": "Claude",
    "origem": "levantamento do G-3, 30/07",
    "prova": "",
+   "prioridade": 113
+  },
+  {
+   "titulo": "GRANT EXECUTE nas funções SECURITY DEFINER",
+   "descricao": "As policies de teste dependem dessas funções; o scanner do Lovable já revogou o grant uma vez e derrubou o app inteiro.",
+   "area": "Infra",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "CLAUDE.md § Modelo de dados",
+   "prova": "Conferido: reconceder_grants() e grants_faltando() no banco; faltando=vazio, reconceder=0. Se o scanner revogar, o conserto é SELECT public.reconceder_grants();",
+   "prioridade": 114
+  },
+  {
+   "titulo": "Alerta crítico do scanner do Lovable sobre report_content",
+   "descricao": "A policy rc_read_authenticated (USING true) deixa qualquer usuário logado ler o conteúdo de relatório de todos os mentores. Está assim por design (o conteúdo é global e compartilhado), mas o alerta continua aberto no painel do Lov",
+   "area": "Segurança / RLS",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "memory/publicacao-exige-cutover.md, seção \"⚠️ Alertas do scanner do Lovable — NÃO clicar em Try to fix all\" (a",
+   "prova": "Conferido: policy agora é version_id IS NULL OR owns_test_version(). Relatório continua montando as 8 seções pelo endpoint público (usa service role).",
+   "prioridade": 115
+  },
+  {
+   "titulo": "'Não pode baixar' é só trava de interface",
+   "descricao": "O link do relatório é aberto, então quem tiver o link imprime pelo navegador mesmo sem can_download_reports.",
+   "area": "Relatórios",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "arquitetura-equipe-e-permissoes.md, aviso final",
+   "prova": "Conferido: o hook falhava ABERTO (erro → null → regra do avaliado → botão aparecia). Agora falha fechado. ⚠️ Continua sendo trava de interface: o relatório abre por link e o download é window.print(). Fechar de verdade = pedir login para ver relatório, decisão sua.",
+   "prioridade": 116
+  },
+  {
+   "titulo": "Cadeado e áreas sem teste com login de aluno real",
+   "descricao": "A verificação foi pela prévia 'ver como aluno' mais o predicado do banco; as policies com auth.uid() de aluno não foram exercitadas.",
+   "area": "Academy",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "feature-cadeado-e-areas-do-grupo.md § Como testei",
+   "prova": "TESTADO COM ALUNO DE VERDADE (conta zz.aluno.teste, criada e apagada). Achou 2 bugs graves, ambos corrigidos: o aluno caía no painel do mentor, e não lia o próprio grupo.",
+   "prioridade": 117
+  },
+  {
+   "titulo": "Ranking: caso do aluno não exercitado com login real",
+   "descricao": "A correção da conta em que o ponto nasce foi testada pelo mesmo código, mas pela conta do dono.",
+   "area": "Comunidade",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "estado-atual-e-fila.md, aviso após a lista do ranking",
+   "prova": "Exercitado: publicação real de aluno real, ponto na conta certa.",
+   "prioridade": 118
+  },
+  {
+   "titulo": "Cadeado da Academy: trilha liberada por pessoa e grupo",
+   "descricao": "O professor escolhe quem abre cada trilha; quem não foi escolhido vê o card em cinza com cadeado e motivo, e a tranca vale no banco.",
+   "area": "Academy",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "feature-cadeado-e-areas-do-grupo.md § 1 · git log 31ee5bd",
+   "prova": "Testado com aluno real: trilha sem destino em 'Disponíveis'; trilha mirada em outro grupo em 'Ainda não liberadas', com cadeado; as AULAS dela não vieram na resposta da API.",
+   "prioridade": 119
+  },
+  {
+   "titulo": "Pontuação e ranking do grupo",
+   "descricao": "Pesos por esforço (aula 20, devolutiva 15, publicar 8, perfil 5, comentar 2, curtir 1) com teto diário nas ações baratas.",
+   "area": "Comunidade",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "docs/plano-area-do-aluno.md § 4 e Tabela de pontos · fila-area-do-aluno.md tabela linha 20 · git log 5cd972d",
+   "prova": "Testado com aluno real: publicou na comunidade, ponto gravado com user_id dele e mentor_id da CONTA DO DONO, ranking marcou 8 na tela.",
+   "prioridade": 120
+  },
+  {
+   "titulo": "Três defeitos do ranking corrigidos",
+   "descricao": "Devolutiva nunca pontuava, contaDaPessoa gravava na conta errada para aluno, e o teto da comunidade virou 16 pts/dia com virada à meia-noite de Brasília.",
+   "area": "Comunidade",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "estado-atual-e-fila.md lista numerada 1-3",
+   "prova": "A correção da conta certa foi PROVADA com aluno de verdade logado, não mais pelo caminho de código na conta do dono.",
+   "prioridade": 121
+  },
+  {
+   "titulo": "Área do aluno com login do avaliado",
+   "descricao": "people.user_id liga o cadastro a auth.users e claim_student_profile() casa por e-mail; em /aluno o avaliado vê os próprios testes e trilhas.",
+   "area": "Plataforma",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "roadmap-proximas-features.md item 5 · feature-educacao-e-area-do-aluno.md · git log c8df882",
+   "prova": "Testado ponta a ponta com login real. Achou o bug do redirecionamento (aluno via o painel do mentor) — corrigido.",
+   "prioridade": 122
+  },
+  {
+   "titulo": "Áreas do painel do aluno por grupo",
+   "descricao": "groups.areas_aluno define os menus que o aluno vê; NULL = tudo, união entre grupos, e a tranca vale nas policies.",
+   "area": "Plataforma",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "feature-cadeado-e-areas-do-grupo.md § 2 · git log b156b8c",
+   "prova": "Testado com aluno real: grupo com academy+resultados deixou o menu com 3 itens; /aluno/comunidade e /aluno/ranking digitados à mão caíram na tela de sem acesso; classroom, agenda e devolutivas voltaram vazios do banco.",
    "prioridade": 123
   },
   {
@@ -2089,6 +2089,26 @@
    "origem": "estado-atual-e-fila.md § Pontos (etapa 6)",
    "prova": "Conferido: src/lib/classroom.functions.ts:1049-1076 — o comentário nomeia o furo ('A policy pres_professor só valida aula_id — person_id vem do cliente e nunca era conferido') e a checagem re",
    "prioridade": 209
+  },
+  {
+   "titulo": "Aluno logado caía no painel do mentor",
+   "descricao": "O guard de _app testava `\"to\" in e` para saber se a exceção era um redirect; o objeto do TanStack tem o `to` um nível abaixo (options.to). O catch engolia o próprio redirect e o aluno via 'Novo Envio', 'Ver como aluno' e 'Ranking geral'.",
+   "area": "Plataforma",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "achado no teste com login de aluno real, 30/07",
+   "prova": "Corrigido com isRedirect(); fallback passou a mandar para /aluno. Conferido na tela com a conta de teste.",
+   "prioridade": 210
+  },
+  {
+   "titulo": "Comunidade vazia para todo aluno real",
+   "descricao": "As policies de SELECT de groups e group_members só tinham o ramo da equipe. O aluno não lia o próprio grupo, então a comunidade, a aba Membros e o ranking do grupo ficavam vazios.",
+   "area": "Comunidade",
+   "status": "Concluído",
+   "depende_de": "Claude",
+   "origem": "achado no teste com login de aluno real, 30/07",
+   "prova": "Corrigido usando posso_ver_grupo() nas duas policies. Conferido: aluno vê só o grupo dele, dono continua vendo os três, comunidade abre com feed, ranking e membros.",
+   "prioridade": 211
   }
  ],
  "planilha": {
