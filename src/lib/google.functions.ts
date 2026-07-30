@@ -12,7 +12,10 @@ export const estadoDoGoogle = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { credenciais } = await import("@/lib/google.server");
     const { data } = await (context.supabase.rpc as never as (n: string) => Promise<{
-      data: Array<{ conectado: boolean; email: string | null; conectado_em: string }> | null;
+      data: Array<{
+        conectado: boolean; email: string | null; conectado_em: string;
+        ultimo_erro: string | null; ultimo_uso_em: string | null;
+      }> | null;
     }>)("minha_conexao_google");
     const linha = (data ?? [])[0];
     return {
@@ -21,6 +24,11 @@ export const estadoDoGoogle = createServerFn({ method: "GET" })
       configurado: !!credenciais(),
       conectado: !!linha,
       email: linha?.email ?? null,
+      // A última falha de sincronia. `sincronizar()` já gravava isto e nenhuma
+      // tela lia — o mentor marcava a devolutiva, a tela dizia "salvo", e o
+      // compromisso não aparecia no Google. Ele descobria no dia.
+      ultimo_erro: linha?.ultimo_erro ?? null,
+      ultimo_uso_em: linha?.ultimo_uso_em ?? null,
     };
   });
 

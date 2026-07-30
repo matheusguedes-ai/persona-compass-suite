@@ -643,15 +643,49 @@ function GoogleCalendar() {
           <code className="mx-1 rounded bg-black/10 px-1">GOOGLE_CLIENT_SECRET</code>.
         </div>
       ) : data.conectado ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-emerald-500/10 p-4">
-          <p className="text-sm">
-            Conectado{data.email ? ` como ${data.email}` : ""}.
-          </p>
-          <Button variant="outline" size="sm" onClick={() => desconectar.mutate()}
-                  disabled={desconectar.isPending}>
-            Desconectar
-          </Button>
-        </div>
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-emerald-500/10 p-4">
+            <p className="text-sm">
+              Conectado{data.email ? ` como ${data.email}` : ""}.
+              {data.ultimo_uso_em && !data.ultimo_erro && (
+                <span className="text-muted-foreground">
+                  {" "}Última sincronia em{" "}
+                  {new Date(data.ultimo_uso_em).toLocaleString("pt-BR", {
+                    timeZone: "America/Sao_Paulo",
+                    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+                  })}.
+                </span>
+              )}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => desconectar.mutate()}
+                    disabled={desconectar.isPending}>
+              Desconectar
+            </Button>
+          </div>
+
+          {/* A última falha. Ela já era gravada e nenhuma tela lia: o mentor
+              marcava a devolutiva, a tela dizia "salvo", e o compromisso não
+              chegava ao Google. Ele descobria no dia, quando o cliente não
+              entrava na chamada. */}
+          {data.ultimo_erro && (
+            <div className="rounded-lg bg-destructive/10 p-4 text-sm">
+              <p className="font-medium text-destructive">
+                A última tentativa de sincronizar falhou.
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Os compromissos que você marcou depois disso <strong>não estão</strong> no seu
+                Google. O motivo relatado pelo Google foi:
+              </p>
+              <code className="mt-2 block overflow-x-auto rounded bg-black/10 p-2 text-xs">
+                {data.ultimo_erro}
+              </code>
+              <p className="mt-2 text-muted-foreground">
+                Normalmente é acesso revogado ou permissão retirada. Desconecte e conecte de novo —
+                o próximo compromisso que você salvar refaz a sincronia.
+              </p>
+            </div>
+          )}
+        </>
       ) : (
         <div className="space-y-3">
           <Button onClick={() => conectar.mutate()} disabled={conectar.isPending}>
