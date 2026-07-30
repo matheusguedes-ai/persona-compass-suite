@@ -150,6 +150,24 @@ export function Comunidade({
     <div className="grid gap-5 lg:grid-cols-[1fr_18rem]">
     <div className="space-y-5">
       {/* ------------------------------------------------- escrever --- */}
+      {/*
+        Na prévia "Ver como aluno" o campo aparece, mas desligado.
+        Escondê-lo fazia a prévia mentir: dava a entender que o aluno não pode
+        publicar, quando ele pode — e é ele quem escreve. Publicar aqui, por sua
+        vez, criaria uma publicação assinada por VOCÊ com a cara dele.
+      */}
+      {somenteLeitura && (
+        <div className="rounded-xl border border-dashed border-black/10 bg-card p-4">
+          <div className="pointer-events-none select-none opacity-50">
+            <Textarea rows={2} disabled placeholder="Compartilhe algo com o grupo…" />
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            <strong>O aluno publica por aqui</strong> — o campo é dele, e ele apaga o que ele mesmo
+            publicou. Nesta prévia o campo fica desligado porque a publicação sairia no seu nome,
+            não no dele. Para publicar você mesmo, use o menu <strong>Comunidades</strong>.
+          </p>
+        </div>
+      )}
       {!somenteLeitura && (
       <div className="rounded-xl border border-black/5 bg-card p-4">
         <Textarea

@@ -28,13 +28,19 @@ function Pagina() {
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
 
   if (grupos.length === 0) {
+    // Na prévia quem lê é o professor, e "peça ao seu mentor" o deixaria
+    // esperando por si mesmo. A comunidade não está quebrada: esta pessoa não
+    // está em grupo nenhum, e é ele quem resolve isso.
     return (
       <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
         <Users className="mx-auto size-8 text-muted-foreground" />
-        <h1 className="mt-4 text-base font-medium">Você ainda não faz parte de nenhuma comunidade</h1>
+        <h1 className="mt-4 text-base font-medium">
+          {ver ? "Esta pessoa não está em nenhum grupo" : "Você ainda não faz parte de nenhuma comunidade"}
+        </h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-          As comunidades acontecem dentro dos grupos. Peça ao seu mentor para te adicionar a um —
-          assim que ele fizer isso, o espaço aparece aqui.
+          {ver
+            ? "A comunidade acontece dentro dos grupos. Adicione esta pessoa a um grupo, em Pessoas ou em Grupos, e o espaço aparece para ela na hora."
+            : "As comunidades acontecem dentro dos grupos. Peça ao seu mentor para te adicionar a um — assim que ele fizer isso, o espaço aparece aqui."}
         </p>
       </div>
     );
