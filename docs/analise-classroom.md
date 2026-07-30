@@ -156,24 +156,30 @@ Com essas respostas eu escrevo o plano por etapas, como fizemos com o Gestão.
 6. Aluno sem senha **cria pelo primeiro acesso com validação por e-mail** — a
    estrutura já existe. A presença manual cobre o imprevisto do dia.
 
-## A tabela de presença
+## A tabela de presença — definitiva
 
-**Identificação:** nome (com link para o perfil) · grupo · data e hora do
-check-in.
+Ele aprovou TODAS as sugestões, inclusive as que eu tinha marcado como
+opcionais. A tabela leva:
 
-**Essenciais que eu acrescentei:**
-- **Como foi registrada** — QR pelo aluno ou marcada pelo professor. Sem isso a
-  tabela mente por omissão.
-- **Atraso** — minutos depois do início. Em turma corporativa vale mais que a
-  presença em si.
-- **Frequência acumulada** no treinamento ("4 de 6 aulas"): o número que o RH
-  pergunta.
+| Coluna | Origem | Por que existe |
+|---|---|---|
+| **Aluno** | cadastro | Com link para o perfil |
+| **Grupo** | `group_members` | Se estiver em vários, o do treinamento |
+| **Data e hora** | do check-in | — |
+| **Como foi registrada** | QR · manual | Sem isso a tabela mente por omissão: presença anotada à mão fica idêntica a confirmada |
+| **Atraso** | calculado | Minutos depois do início da aula |
+| **Situação** | presente · atrasado · ausente · justificado | Derivada do atraso, ajustável à mão |
+| **Frequência acumulada** | calculada | "4 de 6 aulas" — o número que o RH pergunta |
+| **Observação** | do professor | "saiu mais cedo" |
+| **Quem marcou** | quando manual | Vale quando houver colaborador com acesso |
 
-**Opcionais:** situação (presente/atrasado/ausente/justificado) · observação do
-professor · quem marcou, quando manual.
+**Calculadas, não guardadas:** atraso, situação e frequência saem do horário da
+aula e dos check-ins. Guardar cada uma criaria três lugares para o mesmo fato
+divergirem — mudar a hora da aula deixaria o atraso mentindo.
 
-**Fora de propósito:** resultado de teste. Lista de presença circula; perfil
-comportamental não pode ir junto.
+**Deliberadamente FORA:** resultado de teste e perfil comportamental. Lista de
+presença é documento que circula — vai para o RH, para o cliente, para o
+arquivo. Perfil não pode circular junto.
 
 ---
 
