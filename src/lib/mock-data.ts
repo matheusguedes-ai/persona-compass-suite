@@ -31,62 +31,15 @@ export interface Send {
   dueAt?: string;
 }
 
-export const INSTRUMENTS: Instrument[] = [
-  {
-    id: "disc",
-    name: "Análise DISC",
-    shortName: "DISC",
-    category: "comportamental",
-    durationMin: 15,
-    description: "Identifique o perfil de dominância, influência, estabilidade e conformidade.",
-    accent: "rose",
-  },
-  {
-    id: "bigfive",
-    name: "Big Five (OCEAN)",
-    shortName: "Big Five",
-    category: "psicometrico",
-    durationMin: 25,
-    description: "O padrão ouro para medir as cinco grandes dimensões da personalidade humana.",
-    accent: "zinc",
-  },
-  {
-    id: "mbti",
-    name: "MBTI",
-    shortName: "MBTI",
-    category: "psicometrico",
-    durationMin: 30,
-    description: "Identificação dos 16 tipos de personalidade a partir de quatro dicotomias.",
-    accent: "violet",
-  },
-  {
-    id: "temperamentos",
-    name: "Temperamentos",
-    shortName: "Temperamentos",
-    category: "comportamental",
-    durationMin: 12,
-    description: "Análise clássica de sanguíneo, colérico, melancólico e fleumático.",
-    accent: "amber",
-  },
-  {
-    id: "vak",
-    name: "Canais de Acesso (VAK)",
-    shortName: "VAK",
-    category: "comportamental",
-    durationMin: 8,
-    description: "Descubra se o avaliado é predominantemente visual, auditivo ou sinestésico.",
-    accent: "emerald",
-  },
-  {
-    id: "qi",
-    name: "Matrizes de QI",
-    shortName: "QI",
-    category: "cognitivo",
-    durationMin: 45,
-    description: "Avaliação de raciocínio lógico-espacial e inteligência fluida.",
-    accent: "teal",
-  },
-];
+// A lista fixa de instrumentos foi REMOVIDA em 30/07/2026.
+//
+// Ela era servida pela ferramenta MCP `list_instruments`, que por isso
+// entregava o catálogo congelado no dia em que este arquivo foi escrito —
+// sem o teste de Valores, criado depois, e sem chance de enxergar qualquer
+// instrumento novo. O catálogo de verdade é a tabela `instruments`.
+//
+// Apagada e não deixada como "referência": lista de exemplo que ninguém usa
+// é lista de exemplo esperando para ser usada de novo por engano.
 
 export const PEOPLE: Person[] = [
   { id: "p1", name: "Ana Paula Oliveira", email: "ana.oliveira@example.com", role: "cliente", createdAt: "2025-10-02", tags: ["Executiva"] },
@@ -131,12 +84,8 @@ export const CATEGORY_LABEL: Record<TestCategory, string> = {
   cognitivo: "Cognitivo",
 };
 
-export function personById(id: string) {
-  return PEOPLE.find((p) => p.id === id);
-}
-export function instrumentById(id: string) {
-  return INSTRUMENTS.find((i) => i.id === id);
-}
+// `personById` e `instrumentById` saíram com a lista: as duas só liam os
+// arrays de exemplo, e nenhum arquivo do app as chamava.
 
 export type GroupType = "turma" | "empresa" | "setor";
 

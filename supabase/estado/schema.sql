@@ -484,6 +484,10 @@
 --   fechada_em timestamp with time zone
 --   fechada_por uuid
 --   cancelada boolean NOT NULL
+--   local_lat double precision
+--   local_lng double precision
+--   local_raio_m integer NOT NULL
+--   local_travado_em timestamp with time zone
 
 -- ============ TABELA treinamento_grupos ============
 --   treinamento_id uuid NOT NULL
@@ -519,6 +523,7 @@
 --   passe_nonce text
 --   group_nome text
 --   marcado_por_nome text
+--   distancia_m integer
 
 -- ============ TABELA treinamentos ============
 --   id uuid NOT NULL
@@ -529,6 +534,7 @@
 --   publicado boolean NOT NULL
 --   created_at timestamp with time zone NOT NULL
 --   updated_at timestamp with time zone NOT NULL
+--   tolerancia_atraso_min integer NOT NULL
 
 -- ===================== POLICIES =====================
 -- policy academy_banners.banner_read [SELECT]
@@ -855,16 +861,8 @@
 --   USING ((mentor_id = acting_account()) AND (member_kind() <> 'mentor'::text))
 --   CHECK (mentor_id = acting_account())
 -- policy treinamento_anotacoes.anot_rw [ALL]
---   USING (EXISTS ( SELECT 1
-   FROM ((treinamento_aulas a
-     JOIN treinamento_modulos m ON ((m.id = a.modulo_id)))
-     JOIN treinamentos t ON ((t.id = m.treinamento_id)))
-  WHERE ((a.id = treinamento_anotacoes.aula_id) AND (t.mentor_id = auth.uid()))))
---   CHECK (EXISTS ( SELECT 1
-   FROM ((treinamento_aulas a
-     JOIN treinamento_modulos m ON ((m.id = a.modulo_id)))
-     JOIN treinamentos t ON ((t.id = m.treinamento_id)))
-  WHERE ((a.id = treinamento_anotacoes.aula_id) AND (t.mentor_id = auth.uid()))))
+--   USING posso_dar_aula(aula_id)
+--   CHECK posso_dar_aula(aula_id)
 -- policy treinamento_aulas.aula_read [SELECT]
 --   USING (EXISTS ( SELECT 1
    FROM treinamento_modulos m
@@ -1006,6 +1004,7 @@ CREATE INDEX ltd_track_idx ON public.learning_track_destinos USING btree (track_
 CREATE UNIQUE INDEX mentors_pkey ON public.mentors USING btree (id);
 CREATE INDEX notif_minhas_idx ON public.notificacoes USING btree (user_id, created_at DESC);
 CREATE INDEX notif_nao_lidas_idx ON public.notificacoes USING btree (user_id) WHERE (lida_em IS NULL);
+CREATE UNIQUE INDEX notif_vespera_unica ON public.notificacoes USING btree (user_id, tipo, link) WHERE (tipo = ANY (ARRAY['vespera_aula'::text, 'vespera_devolutiva'::text]));
 CREATE UNIQUE INDEX notificacoes_pkey ON public.notificacoes USING btree (id);
 CREATE INDEX option_scores_dimension_id_idx ON public.option_scores USING btree (dimension_id);
 CREATE UNIQUE INDEX option_scores_option_id_dimension_id_key ON public.option_scores USING btree (option_id, dimension_id);
@@ -1168,6 +1167,80 @@ AS $function$
                    WHERE gm.person_id = p_person_id
                      AND (g.areas_aluno IS NULL OR a = ANY (g.areas_aluno)))
      );
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.avisos_da_vespera()
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_n integer := 0;
+  v_criados integer;
+BEGIN
+  IF v_uid IS NULL THEN RETURN 0; END IF;
+
+  -- ---- Aulas presenciais das proximas 24h ----
+  --
+  -- So aula com data, nao cancelada e ainda nao fechada. E so para quem esta
+  -- na turma: o vinculo vem de group_members cruzado com treinamento_grupos,
+  -- que e a mesma corrente que autoriza o check-in.
+  INSERT INTO public.notificacoes (user_id, conta_id, tipo, titulo, corpo, link)
+  SELECT DISTINCT
+         v_uid,
+         t.mentor_id,
+         'vespera_aula',
+         'Amanha: ' || a.titulo,
+         to_char(a.comeca_em AT TIME ZONE 'America/Sao_Paulo', 'DD/MM "as" HH24:MI')
+           || COALESCE(' · ' || a.local, ''),
+         '/aluno/classroom/' || t.id
+    FROM public.treinamento_aulas a
+    JOIN public.treinamento_modulos m ON m.id = a.modulo_id
+    JOIN public.treinamentos t        ON t.id = m.treinamento_id
+    JOIN public.treinamento_grupos tg ON tg.treinamento_id = t.id
+    JOIN public.group_members gm      ON gm.group_id = tg.group_id
+    JOIN public.people pe             ON pe.id = gm.person_id AND pe.user_id = v_uid
+   WHERE a.comeca_em IS NOT NULL
+     AND NOT a.cancelada
+     AND a.fechada_em IS NULL
+     AND a.comeca_em > now()
+     AND a.comeca_em <= now() + interval '24 hours'
+  ON CONFLICT DO NOTHING;
+  GET DIAGNOSTICS v_criados = ROW_COUNT;
+  v_n := v_n + v_criados;
+
+  -- ---- Devolutivas agendadas das proximas 24h ----
+  --
+  -- Os DOIS lados recebem: quem conduz e quem vai ser atendido. Avisar so o
+  -- avaliado deixaria o mentor descobrir a agenda do dia abrindo a agenda -- e
+  -- ele e quem precisa se preparar.
+  INSERT INTO public.notificacoes (user_id, conta_id, tipo, titulo, corpo, link)
+  SELECT DISTINCT
+         v_uid,
+         d.mentor_id,
+         'vespera_devolutiva',
+         'Amanha: devolutiva com ' || COALESCE(pe.full_name, 'seu mentor'),
+         to_char(d.scheduled_at AT TIME ZONE 'America/Sao_Paulo', 'DD/MM "as" HH24:MI'),
+         '/devolutivas'
+    FROM public.devolutivas d
+    LEFT JOIN public.people pe ON pe.id = d.person_id
+   WHERE d.scheduled_at IS NOT NULL
+     -- Cancelada nao avisa, e realizada tampouco: as duas continuam com
+     -- scheduled_at preenchido, e sem este filtro uma devolutiva ja concluida
+     -- reapareceria como "amanha".
+     AND d.status = 'agendada'
+     AND d.scheduled_at > now()
+     AND d.scheduled_at <= now() + interval '24 hours'
+     AND (d.mentor_id = v_uid OR pe.user_id = v_uid)
+  ON CONFLICT DO NOTHING;
+  GET DIAGNOSTICS v_criados = ROW_COUNT;
+  v_n := v_n + v_criados;
+
+  RETURN v_n;
+END;
 $function$
 ;
 
@@ -1425,11 +1498,26 @@ BEGIN
      AND p.user_id IS NULL;
   GET DIAGNOSTICS v_n = ROW_COUNT;
 
-  -- Já vinculado e com email diferente: o de acesso é o que vale.
+  -- Ja vinculado e com email diferente: o de acesso e o que vale.
   UPDATE public.people p
      SET email = v_email
    WHERE p.user_id = v_uid
      AND lower(p.email) <> lower(v_email);
+
+  -- ---- Os pontos de presenca que ficaram para tras ----
+  INSERT INTO public.pontos (user_id, mentor_id, acao, pontos, referencia)
+  SELECT v_uid, t.mentor_id, 'presenca', 20, pr.aula_id
+    FROM public.treinamento_presencas pr
+    JOIN public.people pe          ON pe.id = pr.person_id AND pe.user_id = v_uid
+    JOIN public.treinamento_aulas a ON a.id = pr.aula_id
+    JOIN public.treinamento_modulos m ON m.id = a.modulo_id
+    JOIN public.treinamentos t      ON t.id = m.treinamento_id
+   WHERE a.fechada_em IS NOT NULL
+     AND NOT a.cancelada
+     -- Presente ou atrasado. `situacao` preenchida e a marcacao do professor,
+     -- que vence; vazia com registro de scan significa que compareceu.
+     AND (pr.situacao IS NULL OR pr.situacao IN ('presente', 'atrasado'))
+  ON CONFLICT DO NOTHING;
 
   RETURN v_n;
 END;
@@ -1513,12 +1601,12 @@ $function$
 ;
 
 CREATE OR REPLACE FUNCTION public.minha_conexao_google()
- RETURNS TABLE(conectado boolean, email text, conectado_em timestamp with time zone)
+ RETURNS TABLE(conectado boolean, email text, conectado_em timestamp with time zone, ultimo_erro text, ultimo_uso_em timestamp with time zone)
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
-  SELECT true, g.email, g.conectado_em
+  SELECT true, g.email, g.conectado_em, g.ultimo_erro, g.ultimo_uso_em
     FROM public.google_conexoes g
    WHERE g.user_id = auth.uid();
 $function$
