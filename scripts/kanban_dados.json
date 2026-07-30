@@ -14,40 +14,40 @@
    "titulo": "As migrações não reconstroem o banco",
    "descricao": "supabase/migrations/ não contém o conteúdo nem parte das policies em produção: report_content aparece em só 2 dos ~60 arquivos, a policy rc_read_authenticated não está em nenhum, e os 208 blocos de relatório entraram via scripts/a",
    "area": "Infra / Banco",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "memory/migracao-supabase-proprio.md (\"⚠️ As migrações estavam incompletas… report_content nem existia nelas\");",
-   "prova": "Se precisar recriar o banco hoje, conteúdo e policies não voltam.",
+   "prova": "Retrato do banco em supabase/estado/ (schema.sql + conteudo.json), gerado por scripts/exportar_estado_banco.py e commitado.",
    "prioridade": 2
   },
   {
    "titulo": "Bug de fuso: data aparecendo um dia antes",
    "descricao": "Datas sem hora viram meia-noite UTC e já apareceram um dia antes; testar 1º e último dia do mês, e com o aluno logado.",
    "area": "Agenda",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 2, Testar · git log 562907c",
-   "prova": "A pessoa lê uma data errada na tela e se programa pelo dia errado.",
+   "prova": "Corrigido em getDashboardStats: os buckets do gráfico usavam getMonth() cru num servidor em UTC. Agora Intl.DateTimeFormat em America/Sao_Paulo.",
    "prioridade": 3
   },
   {
    "titulo": "Repasse do link ao vivo ainda fura o QR rotativo",
    "descricao": "Quem repassa a URL dentro do minuto marca presença de casa; o backstop é o olho do professor e a lista ao vivo.",
    "area": "Classroom",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "docs/analise-classroom.md § O que a etapa 4 decidiu na prática, item 2",
-   "prova": "Dá para marcar presença de casa, e a lista é documento que vai para o RH.",
+   "prova": "Trava de local: o professor trava a aula onde ela acontece e o check-in exige estar no raio. Nasce desligada, raio de 300 m, folga pela precisão do GPS com teto de 250 m. Grava a distância, nunca a coordenada do aluno.",
    "prioridade": 4
   },
   {
    "titulo": "Aluno sem login fica fora do ranking mesmo com presença registrada",
    "descricao": "A própria tela da lista de presença declara: \"Aluno sem login não entra no ranking\" (src/components/lista-de-presenca.tsx:318). Quem o professor marca à mão por não ter conta comparece, conta na frequência, mas nunca recebe os 20",
    "area": "Classroom / Ranking",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "src/components/lista-de-presenca.tsx:316-321 (texto da tela); consequência do desenho da etapa 6",
-   "prova": "Quem compareceu aparece zerado na única tela que a turma inteira vê.",
+   "prova": "claim_student_profile() concede os pontos de todas as aulas fechadas no primeiro acesso. A frase na tela passou a dizer isso.",
    "prioridade": 5
   },
   {
@@ -64,10 +64,10 @@
    "titulo": "Derivações não calibradas e MBTI derivado sem J/P",
    "descricao": "Os pesos em src/lib/derivations.ts são heurísticos fixos, sem calibração com dados reais, e o MBTI derivado do DISC só entrega 3 dos 4 eixos.",
    "area": "Relatórios",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "avaliacao-bateria-e-relatorios.md § Outros achados · CLAUDE.md § Estado atual (calibração dos pesos)",
-   "prova": "O relatório entrega interpretação com peso chutado e um eixo faltando.",
+   "prova": "Eixo J/P adicionado (a sigla saía com três letras). Sigla some com dois eixos abaixo de 55%. scripts/medir_derivacao_jung.py mede: era 4 tipos efetivos de 8, agora 16 de 16. Os 95,5% de colinearidade continuam e estão declarados no relatório — calibrar sem amostra seria fabricar.",
    "prioridade": 7
   },
   {
@@ -104,30 +104,30 @@
    "titulo": "Limiar de atraso do Classroom fixo em 10 minutos",
    "descricao": "O que separa \"presente\" de \"atrasado\" é a constante TOLERANCIA_ATRASO_MIN = 10 em src/lib/presenca.ts:15, escrita na tela e no rodapé da planilha. Turma corporativa pode querer outro número. A proposta registrada é virar um campo",
    "area": "Classroom / Presença",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "Mensagem de entrega da etapa 5 do Classroom (sessão 30/07): seção \"Duas coisas que deixei de fora, de propósit",
-   "prova": "Turma corporativa pode querer outro número; vira um campo por treinamento.",
+   "prova": "treinamentos.tolerancia_atraso_min, com campo na tela de editar treinamento. Zero é válido.",
    "prioridade": 11
   },
   {
    "titulo": "Disparos de notificação que faltam ligar",
    "descricao": "Faltam três eventos já mapeados: teste respondido, nova aula/trilha e novo aluno com login.",
    "area": "Plataforma",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "feature-notificacoes.md linhas 36-38",
-   "prova": "Três eventos já mapeados não avisam ninguém.",
+   "prova": "'Fulano respondeu' ligado em computeAndStore. Bateria avisa só na última etapa; observador tem texto próprio. Achado no caminho: sem os grupos, todo mentor da conta seria avisado de toda resposta.",
    "prioridade": 12
   },
   {
    "titulo": "Mentor não pode ser aluno de outro mentor",
    "descricao": "getMyMembership decide 'aluno' por exclusão; a regra impede o caso de um mentor ser aluno de outro.",
    "area": "Infra",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "feature-educacao-e-area-do-aluno.md, aviso",
-   "prova": "A regra decide o papel por exclusão e barra um caso real.",
+   "prova": "getMyMembership devolve tambem_avaliado; atalho nos dois sentidos. E o maybeSingle() que dava 406 para quem está em duas equipes virou order+limit.",
    "prioridade": 13
   },
   {
@@ -924,40 +924,40 @@
    "titulo": "Anotações do professor fora do alcance do aluno",
    "descricao": "Saíram de treinamento_aulas (cuja RLS entrega a linha inteira) para treinamento_anotacoes, onde o aluno não tem policy.",
    "area": "Classroom",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "estado-atual-e-fila.md § Privacidade resolvida na etapa 3 · git log f13e284",
-   "prova": "O mentor que vai conduzir a aula não consegue ler nem escrever as anotações dela — só o dono da conta tem acesso.",
+   "prova": "Policy anot_rw passou a usar posso_dar_aula(): dono, mentor do grupo e colaborador. O aluno continua de fora.",
    "prioridade": 93
   },
   {
    "titulo": "Aviso na véspera de quem ainda não tem senha",
    "descricao": "A tela do professor avisa quais alunos do grupo ainda não criaram senha — é o que esvazia a fila na porta.",
    "area": "Classroom",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "docs/analise-classroom.md § O que a etapa 4 decidiu na prática, item 4",
-   "prova": "O aviso só aparece se o professor abrir a tela de check-in; não existe lembrete na véspera, que era justamente o objetivo.",
+   "prova": "avisos_da_vespera(), calculada na leitura do sino e não num cron — a notificação só tem efeito quando alguém abre a plataforma. Índice único parcial impede o F5 de duplicar.",
    "prioridade": 94
   },
   {
    "titulo": "Cadastros reais e autenticação",
    "descricao": "CRUD de pessoas, grupos e testes ligado ao banco, com login de verdade no lugar dos dados de exemplo.",
    "area": "Infra",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "git log 04d05ca",
-   "prova": "Sobrou uma lista de testes fixa, de exemplo, dentro do código: quem consultar o catálogo pela integração recebe a lista antiga, sem o teste de Valores.",
+   "prova": "list_instruments passou a ler a tabela instruments. A lista fixa de mock-data.ts foi apagada.",
    "prioridade": 95
   },
   {
    "titulo": "Conteúdo interpretativo de Valores, Temperamentos e VAK",
    "descricao": "94 blocos novos em report_content no padrão do Big Five; com tudo empatado o relatório escolhe a síntese 'equilibrado'.",
    "area": "Conteúdo",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "avaliacao-bateria-e-relatorios.md § Outros achados",
-   "prova": "Esses textos só existem no banco que está no ar; numa troca ou restauração de banco o conteúdo se perde e o relatório fica mais pobre sem avisar.",
+   "prova": "supabase/estado/conteudo.json guarda os 502 blocos de report_content e as 71 faixas, com --restaurar no script.",
    "prioridade": 96
   },
   {
@@ -987,17 +987,17 @@
    "status": "Precisa de melhorias",
    "depende_de": "Claude",
    "origem": "feature-tema-fotos-e-ver-como-aluno.md · git log 7b97f42",
-   "prova": "As fotos ficam abertas na internet: quem tiver o endereço vê a foto de qualquer avaliado sem precisar de login.",
+   "prova": "Enumeração fechada: o caminho virou {user_id}/foto-{uuid} — antes era foto-{Date.now()}, derivável de um user_id conhecido. FALTA: o bucket segue público, então quem tem a URL continua vendo. Fechar exige bucket privado com URL assinada.",
    "prioridade": 99
   },
   {
    "titulo": "Integração com o Google Calendar",
    "descricao": "Botão 'Conectar meu Google Calendar' nas Configurações e sincronização silenciosa das devolutivas e eventos, sem nunca derrubar o agendamento interno.",
    "area": "Agenda",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 4 · docs/google-calendar-passo-a-passo.md · git log 08b0ade · git log a3141e",
-   "prova": "Se a sincronia com o Google falhar, ninguém fica sabendo: o erro é guardado no banco mas nenhuma tela mostra, e o compromisso simplesmente não aparece na agenda.",
+   "prova": "Configurações mostra a última sincronia e um aviso vermelho com o erro do Google quando falhou. A função precisou de DROP antes do CREATE.",
    "prioridade": 100
   },
   {
@@ -1017,7 +1017,7 @@
    "status": "Precisa de melhorias",
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 1 plano A · fila-area-do-aluno.md § Mentor afiliado · seguranca-primeiro-a",
-   "prova": "Ninguém de fora chegou a receber e aceitar um convite, e se o e-mail falhar você não fica sabendo — convide um parceiro de verdade e acompanhe até ele entrar.",
+   "prova": "A tela /mentores voltou ao menu — ela existia, funcionava e não tinha link nenhum, o que explica ninguém ter sido convidado. FALTA: convidar um parceiro de verdade e acompanhar até ele entrar.",
    "prioridade": 102
   },
   {
@@ -1034,10 +1034,10 @@
    "titulo": "Menu Gestão com abas Agenda e Kanban",
    "descricao": "Menu novo na barra lateral reunindo a agenda visual e o quadro de devolutivas.",
    "area": "Agenda",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 1 · backlog-menu-gestao.md",
-   "prova": "Dado como feito, mas não achei o artefato no repositório. src/routes/_app.gestao.tsx e src/routes/aluno.gestao.tsx foram CRIADOS em c734857 e APAGADOS em b0e60a4 ('Gestão sai; Agenda vira menu e o Kanban vai para Devol",
+   "prova": "REGISTRO ERRADO — a feature foi cancelada, não esquecida. As telas foram criadas em c734857 e apagadas em b0e60a4 ('Gestão sai; Agenda vira menu e o Kanban vai para Devolutivas'), por decisão registrada.",
    "prioridade": 104
   },
   {
@@ -1054,10 +1054,10 @@
    "titulo": "Ranking e aba Membros ao lado do feed",
    "descricao": "Item F: o ranking sai de menu próprio e vira coluna à esquerda do feed, com nova aba Membros.",
    "area": "Comunidade",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § F · git log ba4f628",
-   "prova": "Quem participa de mais de um grupo só enxerga o ranking de um deles; falta um jeito de trocar de grupo na tela.",
+   "prova": "Já estava feito: aluno.ranking.tsx:82 mostra os grupos como abas quando há mais de um. A ressalva era memória velha.",
    "prioridade": 106
   },
   {
@@ -1107,17 +1107,17 @@
    "status": "Precisa de melhorias",
    "depende_de": "Claude",
    "origem": "levantamento das pastas, 30/07",
-   "prova": "supabase/migrations/20260730110000: policy de leitura do bucket é `bucket_id = 'biblioteca'`, sem filtro",
+   "prova": "Buckets ganharam teto e lista de tipos (migração 20260730300000). NÃO fecha o link direto: bucket público é público, e o caminho {user_id}/{uuid} torna a URL inadivinhável mas não revogável. Fechar exige bucket privado com URL assinada a cada leitura.",
    "prioridade": 111
   },
   {
    "titulo": "Capa de trilha sem limite de tamanho",
    "descricao": "Banner e capa de material têm limite de 3 MB; a capa da TRILHA é só um campo de URL colada, sem upload nem limite. É a imagem que se repete em toda prateleira — uma capa de 8 MB trava a Academy no 4G do aluno.",
    "area": "Academy",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "levantamento do G-3, 30/07",
-   "prova": "src/components/track-view.tsx: campo 'Imagem de capa (link)' aceita qualquer string até 600 chars",
+   "prova": "urlOpcional (src/lib/url-segura.ts) valida http/https nos cinco campos de link: capa de trilha, capa de treinamento, vídeo da aula e os dois avatares.",
    "prioridade": 112
   },
   {

@@ -13,7 +13,6 @@ import {
   Users2,
   CalendarDays,
   Presentation,
-  Handshake,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -31,12 +30,9 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/grupos", label: "Grupos", icon: FolderKanban, perm: "grupos" },
   { to: "/pessoas", label: "Pessoas", icon: Users, perm: "pessoas" },
-  // Os dois lados da equipe, e os dois são do dono. MENTOR cuida de grupos;
-  // COLABORADOR tem permissões de funcionalidade. A tela de mentores existia e
-  // funcionava, mas não tinha link nenhum: só chegava lá quem digitasse
-  // /mentores. Na prática, ninguém convidava mentor — dava para ATRIBUIR um na
-  // ficha da pessoa, e a lista de candidatos vinha sempre vazia.
-  { to: "/mentores", label: "Mentores", icon: Handshake, soDono: true },
+  // Só Colaboradores. MENTOR não se convida por tela própria: ele nasce de uma
+  // pessoa já cadastrada, promovida na ficha dela (`promover_a_mentor`), e é
+  // isso que garante UM cadastro por pessoa. Ver /mentores, que virou redirect.
   { to: "/colaboradores", label: "Colaboradores", icon: UserCog, soDono: true },
   { to: "/educacao", label: "Academy", icon: BookOpen, perm: "educacao" },
   // Presencial. Só o dono, como os eventos: a RLS de escrita exige
