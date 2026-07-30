@@ -77,7 +77,9 @@ function formatarPeriodo(comeca: string | null, termina: string | null) {
     : `${dia} ${hIni} → ${fim.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} ${fim.toLocaleTimeString("pt-BR", HORA)}`;
 }
 
-export function TreinamentoView({ treinamentoId }: { treinamentoId: string }) {
+export type ClassroomViewBase = "/classroom" | "/aluno/classroom";
+
+export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string; base: ClassroomViewBase }) {
   const qc = useQueryClient();
   const getFn = useServerFn(getTreinamento);
   const { data, isLoading } = useQuery({
@@ -101,7 +103,11 @@ export function TreinamentoView({ treinamentoId }: { treinamentoId: string }) {
       })) as ModuloT[],
     [data?.modules],
   );
-  const podeEditar = data?.can_edit === true;
+  // No painel do aluno NINGUÉM edita — nem o dono em "Ver como aluno". A
+  // prévia só é honesta se mostrar o que o aluno vê: sem botões e sem as
+  // anotações do professor (que o servidor nem manda para quem não é dono,
+  // mas aqui o dono É o dono — o corte é da tela).
+  const podeEditar = data?.can_edit === true && base === "/classroom";
 
   const aulas = useMemo(() => modules.flatMap((m) => m.aulas), [modules]);
 
@@ -125,7 +131,7 @@ export function TreinamentoView({ treinamentoId }: { treinamentoId: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <Link to="/classroom" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+        <Link to={base} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-3" /> Voltar para o Classroom
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
@@ -141,20 +147,24 @@ export function TreinamentoView({ treinamentoId }: { treinamentoId: string }) {
             {t.descricao && (
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t.descricao}</p>
             )}
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <FolderKanban className="size-3.5 text-muted-foreground" />
-              {grupos.length === 0 ? (
-                <span className="text-xs text-muted-foreground">
-                  Nenhum grupo com acesso ainda{podeEditar ? " — escolha em “Editar treinamento”." : "."}
-                </span>
-              ) : (
-                grupos.map((g) => (
-                  <span key={g.id} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                    {g.name}
+            {/* Quem participa não precisa saber para quais grupos foi
+                publicado — e a RLS de `groups` nem entrega o nome ao aluno. */}
+            {podeEditar && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <FolderKanban className="size-3.5 text-muted-foreground" />
+                {grupos.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">
+                    Nenhum grupo com acesso ainda — escolha em “Editar treinamento”.
                   </span>
-                ))
-              )}
-            </div>
+                ) : (
+                  grupos.map((g) => (
+                    <span key={g.id} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                      {g.name}
+                    </span>
+                  ))
+                )}
+              </div>
+            )}
           </div>
           {podeEditar && (
             <div className="flex gap-2">
@@ -183,10 +193,14 @@ export function TreinamentoView({ treinamentoId }: { treinamentoId: string }) {
                         <CalendarClock className="size-4 shrink-0" />
                         {formatarPeriodo(aula.comeca_em, aula.termina_em)}
                       </p>
-                    ) : (
+                    ) : podeEditar ? (
                       <p className="flex items-center gap-1.5 text-amber-700">
                         <CalendarClock className="size-4 shrink-0" />
                         Sem data marcada — o check-in vai precisar dela.
+                      </p>
+                    ) : (
+                      <p className="flex items-center gap-1.5">
+                        <CalendarClock className="size-4 shrink-0" /> Data a definir.
                       </p>
                     )}
                     {aula.local && (
@@ -229,7 +243,7 @@ export function TreinamentoView({ treinamentoId }: { treinamentoId: string }) {
                 </div>
                 {aula.materiais.length === 0 ? (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Nenhum material nesta aula. Slides, roteiros e apostilas entram aqui.
+                    Nenhum material nesta aula.{podeEditar && " Slides, roteiros e apostilas entram aqui."}
                   </p>
                 ) : (
                   <ul className="mt-2 space-y-1.5">

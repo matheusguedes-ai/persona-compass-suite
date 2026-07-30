@@ -2,15 +2,16 @@
  * Classroom — o catálogo de treinamentos PRESENCIAIS do master.
  *
  * Menu só do dono da conta, como os eventos da agenda: as policies de escrita
- * exigem `mentor_id = auth.uid()`. A tela do aluno é a etapa 3 do plano
- * (docs/analise-classroom.md).
+ * exigem `mentor_id = auth.uid()`. A tela do aluno é /aluno/classroom.
  */
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listTreinamentos, createTreinamento } from "@/lib/classroom.functions";
-import { corDoTitulo } from "@/components/learning-catalog";
+import {
+  PrateleiraTreinamentos, ClassroomVazio, type TreinamentoCard,
+} from "@/components/classroom-catalog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Lock, Plus, Presentation } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/classroom/")({
@@ -30,11 +31,6 @@ export const Route = createFileRoute("/_app/classroom/")({
   }),
   component: ClassroomPage,
 });
-
-type TreinamentoCard = {
-  id: string; titulo: string; descricao: string | null; capa_url: string | null;
-  publicado: boolean; aulas_count: number; grupos_count: number;
-};
 
 function ClassroomPage() {
   const qc = useQueryClient();
@@ -79,23 +75,16 @@ function ClassroomPage() {
       </div>
 
       {lista.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
-          <Presentation className="mx-auto size-8 text-muted-foreground" />
-          <h2 className="mt-4 text-base font-medium">Nenhum treinamento ainda</h2>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Crie o primeiro, organize os encontros em módulos e aulas, e escolha os grupos que
-            participam.
-          </p>
-        </div>
+        <ClassroomVazio podeEditar />
       ) : (
         <div className="space-y-8">
-          <PrateleiraT
+          <PrateleiraTreinamentos
             titulo="Publicados" ajuda="Já aparecem para os grupos que você escolheu."
-            treinamentos={publicados}
+            treinamentos={publicados} base="/classroom"
           />
-          <PrateleiraT
+          <PrateleiraTreinamentos
             titulo="Rascunhos" ajuda="Só você enxerga."
-            treinamentos={rascunhos}
+            treinamentos={rascunhos} base="/classroom"
           />
           {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
         </div>
@@ -133,53 +122,5 @@ function ClassroomPage() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function PrateleiraT({
-  titulo, ajuda, treinamentos,
-}: { titulo: string; ajuda?: string; treinamentos: TreinamentoCard[] }) {
-  if (treinamentos.length === 0) return null;
-  return (
-    <section>
-      <div className="mb-3">
-        <h2 className="text-base font-medium tracking-tight">{titulo}</h2>
-        {ajuda && <p className="text-xs text-muted-foreground">{ajuda}</p>}
-      </div>
-      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
-        {treinamentos.map((t) => (
-          <Link
-            key={t.id}
-            to="/classroom/$treinamentoId"
-            params={{ treinamentoId: t.id }}
-            className="group relative block w-60 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5 transition hover:ring-2 hover:ring-primary"
-          >
-            <div className="relative h-32 w-full" style={{ background: corDoTitulo(t.titulo) }}>
-              {t.capa_url && (
-                <img src={t.capa_url} alt="" className="absolute inset-0 size-full object-cover" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-              <Presentation className="absolute inset-0 m-auto size-10 text-white/0 transition group-hover:text-white/90" />
-              {!t.publicado && (
-                <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
-                  <Lock className="size-2.5" /> rascunho
-                </span>
-              )}
-              <div className="absolute inset-x-0 bottom-0 p-3">
-                <p className="line-clamp-2 text-sm font-semibold leading-tight text-white">{t.titulo}</p>
-              </div>
-            </div>
-            <div className="bg-card p-3">
-              <p className="line-clamp-2 text-xs text-muted-foreground">
-                {t.descricao || "Sem descrição."}
-              </p>
-              <p className="mt-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                {t.aulas_count} aula{t.aulas_count === 1 ? "" : "s"} · {t.grupos_count} grupo{t.grupos_count === 1 ? "" : "s"}
-              </p>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </section>
   );
 }

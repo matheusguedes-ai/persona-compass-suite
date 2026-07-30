@@ -768,15 +768,29 @@ export type Database = {
         ]
       }
       treinamento_aulas: {
-        Row: { id: string; modulo_id: string; titulo: string; descricao: string | null; anotacoes: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number }
-        Insert: { id?: string; modulo_id: string; titulo: string; descricao?: string | null; anotacoes?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number }
-        Update: { id?: string; modulo_id?: string; titulo?: string; descricao?: string | null; anotacoes?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number }
+        Row: { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number }
+        Insert: { id?: string; modulo_id: string; titulo: string; descricao?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number }
+        Update: { id?: string; modulo_id?: string; titulo?: string; descricao?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number }
         Relationships: [
           {
             foreignKeyName: "treinamento_aulas_modulo_id_fkey"
             columns: ["modulo_id"]
             isOneToOne: false
             referencedRelation: "treinamento_modulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      treinamento_anotacoes: {
+        Row: { aula_id: string; texto: string; updated_at: string }
+        Insert: { aula_id: string; texto: string; updated_at?: string }
+        Update: { aula_id?: string; texto?: string; updated_at?: string }
+        Relationships: [
+          {
+            foreignKeyName: "treinamento_anotacoes_aula_id_fkey"
+            columns: ["aula_id"]
+            isOneToOne: true
+            referencedRelation: "treinamento_aulas"
             referencedColumns: ["id"]
           },
         ]

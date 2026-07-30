@@ -65,6 +65,18 @@ export const getTreinamento = createServerFn({ method: "GET" })
     if (mods.error) throw new Error(mods.error.message);
     if (grupos.error) throw new Error(grupos.error.message);
 
+    // As anotações moram em tabela própria com RLS só do dono (migração
+    // 20260730150000): o aluno não recebe o roteiro do professor nem
+    // consultando a API direto. Só vale buscar quando é o dono olhando.
+    const dono = treinamento.mentor_id === userId;
+    const anotPorAula = new Map<string, string>();
+    if (dono) {
+      const { data: anots, error: eAnots } = await supabase
+        .from("treinamento_anotacoes").select("aula_id, texto");
+      if (eAnots) throw new Error(eAnots.message);
+      for (const a of anots ?? []) anotPorAula.set(a.aula_id, a.texto);
+    }
+
     // Ordena aqui em vez de encadear `order` por tabela estrangeira: dois
     // níveis de aninhamento tornam a sintaxe frágil, e a lista é pequena.
     const porOrdem = <T extends { ordem: number; titulo: string }>(xs: T[]) =>
@@ -74,13 +86,17 @@ export const getTreinamento = createServerFn({ method: "GET" })
       ...m,
       treinamento_aulas: undefined,
       aulas: porOrdem(
-        ((m.treinamento_aulas as unknown as Array<Record<string, unknown>>) ?? []).map((a) => ({
-          ...(a as { id: string; modulo_id: string; titulo: string; descricao: string | null; anotacoes: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number }),
-          treinamento_materiais: undefined,
-          materiais: porOrdem(
-            (a.treinamento_materiais as Array<{ id: string; titulo: string; url: string; kind: string; ordem: number }>) ?? [],
-          ),
-        })),
+        ((m.treinamento_aulas as unknown as Array<Record<string, unknown>>) ?? []).map((a) => {
+          const aula = a as { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number };
+          return {
+            ...aula,
+            anotacoes: anotPorAula.get(aula.id) ?? null,
+            treinamento_materiais: undefined,
+            materiais: porOrdem(
+              (a.treinamento_materiais as Array<{ id: string; titulo: string; url: string; kind: string; ordem: number }>) ?? [],
+            ),
+          };
+        }),
       ),
     }));
 
@@ -91,7 +107,7 @@ export const getTreinamento = createServerFn({ method: "GET" })
         id: g.group_id,
         name: (g.groups as unknown as { name: string } | null)?.name ?? "—",
       })),
-      can_edit: treinamento.mentor_id === userId,
+      can_edit: dono,
     };
   });
 
@@ -247,21 +263,39 @@ export const saveAula = createServerFn({ method: "POST" })
   .inputValidator((d) => aulaSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { id, ...rest } = data;
+    // A anotação vai para a tabela dela, não para a linha da aula — ver a
+    // migração 20260730150000 e o comentário no getTreinamento.
+    const { id, anotacoes, ...rest } = data;
+    let row: { id: string };
     if (id) {
-      const { data: row, error } = await supabase
+      const { data: r, error } = await supabase
         .from("treinamento_aulas").update(rest).eq("id", id).select().single();
       if (error) throw new Error(error.message);
-      return row;
+      row = r;
+    } else {
+      const { count, error: eCont } = await supabase
+        .from("treinamento_aulas")
+        .select("id", { count: "exact", head: true })
+        .eq("modulo_id", rest.modulo_id);
+      if (eCont) throw new Error(eCont.message);
+      const { data: r, error } = await supabase
+        .from("treinamento_aulas").insert({ ...rest, ordem: count ?? 0 }).select().single();
+      if (error) throw new Error(error.message);
+      row = r;
     }
-    const { count, error: eCont } = await supabase
-      .from("treinamento_aulas")
-      .select("id", { count: "exact", head: true })
-      .eq("modulo_id", rest.modulo_id);
-    if (eCont) throw new Error(eCont.message);
-    const { data: row, error } = await supabase
-      .from("treinamento_aulas").insert({ ...rest, ordem: count ?? 0 }).select().single();
-    if (error) throw new Error(error.message);
+
+    const texto = anotacoes?.trim() ?? "";
+    if (texto) {
+      const { error } = await supabase
+        .from("treinamento_anotacoes")
+        .upsert({ aula_id: row.id, texto, updated_at: new Date().toISOString() });
+      if (error) throw new Error(error.message);
+    } else {
+      // Apagar o texto no formulário apaga a anotação — sem linha órfã.
+      const { error } = await supabase
+        .from("treinamento_anotacoes").delete().eq("aula_id", row.id);
+      if (error) throw new Error(error.message);
+    }
     return row;
   });
 

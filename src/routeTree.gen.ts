@@ -54,6 +54,8 @@ import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
 import { Route as AppPessoasIndexRouteImport } from './routes/_app.pessoas.index'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
+import { Route as AlunoClassroomIndexRouteImport } from './routes/aluno.classroom.index'
+import { Route as AlunoClassroomTreinamentoIdRouteImport } from './routes/aluno.classroom.$treinamentoId'
 import { Route as AlunoEducacaoIndexRouteImport } from './routes/aluno.educacao.index'
 import { Route as AlunoEducacaoTrackIdRouteImport } from './routes/aluno.educacao.$trackId'
 import { Route as ApiGoogleCallbackRouteImport } from './routes/api.google.callback'
@@ -295,6 +297,17 @@ const AppTestesIndexRoute = AppTestesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppTestesRoute,
 } as any)
+const AlunoClassroomIndexRoute = AlunoClassroomIndexRouteImport.update({
+  id: '/classroom/',
+  path: '/classroom/',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoClassroomTreinamentoIdRoute =
+  AlunoClassroomTreinamentoIdRouteImport.update({
+    id: '/classroom/$treinamentoId',
+    path: '/classroom/$treinamentoId',
+    getParentRoute: () => AlunoRoute,
+  } as any)
 const AlunoEducacaoIndexRoute = AlunoEducacaoIndexRouteImport.update({
   id: '/educacao/',
   path: '/educacao/',
@@ -391,6 +404,7 @@ export interface FileRoutesByFullPath {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
+  '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/classroom/': typeof AppClassroomIndexRoute
@@ -400,6 +414,7 @@ export interface FileRoutesByFullPath {
   '/grupos/': typeof AppGruposIndexRoute
   '/pessoas/': typeof AppPessoasIndexRoute
   '/testes/': typeof AppTestesIndexRoute
+  '/aluno/classroom/': typeof AlunoClassroomIndexRoute
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
   '/devolutivas/$id/painel': typeof AppDevolutivasIdPainelRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
@@ -442,6 +457,7 @@ export interface FileRoutesByTo {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
+  '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/classroom': typeof AppClassroomIndexRoute
@@ -451,6 +467,7 @@ export interface FileRoutesByTo {
   '/grupos': typeof AppGruposIndexRoute
   '/pessoas': typeof AppPessoasIndexRoute
   '/testes': typeof AppTestesIndexRoute
+  '/aluno/classroom': typeof AlunoClassroomIndexRoute
   '/aluno/educacao': typeof AlunoEducacaoIndexRoute
   '/devolutivas/$id/painel': typeof AppDevolutivasIdPainelRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
@@ -501,6 +518,7 @@ export interface FileRoutesById {
   '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
+  '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/_app/classroom/': typeof AppClassroomIndexRoute
@@ -510,6 +528,7 @@ export interface FileRoutesById {
   '/_app/grupos/': typeof AppGruposIndexRoute
   '/_app/pessoas/': typeof AppPessoasIndexRoute
   '/_app/testes/': typeof AppTestesIndexRoute
+  '/aluno/classroom/': typeof AlunoClassroomIndexRoute
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
   '/_app/devolutivas/$id/painel': typeof AppDevolutivasIdPainelRoute
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
@@ -560,6 +579,7 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
+    | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
     | '/classroom/'
@@ -569,6 +589,7 @@ export interface FileRouteTypes {
     | '/grupos/'
     | '/pessoas/'
     | '/testes/'
+    | '/aluno/classroom/'
     | '/aluno/educacao/'
     | '/devolutivas/$id/painel'
     | '/testes/$versionId/editar'
@@ -611,6 +632,7 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
+    | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
     | '/classroom'
@@ -620,6 +642,7 @@ export interface FileRouteTypes {
     | '/grupos'
     | '/pessoas'
     | '/testes'
+    | '/aluno/classroom'
     | '/aluno/educacao'
     | '/devolutivas/$id/painel'
     | '/testes/$versionId/editar'
@@ -669,6 +692,7 @@ export interface FileRouteTypes {
     | '/_app/envios/novo'
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
+    | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
     | '/_app/classroom/'
@@ -678,6 +702,7 @@ export interface FileRouteTypes {
     | '/_app/grupos/'
     | '/_app/pessoas/'
     | '/_app/testes/'
+    | '/aluno/classroom/'
     | '/aluno/educacao/'
     | '/_app/devolutivas/$id/painel'
     | '/_app/testes/$versionId/editar'
@@ -1030,6 +1055,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTestesIndexRouteImport
       parentRoute: typeof AppTestesRoute
     }
+    '/aluno/classroom/': {
+      id: '/aluno/classroom/'
+      path: '/classroom'
+      fullPath: '/aluno/classroom/'
+      preLoaderRoute: typeof AlunoClassroomIndexRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/classroom/$treinamentoId': {
+      id: '/aluno/classroom/$treinamentoId'
+      path: '/classroom/$treinamentoId'
+      fullPath: '/aluno/classroom/$treinamentoId'
+      preLoaderRoute: typeof AlunoClassroomTreinamentoIdRouteImport
+      parentRoute: typeof AlunoRoute
+    }
     '/aluno/educacao/': {
       id: '/aluno/educacao/'
       path: '/educacao'
@@ -1227,7 +1266,9 @@ interface AlunoRouteChildren {
   AlunoPerfilRoute: typeof AlunoPerfilRoute
   AlunoRankingRoute: typeof AlunoRankingRoute
   AlunoIndexRoute: typeof AlunoIndexRoute
+  AlunoClassroomTreinamentoIdRoute: typeof AlunoClassroomTreinamentoIdRoute
   AlunoEducacaoTrackIdRoute: typeof AlunoEducacaoTrackIdRoute
+  AlunoClassroomIndexRoute: typeof AlunoClassroomIndexRoute
   AlunoEducacaoIndexRoute: typeof AlunoEducacaoIndexRoute
 }
 
@@ -1240,7 +1281,9 @@ const AlunoRouteChildren: AlunoRouteChildren = {
   AlunoPerfilRoute: AlunoPerfilRoute,
   AlunoRankingRoute: AlunoRankingRoute,
   AlunoIndexRoute: AlunoIndexRoute,
+  AlunoClassroomTreinamentoIdRoute: AlunoClassroomTreinamentoIdRoute,
   AlunoEducacaoTrackIdRoute: AlunoEducacaoTrackIdRoute,
+  AlunoClassroomIndexRoute: AlunoClassroomIndexRoute,
   AlunoEducacaoIndexRoute: AlunoEducacaoIndexRoute,
 }
 

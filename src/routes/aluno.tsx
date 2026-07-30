@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Eye, GraduationCap, LayoutList, LogOut, UserRound, MessagesSquare,
   Users, Trophy, FolderKanban, CalendarDays, PanelLeftClose, PanelLeft, Menu,
+  Presentation,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/lib/theme";
@@ -37,6 +38,7 @@ const NAV = [
   { to: "/aluno/devolutivas", label: "Devolutivas", icon: MessagesSquare, exato: false },
   { to: "/aluno/agenda", label: "Agenda", icon: CalendarDays, exato: false },
   { to: "/aluno/educacao", label: "Academy", icon: GraduationCap, exato: false },
+  { to: "/aluno/classroom", label: "Classroom", icon: Presentation, exato: false },
   { to: "/aluno/perfil", label: "Meu perfil", icon: UserRound, exato: false },
 ] as const;
 
