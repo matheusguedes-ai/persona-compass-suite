@@ -113,6 +113,8 @@ export type Compromisso = {
   termina_em?: string | null;
   imagem_url?: string | null;
   link_url?: string | null;
+  /** Evento gerado por uma aula do Classroom — a aula é a fonte dele. */
+  de_aula?: boolean;
 };
 
 /**
@@ -191,7 +193,7 @@ export const agendaDoMes = createServerFn({ method: "GET" })
     // o caso mais comum.
     const { data: evs, error: eE2 } = await context.supabase
       .from("eventos")
-      .select("id, titulo, descricao, quando, termina_em, imagem_url, link_url")
+      .select("id, titulo, descricao, quando, termina_em, imagem_url, link_url, aula_id")
       .gte("quando", de)
       .lt("quando", ate)
       .order("quando");
@@ -210,6 +212,10 @@ export const agendaDoMes = createServerFn({ method: "GET" })
         termina_em: e.termina_em,
         imagem_url: e.imagem_url,
         link_url: e.link_url,
+        // Evento que nasceu de uma aula do Classroom. A tela diz isso porque,
+        // sem o aviso, apagá-lo aqui pareceria não funcionar: ele volta no
+        // próximo salvamento da aula, que é a fonte dele.
+        de_aula: !!e.aula_id,
       });
     }
     compromissos.sort((a, b) => a.quando.localeCompare(b.quando));

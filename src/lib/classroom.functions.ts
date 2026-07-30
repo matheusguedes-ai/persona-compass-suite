@@ -13,6 +13,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import { notificar } from "@/lib/notificacoes.functions";
 
 /** Inclui `slide` e `roteiro`, que a Academy não tem: são o material de quem dá aula presencial. */
 export const TIPOS_MATERIAL_TREINAMENTO = [
@@ -146,8 +149,14 @@ export const getTreinamento = createServerFn({ method: "GET" })
             estive: estive.has(aula.id),
             anotacoes: anotPorAula.get(aula.id) ?? null,
             treinamento_materiais: undefined,
+            // A RLS já recorta: o aluno só recebe o que foi liberado para ele.
+            // O `visivel_aluno` que vem junto serve para a tela do professor
+            // mostrar de quem é cada material.
             materiais: porOrdem(
-              (a.treinamento_materiais as Array<{ id: string; titulo: string; url: string; kind: string; ordem: number }>) ?? [],
+              (a.treinamento_materiais as Array<{
+                id: string; titulo: string; url: string; kind: string; ordem: number;
+                visivel_aluno: boolean;
+              }>) ?? [],
             ),
           };
         }),
@@ -250,6 +259,22 @@ export const setGruposDoTreinamento = createServerFn({ method: "POST" })
         .insert(incluir.map((group_id) => ({ treinamento_id: data.treinamento_id, group_id })));
       if (error) throw new Error(error.message);
     }
+
+    // Trocar a turma muda quem vê os encontros na agenda. Sem isto, tirar um
+    // grupo do treinamento deixaria as aulas dele na agenda de quem já não
+    // participa — e a turma nova não veria nada.
+    if (tirar.length > 0 || incluir.length > 0) {
+      const { data: mods } = await supabase
+        .from("treinamento_modulos")
+        .select("treinamento_aulas(id)")
+        .eq("treinamento_id", data.treinamento_id);
+      const aulaIds = (mods ?? []).flatMap(
+        (m) => ((m.treinamento_aulas as unknown as Array<{ id: string }>) ?? []).map((a) => a.id),
+      );
+      for (const aulaId of aulaIds) {
+        await sincronizarEventoDaAula(supabase, context.userId, aulaId);
+      }
+    }
     return { ok: true };
   });
 
@@ -313,6 +338,132 @@ const aulaSchema = z.object({
   { message: "O fim precisa ser depois do início." },
 );
 
+/**
+ * A aula com data vira evento na agenda — do professor e dos alunos do grupo.
+ *
+ * Uma função só, chamada de todo lugar que muda o que o evento mostra: salvar a
+ * aula (título, horário), trocar os grupos do treinamento, apagar a aula. Se
+ * cada caminho montasse o evento à sua maneira, um deles esqueceria de atualizar
+ * e a agenda passaria a mentir sobre um encontro que mudou de hora.
+ *
+ * O evento é ligado pela coluna `aula_id`, com índice único: dois salvamentos
+ * simultâneos não conseguem criar dois eventos para a mesma aula.
+ *
+ * Silenciosa como o e-mail e os pontos: a agenda nunca derruba o salvamento da
+ * aula. O professor salvou a aula de qualquer forma.
+ */
+async function sincronizarEventoDaAula(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  aulaId: string,
+): Promise<void> {
+  try {
+    const { data: aula } = await supabase
+      .from("treinamento_aulas")
+      .select("id, titulo, comeca_em, termina_em, local, modulo_id")
+      .eq("id", aulaId)
+      .maybeSingle();
+
+    const { data: existente } = await supabase
+      .from("eventos").select("id, quando").eq("aula_id", aulaId).maybeSingle();
+
+    // Sem data não há o que marcar na agenda. Se a aula tinha horário e ele
+    // apagou, o evento vai junto — deixá-lo lá anunciaria um encontro que já
+    // não tem hora.
+    if (!aula?.comeca_em) {
+      if (existente) {
+        await supabase.from("eventos").delete().eq("id", existente.id);
+        const { sincronizar } = await import("@/lib/google.server");
+        await sincronizar(userId, "evento", existente.id, null);
+      }
+      return;
+    }
+
+    const { data: modulo } = await supabase
+      .from("treinamento_modulos").select("treinamento_id").eq("id", aula.modulo_id).maybeSingle();
+    if (!modulo) return;
+    const { data: trein } = await supabase
+      .from("treinamentos").select("titulo, mentor_id").eq("id", modulo.treinamento_id).maybeSingle();
+    if (!trein) return;
+
+    const descricao = [trein.titulo, aula.local ? `Local: ${aula.local}` : null]
+      .filter(Boolean).join("\n");
+    const campos = {
+      titulo: aula.titulo,
+      descricao,
+      quando: aula.comeca_em,
+      termina_em: aula.termina_em,
+      link_url: null,
+    };
+
+    let eventoId = existente?.id ?? null;
+    const mudouAHora = !!existente && existente.quando !== aula.comeca_em;
+
+    if (eventoId) {
+      const { error } = await supabase.from("eventos").update(campos).eq("id", eventoId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { data: novo, error } = await supabase
+        .from("eventos")
+        .insert({ ...campos, conta_id: trein.mentor_id, criado_por: userId, aula_id: aulaId })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      eventoId = novo.id;
+    }
+
+    // Os destinos seguem os grupos do treinamento, por diferença: apagar tudo e
+    // recriar deixaria o evento invisível se a inserção falhasse no meio.
+    const { data: tg } = await supabase
+      .from("treinamento_grupos").select("group_id").eq("treinamento_id", modulo.treinamento_id);
+    const alvo = new Set((tg ?? []).map((g) => g.group_id));
+    const { data: destinos } = await supabase
+      .from("evento_destinos").select("id, group_id").eq("evento_id", eventoId);
+    const atuais = new Set((destinos ?? []).map((d) => d.group_id).filter(Boolean) as string[]);
+
+    const tirar = (destinos ?? []).filter((d) => d.group_id && !alvo.has(d.group_id));
+    if (tirar.length) {
+      await supabase.from("evento_destinos").delete().in("id", tirar.map((d) => d.id));
+    }
+    const incluir = [...alvo].filter((g) => !atuais.has(g));
+    if (incluir.length) {
+      await supabase.from("evento_destinos")
+        .insert(incluir.map((group_id) => ({ evento_id: eventoId!, group_id, person_id: null })));
+    }
+
+    // Avisa a turma quando o encontro NASCE ou quando MUDA DE HORA. Não a cada
+    // salvamento: corrigir uma vírgula no título não pode disparar notificação
+    // para vinte pessoas.
+    const grupos = [...alvo];
+    if (grupos.length && (!existente || mudouAHora)) {
+      const { quandoBr } = await import("@/lib/notificacoes.functions");
+      await notificar(supabase, {
+        conta: trein.mentor_id,
+        tipo: "evento_novo",
+        titulo: existente
+          ? `Mudou de horário: ${aula.titulo}`
+          : `Novo encontro: ${aula.titulo}`,
+        corpo: `${quandoBr(aula.comeca_em)}${aula.local ? ` · ${aula.local}` : ""}`,
+        link: "/aluno/classroom",
+        ator: userId,
+        grupos,
+        paraAlunos: true,
+      });
+    }
+
+    const { sincronizar } = await import("@/lib/google.server");
+    await sincronizar(userId, "evento", eventoId, {
+      titulo: aula.titulo,
+      descricao,
+      quando: aula.comeca_em,
+      terminaEm: aula.termina_em,
+      duracaoMin: null,
+    });
+  } catch (e) {
+    console.error("[classroom] não deu para sincronizar o evento da aula:", e);
+  }
+}
+
 export const saveAula = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => aulaSchema.parse(d))
@@ -351,6 +502,9 @@ export const saveAula = createServerFn({ method: "POST" })
         .from("treinamento_anotacoes").delete().eq("aula_id", row.id);
       if (error) throw new Error(error.message);
     }
+
+    // A aula com data marcada entra na agenda dele e na dos alunos do grupo.
+    await sincronizarEventoDaAula(supabase, context.userId, row.id);
     return row;
   });
 
@@ -358,8 +512,19 @@ export const deleteAula = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    // O evento cai por CASCADE quando a aula some, mas o Google não sabe disso:
+    // sem apagar antes, o encontro ficaria pendurado na agenda do Google dele
+    // para sempre, sem nada na plataforma que o explique.
+    const { data: evento } = await context.supabase
+      .from("eventos").select("id").eq("aula_id", data.id).maybeSingle();
+
     const { error } = await context.supabase.from("treinamento_aulas").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    if (evento) {
+      const { sincronizar } = await import("@/lib/google.server");
+      await sincronizar(context.userId, "evento", evento.id, null);
+    }
     return { ok: true };
   });
 
@@ -375,6 +540,9 @@ export const saveMaterialAula = createServerFn({ method: "POST" })
       titulo: z.string().trim().min(1).max(200),
       url: z.string().trim().url().max(1000),
       kind: z.enum(TIPOS_MATERIAL_TREINAMENTO).default("link"),
+      // Quem vê o material. Sem valor explícito, fica com o professor: material
+      // que vaza não volta, e liberar depois é um clique.
+      visivel_aluno: z.boolean().default(false),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {

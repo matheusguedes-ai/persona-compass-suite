@@ -259,6 +259,15 @@ export function Agenda({
                 </a>
               )}
 
+              {/* Sem este aviso, apagar aqui pareceria não funcionar: o evento
+                  volta no próximo salvamento da aula, que é a fonte dele. */}
+              {aberto.de_aula && (
+                <p className="rounded-lg bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
+                  Este encontro vem de uma <strong>aula do Classroom</strong>. Ele acompanha a aula:
+                  mudar a data lá muda aqui, e apagar aqui não apaga a aula.
+                </p>
+              )}
+
               {/* Só quem cria pode excluir — a mesma condição do botão "Novo
                   evento". A RLS barra de verdade; isto evita oferecer o que a
                   pessoa não pode fazer. */}

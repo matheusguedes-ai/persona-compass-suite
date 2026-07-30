@@ -34,8 +34,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, CalendarClock, CircleCheck, ExternalLink, FileText, FolderKanban, Lock, MapPin,
-  NotebookPen, Paperclip, Pencil, Plus, Presentation, QrCode, Trash2, Upload, Video, X,
+  ArrowLeft, CalendarClock, CircleCheck, Eye, EyeOff, ExternalLink, FileText, FolderKanban, Lock,
+  MapPin, NotebookPen, Paperclip, Pencil, Plus, Presentation, QrCode, Trash2, Upload, Video, X,
 } from "lucide-react";
 import { CheckinDialog } from "@/components/checkin-professor";
 import { ListaDePresenca } from "@/components/lista-de-presenca";
@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type MaterialT = { id: string; titulo: string; url: string; kind: string };
+type MaterialT = { id: string; titulo: string; url: string; kind: string; visivel_aluno: boolean };
 type AulaT = {
   id: string; modulo_id: string; titulo: string; descricao: string | null; anotacoes: string | null;
   comeca_em: string | null; termina_em: string | null; local: string | null; materiais: MaterialT[];
@@ -308,7 +308,25 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
                           >
                             <Icone className="size-4 shrink-0 text-muted-foreground" />
                             <span className="truncate">{m.titulo}</span>
-                            <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            {/* De quem é este material. Só o professor vê este
+                                selo — para o aluno, o que não é dele nem chega. */}
+                            {podeEditar && (
+                              <span
+                                className={cn(
+                                  "ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px]",
+                                  m.visivel_aluno
+                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                    : "bg-muted text-muted-foreground",
+                                )}
+                              >
+                                {m.visivel_aluno ? <Eye className="size-2.5" /> : <EyeOff className="size-2.5" />}
+                                {m.visivel_aluno ? "o aluno vê" : "só você"}
+                              </span>
+                            )}
+                            <span className={cn(
+                              "shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground",
+                              !podeEditar && "ml-auto",
+                            )}>
                               {m.kind}
                             </span>
                             <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
@@ -631,6 +649,9 @@ function MaterialDialog({
   const [titulo, setTitulo] = useState(atual?.titulo ?? "");
   const [url, setUrl] = useState(atual?.url ?? "");
   const [kind, setKind] = useState<string>(atual?.kind ?? "link");
+  // Material novo nasce só do professor. Slide de aula não deve circular, e
+  // liberar depois é um clique — o contrário, depois de baixado, não existe.
+  const [visivelAluno, setVisivelAluno] = useState(atual?.visivel_aluno ?? false);
   // "link" ou "arquivo" — mesma dupla da biblioteca: slides e apostilas sobem
   // direto, sem obrigar o desvio pelo Drive.
   const [origem, setOrigem] = useState<"link" | "arquivo">("link");
@@ -665,6 +686,7 @@ function MaterialDialog({
         id: inicial.id, aula_id: inicial.aula_id,
         titulo: titulo.trim(), url: url.trim(),
         kind: kind as (typeof TIPOS_MATERIAL_TREINAMENTO)[number],
+        visivel_aluno: visivelAluno,
       },
     }),
     onSuccess: () => { toast.success("Material salvo"); onSalvo(); },
@@ -735,6 +757,35 @@ function MaterialDialog({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Quem vê este material</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {([
+                [false, "Só você", EyeOff, "Fica na sua ficha da aula. O aluno não vê nem baixa."],
+                [true, "O aluno também", Eye, "Aparece na aula dele, para abrir e baixar."],
+              ] as const).map(([valor, rotulo, Icone, ajuda]) => (
+                <button
+                  key={String(valor)} type="button" onClick={() => setVisivelAluno(valor)}
+                  className={cn(
+                    "rounded-lg border p-3 text-left transition",
+                    visivelAluno === valor
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-black/10 hover:bg-muted/40",
+                  )}
+                >
+                  <p className="flex items-center gap-1.5 text-sm font-medium">
+                    <Icone className="size-3.5" /> {rotulo}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{ajuda}</p>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Quem barra é o banco, não a tela: o que fica com você não chega ao aluno nem por fora
+              da plataforma.
+            </p>
           </div>
         </form>
         <DialogFooter className="gap-2 sm:justify-between">

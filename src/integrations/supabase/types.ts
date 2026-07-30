@@ -44,9 +44,9 @@ export type Database = {
         ]
       }
       eventos: {
-        Row: { id: string; conta_id: string; titulo: string; descricao: string | null; quando: string; termina_em: string | null; imagem_url: string | null; link_url: string | null; duracao_min: number | null; criado_por: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; conta_id: string; titulo: string; descricao?: string | null; quando: string; termina_em?: string | null; imagem_url?: string | null; link_url?: string | null; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; conta_id?: string; titulo?: string; descricao?: string | null; quando?: string; termina_em?: string | null; imagem_url?: string | null; link_url?: string | null; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string }
+        Row: { id: string; conta_id: string; titulo: string; descricao: string | null; quando: string; termina_em: string | null; imagem_url: string | null; link_url: string | null; duracao_min: number | null; criado_por: string | null; created_at: string; updated_at: string; aula_id: string | null }
+        Insert: { id?: string; conta_id: string; titulo: string; descricao?: string | null; quando: string; termina_em?: string | null; imagem_url?: string | null; link_url?: string | null; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string; aula_id?: string | null }
+        Update: { id?: string; conta_id?: string; titulo?: string; descricao?: string | null; quando?: string; termina_em?: string | null; imagem_url?: string | null; link_url?: string | null; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string; aula_id?: string | null }
         Relationships: []
       }
       evento_destinos: {
@@ -817,9 +817,9 @@ export type Database = {
         ]
       }
       treinamento_materiais: {
-        Row: { id: string; aula_id: string; titulo: string; url: string; kind: string; ordem: number; created_at: string }
-        Insert: { id?: string; aula_id: string; titulo: string; url: string; kind?: string; ordem?: number; created_at?: string }
-        Update: { id?: string; aula_id?: string; titulo?: string; url?: string; kind?: string; ordem?: number; created_at?: string }
+        Row: { id: string; aula_id: string; titulo: string; url: string; kind: string; ordem: number; created_at: string; visivel_aluno: boolean }
+        Insert: { id?: string; aula_id: string; titulo: string; url: string; kind?: string; ordem?: number; created_at?: string; visivel_aluno?: boolean }
+        Update: { id?: string; aula_id?: string; titulo?: string; url?: string; kind?: string; ordem?: number; created_at?: string; visivel_aluno?: boolean }
         Relationships: [
           {
             foreignKeyName: "treinamento_materiais_aula_id_fkey"
