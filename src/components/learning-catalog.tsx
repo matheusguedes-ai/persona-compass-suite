@@ -4,7 +4,7 @@
  * aluno — o que muda é só o `podeEditar`.
  */
 import { Link } from "@tanstack/react-router";
-import { GraduationCap, Lock, PlayCircle } from "lucide-react";
+import { GraduationCap, Lock, PlayCircle, Users } from "lucide-react";
 
 export type TrackCard = {
   id: string;
@@ -14,6 +14,10 @@ export type TrackCard = {
   audience: string;
   is_published: boolean;
   lessons_count?: number;
+  /** Falso = o card aparece trancado. Trilha sem destino é liberada a todos. */
+  liberada?: boolean;
+  /** Quantos grupos/pessoas foram escolhidos. Só o professor recebe > 0. */
+  destinos_count?: number;
 };
 
 const PUBLICO_LABEL: Record<string, string> = {
@@ -31,24 +35,45 @@ export function corDoTitulo(t: string) {
 
 export type CatalogBase = "/educacao" | "/aluno/educacao";
 
-export function TrackCardItem({ t, base }: { t: TrackCard; base: CatalogBase }) {
+export function TrackCardItem({ t, base, search }: { t: TrackCard; base: CatalogBase; search?: { ver?: string } }) {
   // O roteador exige uma rota literal, não uma montada com template.
   const to = base === "/educacao" ? "/educacao/$trackId" : "/aluno/educacao/$trackId";
+  // `liberada` ausente = trilha de antes do cadeado, aberta.
+  const trancada = t.liberada === false;
   return (
     <Link
       to={to}
       params={{ trackId: t.id }}
-      className="group relative block w-60 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5 transition hover:ring-2 hover:ring-primary"
+      search={search}
+      className={`group relative block w-60 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5 transition ${
+        trancada ? "hover:ring-2 hover:ring-black/20" : "hover:ring-2 hover:ring-primary"
+      }`}
     >
       <div className="relative h-32 w-full" style={{ background: corDoTitulo(t.title) }}>
         {t.cover_url && (
-          <img src={t.cover_url} alt="" className="absolute inset-0 size-full object-cover" />
+          <img
+            src={t.cover_url} alt=""
+            className={`absolute inset-0 size-full object-cover ${trancada ? "grayscale" : ""}`}
+          />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-        <PlayCircle className="absolute inset-0 m-auto size-10 text-white/0 transition group-hover:text-white/90" />
+        {trancada ? (
+          // Sem convite ao clique: a capa fica visível para ele saber que
+          // existe, mas o cadeado é o que a imagem comunica.
+          <div className="absolute inset-0 flex items-center justify-center bg-black/45">
+            <Lock className="size-8 text-white/90" />
+          </div>
+        ) : (
+          <PlayCircle className="absolute inset-0 m-auto size-10 text-white/0 transition group-hover:text-white/90" />
+        )}
         {!t.is_published && (
           <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
             <Lock className="size-2.5" /> rascunho
+          </span>
+        )}
+        {!!t.destinos_count && (
+          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+            <Users className="size-2.5" /> {t.destinos_count} com acesso
           </span>
         )}
         <div className="absolute inset-x-0 bottom-0 p-3">
@@ -60,8 +85,14 @@ export function TrackCardItem({ t, base }: { t: TrackCard; base: CatalogBase }) 
           {t.description || "Sem descrição."}
         </p>
         <p className="mt-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-          {t.lessons_count != null && <>{t.lessons_count} aula{t.lessons_count === 1 ? "" : "s"} · </>}
-          {PUBLICO_LABEL[t.audience] ?? t.audience}
+          {trancada ? (
+            "Não liberado para você"
+          ) : (
+            <>
+              {t.lessons_count != null && <>{t.lessons_count} aula{t.lessons_count === 1 ? "" : "s"} · </>}
+              {PUBLICO_LABEL[t.audience] ?? t.audience}
+            </>
+          )}
         </p>
       </div>
     </Link>
@@ -69,8 +100,11 @@ export function TrackCardItem({ t, base }: { t: TrackCard; base: CatalogBase }) 
 }
 
 export function Prateleira({
-  titulo, ajuda, trilhas, base,
-}: { titulo: string; ajuda?: string; trilhas: TrackCard[]; base: CatalogBase }) {
+  titulo, ajuda, trilhas, base, search,
+}: {
+  titulo: string; ajuda?: string; trilhas: TrackCard[]; base: CatalogBase;
+  search?: { ver?: string };
+}) {
   if (trilhas.length === 0) return null;
   return (
     <section>
@@ -80,7 +114,7 @@ export function Prateleira({
       </div>
       {/* Rolagem horizontal: a lista cresce para o lado sem empurrar a página. */}
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
-        {trilhas.map((t) => <TrackCardItem key={t.id} t={t} base={base} />)}
+        {trilhas.map((t) => <TrackCardItem key={t.id} t={t} base={base} search={search} />)}
       </div>
     </section>
   );

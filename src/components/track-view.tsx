@@ -12,8 +12,10 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   getTrack, saveModule, deleteModule, saveLesson, deleteLesson,
   saveMaterial, deleteMaterial, toggleLessonDone, updateTrack, deleteTrack,
+  getTrackDestinos, setTrackDestinos,
   youtubeId, TIPOS_MATERIAL, PUBLICOS,
 } from "@/lib/learning.functions";
+import { QuemAcessa } from "@/components/quem-acessa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +29,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, Check, CircleCheck, ExternalLink, FileText, Paperclip, Pencil,
+  ArrowLeft, Check, CircleCheck, ExternalLink, FileText, Lock, Paperclip, Pencil,
   Plus, Trash2, Video,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,11 +45,21 @@ const ICONE_MATERIAL: Record<string, typeof FileText> = {
   pdf: FileText, planilha: FileText, video: Video, audio: Video, link: ExternalLink, outro: Paperclip,
 };
 
-export function TrackView({ trackId, base }: { trackId: string; base: "/educacao" | "/aluno/educacao" }) {
+export function TrackView({
+  trackId, base, previewPersonId = null,
+}: {
+  trackId: string;
+  base: "/educacao" | "/aluno/educacao";
+  /** Prévia "ver como aluno": o cadeado passa a valer o daquela pessoa. */
+  previewPersonId?: string | null;
+}) {
   const qc = useQueryClient();
   const getFn = useServerFn(getTrack);
   const toggleFn = useServerFn(toggleLessonDone);
-  const { data, isLoading } = useQuery({ queryKey: ["track", trackId], queryFn: () => getFn({ data: { id: trackId } }) });
+  const { data, isLoading } = useQuery({
+    queryKey: ["track", trackId, previewPersonId],
+    queryFn: () => getFn({ data: { id: trackId, preview_person_id: previewPersonId } }),
+  });
   const inv = () => qc.invalidateQueries({ queryKey: ["track", trackId] });
 
   const [aulaId, setAulaId] = useState<string | null>(null);
@@ -90,6 +102,42 @@ export function TrackView({ trackId, base }: { trackId: string; base: "/educacao
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando trilha…</p>;
   if (!data) return <p className="text-sm text-muted-foreground">Trilha não encontrada.</p>;
 
+  // Trancada: capa e descrição, e mais nada. A RLS já não devolve as aulas —
+  // esta tela existe para dizer o porquê, em vez de mostrar "nenhuma aula
+  // ainda" e passar por conteúdo vazio.
+  if (data.liberada === false) {
+    return (
+      <div className="space-y-6">
+        <Link
+          to={base} search={previewPersonId ? { ver: previewPersonId } : undefined}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-3" /> Voltar para a Academy
+        </Link>
+        <div className="overflow-hidden rounded-xl ring-1 ring-black/5">
+          <div className="relative h-40 w-full bg-muted">
+            {data.track.cover_url && (
+              <img src={data.track.cover_url} alt="" className="absolute inset-0 size-full object-cover grayscale" />
+            )}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+              <Lock className="size-10 text-white/90" />
+            </div>
+          </div>
+          <div className="bg-card p-6">
+            <h1 className="text-xl font-semibold tracking-tight">{data.track.title}</h1>
+            {data.track.description && (
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{data.track.description}</p>
+            )}
+            <p className="mt-4 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+              Esta trilha ainda não foi liberada para você. Fale com o seu mentor se ela fizer parte
+              do seu programa.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const total = aulas.length;
   const feitas = aulas.filter((l) => concluidas.has(l.id)).length;
   const pct = total > 0 ? Math.round((feitas / total) * 100) : 0;
@@ -97,8 +145,11 @@ export function TrackView({ trackId, base }: { trackId: string; base: "/educacao
   return (
     <div className="space-y-6">
       <div>
-        <Link to={base} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-3" /> Voltar para Educação
+        <Link
+          to={base} search={previewPersonId ? { ver: previewPersonId } : undefined}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-3" /> Voltar para a Academy
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -640,17 +691,43 @@ function TrilhaDialog({
   const [audience, setAudience] = useState(track.audience);
   const [publicada, setPublicada] = useState(track.is_published);
 
+  const qc = useQueryClient();
+  const destinosFn = useServerFn(getTrackDestinos);
+  const setDestinosFn = useServerFn(setTrackDestinos);
+  const { data: destinos } = useQuery({
+    queryKey: ["track-destinos", track.id],
+    queryFn: () => destinosFn({ data: { track_id: track.id } }),
+  });
+  // `null` enquanto não carregou: gravar antes disso mandaria lista vazia e
+  // abriria a trilha para todo mundo sem ele ter mexido em nada.
+  const [grupos, setGrupos] = useState<string[] | null>(null);
+  const [pessoas, setPessoas] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!destinos) return;
+    setGrupos((v) => v ?? destinos.group_ids);
+    setPessoas((v) => v ?? destinos.person_ids);
+  }, [destinos]);
+
   const saveFn = useServerFn(updateTrack);
   const delFn = useServerFn(deleteTrack);
   const salvar = useMutation({
-    mutationFn: () => saveFn({
-      data: {
-        id: track.id, title: title.trim(), description: description.trim() || null,
-        cover_url: coverUrl.trim() || null,
-        audience: audience as "equipe" | "alunos" | "ambos", is_published: publicada,
-      },
-    }),
-    onSuccess: () => { toast.success("Trilha atualizada"); onSalvo(); },
+    mutationFn: async () => {
+      await saveFn({
+        data: {
+          id: track.id, title: title.trim(), description: description.trim() || null,
+          cover_url: coverUrl.trim() || null,
+          audience: audience as "equipe" | "alunos" | "ambos", is_published: publicada,
+        },
+      });
+      if (grupos && pessoas) {
+        await setDestinosFn({ data: { track_id: track.id, group_ids: grupos, person_ids: pessoas } });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["track-destinos", track.id] });
+      toast.success("Trilha atualizada");
+      onSalvo();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   const remover = useMutation({
@@ -693,6 +770,14 @@ function TrilhaDialog({
               ))}
             </div>
           </div>
+          {/* Trilha só da equipe não tem aluno para trancar — a caixa apareceria
+              pedindo uma escolha que não muda nada. */}
+          {audience !== "equipe" && (
+            <QuemAcessa
+              grupos={grupos ?? []} pessoas={pessoas ?? []}
+              setGrupos={setGrupos} setPessoas={setPessoas}
+            />
+          )}
           <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">
             <div>
               <p className="text-sm font-medium">Publicada</p>

@@ -591,6 +591,52 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_track_destinos: {
+        Row: {
+          created_at: string
+          group_id: string | null
+          id: string
+          person_id: string | null
+          track_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          person_id?: string | null
+          track_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          person_id?: string | null
+          track_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_track_destinos_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "learning_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_track_destinos_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_track_destinos_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       learning_modules: {
         Row: {
           created_at: string
@@ -1514,6 +1560,8 @@ export type Database = {
       }
       can_see_track: { Args: { _track_id: string }; Returns: boolean }
       can_edit_track: { Args: { _track_id: string }; Returns: boolean }
+      track_liberada: { Args: { _track_id: string }; Returns: boolean }
+      trilhas_liberadas: { Args: { _person_id?: string | null }; Returns: string[] }
       member_kind: { Args: Record<string, never>; Returns: string }
       claim_invite_link: {
         Args: { link_id: string }

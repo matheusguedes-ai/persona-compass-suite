@@ -14,6 +14,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
+import { QuemAcessa } from "@/components/quem-acessa";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/educacao/")({
@@ -35,16 +36,27 @@ function EducacaoPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [audience, setAudience] = useState<"equipe" | "alunos" | "ambos">("alunos");
+  const [grupos, setGrupos] = useState<string[]>([]);
+  const [pessoas, setPessoas] = useState<string[]>([]);
 
   const listFn = useServerFn(listTracks);
   const createFn = useServerFn(createTrack);
-  const { data: trilhas = [], isLoading } = useQuery({ queryKey: ["tracks"], queryFn: () => listFn() });
+  const { data: trilhas = [], isLoading } = useQuery({
+    queryKey: ["tracks", null], queryFn: () => listFn({ data: {} }),
+  });
 
   const criar = useMutation({
-    mutationFn: () => createFn({ data: { title: title.trim(), description: description.trim() || null, audience, is_published: false } }),
+    mutationFn: () => createFn({
+      data: {
+        title: title.trim(), description: description.trim() || null, audience, is_published: false,
+        // Público só da equipe não tem aluno para trancar.
+        group_ids: audience === "equipe" ? [] : grupos,
+        person_ids: audience === "equipe" ? [] : pessoas,
+      },
+    }),
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: ["tracks"] });
-      setAberto(false); setTitle(""); setDescription("");
+      setAberto(false); setTitle(""); setDescription(""); setGrupos([]); setPessoas([]);
       toast.success("Trilha criada — agora monte os módulos e as aulas");
       nav({ to: "/educacao/$trackId", params: { trackId: (row as { id: string }).id } });
     },
@@ -89,7 +101,7 @@ function EducacaoPage() {
       )}
 
       <Dialog open={aberto} onOpenChange={setAberto}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova trilha</DialogTitle>
             <DialogDescription>
@@ -125,6 +137,12 @@ function EducacaoPage() {
                 ))}
               </div>
             </div>
+            {audience !== "equipe" && (
+              <QuemAcessa
+                grupos={grupos} pessoas={pessoas}
+                setGrupos={setGrupos} setPessoas={setPessoas} ativo={aberto}
+              />
+            )}
           </form>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAberto(false)}>Cancelar</Button>
