@@ -795,6 +795,27 @@ export type Database = {
           },
         ]
       }
+      treinamento_presencas: {
+        Row: { id: string; aula_id: string; person_id: string; group_id: string | null; origem: string; escaneado_em: string | null; registrado_em: string; registrado_por: string | null; observacao: string | null; situacao: string | null; passe_nonce: string | null }
+        Insert: { id?: string; aula_id: string; person_id: string; group_id?: string | null; origem?: string; escaneado_em?: string | null; registrado_em?: string; registrado_por?: string | null; observacao?: string | null; situacao?: string | null; passe_nonce?: string | null }
+        Update: { id?: string; aula_id?: string; person_id?: string; group_id?: string | null; origem?: string; escaneado_em?: string | null; registrado_em?: string; registrado_por?: string | null; observacao?: string | null; situacao?: string | null; passe_nonce?: string | null }
+        Relationships: [
+          {
+            foreignKeyName: "treinamento_presencas_aula_id_fkey"
+            columns: ["aula_id"]
+            isOneToOne: false
+            referencedRelation: "treinamento_aulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "treinamento_presencas_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       treinamento_materiais: {
         Row: { id: string; aula_id: string; titulo: string; url: string; kind: string; ordem: number; created_at: string }
         Insert: { id?: string; aula_id: string; titulo: string; url: string; kind?: string; ordem?: number; created_at?: string }
@@ -1483,6 +1504,8 @@ export type Database = {
       rebaixar_mentor: { Args: { p_person_id: string }; Returns: undefined }
       meus_grupos_como_avaliado: { Args: Record<string, never>; Returns: string[] }
       posso_ver_grupo: { Args: { p_group_id: string }; Returns: boolean }
+      posso_ver_treinamento: { Args: { p_trein: string }; Returns: boolean }
+      posso_dar_aula: { Args: { p_aula: string }; Returns: boolean }
       nome_do_mentor: { Args: { p_user_id: string }; Returns: string | null }
       claim_student_profile: { Args: Record<string, never>; Returns: number }
       update_my_person: {

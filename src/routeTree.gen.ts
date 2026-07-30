@@ -35,6 +35,7 @@ import { Route as AlunoGruposRouteImport } from './routes/aluno.grupos'
 import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
 import { Route as AlunoRankingRouteImport } from './routes/aluno.ranking'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
+import { Route as CheckinAulaIdRouteImport } from './routes/checkin.$aulaId'
 import { Route as ConviteEquipeTokenRouteImport } from './routes/convite-equipe.$token'
 import { Route as ConviteLinkIdRouteImport } from './routes/convite.$linkId'
 import { Route as RelatorioBateriaAssessmentIdRouteImport } from './routes/relatorio-bateria.$assessmentId'
@@ -63,6 +64,7 @@ import { Route as AppDevolutivasIdPainelRouteImport } from './routes/_app.devolu
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
 import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
+import { Route as ApiPublicCheckinAulaIdRouteImport } from './routes/api.public.checkin.$aulaId'
 import { Route as ApiPublicInviteIdRouteImport } from './routes/api.public.invite.$id'
 import { Route as ApiPublicReportBateriaIdRouteImport } from './routes/api.public.report-bateria.$id'
 import { Route as ApiPublicReportIdRouteImport } from './routes/api.public.report.$id'
@@ -197,6 +199,11 @@ const AlunoRankingRoute = AlunoRankingRouteImport.update({
 const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
   id: '/bateria/$assessmentId',
   path: '/bateria/$assessmentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckinAulaIdRoute = CheckinAulaIdRouteImport.update({
+  id: '/checkin/$aulaId',
+  path: '/checkin/$aulaId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConviteEquipeTokenRoute = ConviteEquipeTokenRouteImport.update({
@@ -344,6 +351,11 @@ const ApiPublicAssessmentIdRoute = ApiPublicAssessmentIdRouteImport.update({
   path: '/api/public/assessment/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCheckinAulaIdRoute = ApiPublicCheckinAulaIdRouteImport.update({
+  id: '/api/public/checkin/$aulaId',
+  path: '/api/public/checkin/$aulaId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicInviteIdRoute = ApiPublicInviteIdRouteImport.update({
   id: '/api/public/invite/$id',
   path: '/api/public/invite/$id',
@@ -391,6 +403,7 @@ export interface FileRoutesByFullPath {
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
@@ -420,6 +433,7 @@ export interface FileRoutesByFullPath {
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
+  '/api/public/checkin/$aulaId': typeof ApiPublicCheckinAulaIdRoute
   '/api/public/invite/$id': typeof ApiPublicInviteIdRoute
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
@@ -443,6 +457,7 @@ export interface FileRoutesByTo {
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
@@ -473,6 +488,7 @@ export interface FileRoutesByTo {
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
+  '/api/public/checkin/$aulaId': typeof ApiPublicCheckinAulaIdRoute
   '/api/public/invite/$id': typeof ApiPublicInviteIdRoute
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
@@ -504,6 +520,7 @@ export interface FileRoutesById {
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
@@ -534,6 +551,7 @@ export interface FileRoutesById {
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
+  '/api/public/checkin/$aulaId': typeof ApiPublicCheckinAulaIdRoute
   '/api/public/invite/$id': typeof ApiPublicInviteIdRoute
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
@@ -566,6 +584,7 @@ export interface FileRouteTypes {
     | '/aluno/perfil'
     | '/aluno/ranking'
     | '/bateria/$assessmentId'
+    | '/checkin/$aulaId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
     | '/relatorio-bateria/$assessmentId'
@@ -595,6 +614,7 @@ export interface FileRouteTypes {
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
+    | '/api/public/checkin/$aulaId'
     | '/api/public/invite/$id'
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
@@ -618,6 +638,7 @@ export interface FileRouteTypes {
     | '/aluno/perfil'
     | '/aluno/ranking'
     | '/bateria/$assessmentId'
+    | '/checkin/$aulaId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
     | '/relatorio-bateria/$assessmentId'
@@ -648,6 +669,7 @@ export interface FileRouteTypes {
     | '/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
+    | '/api/public/checkin/$aulaId'
     | '/api/public/invite/$id'
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
@@ -678,6 +700,7 @@ export interface FileRouteTypes {
     | '/aluno/perfil'
     | '/aluno/ranking'
     | '/bateria/$assessmentId'
+    | '/checkin/$aulaId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
     | '/relatorio-bateria/$assessmentId'
@@ -708,6 +731,7 @@ export interface FileRouteTypes {
     | '/_app/testes/$versionId/editar'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
+    | '/api/public/checkin/$aulaId'
     | '/api/public/invite/$id'
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
@@ -722,6 +746,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   BateriaAssessmentIdRoute: typeof BateriaAssessmentIdRoute
+  CheckinAulaIdRoute: typeof CheckinAulaIdRoute
   ConviteEquipeTokenRoute: typeof ConviteEquipeTokenRoute
   ConviteLinkIdRoute: typeof ConviteLinkIdRoute
   RelatorioBateriaAssessmentIdRoute: typeof RelatorioBateriaAssessmentIdRoute
@@ -732,6 +757,7 @@ export interface RootRouteChildren {
   ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
   ApiPublicActionPlanIdRoute: typeof ApiPublicActionPlanIdRoute
   ApiPublicAssessmentIdRoute: typeof ApiPublicAssessmentIdRoute
+  ApiPublicCheckinAulaIdRoute: typeof ApiPublicCheckinAulaIdRoute
   ApiPublicInviteIdRoute: typeof ApiPublicInviteIdRoute
   ApiPublicReportBateriaIdRoute: typeof ApiPublicReportBateriaIdRoute
   ApiPublicReportIdRoute: typeof ApiPublicReportIdRoute
@@ -920,6 +946,13 @@ declare module '@tanstack/react-router' {
       path: '/bateria/$assessmentId'
       fullPath: '/bateria/$assessmentId'
       preLoaderRoute: typeof BateriaAssessmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkin/$aulaId': {
+      id: '/checkin/$aulaId'
+      path: '/checkin/$aulaId'
+      fullPath: '/checkin/$aulaId'
+      preLoaderRoute: typeof CheckinAulaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/convite-equipe/$token': {
@@ -1118,6 +1151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAssessmentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/checkin/$aulaId': {
+      id: '/api/public/checkin/$aulaId'
+      path: '/api/public/checkin/$aulaId'
+      fullPath: '/api/public/checkin/$aulaId'
+      preLoaderRoute: typeof ApiPublicCheckinAulaIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/invite/$id': {
       id: '/api/public/invite/$id'
       path: '/api/public/invite/$id'
@@ -1298,6 +1338,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   BateriaAssessmentIdRoute: BateriaAssessmentIdRoute,
+  CheckinAulaIdRoute: CheckinAulaIdRoute,
   ConviteEquipeTokenRoute: ConviteEquipeTokenRoute,
   ConviteLinkIdRoute: ConviteLinkIdRoute,
   RelatorioBateriaAssessmentIdRoute: RelatorioBateriaAssessmentIdRoute,
@@ -1308,6 +1349,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,
   ApiPublicActionPlanIdRoute: ApiPublicActionPlanIdRoute,
   ApiPublicAssessmentIdRoute: ApiPublicAssessmentIdRoute,
+  ApiPublicCheckinAulaIdRoute: ApiPublicCheckinAulaIdRoute,
   ApiPublicInviteIdRoute: ApiPublicInviteIdRoute,
   ApiPublicReportBateriaIdRoute: ApiPublicReportBateriaIdRoute,
   ApiPublicReportIdRoute: ApiPublicReportIdRoute,

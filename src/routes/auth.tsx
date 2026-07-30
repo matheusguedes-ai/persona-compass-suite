@@ -20,10 +20,23 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-// Only allow same-origin relative paths so we cannot be pushed to an external URL.
+/**
+ * Só caminho relativo da própria origem — `next` vem da URL, e um destino
+ * externo aqui viraria página de phishing com o nosso domínio na frente.
+ *
+ * O teste de prefixo sozinho não bastava: `/\evil.com` começa com `/` e não com
+ * `//`, mas o navegador normaliza `\` para `/` e a navegação sai do domínio.
+ * Resolver contra a origem é o que decide de verdade.
+ */
 function safeNext(next: string): string {
-  if (!next.startsWith("/") || next.startsWith("//")) return "/";
-  return next;
+  if (!next.startsWith("/")) return "/";
+  try {
+    const alvo = new URL(next, window.location.origin);
+    if (alvo.origin !== window.location.origin) return "/";
+    return `${alvo.pathname}${alvo.search}${alvo.hash}`;
+  } catch {
+    return "/";
+  }
 }
 
 function AuthPage() {
@@ -46,7 +59,10 @@ function AuthPage() {
       // O Supabase leva a pessoa ao Google e, ao voltar, restaura a sessão no app.
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin },
+        // O destino tem de sobreviver ao desvio pelo Google. Sem isto, quem
+        // escaneia o QR do check-in e entra com Google volta para a raiz — com o
+        // passe intacto no bolso e sem nunca ver o botão de confirmar.
+        options: { redirectTo: `${window.location.origin}${safeNext(next)}` },
       });
       if (error) {
         setError(error.message ?? "Falha ao entrar com Google.");

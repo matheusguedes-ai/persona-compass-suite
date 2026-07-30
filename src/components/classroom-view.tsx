@@ -35,8 +35,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, CalendarClock, ExternalLink, FileText, FolderKanban, Lock, MapPin, NotebookPen,
-  Paperclip, Pencil, Plus, Presentation, Trash2, Upload, Video, X,
+  Paperclip, Pencil, Plus, Presentation, QrCode, Trash2, Upload, Video, X,
 } from "lucide-react";
+import { CheckinDialog } from "@/components/checkin-professor";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -93,6 +94,7 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
   const [editAula, setEditAula] = useState<{ id?: string; modulo_id: string } | null>(null);
   const [editMaterial, setEditMaterial] = useState<{ id?: string; aula_id: string } | null>(null);
   const [editandoTreinamento, setEditandoTreinamento] = useState(false);
+  const [checkinDe, setCheckinDe] = useState<string | null>(null);
 
   const modules = useMemo(
     () =>
@@ -211,9 +213,14 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
                   </div>
                 </div>
                 {podeEditar && (
-                  <Button variant="ghost" onClick={() => setEditAula({ id: aula.id, modulo_id: aula.modulo_id })}>
-                    <Pencil className="size-4" />
-                  </Button>
+                  <div className="flex shrink-0 gap-2">
+                    <Button onClick={() => setCheckinDe(aula.id)}>
+                      <QrCode className="size-4" /> Check-in
+                    </Button>
+                    <Button variant="ghost" onClick={() => setEditAula({ id: aula.id, modulo_id: aula.modulo_id })}>
+                      <Pencil className="size-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -323,6 +330,7 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
           onFechar={() => setEditMaterial(null)} onSalvo={() => { setEditMaterial(null); inv(); }}
         />
       )}
+      {checkinDe && <CheckinDialog aulaId={checkinDe} onFechar={() => setCheckinDe(null)} />}
       {editandoTreinamento && (
         <TreinamentoDialog
           treinamento={t} gruposAtuais={grupos.map((g) => g.id)}
