@@ -660,12 +660,16 @@ export const minhaPresenca = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ aula_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    // A policy `pres_minha` já recorta para a própria pessoa.
+    const { supabase, userId } = context;
+    // Filtra pela pessoa EXPLICITAMENTE, em vez de confiar na policy para
+    // recortar: quem abre esta tela pode ser o professor (a policy
+    // `pres_professor` entrega a lista inteira da aula), e aí o `maybeSingle`
+    // estouraria com "multiple rows" a partir da segunda presença.
     const { data: p, error } = await supabase
       .from("treinamento_presencas")
-      .select("id, origem, escaneado_em, registrado_em, situacao")
+      .select("id, origem, escaneado_em, registrado_em, situacao, people!inner(user_id)")
       .eq("aula_id", data.aula_id)
+      .eq("people.user_id", userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
 
