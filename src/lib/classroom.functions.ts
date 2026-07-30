@@ -443,8 +443,11 @@ export const abrirCheckin = createServerFn({ method: "GET" })
         person_id: p.person_id,
         nome: (p.people as unknown as { full_name: string } | null)?.full_name ?? "—",
         origem: p.origem,
-        // O atraso é calculado do SCAN, não do clique. Ver a migração.
-        quando: p.escaneado_em ?? p.registrado_em,
+        // Os dois separados, NUNCA colapsados: o atraso só existe com a hora do
+        // scan. Colapsar em "quando" fazia uma presença lançada de manhã
+        // aparecer como 934 minutos de atraso.
+        escaneado_em: p.escaneado_em,
+        registrado_em: p.registrado_em,
         situacao: p.situacao,
         observacao: p.observacao,
       })),

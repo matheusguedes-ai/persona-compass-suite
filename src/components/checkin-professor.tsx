@@ -201,7 +201,10 @@ function Turma({
 }: {
   aulaId: string;
   turma: Array<{ person_id: string; nome: string; email: string | null; temLogin: boolean }>;
-  presencas: Array<{ person_id: string; nome: string; origem: string; quando: string; situacao: string | null }>;
+  presencas: Array<{
+    person_id: string; nome: string; origem: string;
+    escaneado_em: string | null; registrado_em: string; situacao: string | null;
+  }>;
   comecaEm: string | null;
   onMudou: () => void;
 }) {
@@ -217,13 +220,21 @@ function Turma({
   });
 
   const porPessoa = new Map(presencas.map((p) => [p.person_id, p]));
-  const confirmados = presencas.filter((p) => p.situacao !== "ausente").length;
+  // Só presente e atrasado contam como confirmados: falta justificada é falta, e
+  // exibi-la no contador faria a turma parecer mais cheia do que estava.
+  const confirmados = presencas.filter(
+    (p) => p.situacao !== "ausente" && p.situacao !== "justificado",
+  ).length;
   const semLogin = turma.filter((t) => !t.temLogin && !porPessoa.has(t.person_id));
 
-  /** Atraso em minutos, calculado — nunca negativo, e "antes" não é atraso. */
-  function atraso(quando: string): string | null {
-    if (!comecaEm) return null;
-    const diff = Math.round((new Date(quando).getTime() - new Date(comecaEm).getTime()) / 60_000);
+  /**
+   * Atraso — só quando existe régua: hora do SCAN e horário da aula. Presença
+   * lançada à mão não tem hora de chegada, e usar a hora do lançamento faria
+   * "o professor lançou na manhã seguinte" virar 934 minutos de atraso.
+   */
+  function atraso(escaneadoEm: string | null): string | null {
+    if (!comecaEm || !escaneadoEm) return null;
+    const diff = Math.trunc((new Date(escaneadoEm).getTime() - new Date(comecaEm).getTime()) / 60_000);
     if (diff <= 0) return null;
     return `${diff} min depois do início`;
   }
@@ -275,9 +286,10 @@ function Turma({
                 <p className="truncate text-sm">{t.nome}</p>
                 {p ? (
                   <p className="text-[11px] text-muted-foreground">
-                    {hhmm(p.quando)}
+                    {p.escaneado_em ? hhmm(p.escaneado_em) : `lançado ${hhmm(p.registrado_em)}`}
                     {p.origem === "manual" ? " · marcado pelo professor" : " · pelo QR"}
-                    {atraso(p.quando) ? ` · ${atraso(p.quando)}` : ""}
+                    {atraso(p.escaneado_em) ? ` · ${atraso(p.escaneado_em)}` : ""}
+                    {p.situacao === "justificado" ? " · falta justificada" : ""}
                   </p>
                 ) : (
                   <p className="text-[11px] text-muted-foreground">
