@@ -38,6 +38,7 @@ import {
   Paperclip, Pencil, Plus, Presentation, QrCode, Trash2, Upload, Video, X,
 } from "lucide-react";
 import { CheckinDialog } from "@/components/checkin-professor";
+import { ListaDePresenca } from "@/components/lista-de-presenca";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -95,6 +96,7 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
   const [editMaterial, setEditMaterial] = useState<{ id?: string; aula_id: string } | null>(null);
   const [editandoTreinamento, setEditandoTreinamento] = useState(false);
   const [checkinDe, setCheckinDe] = useState<string | null>(null);
+  const [aba, setAba] = useState<"conteudo" | "presenca">("conteudo");
 
   const modules = useMemo(
     () =>
@@ -181,7 +183,26 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      {/* A lista de presença é assunto de quem conduz a aula, não do aluno. */}
+      {podeEditar && (
+        <div className="inline-flex rounded-lg bg-muted p-1">
+          {([["conteudo", "Conteúdo"], ["presenca", "Presença"]] as const).map(([v, r]) => (
+            <button
+              key={v} onClick={() => setAba(v)}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium",
+                aba === v ? "bg-background shadow-sm" : "text-muted-foreground",
+              )}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {podeEditar && aba === "presenca" && <ListaDePresenca treinamentoId={treinamentoId} />}
+
+      <div className={cn("grid gap-6 lg:grid-cols-[1fr_320px]", podeEditar && aba !== "conteudo" && "hidden")}>
         {/* -------- Ficha da aula -------- */}
         <div className="space-y-4">
           {aula ? (

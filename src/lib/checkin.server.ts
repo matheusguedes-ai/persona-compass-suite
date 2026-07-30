@@ -42,13 +42,6 @@ const TOLERANCIA_BUCKETS = 1;
 /** Quanto tempo o passe vale. Só precisa cobrir um login digitado no celular. */
 export const PASSE_MINUTOS = 10;
 
-/** Cortesia antes do início: o professor sempre projeta o QR antes da hora. */
-export const MARGEM_ANTES_MIN = 30;
-/** Cortesia depois do fim: quem saiu para uma ligação e voltou no fim. */
-export const MARGEM_DEPOIS_MIN = 15;
-/** Aula sem fim declarado: assume um encontro de até 4 horas. */
-const DURACAO_PADRAO_HORAS = 4;
-
 function chave(): string {
   const k = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.APP_SUPABASE_SERVICE_ROLE_KEY;
   if (!k) throw new Error("Sem chave para assinar o check-in.");
@@ -100,31 +93,9 @@ export function fimDoBucket(agora = Date.now()): number {
   return (bucketAgora(agora) + 1) * BUCKET_SEGUNDOS * 1000;
 }
 
-// ============================================================
-// A janela da aula
-// ============================================================
-export type Janela = { inicio: Date; fim: Date };
-
-/**
- * De quando até quando o check-in aceita, já com as margens de cortesia.
- * Devolve null quando a aula não tem horário — sem janela, "dentro da janela"
- * não quer dizer nada, e a tela recusa abrir em vez de aceitar qualquer hora.
- */
-export function janelaDaAula(aula: { comeca_em: string | null; termina_em: string | null }): Janela | null {
-  if (!aula.comeca_em) return null;
-  const comeca = new Date(aula.comeca_em);
-  const termina = aula.termina_em
-    ? new Date(aula.termina_em)
-    : new Date(comeca.getTime() + DURACAO_PADRAO_HORAS * 3600_000);
-  return {
-    inicio: new Date(comeca.getTime() - MARGEM_ANTES_MIN * 60_000),
-    fim: new Date(termina.getTime() + MARGEM_DEPOIS_MIN * 60_000),
-  };
-}
-
-export function dentroDaJanela(j: Janela, agora = Date.now()): boolean {
-  return agora >= j.inicio.getTime() && agora <= j.fim.getTime();
-}
+// A janela da aula mora em `@/lib/janela` — sem nada de servidor dentro, porque
+// a tabela de presença precisa da mesma aritmética no navegador.
+export { janelaDaAula, dentroDaJanela, MARGEM_ANTES_MIN, MARGEM_DEPOIS_MIN } from "@/lib/janela";
 
 // ============================================================
 // O passe

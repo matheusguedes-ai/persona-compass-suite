@@ -207,7 +207,10 @@ function Turma({
 }) {
   const marcarFn = useServerFn(marcarPresencaManual);
   const marcar = useMutation({
-    mutationFn: (v: { person_id: string; situacao: "presente" | "ausente" | null }) =>
+    // `situacao: null` = devolver ao cálculo, não "apagar". A linha criada aqui
+    // nasce SEM situação gravada de propósito: assim o cálculo continua valendo
+    // para ela, em vez de congelar "presente" na pedra.
+    mutationFn: (v: { person_id: string; situacao?: "ausente" | null }) =>
       marcarFn({ data: { aula_id: aulaId, ...v } }),
     onSuccess: () => { onMudou(); toast.success("Lista atualizada"); },
     onError: (e: Error) => toast.error(e.message),
@@ -287,7 +290,7 @@ function Turma({
                   variant="ghost" size="sm" className="shrink-0 text-[11px]"
                   disabled={marcar.isPending}
                   onClick={() =>
-                    marcar.mutate({ person_id: t.person_id, situacao: ausente ? "presente" : "ausente" })
+                    marcar.mutate({ person_id: t.person_id, situacao: ausente ? null : "ausente" })
                   }
                 >
                   {ausente ? "estava presente" : "marcar ausente"}
@@ -296,7 +299,7 @@ function Turma({
                 <Button
                   variant="outline" size="sm" className="shrink-0"
                   disabled={marcar.isPending}
-                  onClick={() => marcar.mutate({ person_id: t.person_id, situacao: "presente" })}
+                  onClick={() => marcar.mutate({ person_id: t.person_id })}
                 >
                   <Hand className="size-3" /> presente
                 </Button>

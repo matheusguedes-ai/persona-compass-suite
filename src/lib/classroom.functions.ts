@@ -530,14 +530,19 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
     const idsDosGrupos = (gruposDoTrein ?? []).map((g) => g.group_id);
     if (idsDosGrupos.length === 0) return { ok: false as const, motivo: "sem_grupo" as const };
 
+    // Ordenado pelo nome do grupo, não `.limit(1)` cru: quem está em dois grupos
+    // do treinamento apareceria num ou noutro conforme o humor do planejador de
+    // consultas, e a lista de presença mudaria entre dois carregamentos.
     const { data: elo, error: eE } = await supabaseAdmin
       .from("group_members")
-      .select("group_id")
+      .select("group_id, groups(name)")
       .eq("person_id", pessoa.id)
-      .in("group_id", idsDosGrupos)
-      .limit(1);
+      .in("group_id", idsDosGrupos);
     if (eE) throw new Error(eE.message);
-    const groupId = (elo ?? [])[0]?.group_id ?? null;
+    const grupos = (elo ?? [])
+      .map((g) => ({ id: g.group_id, nome: (g.groups as unknown as { name: string } | null)?.name ?? "" }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || a.id.localeCompare(b.id));
+    const groupId = grupos[0]?.id ?? null;
     if (!groupId) return { ok: false as const, motivo: "sem_grupo" as const };
 
     const escaneadoEm = new Date(passe.escaneadoEm).toISOString();
@@ -547,6 +552,10 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
         aula_id: aula.id,
         person_id: pessoa.id,
         group_id: groupId,
+        // O NOME do grupo junto, gravado agora: renomear a turma depois não pode
+        // reescrever uma lista já emitida, e apagar o grupo não pode esvaziar a
+        // célula de um documento de arquivo.
+        group_nome: grupos[0]?.nome || null,
         origem: "qr",
         escaneado_em: escaneadoEm,
         passe_nonce: passe.nonce,
@@ -570,10 +579,14 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
         .eq("person_id", pessoa.id)
         .maybeSingle();
 
-      // (b) o professor já tinha marcado à mão. Se marcou como AUSENTE e a
-      // pessoa acabou de escanear na sala, a lista está errada: promove para
-      // 'qr' e limpa a situação, preservando a observação dele. Sem isso a lista
-      // mente e ninguém percebe.
+      // (b) o professor já tinha marcado à mão. A pessoa acabou de escanear na
+      // sala, então a lista está desatualizada: promove para 'qr' e devolve a
+      // situação ao cálculo, preservando a observação dele.
+      //
+      // Limpa TAMBÉM quando estava 'justificado', não só 'ausente': quem
+      // justificou a falta e apareceu continuaria com falta justificada — e
+      // falta justificada não conta como presença, então ele sairia com zero na
+      // frequência mesmo tendo assistido à aula.
       if (existente && existente.origem === "manual") {
         const { error: eUp } = await supabaseAdmin
           .from("treinamento_presencas")
@@ -581,7 +594,10 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
             origem: "qr",
             escaneado_em: escaneadoEm,
             passe_nonce: passe.nonce,
-            situacao: existente.situacao === "ausente" ? null : existente.situacao,
+            situacao:
+              existente.situacao === "ausente" || existente.situacao === "justificado"
+                ? null
+                : existente.situacao,
           })
           .eq("id", existente.id);
         if (eUp) throw new Error(eUp.message);
@@ -706,9 +722,13 @@ export const marcarPresencaManual = createServerFn({ method: "POST" })
     z.object({
       aula_id: z.string().uuid(),
       person_id: z.string().uuid(),
-      // `null` remove a marcação — o professor errou a linha e desfaz.
-      situacao: z.enum(["presente", "atrasado", "ausente", "justificado"]).nullable(),
-      observacao: z.string().trim().max(500).optional().nullable(),
+      // `undefined` = não mexer nesta chave. `null` = devolver ao cálculo.
+      // São coisas diferentes, e tratá-las igual apagava a observação do
+      // professor a cada troca de situação.
+      situacao: z.enum(["presente", "atrasado", "ausente", "justificado"]).nullable().optional(),
+      observacao: z.string().trim().max(500).nullable().optional(),
+      /** Apaga a linha inteira — só serve para linha criada à mão. */
+      remover: z.boolean().optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -717,7 +737,7 @@ export const marcarPresencaManual = createServerFn({ method: "POST" })
     if (ePode) throw new Error(ePode.message);
     if (pode !== true) throw new Error("Você não conduz esta aula.");
 
-    if (data.situacao === null) {
+    if (data.remover) {
       // Só apaga o que foi marcado à mão: check-in do aluno não se desfaz por
       // clique do professor — para isso existe marcar 'ausente', que fica
       // registrado como decisão dele.
@@ -730,6 +750,13 @@ export const marcarPresencaManual = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return { ok: true };
     }
+
+    // O nome de quem está mexendo, gravado em texto: colaborador desativado ou
+    // apagado não pode apagar o rastro da linha mais contestável da lista.
+    const { data: perfil } = await supabase
+      .from("profiles").select("full_name").eq("user_id", userId).maybeSingle();
+    const { data: eu } = await supabase.auth.getUser();
+    const quem = perfil?.full_name?.trim() || eu.user?.email || "—";
 
     // Lê antes de escrever, em vez de um upsert de tiro único: se a pessoa já
     // deu check-in pelo QR, o `origem` NÃO pode virar 'manual'. O professor
@@ -745,26 +772,184 @@ export const marcarPresencaManual = createServerFn({ method: "POST" })
     if (eLer) throw new Error(eLer.message);
 
     if (existente) {
+      // Só as chaves que vieram. Trocar a situação não pode comer a observação.
+      const patch: {
+        registrado_por: string; marcado_por_nome: string;
+        situacao?: string | null; observacao?: string | null;
+      } = { registrado_por: userId, marcado_por_nome: quem };
+      if (data.situacao !== undefined) patch.situacao = data.situacao;
+      if (data.observacao !== undefined) patch.observacao = data.observacao;
       const { error } = await supabase
-        .from("treinamento_presencas")
-        .update({
-          situacao: data.situacao,
-          observacao: data.observacao ?? null,
-          registrado_por: userId,
-        })
-        .eq("id", existente.id);
+        .from("treinamento_presencas").update(patch).eq("id", existente.id);
       if (error) throw new Error(error.message);
       return { ok: true, origem: existente.origem };
+    }
+
+    // Linha nova, à mão. Descobre o grupo pelo qual a pessoa tem acesso, para a
+    // coluna Grupo não ficar vazia numa lista impressa.
+    const { data: aula } = await supabase
+      .from("treinamento_aulas").select("modulo_id").eq("id", data.aula_id).maybeSingle();
+    const { data: modulo } = aula
+      ? await supabase.from("treinamento_modulos").select("treinamento_id").eq("id", aula.modulo_id).maybeSingle()
+      : { data: null };
+    let groupId: string | null = null;
+    let groupNome: string | null = null;
+    if (modulo) {
+      const { data: tg } = await supabase
+        .from("treinamento_grupos").select("group_id").eq("treinamento_id", modulo.treinamento_id);
+      const ids = (tg ?? []).map((g) => g.group_id);
+      if (ids.length) {
+        const { data: elo } = await supabase
+          .from("group_members").select("group_id, groups(name)")
+          .eq("person_id", data.person_id).in("group_id", ids);
+        const ordenado = (elo ?? [])
+          .map((g) => ({ id: g.group_id, nome: (g.groups as unknown as { name: string } | null)?.name ?? "" }))
+          .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || a.id.localeCompare(b.id));
+        groupId = ordenado[0]?.id ?? null;
+        groupNome = ordenado[0]?.nome || null;
+      }
     }
 
     const { error } = await supabase.from("treinamento_presencas").insert({
       aula_id: data.aula_id,
       person_id: data.person_id,
+      group_id: groupId,
+      group_nome: groupNome,
       origem: "manual",
-      situacao: data.situacao,
+      // Sem situação gravada quando o professor só diz "estava presente": aí a
+      // regra do cálculo continua valendo para esta linha. Gravar 'presente' por
+      // efeito colateral tornaria a linha indistinguível de uma decisão
+      // deliberada dele — e congelaria o valor contra o cálculo para sempre.
+      situacao: data.situacao ?? null,
       observacao: data.observacao ?? null,
       registrado_por: userId,
+      marcado_por_nome: quem,
     });
     if (error) throw new Error(error.message);
     return { ok: true, origem: "manual" };
+  });
+
+// ============================================================
+// A lista de presença (etapa 5)
+// ============================================================
+
+/**
+ * A tabela inteira do treinamento, já derivada.
+ *
+ * A autorização é checada UMA vez, no nível do treinamento: `posso_dar_aula` é
+ * SECURITY DEFINER, e chamá-la por linha numa turma de 40 com 12 aulas seriam
+ * 480 chamadas numa leitura. As consultas depois são planas e escopadas pelas
+ * aulas deste treinamento.
+ */
+export const tabelaDePresenca = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ treinamento_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: aulas, error } = await supabase
+      .from("treinamento_modulos")
+      .select("treinamento_aulas(id)")
+      .eq("treinamento_id", data.treinamento_id);
+    if (error) throw new Error(error.message);
+    const primeira = (aulas ?? [])
+      .flatMap((m) => (m.treinamento_aulas as unknown as Array<{ id: string }>) ?? [])[0]?.id;
+    if (!primeira) {
+      // Sem aula não há lista — e sem aula não há como checar `posso_dar_aula`.
+      // A RLS já garantiu que ele pode LER o treinamento para chegar aqui.
+      const { montarTabelaPresenca } = await import("@/lib/presenca.server");
+      return montarTabelaPresenca(supabase, data.treinamento_id);
+    }
+    const { data: pode, error: ePode } = await supabase.rpc("posso_dar_aula", { p_aula: primeira });
+    if (ePode) throw new Error(ePode.message);
+    if (pode !== true) throw new Error("Você não conduz este treinamento.");
+
+    const { montarTabelaPresenca } = await import("@/lib/presenca.server");
+    return montarTabelaPresenca(supabase, data.treinamento_id);
+  });
+
+/**
+ * A planilha. Montada no servidor, a partir da MESMA função da tela — a
+ * exportação nunca recalcula nada por conta própria.
+ */
+export const presencaParaExportar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      treinamento_id: z.string().uuid(),
+      /** Vazio = todas as aulas. */
+      aula_ids: z.array(z.string().uuid()).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { montarTabelaPresenca, linhasParaPlanilha, resumoParaPlanilha } =
+      await import("@/lib/presenca.server");
+
+    const tabela = await montarTabelaPresenca(supabase, data.treinamento_id);
+    const filtrada = data.aula_ids?.length
+      ? { ...tabela, linhas: tabela.linhas.filter((l) => data.aula_ids!.includes(l.aula_id)) }
+      : tabela;
+
+    const { data: eu } = await supabase.auth.getUser();
+    const emitidoEm = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    const naConta = tabela.aulas.filter(
+      (a) => !tabela.fora_da_conta.some((f) => f.titulo === a.titulo),
+    ).length;
+
+    // O rodapé é o que faz a planilha se sustentar longe da tela: sem ele,
+    // ninguém sabe até quando a frequência foi apurada, nem por que uma aula
+    // não entrou na conta, nem que falta justificada não conta como presença.
+    const rodape = [
+      `${tabela.treinamento.titulo} · emitido em ${emitidoEm} por ${eu.user?.email ?? "—"}`,
+      `Frequência apurada até ${new Date(tabela.referencia).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} (horário de Brasília)`,
+      `${naConta} ${naConta === 1 ? "aula entra" : "aulas entram"} na conta da frequência` +
+        (tabela.fora_da_conta.length
+          ? ` · fora da conta: ${tabela.fora_da_conta.map((f) => `${f.titulo} (${f.motivo})`).join("; ")}`
+          : ""),
+      `Atrasado a partir de ${tabela.tolerancia_min} min · falta justificada não conta como presença`,
+      "O denominador conta as aulas já realizadas e com lista fechada, não o total do treinamento",
+      "Os horários registram a confirmação de chegada, não permanência na sala",
+      "Registro pelo professor é caminho previsto para quem não tem celular, senha ou sinal — não indica irregularidade",
+    ].join("\n");
+
+    return {
+      linhas: linhasParaPlanilha(filtrada),
+      resumo: resumoParaPlanilha(tabela),
+      rodape,
+      titulo: tabela.treinamento.titulo,
+    };
+  });
+
+/**
+ * Fechar a lista da aula — o que transforma "ninguém escaneou" em "faltou".
+ *
+ * Enquanto a lista está aberta, quem não tem registro aparece como "sem
+ * registro" e a aula não entra na conta da frequência. Isso existe porque o
+ * silêncio não pode virar afirmação: QR que não subiu, wifi caído ou uma tela
+ * que ninguém abriu produziriam a turma inteira "ausente" num documento que o
+ * RH usa para negar reembolso.
+ *
+ * Reabrir é permitido e some com a afirmação — o professor achou o erro.
+ */
+export const fecharListaDaAula = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ aula_id: z.string().uuid(), fechar: z.boolean() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: pode, error: ePode } = await supabase.rpc("posso_dar_aula", { p_aula: data.aula_id });
+    if (ePode) throw new Error(ePode.message);
+    if (pode !== true) throw new Error("Você não conduz esta aula.");
+
+    const { error } = await supabase
+      .from("treinamento_aulas")
+      .update(
+        data.fechar
+          ? { fechada_em: new Date().toISOString(), fechada_por: userId }
+          : { fechada_em: null, fechada_por: null },
+      )
+      .eq("id", data.aula_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

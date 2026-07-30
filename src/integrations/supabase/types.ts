@@ -768,9 +768,9 @@ export type Database = {
         ]
       }
       treinamento_aulas: {
-        Row: { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number }
-        Insert: { id?: string; modulo_id: string; titulo: string; descricao?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number }
-        Update: { id?: string; modulo_id?: string; titulo?: string; descricao?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number }
+        Row: { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number; fechada_em: string | null; fechada_por: string | null; cancelada: boolean }
+        Insert: { id?: string; modulo_id: string; titulo: string; descricao?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number; fechada_em?: string | null; fechada_por?: string | null; cancelada?: boolean }
+        Update: { id?: string; modulo_id?: string; titulo?: string; descricao?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number; fechada_em?: string | null; fechada_por?: string | null; cancelada?: boolean }
         Relationships: [
           {
             foreignKeyName: "treinamento_aulas_modulo_id_fkey"
@@ -796,9 +796,9 @@ export type Database = {
         ]
       }
       treinamento_presencas: {
-        Row: { id: string; aula_id: string; person_id: string; group_id: string | null; origem: string; escaneado_em: string | null; registrado_em: string; registrado_por: string | null; observacao: string | null; situacao: string | null; passe_nonce: string | null }
-        Insert: { id?: string; aula_id: string; person_id: string; group_id?: string | null; origem?: string; escaneado_em?: string | null; registrado_em?: string; registrado_por?: string | null; observacao?: string | null; situacao?: string | null; passe_nonce?: string | null }
-        Update: { id?: string; aula_id?: string; person_id?: string; group_id?: string | null; origem?: string; escaneado_em?: string | null; registrado_em?: string; registrado_por?: string | null; observacao?: string | null; situacao?: string | null; passe_nonce?: string | null }
+        Row: { id: string; aula_id: string; person_id: string; group_id: string | null; group_nome: string | null; origem: string; escaneado_em: string | null; registrado_em: string; registrado_por: string | null; marcado_por_nome: string | null; observacao: string | null; situacao: string | null; passe_nonce: string | null }
+        Insert: { id?: string; aula_id: string; person_id: string; group_id?: string | null; group_nome?: string | null; origem?: string; escaneado_em?: string | null; registrado_em?: string; registrado_por?: string | null; marcado_por_nome?: string | null; observacao?: string | null; situacao?: string | null; passe_nonce?: string | null }
+        Update: { id?: string; aula_id?: string; person_id?: string; group_id?: string | null; group_nome?: string | null; origem?: string; escaneado_em?: string | null; registrado_em?: string; registrado_por?: string | null; marcado_por_nome?: string | null; observacao?: string | null; situacao?: string | null; passe_nonce?: string | null }
         Relationships: [
           {
             foreignKeyName: "treinamento_presencas_aula_id_fkey"
