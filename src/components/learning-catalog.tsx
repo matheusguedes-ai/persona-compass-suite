@@ -23,7 +23,7 @@ const PUBLICO_LABEL: Record<string, string> = {
 };
 
 /** Cor estável a partir do título: sem capa, cada trilha ganha a sua. */
-function corDoTitulo(t: string) {
+export function corDoTitulo(t: string) {
   let h = 0;
   for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) % 360;
   return `linear-gradient(135deg, hsl(${h} 55% 34%), hsl(${(h + 40) % 360} 60% 22%))`;

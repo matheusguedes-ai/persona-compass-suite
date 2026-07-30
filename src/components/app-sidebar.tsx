@@ -12,6 +12,7 @@ import {
   MessagesSquare,
   Users2,
   CalendarDays,
+  Presentation,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -31,6 +32,9 @@ const NAV = [
   { to: "/pessoas", label: "Pessoas", icon: Users, perm: "pessoas" },
   { to: "/colaboradores", label: "Colaboradores", icon: UserCog, soDono: true },
   { to: "/educacao", label: "Academy", icon: BookOpen, perm: "educacao" },
+  // Presencial. Só o dono, como os eventos: a RLS de escrita exige
+  // mentor_id = auth.uid(), e a decisão registrada é "menu do master".
+  { to: "/classroom", label: "Classroom", icon: Presentation, soDono: true },
   // Testes, Envios e Devolutivas são o mesmo assunto em três momentos: o que
   // existe, o que foi disparado, e a conversa depois. Viraram um item só, com
   // abas dentro (ver AbasDeTestes).

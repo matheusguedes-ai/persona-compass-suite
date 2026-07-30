@@ -42,6 +42,8 @@ import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$res
 import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as AppClassroomIndexRouteImport } from './routes/_app.classroom.index'
+import { Route as AppClassroomTreinamentoIdRouteImport } from './routes/_app.classroom.$treinamentoId'
 import { Route as AppDevolutivasIndexRouteImport } from './routes/_app.devolutivas.index'
 import { Route as AppEducacaoIndexRouteImport } from './routes/_app.educacao.index'
 import { Route as AppEducacaoTrackIdRouteImport } from './routes/_app.educacao.$trackId'
@@ -232,6 +234,17 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppClassroomIndexRoute = AppClassroomIndexRouteImport.update({
+  id: '/classroom/',
+  path: '/classroom/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClassroomTreinamentoIdRoute =
+  AppClassroomTreinamentoIdRouteImport.update({
+    id: '/classroom/$treinamentoId',
+    path: '/classroom/$treinamentoId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppDevolutivasIndexRoute = AppDevolutivasIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -373,12 +386,14 @@ export interface FileRoutesByFullPath {
   '/aluno/': typeof AlunoIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
   '/educacao/$trackId': typeof AppEducacaoTrackIdRoute
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/classroom/': typeof AppClassroomIndexRoute
   '/devolutivas/': typeof AppDevolutivasIndexRoute
   '/educacao/': typeof AppEducacaoIndexRoute
   '/envios/': typeof AppEnviosIndexRoute
@@ -422,12 +437,14 @@ export interface FileRoutesByTo {
   '/aluno': typeof AlunoIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
   '/educacao/$trackId': typeof AppEducacaoTrackIdRoute
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/classroom': typeof AppClassroomIndexRoute
   '/devolutivas': typeof AppDevolutivasIndexRoute
   '/educacao': typeof AppEducacaoIndexRoute
   '/envios': typeof AppEnviosIndexRoute
@@ -479,12 +496,14 @@ export interface FileRoutesById {
   '/aluno/': typeof AlunoIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_app/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
   '/_app/educacao/$trackId': typeof AppEducacaoTrackIdRoute
   '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/_app/classroom/': typeof AppClassroomIndexRoute
   '/_app/devolutivas/': typeof AppDevolutivasIndexRoute
   '/_app/educacao/': typeof AppEducacaoIndexRoute
   '/_app/envios/': typeof AppEnviosIndexRoute
@@ -536,12 +555,14 @@ export interface FileRouteTypes {
     | '/aluno/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/classroom/$treinamentoId'
     | '/educacao/$trackId'
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
+    | '/classroom/'
     | '/devolutivas/'
     | '/educacao/'
     | '/envios/'
@@ -585,12 +606,14 @@ export interface FileRouteTypes {
     | '/aluno'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/classroom/$treinamentoId'
     | '/educacao/$trackId'
     | '/envios/novo'
     | '/grupos/$id'
     | '/pessoas/$id'
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
+    | '/classroom'
     | '/devolutivas'
     | '/educacao'
     | '/envios'
@@ -641,12 +664,14 @@ export interface FileRouteTypes {
     | '/aluno/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/_app/classroom/$treinamentoId'
     | '/_app/educacao/$trackId'
     | '/_app/envios/novo'
     | '/_app/grupos/$id'
     | '/_app/pessoas/$id'
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
+    | '/_app/classroom/'
     | '/_app/devolutivas/'
     | '/_app/educacao/'
     | '/_app/envios/'
@@ -921,6 +946,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/classroom/': {
+      id: '/_app/classroom/'
+      path: '/classroom'
+      fullPath: '/classroom/'
+      preLoaderRoute: typeof AppClassroomIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/classroom/$treinamentoId': {
+      id: '/_app/classroom/$treinamentoId'
+      path: '/classroom/$treinamentoId'
+      fullPath: '/classroom/$treinamentoId'
+      preLoaderRoute: typeof AppClassroomTreinamentoIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/devolutivas/': {
       id: '/_app/devolutivas/'
       path: '/'
@@ -1153,7 +1192,9 @@ interface AppRouteChildren {
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
   AppTestesRoute: typeof AppTestesRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
+  AppClassroomTreinamentoIdRoute: typeof AppClassroomTreinamentoIdRoute
   AppEducacaoTrackIdRoute: typeof AppEducacaoTrackIdRoute
+  AppClassroomIndexRoute: typeof AppClassroomIndexRoute
   AppEducacaoIndexRoute: typeof AppEducacaoIndexRoute
 }
 
@@ -1169,7 +1210,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppPessoasRoute: AppPessoasRouteWithChildren,
   AppTestesRoute: AppTestesRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
+  AppClassroomTreinamentoIdRoute: AppClassroomTreinamentoIdRoute,
   AppEducacaoTrackIdRoute: AppEducacaoTrackIdRoute,
+  AppClassroomIndexRoute: AppClassroomIndexRoute,
   AppEducacaoIndexRoute: AppEducacaoIndexRoute,
 }
 

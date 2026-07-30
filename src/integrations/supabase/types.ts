@@ -747,6 +747,75 @@ export type Database = {
         }
         Relationships: []
       }
+      treinamentos: {
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; capa_url: string | null; publicado: boolean; created_at: string; updated_at: string }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      treinamento_modulos: {
+        Row: { id: string; treinamento_id: string; titulo: string; ordem: number }
+        Insert: { id?: string; treinamento_id: string; titulo: string; ordem?: number }
+        Update: { id?: string; treinamento_id?: string; titulo?: string; ordem?: number }
+        Relationships: [
+          {
+            foreignKeyName: "treinamento_modulos_treinamento_id_fkey"
+            columns: ["treinamento_id"]
+            isOneToOne: false
+            referencedRelation: "treinamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      treinamento_aulas: {
+        Row: { id: string; modulo_id: string; titulo: string; descricao: string | null; anotacoes: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number }
+        Insert: { id?: string; modulo_id: string; titulo: string; descricao?: string | null; anotacoes?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number }
+        Update: { id?: string; modulo_id?: string; titulo?: string; descricao?: string | null; anotacoes?: string | null; comeca_em?: string | null; termina_em?: string | null; local?: string | null; ordem?: number }
+        Relationships: [
+          {
+            foreignKeyName: "treinamento_aulas_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "treinamento_modulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      treinamento_materiais: {
+        Row: { id: string; aula_id: string; titulo: string; url: string; kind: string; ordem: number; created_at: string }
+        Insert: { id?: string; aula_id: string; titulo: string; url: string; kind?: string; ordem?: number; created_at?: string }
+        Update: { id?: string; aula_id?: string; titulo?: string; url?: string; kind?: string; ordem?: number; created_at?: string }
+        Relationships: [
+          {
+            foreignKeyName: "treinamento_materiais_aula_id_fkey"
+            columns: ["aula_id"]
+            isOneToOne: false
+            referencedRelation: "treinamento_aulas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      treinamento_grupos: {
+        Row: { treinamento_id: string; group_id: string }
+        Insert: { treinamento_id: string; group_id: string }
+        Update: { treinamento_id?: string; group_id?: string }
+        Relationships: [
+          {
+            foreignKeyName: "treinamento_grupos_treinamento_id_fkey"
+            columns: ["treinamento_id"]
+            isOneToOne: false
+            referencedRelation: "treinamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "treinamento_grupos_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       people: {
         Row: { perfil_visivel: boolean;
           invite_link_id: string | null
