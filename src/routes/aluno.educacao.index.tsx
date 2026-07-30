@@ -39,7 +39,7 @@ function EducacaoAluno() {
 
       <BannersAcademy />
 
-      <Biblioteca />
+      <Biblioteca ver={ver ?? null} />
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : lista.length === 0 ? (

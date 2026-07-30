@@ -74,10 +74,52 @@ export type Database = {
         Relationships: []
       }
       biblioteca_materiais: {
-        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; url: string; kind: string; categoria: string | null; capa_url: string | null; created_at: string }
-        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; url: string; kind?: string; categoria?: string | null; capa_url?: string | null; created_at?: string }
-        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; url?: string; kind?: string; categoria?: string | null; capa_url?: string | null; created_at?: string }
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; url: string; kind: string; categoria: string | null; capa_url: string | null; pasta_id: string | null; created_at: string }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; url: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; url?: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string }
+        Relationships: [
+          {
+            foreignKeyName: "biblioteca_materiais_pasta_id_fkey"
+            columns: ["pasta_id"]
+            isOneToOne: false
+            referencedRelation: "biblioteca_pastas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      biblioteca_pastas: {
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; capa_url: string | null; ordem: number; created_at: string }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; capa_url?: string | null; ordem?: number; created_at?: string }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; capa_url?: string | null; ordem?: number; created_at?: string }
         Relationships: []
+      }
+      biblioteca_pasta_destinos: {
+        Row: { id: string; pasta_id: string; group_id: string | null; person_id: string | null; created_at: string }
+        Insert: { id?: string; pasta_id: string; group_id?: string | null; person_id?: string | null; created_at?: string }
+        Update: { id?: string; pasta_id?: string; group_id?: string | null; person_id?: string | null; created_at?: string }
+        Relationships: [
+          {
+            foreignKeyName: "biblioteca_pasta_destinos_pasta_id_fkey"
+            columns: ["pasta_id"]
+            isOneToOne: false
+            referencedRelation: "biblioteca_pastas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      biblioteca_material_destinos: {
+        Row: { id: string; material_id: string; group_id: string | null; person_id: string | null; created_at: string }
+        Insert: { id?: string; material_id: string; group_id?: string | null; person_id?: string | null; created_at?: string }
+        Update: { id?: string; material_id?: string; group_id?: string | null; person_id?: string | null; created_at?: string }
+        Relationships: [
+          {
+            foreignKeyName: "biblioteca_material_destinos_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "biblioteca_materiais"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notificacoes: {
         Row: { id: string; user_id: string; conta_id: string; tipo: string; titulo: string; corpo: string | null; link: string | null; ator_nome: string | null; lida_em: string | null; created_at: string }
@@ -1565,6 +1607,10 @@ export type Database = {
       can_edit_track: { Args: { _track_id: string }; Returns: boolean }
       track_liberada: { Args: { _track_id: string }; Returns: boolean }
       aluno_pode: { Args: { p_area: string }; Returns: boolean }
+      bib_pasta_liberada: { Args: { _pasta_id: string }; Returns: boolean }
+      bib_material_liberado: { Args: { _material_id: string }; Returns: boolean }
+      bib_pastas_liberadas: { Args: { _person_id?: string | null }; Returns: string[] }
+      bib_materiais_liberados: { Args: { _person_id?: string | null }; Returns: string[] }
       minhas_areas: { Args: Record<string, never>; Returns: string[] }
       areas_da_pessoa: { Args: { p_person_id: string }; Returns: string[] }
       trilhas_liberadas: { Args: { _person_id?: string | null }; Returns: string[] }

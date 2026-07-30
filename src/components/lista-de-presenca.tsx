@@ -143,12 +143,25 @@ export function ListaDePresenca({ treinamentoId }: { treinamentoId: string }) {
               <div
                 className={cn(
                   "flex flex-wrap items-center gap-3 rounded-lg p-3 text-xs",
-                  atual.fechada_em
+                  atual.cancelada || atual.fechada_em
                     ? "bg-muted/60 text-muted-foreground"
                     : "border border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
                 )}
               >
-                {atual.fechada_em ? (
+                {/* Terceiro estado. Sem ele, um encontro cancelado exibia
+                    "feche quando a chamada estiver conferida" com o botão
+                    ativo — mandando o professor fazer justamente o ato que
+                    lança pontos numa aula que não aconteceu. */}
+                {atual.cancelada ? (
+                  <>
+                    <Lock className="size-3.5 shrink-0" />
+                    <span>
+                      <strong>Encontro cancelado.</strong> Ele não entra na conta da frequência e
+                      não vale ponto. O que já foi registrado continua aqui, como histórico — para
+                      voltar a valer, reative o encontro na aba Conteúdo.
+                    </span>
+                  </>
+                ) : atual.fechada_em ? (
                   <>
                     <Lock className="size-3.5 shrink-0" />
                     <span>

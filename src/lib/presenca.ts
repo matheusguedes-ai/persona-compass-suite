@@ -92,9 +92,15 @@ export function chegouAntes(reg: Registro | undefined, aula: AulaPresenca): bool
  * 3. sem presença e lista ainda ABERTA → "sem registro". Não é ausência: pode
  *    ser QR que não subiu, wifi caído, ou lista que ninguém abriu;
  * 4. sem presença e lista fechada → ausente. Aqui alguém afirmou.
+ *
+ * Encontro CANCELADO nunca produz ausência: ninguém faltou a uma aula que não
+ * houve. Sem este curto-circuito, uma aula cancelada depois de fechada
+ * imprimiria "Ausente" para a turma inteira na planilha que vai para o RH —
+ * exatamente a mentira que a regra do `fechada_em` existe para impedir.
  */
 export function situacaoDe(reg: Registro | undefined, aula: AulaPresenca): Situacao {
   if (reg?.situacao) return reg.situacao as Situacao;
+  if (!reg && aula.cancelada) return "sem_registro";
   if (reg) {
     const atraso = atrasoMin(reg, aula);
     return atraso != null && atraso >= TOLERANCIA_ATRASO_MIN ? "atrasado" : "presente";

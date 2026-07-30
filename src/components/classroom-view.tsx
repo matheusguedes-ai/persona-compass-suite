@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   getTreinamento, updateTreinamento, deleteTreinamento, setGruposDoTreinamento,
-  saveModulo, deleteModulo, saveAula, deleteAula,
+  saveModulo, deleteModulo, saveAula, deleteAula, cancelarAula,
   saveMaterialAula, deleteMaterialAula, TIPOS_MATERIAL_TREINAMENTO,
 } from "@/lib/classroom.functions";
 import { meusGrupos } from "@/lib/comunidade.functions";
@@ -34,7 +34,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, CalendarClock, CircleCheck, Eye, EyeOff, ExternalLink, FileText, FolderKanban, Lock,
+  ArrowLeft, CalendarClock, CalendarOff, CircleCheck, Eye, EyeOff, ExternalLink, FileText, FolderKanban, Lock,
   MapPin, NotebookPen, Paperclip, Pencil, Plus, Presentation, QrCode, Trash2, Upload, Video, X,
 } from "lucide-react";
 import { CheckinDialog } from "@/components/checkin-professor";
@@ -47,6 +47,8 @@ type MaterialT = { id: string; titulo: string; url: string; kind: string; visive
 type AulaT = {
   id: string; modulo_id: string; titulo: string; descricao: string | null; anotacoes: string | null;
   comeca_em: string | null; termina_em: string | null; local: string | null; materiais: MaterialT[];
+  /** Encontro cancelado: preservado no histórico, fora da frequência. */
+  cancelada?: boolean;
   /** Eu estive nesta aula — o certo verde do painel do aluno. */
   estive?: boolean;
 };
@@ -250,9 +252,14 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
                 </div>
                 {podeEditar && (
                   <div className="flex shrink-0 gap-2">
-                    <Button onClick={() => setCheckinDe(aula.id)}>
-                      <QrCode className="size-4" /> Check-in
-                    </Button>
+                    {/* Check-in de encontro cancelado só produziria presença em
+                        aula que não houve — o servidor recusa, e a tela não
+                        oferece. */}
+                    {!aula.cancelada && (
+                      <Button onClick={() => setCheckinDe(aula.id)}>
+                        <QrCode className="size-4" /> Check-in
+                      </Button>
+                    )}
                     <Button variant="ghost" onClick={() => setEditAula({ id: aula.id, modulo_id: aula.modulo_id })}>
                       <Pencil className="size-4" />
                     </Button>
@@ -260,9 +267,19 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
                 )}
               </div>
 
+              {aula.cancelada && (
+                <p className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                  <CalendarOff className="size-4 shrink-0" />
+                  Encontro cancelado. Ele sai da frequência, e o que já foi registrado fica no
+                  histórico.
+                </p>
+              )}
+
               {/* Para o aluno, a confirmação de que a presença dele está na
-                  lista — sem isso ele volta a escanear o QR por insegurança. */}
-              {!podeEditar && aula.estive && (
+                  lista — sem isso ele volta a escanear o QR por insegurança.
+                  Em encontro cancelado não aparece: o certo verde diria que
+                  contou, e não conta. */}
+              {!podeEditar && aula.estive && !aula.cancelada && (
                 <p className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
                   <CircleCheck className="size-4" /> Sua presença neste encontro está registrada.
                 </p>
@@ -467,12 +484,16 @@ function ModuloBloco({
                 aulaId === a.id ? "bg-primary/5 font-medium" : ""
               }`}
             >
-              {a.estive ? (
+              {a.cancelada ? (
+                <CalendarOff className="size-4 shrink-0 text-amber-600" />
+              ) : a.estive ? (
                 <CircleCheck className="size-4 shrink-0 text-emerald-600" />
               ) : (
                 <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
               )}
-              <span className="min-w-0 flex-1 truncate">{a.titulo}</span>
+              <span className={`min-w-0 flex-1 truncate ${a.cancelada ? "line-through opacity-60" : ""}`}>
+                {a.titulo}
+              </span>
               {a.comeca_em && (
                 <span className="shrink-0 text-[11px] text-muted-foreground">
                   {new Date(a.comeca_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
@@ -539,9 +560,26 @@ function AulaDialog({
   const [comecaEm, setComecaEm] = useState(paraInputLocal(atual?.comeca_em));
   const [terminaEm, setTerminaEm] = useState(paraInputLocal(atual?.termina_em));
   const [local, setLocal] = useState(atual?.local ?? "");
+  const [motivo, setMotivo] = useState("");
 
   const saveFn = useServerFn(saveAula);
   const delFn = useServerFn(deleteAula);
+  const cancelarFn = useServerFn(cancelarAula);
+  const cancelar = useMutation({
+    mutationFn: () =>
+      cancelarFn({
+        data: { aula_id: inicial.id!, cancelar: !atual?.cancelada, motivo: motivo.trim() || undefined },
+      }),
+    onSuccess: (r) => {
+      toast.success(
+        (r as { cancelada: boolean }).cancelada
+          ? "Encontro cancelado. A turma foi avisada."
+          : "Encontro reativado.",
+      );
+      onSalvo();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const salvar = useMutation({
     mutationFn: () => saveFn({
       data: {
@@ -609,23 +647,88 @@ function AulaDialog({
         </form>
         <DialogFooter className="gap-2 sm:justify-between">
           {inicial.id ? (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" className="text-destructive"><Trash2 className="size-4" /> Remover</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Remover esta aula?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Os materiais dela também são apagados. Não dá para desfazer.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => remover.mutate()}>Remover</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <div className="flex gap-1">
+              {/* "Cancelar este encontro" e não "Cancelar": o botão de fechar o
+                  diálogo já se chama assim, e trocar um pelo outro aqui seria
+                  caro. Cancelar e Remover ficam lado a lado porque na cabeça do
+                  professor são vizinhos — e são opostos no efeito. */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost">
+                    <CalendarOff className="size-4" />
+                    {atual?.cancelada ? "Reativar encontro" : "Cancelar este encontro"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {atual?.cancelada ? "Reativar este encontro?" : "Cancelar este encontro?"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-2">
+                        {atual?.cancelada ? (
+                          <p>
+                            O encontro volta a contar na frequência, reaparece na agenda da turma e
+                            os pontos de quem compareceu são devolvidos.
+                          </p>
+                        ) : (
+                          <>
+                            <p>
+                              A lista de presença e tudo o que já foi registrado <strong>ficam</strong> —
+                              cancelar não apaga nada. O que muda:
+                            </p>
+                            <ul className="list-disc space-y-1 pl-4">
+                              <li>o encontro sai do cálculo da frequência;</li>
+                              <li>some da agenda da turma e do seu Google Calendar;</li>
+                              <li>os pontos de presença já lançados são retirados;</li>
+                              <li>o QR de check-in para de valer;</li>
+                              <li>a turma recebe um aviso de cancelamento.</li>
+                            </ul>
+                            <p>Dá para reativar depois.</p>
+                          </>
+                        )}
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  {!atual?.cancelada && (
+                    <div className="space-y-1">
+                      <Label htmlFor="motivo-cancel">Motivo (opcional, vai no aviso)</Label>
+                      <Input
+                        id="motivo-cancel" value={motivo} maxLength={300}
+                        onChange={(e) => setMotivo(e.target.value)}
+                        placeholder="Ex.: sala indisponível, será remarcado"
+                      />
+                    </div>
+                  )}
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Voltar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => cancelar.mutate()}>
+                      {atual?.cancelada ? "Reativar" : "Cancelar encontro"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" className="text-destructive"><Trash2 className="size-4" /> Remover</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remover esta aula?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Os materiais dela também são apagados, e a lista de presença vai junto. Não dá
+                      para desfazer — se o encontro só não vai acontecer, use “Cancelar este
+                      encontro”, que preserva o registro.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => remover.mutate()}>Remover</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           ) : <span />}
           <div className="flex gap-2">
             <Button variant="ghost" onClick={onFechar}>Cancelar</Button>

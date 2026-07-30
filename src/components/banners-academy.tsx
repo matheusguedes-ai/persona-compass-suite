@@ -27,7 +27,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export function BannersAcademy({ podeEditar = false }: { podeEditar?: boolean }) {
+export function BannersAcademy({
+  podeEditar = false, novo, onNovo,
+}: {
+  podeEditar?: boolean;
+  /** Abertura controlada de fora — quem manda é o menu "Criar" do cabeçalho. */
+  novo?: boolean;
+  onNovo?: (v: boolean) => void;
+}) {
   const qc = useQueryClient();
   const listaFn = useServerFn(listarBanners);
   const salvarFn = useServerFn(salvarBanner);
@@ -36,7 +43,9 @@ export function BannersAcademy({ podeEditar = false }: { podeEditar?: boolean })
 
   const [atual, setAtual] = useState(0);
   const [parado, setParado] = useState(false);
-  const [aberto, setAberto] = useState(false);
+  const [abertoLocal, setAbertoLocal] = useState(false);
+  const aberto = novo ?? abertoLocal;
+  const setAberto = (v: boolean) => (onNovo ? onNovo(v) : setAbertoLocal(v));
   const [form, setForm] = useState({ imagem_url: "", link_url: "", titulo: "" });
   const [enviando, setEnviando] = useState(false);
 
@@ -158,13 +167,18 @@ export function BannersAcademy({ podeEditar = false }: { podeEditar?: boolean })
       )}
 
       {podeEditar && (
-        <div className="flex flex-wrap items-center gap-2">
+        // Sem o botão local (gatilho veio de fora) a linha não deve ocupar
+        // espaço nenhum — mas o Dialog continua montado, senão o item do menu
+        // "Criar" não teria o que abrir.
+        <div className={onNovo ? "contents" : "flex flex-wrap items-center gap-2"}>
           <Dialog open={aberto} onOpenChange={setAberto}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Plus className="size-4" /> Banner
-              </Button>
-            </DialogTrigger>
+            {!onNovo && (
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="size-4" /> Banner
+                </Button>
+              </DialogTrigger>
+            )}
             <DialogContent className="max-w-md">
               <DialogHeader><DialogTitle>Novo banner</DialogTitle></DialogHeader>
               <div className="space-y-3">

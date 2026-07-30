@@ -360,7 +360,7 @@ async function sincronizarEventoDaAula(
   try {
     const { data: aula } = await supabase
       .from("treinamento_aulas")
-      .select("id, titulo, comeca_em, termina_em, local, modulo_id")
+      .select("id, titulo, comeca_em, termina_em, local, modulo_id, cancelada")
       .eq("id", aulaId)
       .maybeSingle();
 
@@ -370,7 +370,13 @@ async function sincronizarEventoDaAula(
     // Sem data não há o que marcar na agenda. Se a aula tinha horário e ele
     // apagou, o evento vai junto — deixá-lo lá anunciaria um encontro que já
     // não tem hora.
-    if (!aula?.comeca_em) {
+    //
+    // Aula CANCELADA cai no mesmo caminho, e a checagem mora aqui de propósito:
+    // esta função é chamada por `saveAula` e por `setGruposDoTreinamento`. Se o
+    // cancelamento só apagasse o evento por fora, o próximo salvamento o
+    // ressuscitaria — e, por não existir mais, dispararia "Novo encontro" para
+    // a turma inteira, desmentindo o aviso de cancelamento.
+    if (!aula?.comeca_em || aula.cancelada) {
       if (existente) {
         await supabase.from("eventos").delete().eq("id", existente.id);
         const { sincronizar } = await import("@/lib/google.server");
@@ -599,11 +605,14 @@ export const abrirCheckin = createServerFn({ method: "GET" })
 
     const { data: aula, error } = await supabase
       .from("treinamento_aulas")
-      .select("id, titulo, comeca_em, termina_em, local, modulo_id")
+      .select("id, titulo, comeca_em, termina_em, local, modulo_id, cancelada")
       .eq("id", data.aula_id)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!aula) throw new Error("Aula não encontrada.");
+    // Projetar o QR de um encontro cancelado só produz presença em aula que
+    // não houve — e o aluno ainda receberia o e-mail de confirmação.
+    if (aula.cancelada) throw new Error("Este encontro está cancelado. Reative-o para abrir o check-in.");
 
     const {
       codigoDaAula, bucketAgora, fimDoBucket, janelaDaAula, dentroDaJanela, BUCKET_SEGUNDOS,
@@ -709,11 +718,13 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
 
     const { data: aula, error: eA } = await supabaseAdmin
       .from("treinamento_aulas")
-      .select("id, titulo, comeca_em, termina_em, modulo_id, fechada_em")
+      .select("id, titulo, comeca_em, termina_em, modulo_id, fechada_em, cancelada")
       .eq("id", data.aula_id)
       .maybeSingle();
     if (eA) throw new Error(eA.message);
     if (!aula) return { ok: false as const, motivo: "sem_aula" as const };
+    // Quem já tinha o passe no bolso quando o professor cancelou para aqui.
+    if (aula.cancelada) return { ok: false as const, motivo: "cancelada" as const };
 
     const janela = janelaDaAula(aula);
     if (!janela || !dentroDaJanela(janela)) {
@@ -1240,6 +1251,129 @@ export const presencaParaExportar = createServerFn({ method: "POST" })
  *
  * Reabrir é permitido e some com a afirmação — o professor achou o erro.
  */
+/**
+ * Cancela (ou descancela) um encontro.
+ *
+ * Cancelar NÃO é apagar, e a diferença é o ponto todo: apagar leva as presenças
+ * em cascata — e o gatilho `presenca_apagada_tira_ponto` leva os pontos junto —,
+ * destruindo o documento de arquivo. Cancelar preserva tudo o que aconteceu e
+ * só deixa de contar.
+ *
+ * Os efeitos colaterais rodam todos aqui, num lugar só:
+ *   1. o evento some da agenda de todo mundo e do Google Calendar;
+ *   2. a turma é avisada — cancelamento é o aviso mais urgente que existe;
+ *   3. os pontos já lançados são retirados (e devolvidos ao descancelar);
+ *   4. o check-in para de aceitar (a checagem vive no endpoint, ver `cancelada`).
+ *
+ * `fechada_em` NÃO é limpo: quem fechou, fechou. É fato de auditoria.
+ */
+export const cancelarAula = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      aula_id: z.string().uuid(),
+      cancelar: z.boolean(),
+      motivo: z.string().trim().max(300).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: pode, error: ePode } = await supabase.rpc("posso_dar_aula", { p_aula: data.aula_id });
+    if (ePode) throw new Error(ePode.message);
+    if (pode !== true) throw new Error("Você não conduz esta aula.");
+
+    // `.select()` e conferência do que voltou: a policy de escrita da aula é
+    // mais estreita que `posso_dar_aula` (exige ser o DONO), e um UPDATE que
+    // não atinge linha nenhuma volta SEM erro. Sem isto, a tela diria
+    // "cancelada" e o banco continuaria como estava.
+    const { data: mudadas, error } = await supabase
+      .from("treinamento_aulas")
+      .update({ cancelada: data.cancelar })
+      .eq("id", data.aula_id)
+      .select("id, titulo, comeca_em, fechada_em, cancelada, modulo_id");
+    if (error) throw new Error(error.message);
+    if (!mudadas || mudadas.length === 0) {
+      throw new Error("Só o dono do treinamento pode cancelar um encontro.");
+    }
+    const aula = mudadas[0];
+
+    // Tira o evento da agenda (ou o devolve ao descancelar). A própria função
+    // já trata `cancelada` como "sem data".
+    await sincronizarEventoDaAula(supabase, userId, data.aula_id);
+
+    const { data: mod } = await supabase
+      .from("treinamento_aulas").select("modulo_id").eq("id", data.aula_id).maybeSingle();
+    const { data: modulo } = mod
+      ? await supabase.from("treinamento_modulos").select("treinamento_id").eq("id", mod.modulo_id).maybeSingle()
+      : { data: null };
+    const { data: trein } = modulo
+      ? await supabase.from("treinamentos").select("titulo, mentor_id").eq("id", modulo.treinamento_id).maybeSingle()
+      : { data: null };
+
+    // ---- Os pontos ----
+    // Nascem no fechamento da lista e nada mais os recalcula. Se a aula for
+    // cancelada DEPOIS de fechada, eles ficariam para sempre no ranking de um
+    // encontro que já saiu da frequência. As presenças ficam: são o registro.
+    let pontos = 0;
+    if (trein && aula.fechada_em) {
+      const { data: presencas } = await supabase
+        .from("treinamento_presencas")
+        .select("person_id, situacao, escaneado_em")
+        .eq("aula_id", data.aula_id);
+      const { data: cheia } = await supabase
+        .from("treinamento_aulas")
+        .select("comeca_em, termina_em, fechada_em, cancelada")
+        .eq("id", data.aula_id).maybeSingle();
+
+      if (cheia) {
+        const { situacaoDe, contaComoPresenca } = await import("@/lib/presenca");
+        const aulaPra = {
+          id: data.aula_id, titulo: "", modulo: "", local: null,
+          comeca_em: cheia.comeca_em, termina_em: cheia.termina_em,
+          fechada_em: cheia.fechada_em, cancelada: cheia.cancelada,
+        };
+        for (const p of presencas ?? []) {
+          const s = situacaoDe(
+            {
+              aula_id: data.aula_id, person_id: p.person_id, origem: "", grupo: null,
+              escaneado_em: p.escaneado_em, registrado_em: "", situacao: p.situacao,
+              observacao: null, marcado_por_nome: null,
+            },
+            aulaPra,
+          );
+          // Descancelar devolve o ponto pela MESMA regra do fechamento.
+          const ganha = !data.cancelar && contaComoPresenca(s);
+          await pontuarPresenca(p.person_id, data.aula_id, trein.mentor_id, ganha);
+          pontos += 1;
+        }
+      }
+    }
+
+    // ---- O aviso ----
+    // Até aqui a turma só era avisada quando o encontro NASCIA ou MUDAVA DE
+    // HORA. Cancelamento é o que mais importa e era o único que não saía.
+    if (trein && data.cancelar) {
+      const { data: grupos } = await supabase
+        .from("treinamento_grupos").select("group_id").eq("treinamento_id", modulo!.treinamento_id);
+      const ids = (grupos ?? []).map((g) => g.group_id);
+      if (ids.length) {
+        const { quandoBr } = await import("@/lib/notificacoes.functions");
+        const quando = aula.comeca_em ? quandoBr(aula.comeca_em) : null;
+        await notificar(supabase, {
+          conta: trein.mentor_id,
+          tipo: "aula_cancelada",
+          titulo: `Encontro cancelado: ${aula.titulo}`,
+          corpo: [quando ? `Era ${quando}.` : null, data.motivo?.trim() || null]
+            .filter(Boolean).join(" ") || null,
+          link: "/aluno/classroom",
+          grupos: ids,
+        });
+      }
+    }
+
+    return { ok: true, cancelada: aula.cancelada, pontos_recalculados: pontos };
+  });
+
 export const fecharListaDaAula = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>

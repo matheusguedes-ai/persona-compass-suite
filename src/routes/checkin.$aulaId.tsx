@@ -196,6 +196,12 @@ function Checkin() {
         </Recado>
       )}
       {motivo === "sem_aula" && <Recado>Não encontrei esta aula. Confira o QR com o professor.</Recado>}
+      {motivo === "cancelada" && (
+        <Recado>
+          Este encontro foi cancelado pelo professor. Sua presença não foi registrada — e não
+          precisa ser. Quando ele remarcar, você recebe um aviso.
+        </Recado>
+      )}
     </Casca>
   );
 }

@@ -54,12 +54,23 @@ export const Route = createFileRoute("/api/public/checkin/$aulaId")({
           const supabase = await getAdmin();
           const { data: aula, error } = await supabase
             .from("treinamento_aulas")
-            .select("id, titulo, comeca_em, termina_em")
+            .select("id, titulo, comeca_em, termina_em, cancelada")
             .eq("id", aulaId)
             .maybeSingle();
           if (error) throw new Error(error.message);
           if (!aula) {
             return recado("Aula não encontrada", "Confira com o professor se o QR é desta aula.", 404);
+          }
+
+          // Cancelada antes da janela: o QR de uma aula que não vai acontecer
+          // continuaria válido dentro do horário, e quem escaneasse viraria
+          // presença gravada num encontro que nunca houve.
+          if (aula.cancelada) {
+            return recado(
+              "Este encontro foi cancelado",
+              "O professor cancelou esta aula. Fique de olho na sua agenda — quando for remarcada, você recebe um aviso.",
+              410,
+            );
           }
 
           const janela = janelaDaAula(aula);

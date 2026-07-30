@@ -13,7 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import {
+  ChevronDown, Folder, GraduationCap, Image as ImageIcon, Paperclip, Plus,
+} from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { QuemAcessa } from "@/components/quem-acessa";
 import { toast } from "sonner";
 
@@ -38,6 +44,11 @@ function EducacaoPage() {
   const [audience, setAudience] = useState<"equipe" | "alunos" | "ambos">("alunos");
   const [grupos, setGrupos] = useState<string[]>([]);
   const [pessoas, setPessoas] = useState<string[]>([]);
+  // Os diálogos da biblioteca e dos banners moram nos filhos; o menu "Criar"
+  // mora aqui. Por isso a abertura sobe para esta tela.
+  const [novoMaterial, setNovoMaterial] = useState(false);
+  const [novaPasta, setNovaPasta] = useState(false);
+  const [novoBanner, setNovoBanner] = useState(false);
 
   const listFn = useServerFn(listTracks);
   const createFn = useServerFn(createTrack);
@@ -69,6 +80,9 @@ function EducacaoPage() {
 
   return (
     <div className="space-y-8">
+      {/* O cabeçalho fecha AQUI. Antes os banners e a biblioteca ficavam dentro
+          deste flex, viravam itens da mesma linha do título e apareciam
+          espremidos ao lado do botão. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Academy</h1>
@@ -78,11 +92,55 @@ function EducacaoPage() {
           </p>
         </div>
 
-      <BannersAcademy podeEditar />
-
-      <Biblioteca podeEditar />
-        <Button onClick={() => setAberto(true)}><Plus className="size-4" /> Nova trilha</Button>
+        {/* Um botão só, com o menu abrindo por CLIQUE — hover não existe no
+            celular, e metade do uso é por lá. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button><Plus className="size-4" /> Criar <ChevronDown className="size-3.5 opacity-70" /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            {/* `onSelect` com preventDefault: sem isso o Radix fecha o menu,
+                desmonta o gatilho e o diálogo fecha junto. */}
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setAberto(true); }}>
+              <GraduationCap className="size-4" />
+              <div>
+                <p className="text-sm">Criar trilha</p>
+                <p className="text-[11px] text-muted-foreground">Curso com módulos e aulas</p>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setNovaPasta(true); }}>
+              <Folder className="size-4" />
+              <div>
+                <p className="text-sm">Criar pasta</p>
+                <p className="text-[11px] text-muted-foreground">Para agrupar materiais</p>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setNovoMaterial(true); }}>
+              <Paperclip className="size-4" />
+              <div>
+                <p className="text-sm">Criar material</p>
+                <p className="text-[11px] text-muted-foreground">PDF, planilha, imagem, link…</p>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setNovoBanner(true); }}>
+              <ImageIcon className="size-4" />
+              <div>
+                <p className="text-sm">Criar banner</p>
+                <p className="text-[11px] text-muted-foreground">Faixa do topo da Academy</p>
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      <BannersAcademy podeEditar novo={novoBanner} onNovo={setNovoBanner} />
+
+      <Biblioteca
+        podeEditar
+        novoMaterial={novoMaterial} onNovoMaterial={setNovoMaterial}
+        novaPasta={novaPasta} onNovaPasta={setNovaPasta}
+      />
 
       {lista.length === 0 ? (
         <CatalogoVazio podeEditar />
