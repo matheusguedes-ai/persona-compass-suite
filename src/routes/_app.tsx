@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, isRedirect } from "@tanstack/react-router";
 import { SeloDaConta } from "@/components/selo-da-conta";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
@@ -17,12 +17,23 @@ export const Route = createFileRoute("/_app")({
     }
     // Avaliado que criou login não tem o que fazer no painel do mentor: veria
     // tudo vazio. Mandamos direto para a área dele.
+    //
+    // ⚠️ O teste de "isto é um redirect?" precisa ser `isRedirect`, do próprio
+    // roteador. Antes era `"to" in e` — e o objeto de redirect do TanStack é
+    // `Response & { options: { to } }`, com o `to` UM NÍVEL ABAIXO. O teste
+    // dava sempre falso, o catch engolia o próprio redirect, e o aluno ficava
+    // no painel do mentor: via "Novo Envio", "Ver como aluno" e um "Ranking
+    // geral" que não é dele. Só apareceu quando um aluno de verdade entrou.
     try {
       const eu = await getMyMembership();
       if (eu.kind === "aluno") throw redirect({ to: "/aluno", search: { ver: undefined } });
     } catch (e) {
-      // `redirect` do roteador é lançado como exceção — não engolir.
-      if (e && typeof e === "object" && "to" in e) throw e;
+      if (isRedirect(e)) throw e;
+      // Não deu para saber quem é. O painel do mentor é o lado ERRADO de errar
+      // — ele mostra a operação da conta. Na dúvida, manda para a área do
+      // aluno, que é inofensiva para quem não é aluno (o menu dela é dele).
+      console.error("[_app] não consegui identificar o papel:", e);
+      throw redirect({ to: "/aluno", search: { ver: undefined } });
     }
   },
   component: AppLayout,
