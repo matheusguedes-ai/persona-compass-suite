@@ -289,7 +289,15 @@ export const registrarDevolutiva = createServerFn({ method: "POST" })
       .from("devolutivas").select("person_id, mentor_id, people(user_id)").eq("id", data.id).maybeSingle();
     if (dev?.people?.user_id) {
       const { darPonto } = await import("@/lib/pontos.functions");
-      await darPonto(context.supabase, dev.people.user_id, dev.mentor_id, "devolutiva", data.id);
+      // Com service role, e não com o cliente do mentor.
+      //
+      // A policy de `pontos` é `user_id = auth.uid()` ("só em nome próprio"),
+      // pensada para a comunidade, onde a própria pessoa age. Aqui quem conclui
+      // a devolutiva é o MENTOR, dando o ponto ao ALUNO — o insert era recusado
+      // pela RLS, e recusado em silêncio. Esta ação existe desde que o ranking
+      // existe e nunca pontuou ninguém.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await darPonto(supabaseAdmin, dev.people.user_id, dev.mentor_id, "devolutiva", data.id);
     }
     if (dev) {
       const { data: quem } = await context.supabase

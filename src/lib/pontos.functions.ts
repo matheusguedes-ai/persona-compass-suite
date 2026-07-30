@@ -25,6 +25,40 @@ export const ACOES = {
 } as const;
 export type Acao = keyof typeof ACOES;
 
+/** As ações que dependem só de mexer no celular, sem sair do lugar. */
+const ACOES_DA_COMUNIDADE: Acao[] = ["publicar", "comentar", "curtir"];
+
+/**
+ * Teto do que a comunidade rende por dia, somando publicar, comentar e curtir.
+ *
+ * Os tetos por ação, sozinhos, deixavam um dia de comunidade valer mais que ir
+ * à aula: 3 publicações são 24 pontos, contra 20 de atravessar a cidade para um
+ * encontro presencial. O ranking dizia, na única tela que a turma inteira vê,
+ * que postar vale mais que aparecer — e "fui a todas as aulas e estou em
+ * último" é uma reclamação legítima.
+ *
+ * 15 mantém a comunidade valendo a pena todo dia e abaixo de um encontro. Os
+ * pesos de cada ação continuam como o Matheus definiu; o que entra é a ordem
+ * entre os dois mundos.
+ */
+export const TETO_COMUNIDADE_DIA = 15;
+
+/**
+ * Meia-noite de Brasília, e não a do servidor.
+ *
+ * `setHours(0,0,0,0)` num servidor em UTC faz o "dia" do teto virar às 21h no
+ * Brasil: quem publica às 21h30 recomeça a cota, e quem publica às 20h perde
+ * a dele mais cedo.
+ */
+function inicioDoDiaBr(): string {
+  const agora = new Date();
+  const hojeBr = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(agora);
+  // -03:00 é o horário do Brasil o ano todo desde o fim do horário de verão.
+  return new Date(`${hojeBr}T00:00:00-03:00`).toISOString();
+}
+
 /**
  * Dá o ponto, se couber.
  *
@@ -44,16 +78,27 @@ export async function darPonto(
 ): Promise<void> {
   try {
     const cfg = ACOES[acao];
+    const desde = inicioDoDiaBr();
     if (cfg.tetoDiario) {
-      const inicioDoDia = new Date();
-      inicioDoDia.setHours(0, 0, 0, 0);
       const { count } = await supabase
         .from("pontos")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
         .eq("acao", acao)
-        .gte("created_at", inicioDoDia.toISOString());
+        .gte("created_at", desde);
       if ((count ?? 0) >= cfg.tetoDiario) return;
+    }
+    // Teto somado da comunidade, por cima dos tetos de cada ação.
+    if (ACOES_DA_COMUNIDADE.includes(acao)) {
+      const { data: hoje } = await supabase
+        .from("pontos")
+        .select("pontos, acao")
+        .eq("user_id", userId)
+        .gte("created_at", desde);
+      const soma = (hoje ?? [])
+        .filter((p) => ACOES_DA_COMUNIDADE.includes(p.acao as Acao))
+        .reduce((s, p) => s + p.pontos, 0);
+      if (soma + cfg.pontos > TETO_COMUNIDADE_DIA) return;
     }
     const { error } = await supabase.from("pontos").insert({
       user_id: userId,
@@ -101,15 +146,40 @@ export async function tirarPonto(
   }
 }
 
-/** A conta sob a qual a pessoa age — o ranking vive dentro dela. */
+/**
+ * A conta sob a qual a pessoa age — o ranking vive dentro dela.
+ *
+ * A ordem importa, e estava invertida: `acting_account()` é
+ * `COALESCE(team_members.owner_id, auth.uid())` e **nunca devolve nulo**, então
+ * o desvio para `people` era código morto. Para o ALUNO, que não está em
+ * `team_members`, ela devolvia o id do próprio aluno — e o ponto nascia com
+ * `mentor_id` apontando para ele mesmo.
+ *
+ * O efeito seria invisível até doer: o ranking do grupo e o extrato filtram por
+ * `mentor_id = acting_account()`, então o mentor abriria a tela e veria zero
+ * enquanto o aluno via os pontos dele. Dois números para o mesmo fato.
+ *
+ * Agora `people` vem primeiro: a conta de alguém é a que tem o cadastro dele.
+ * Quem não tem cadastro de pessoa (colaborador puro) cai em `acting_account()`,
+ * que é a resposta certa para esse caso.
+ */
 export async function contaDaPessoa(
   supabase: SupabaseClient<Database>,
   userId: string,
 ): Promise<string | null> {
+  // Ordenado por `created_at`: quem está cadastrado em duas contas cairia num
+  // ranking ou noutro conforme o humor do planejador de consultas.
+  const { data: p } = await supabase
+    .from("people")
+    .select("mentor_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  if (p?.mentor_id) return p.mentor_id;
+
   const { data } = await supabase.rpc("acting_account");
-  if (data) return data as string;
-  const { data: p } = await supabase.from("people").select("mentor_id").eq("user_id", userId).limit(1).maybeSingle();
-  return p?.mentor_id ?? null;
+  return (data as string) ?? null;
 }
 
 /**
@@ -129,10 +199,20 @@ export const rankingDoGrupo = createServerFn({ method: "GET" })
       .eq("group_id", data.group_id);
     if (error) throw new Error(error.message);
 
+    // A conta dona do grupo. O ranking é DELA: quem está cadastrado em duas
+    // contas não pode trazer para cá os pontos que ganhou na outra.
+    const { data: grupo } = await supabase
+      .from("groups").select("mentor_id").eq("id", data.group_id).maybeSingle();
+
     const comConta = (membros ?? []).filter((m) => m.people?.user_id);
     const ids = comConta.map((m) => m.people!.user_id!) as string[];
+    // Sem o dono do grupo em mãos, não filtra por conta em vez de filtrar por
+    // string vazia — um uuid inválido derrubaria a tela inteira do ranking.
     const { data: pts } = ids.length
-      ? await supabase.from("pontos").select("user_id, pontos, acao").in("user_id", ids)
+      ? await (grupo?.mentor_id
+          ? supabase.from("pontos").select("user_id, pontos, acao")
+              .in("user_id", ids).eq("mentor_id", grupo.mentor_id)
+          : supabase.from("pontos").select("user_id, pontos, acao").in("user_id", ids))
       : { data: [] as Array<{ user_id: string; pontos: number; acao: string }> };
 
     const linhas = comConta.map((m) => {
@@ -169,7 +249,13 @@ export const meusPontos = createServerFn({ method: "GET" })
     }
     if (!userId) return { total: 0, porAcao: [] };
 
-    const { data: pts } = await supabase.from("pontos").select("acao, pontos").eq("user_id", userId);
+    // Escopado na mesma conta do ranking: o extrato tem de fechar com a posição
+    // que a pessoa vê no grupo. Sem isto, quem está em duas contas somaria aqui
+    // pontos que não contam lá, e os dois números discordariam na mesma tela.
+    const conta = await contaDaPessoa(supabase, userId);
+    let q = supabase.from("pontos").select("acao, pontos").eq("user_id", userId);
+    if (conta) q = q.eq("mentor_id", conta);
+    const { data: pts } = await q;
     const porAcao = (Object.keys(ACOES) as Acao[]).map((a) => ({
       acao: a,
       rotulo: ACOES[a].rotulo,
