@@ -126,10 +126,54 @@ export const deletePerson = createServerFn({ method: "POST" })
 // ============================================================
 // Groups
 // ============================================================
+/**
+ * Áreas do painel do aluno que um grupo pode liberar.
+ *
+ * "Meu perfil" não está aqui de propósito: é onde ele troca a própria senha e
+ * os próprios dados. Tirar isso deixaria a pessoa presa numa conta que não
+ * consegue ajustar.
+ */
+export const AREAS_DO_ALUNO = [
+  { valor: "resultados", titulo: "Meus resultados", ajuda: "Os testes que ele respondeu e os relatórios." },
+  { valor: "comunidade", titulo: "Comunidade", ajuda: "O feed do grupo, os membros e o ranking." },
+  { valor: "devolutivas", titulo: "Devolutivas", ajuda: "O histórico das conversas de resultado." },
+  { valor: "agenda", titulo: "Agenda", ajuda: "Eventos e aulas marcadas para ele." },
+  { valor: "academy", titulo: "Academy", ajuda: "Trilhas, aulas gravadas e biblioteca." },
+  { valor: "classroom", titulo: "Classroom", ajuda: "Treinamentos presenciais e presença." },
+] as const;
+
+const AREAS = AREAS_DO_ALUNO.map((a) => a.valor) as unknown as [string, ...string[]];
+
+/**
+ * As áreas que quem está pedindo abre no painel do aluno.
+ *
+ * A conta e a equipe recebem tudo — a trava é do painel do aluno. Na prévia
+ * "ver como aluno" valem as áreas DAQUELA pessoa: sem isso ele veria o menu
+ * inteiro (ele abre tudo) e a restrição não teria como ser conferida.
+ */
+export const minhasAreas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ preview_person_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = data.preview_person_id
+      ? await context.supabase.rpc("areas_da_pessoa", { p_person_id: data.preview_person_id })
+      : await context.supabase.rpc("minhas_areas");
+    if (error) throw new Error(error.message);
+    const lista = ((rows ?? []) as unknown as Array<string | Record<string, string>>).map((r) =>
+      typeof r === "string" ? r : Object.values(r)[0],
+    );
+    return { areas: lista };
+  });
+
 const groupSchema = z.object({
   name: z.string().trim().min(1).max(160),
   type: z.enum(["turma", "empresa", "setor"]).default("turma"),
   description: z.string().trim().max(500).optional().nullable(),
+  // `null` = grupo sem restrição, tudo liberado. É como os grupos existentes
+  // nasceram, e é o padrão de um grupo novo.
+  areas_aluno: z.array(z.enum(AREAS)).nullable().optional(),
 });
 
 export const listGroups = createServerFn({ method: "GET" })
@@ -187,7 +231,11 @@ export const createGroup = createServerFn({ method: "POST" })
     const { person_ids, instrument_ids, ...groupData } = data;
     const { data: group, error } = await context.supabase
       .from("groups")
-      .insert({ ...groupData, mentor_id: context.userId })
+      .insert({
+        ...groupData,
+        areas_aluno: normalizarAreas(groupData.areas_aluno),
+        mentor_id: context.userId,
+      })
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -212,15 +260,29 @@ export const updateGroup = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).merge(groupSchema.partial()).parse(d))
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
+    const patch =
+      "areas_aluno" in rest ? { ...rest, areas_aluno: normalizarAreas(rest.areas_aluno) } : rest;
     const { data: row, error } = await context.supabase
       .from("groups")
-      .update(rest)
+      .update(patch)
       .eq("id", id)
       .select()
       .single();
     if (error) throw new Error(error.message);
     return row;
   });
+
+/**
+ * Tudo marcado vira `null` — "sem restrição".
+ *
+ * As duas formas significam o mesmo, e guardar a lista cheia faria um grupo
+ * liberado parecer restrito toda vez que uma área NOVA aparecesse na
+ * plataforma: ela nasceria fora da lista e sumiria do menu sem ninguém mexer.
+ */
+function normalizarAreas(areas: string[] | null | undefined): string[] | null {
+  if (!areas) return null;
+  return areas.length >= AREAS_DO_ALUNO.length ? null : areas;
+}
 
 export const deleteGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

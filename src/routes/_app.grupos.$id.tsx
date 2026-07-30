@@ -20,8 +20,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   getGroup, getGroupDna, deleteGroup, addGroupMembers, removeGroupMember,
-  setGroupInstruments, listPeople, listInstruments,
+  setGroupInstruments, listPeople, listInstruments, updateGroup, AREAS_DO_ALUNO,
 } from "@/lib/data.functions";
+import { AreasDoAluno } from "@/components/areas-do-aluno";
 import { listResponses } from "@/lib/tests.functions";
 import { toast } from "sonner";
 
@@ -108,6 +109,11 @@ function GroupDetail() {
             </span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground ring-1 ring-black/5">{members.length} pessoa(s)</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground ring-1 ring-black/5">{instruments.length} teste(s) liberado(s)</span>
+            {group.areas_aluno && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-900 ring-1 ring-amber-200">
+                painel do aluno: {(group.areas_aluno as string[]).length} de {AREAS_DO_ALUNO.length} áreas
+              </span>
+            )}
           </div>
           {group.description && <p className="mt-3 max-w-2xl text-sm text-muted-foreground">{group.description}</p>}
         </div>
@@ -137,6 +143,7 @@ function GroupDetail() {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="pessoas">Pessoas ({members.length})</TabsTrigger>
           <TabsTrigger value="testes">Testes liberados ({instruments.length})</TabsTrigger>
+          <TabsTrigger value="acesso">Acesso</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
           <TabsTrigger value="devolutivas">Devolutivas</TabsTrigger>
         </TabsList>
@@ -238,6 +245,10 @@ function GroupDetail() {
             })}
           </div>
         </TabsContent>
+        <TabsContent value="acesso" className="mt-4">
+          <AcessoDoGrupo groupId={id} atual={(group.areas_aluno as string[] | null) ?? null} />
+        </TabsContent>
+
         <TabsContent value="ranking" className="mt-4">
           <RankingDoGrupo groupId={id} />
         </TabsContent>
@@ -500,6 +511,46 @@ function GroupDna({ groupId }: { groupId: string }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Aba "Acesso": o que este grupo enxerga no painel do aluno.
+ *
+ * Salva só quando ele aperta — mudar acesso por clique solto trocaria o que a
+ * turma vê enquanto ele ainda está decidindo.
+ */
+function AcessoDoGrupo({ groupId, atual }: { groupId: string; atual: string[] | null }) {
+  const qc = useQueryClient();
+  const saveFn = useServerFn(updateGroup);
+  const [areas, setAreas] = useState<string[] | null>(atual);
+
+  const salvar = useMutation({
+    mutationFn: () => saveFn({ data: { id: groupId, areas_aluno: areas } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["group", groupId] });
+      qc.invalidateQueries({ queryKey: ["groups"] });
+      toast.success("Acesso do grupo atualizado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const mudou = JSON.stringify(areas) !== JSON.stringify(atual);
+
+  return (
+    <div className="space-y-4 rounded-xl bg-card p-6 ring-1 ring-black/5">
+      <AreasDoAluno areas={areas} setAreas={setAreas} />
+      <div className="flex items-center gap-3">
+        <Button onClick={() => salvar.mutate()} disabled={!mudou || salvar.isPending}>
+          {salvar.isPending ? "Salvando…" : "Salvar acesso"}
+        </Button>
+        {mudou && (
+          <button className="text-xs text-muted-foreground hover:underline" onClick={() => setAreas(atual)}>
+            Desfazer
+          </button>
+        )}
+      </div>
     </div>
   );
 }

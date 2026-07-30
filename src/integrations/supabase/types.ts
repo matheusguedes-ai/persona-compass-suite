@@ -375,6 +375,7 @@ export type Database = {
       }
       groups: {
         Row: {
+          areas_aluno: string[] | null
           created_at: string
           description: string | null
           id: string
@@ -384,6 +385,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          areas_aluno?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
@@ -393,6 +395,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          areas_aluno?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
@@ -1561,6 +1564,9 @@ export type Database = {
       can_see_track: { Args: { _track_id: string }; Returns: boolean }
       can_edit_track: { Args: { _track_id: string }; Returns: boolean }
       track_liberada: { Args: { _track_id: string }; Returns: boolean }
+      aluno_pode: { Args: { p_area: string }; Returns: boolean }
+      minhas_areas: { Args: Record<string, never>; Returns: string[] }
+      areas_da_pessoa: { Args: { p_person_id: string }; Returns: string[] }
       trilhas_liberadas: { Args: { _person_id?: string | null }; Returns: string[] }
       member_kind: { Args: Record<string, never>; Returns: string }
       claim_invite_link: {

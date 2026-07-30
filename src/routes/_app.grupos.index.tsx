@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listGroups, createGroup, listPeople, listInstruments } from "@/lib/data.functions";
+import { AreasDoAluno } from "@/components/areas-do-aluno";
 
 export const Route = createFileRoute("/_app/grupos/")({
   head: () => ({
@@ -132,6 +133,8 @@ function NewGroupDialog() {
   const [personIds, setPersonIds] = useState<string[]>([]);
   const [instrumentIds, setInstrumentIds] = useState<string[]>([]);
   const [personQuery, setPersonQuery] = useState("");
+  // `null` = sem restrição. Grupo novo nasce liberado.
+  const [areas, setAreas] = useState<string[] | null>(null);
 
   const qc = useQueryClient();
   const peopleFn = useServerFn(listPeople);
@@ -146,8 +149,10 @@ function NewGroupDialog() {
   );
 
   const create = useMutation({
-    mutationFn: (data: { name: string; type: GroupType; description: string | null; person_ids: string[]; instrument_ids: string[] }) =>
-      createFn({ data }),
+    mutationFn: (data: {
+      name: string; type: GroupType; description: string | null;
+      person_ids: string[]; instrument_ids: string[]; areas_aluno: string[] | null;
+    }) => createFn({ data }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["groups"] });
       toast.success("Grupo criado");
@@ -158,7 +163,7 @@ function NewGroupDialog() {
 
   function reset() {
     setOpen(false); setStep(1); setName(""); setType("turma"); setDescription("");
-    setPersonIds([]); setInstrumentIds([]); setPersonQuery("");
+    setPersonIds([]); setInstrumentIds([]); setPersonQuery(""); setAreas(null);
   }
 
   function toggle(id: string, list: string[], setter: (v: string[]) => void) {
@@ -172,11 +177,12 @@ function NewGroupDialog() {
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Novo grupo — passo {step} de 3</DialogTitle>
+          <DialogTitle>Novo grupo — passo {step} de 4</DialogTitle>
           <DialogDescription>
             {step === 1 && "Defina o escopo do grupo."}
             {step === 2 && "Adicione as pessoas que farão parte deste grupo."}
             {step === 3 && "Escolha quais testes ficarão disponíveis para este grupo."}
+            {step === 4 && "Escolha o que este grupo enxerga no painel do aluno."}
           </DialogDescription>
         </DialogHeader>
 
@@ -234,11 +240,13 @@ function NewGroupDialog() {
           </div>
         )}
 
+        {step === 4 && <AreasDoAluno areas={areas} setAreas={setAreas} />}
+
         <DialogFooter className="flex justify-between sm:justify-between">
           <Button type="button" variant="ghost" onClick={() => (step > 1 ? setStep(step - 1) : reset())}>
             {step > 1 ? "Voltar" : "Cancelar"}
           </Button>
-          {step < 3 ? (
+          {step < 4 ? (
             <Button type="button" disabled={step === 1 && !name.trim()} onClick={() => setStep(step + 1)}>Próximo</Button>
           ) : (
             <Button
@@ -251,6 +259,7 @@ function NewGroupDialog() {
                   description: description.trim() || null,
                   person_ids: personIds,
                   instrument_ids: instrumentIds,
+                  areas_aluno: areas,
                 })
               }
             >

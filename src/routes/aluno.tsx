@@ -2,12 +2,13 @@ import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tansta
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyMembership } from "@/lib/team.functions";
+import { minhasAreas } from "@/lib/data.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandMark } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft, Eye, GraduationCap, LayoutList, LogOut, UserRound, MessagesSquare,
+  ArrowLeft, Eye, GraduationCap, LayoutList, Lock, LogOut, UserRound, MessagesSquare,
   Users, Trophy, FolderKanban, CalendarDays, PanelLeftClose, PanelLeft, Menu,
   Presentation,
 } from "lucide-react";
@@ -32,15 +33,31 @@ export const Route = createFileRoute("/aluno")({
   component: AlunoLayout,
 });
 
+// `area` liga o item à permissão do grupo (`groups.areas_aluno`). Sem `area` o
+// item é fixo: "Meu perfil" é onde ele troca a própria senha e os próprios
+// dados, e tirá-lo prenderia a pessoa numa conta que ela não consegue ajustar.
 const NAV = [
-  { to: "/aluno", label: "Meus resultados", icon: LayoutList, exato: true },
-  { to: "/aluno/comunidade", label: "Comunidade", icon: Users, exato: false },
-  { to: "/aluno/devolutivas", label: "Devolutivas", icon: MessagesSquare, exato: false },
-  { to: "/aluno/agenda", label: "Agenda", icon: CalendarDays, exato: false },
-  { to: "/aluno/educacao", label: "Academy", icon: GraduationCap, exato: false },
-  { to: "/aluno/classroom", label: "Classroom", icon: Presentation, exato: false },
-  { to: "/aluno/perfil", label: "Meu perfil", icon: UserRound, exato: false },
+  { to: "/aluno", label: "Meus resultados", icon: LayoutList, exato: true, area: "resultados" },
+  { to: "/aluno/comunidade", label: "Comunidade", icon: Users, exato: false, area: "comunidade" },
+  { to: "/aluno/devolutivas", label: "Devolutivas", icon: MessagesSquare, exato: false, area: "devolutivas" },
+  { to: "/aluno/agenda", label: "Agenda", icon: CalendarDays, exato: false, area: "agenda" },
+  { to: "/aluno/educacao", label: "Academy", icon: GraduationCap, exato: false, area: "academy" },
+  { to: "/aluno/classroom", label: "Classroom", icon: Presentation, exato: false, area: "classroom" },
+  { to: "/aluno/perfil", label: "Meu perfil", icon: UserRound, exato: false, area: null },
 ] as const;
+
+// O ranking mora dentro da comunidade e não tem item próprio no menu; a rota
+// existe e precisa seguir a mesma permissão.
+const AREA_EXTRA: Record<string, string> = { "/aluno/ranking": "comunidade" };
+
+/** A área da rota aberta agora — para a página inteira parar, não só o menu. */
+function areaDaRota(pathname: string): string | null {
+  if (AREA_EXTRA[pathname]) return AREA_EXTRA[pathname];
+  const item = [...NAV]
+    .filter((n) => (n.exato ? pathname === n.to : pathname.startsWith(n.to)))
+    .sort((a, b) => b.to.length - a.to.length)[0];
+  return item?.area ?? null;
+}
 
 function AlunoLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -52,13 +69,29 @@ function AlunoLayout() {
   const { data: membership } = useQuery({
     queryKey: ["my-membership"], queryFn: () => membershipFn(), staleTime: 300_000,
   });
+
+  // O que o grupo dele libera. Enquanto não chega, mostro o menu inteiro: um
+  // menu que aparece pela metade e depois completa pisca a cada navegação.
+  const areasFn = useServerFn(minhasAreas);
+  const { data: acesso } = useQuery({
+    queryKey: ["minhas-areas", ver ?? null],
+    queryFn: () => areasFn({ data: { preview_person_id: ver ?? null } }),
+    staleTime: 60_000,
+  });
+  const liberada = (area: string | null) =>
+    area === null || !acesso || acesso.areas.includes(area);
+
+  const base = NAV.filter((n) => liberada(n.area));
   const itens =
     membership?.kind === "mentor"
       ? [
-          ...NAV,
-          { to: "/aluno/grupos", label: "Grupos", icon: FolderKanban, exato: false } as const,
+          ...base,
+          { to: "/aluno/grupos", label: "Grupos", icon: FolderKanban, exato: false, area: null } as const,
         ]
-      : NAV;
+      : base;
+
+  const areaAtual = areaDaRota(pathname);
+  const bloqueada = !liberada(areaAtual);
 
   // Recolhida ou não — a escolha é dele e fica salva no navegador. Quem recolhe
   // não quer recolher de novo a cada visita.
@@ -183,7 +216,22 @@ function AlunoLayout() {
           </div>
         )}
         <main className="mx-auto max-w-5xl px-6 py-8">
-          <Outlet />
+          {/* Esconder só o item do menu deixaria a rota respondendo a quem
+              digitasse o endereço. O banco também barra (aluno_pode); esta tela
+              existe para dizer o motivo em vez de mostrar uma página vazia. */}
+          {bloqueada ? (
+            <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+              <Lock className="mx-auto size-8 text-muted-foreground" />
+              <h1 className="mt-4 text-base font-medium">Esta área não faz parte do seu acesso</h1>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                {ver
+                  ? "Esta pessoa não tem acesso a esta área. Isso vem do grupo dela — ajuste em Grupos, na aba Acesso."
+                  : "Seu programa não inclui esta parte da plataforma. Se achar que deveria incluir, fale com o seu mentor."}
+              </p>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
         <SeloDaConta />
       </div>
