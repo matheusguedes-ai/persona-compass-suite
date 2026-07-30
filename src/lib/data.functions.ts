@@ -624,21 +624,38 @@ export const getDashboardStats = createServerFn({ method: "GET" })
 
     // Últimos 6 meses, sempre com os 6 rótulos (mês sem resposta vale zero —
     // omitir daria a impressão de continuidade onde houve pausa).
-    const now = new Date();
+    // ⚠️ Tudo aqui em America/Sao_Paulo, e não no fuso do processo.
+    //
+    // Este código roda no SERVIDOR, que está em UTC. Com `getMonth()` cru, uma
+    // resposta enviada às 22h do dia 31 (horário de Brasília) já é dia 1 do mês
+    // seguinte em UTC — e caía no balde do mês errado. Nas últimas três horas
+    // de cada mês, o gráfico inteiro deslizava: o mês corrente aparecia zerado
+    // e o seguinte, que ainda nem começou, ganhava as respostas.
+    const mesDe = (iso: string | Date) => {
+      const p = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit",
+      }).formatToParts(typeof iso === "string" ? new Date(iso) : iso);
+      const v = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+      return `${v("year")}-${v("month")}`;
+    };
+
+    const agoraBr = mesDe(new Date()).split("-").map(Number);
     const buckets: { chave: string; mes: string; respondidos: number }[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      // O dia 15 evita a virada: `new Date(ano, mes, 1)` no fim do mês anterior
+      // ainda poderia escorregar ao converter.
+      const d = new Date(agoraBr[0], agoraBr[1] - 1 - i, 15);
       buckets.push({
         chave: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        mes: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
+        mes: d.toLocaleDateString("pt-BR", { month: "short", timeZone: "America/Sao_Paulo" })
+          .replace(".", ""),
         respondidos: 0,
       });
     }
     const bucketIndex = new Map(buckets.map((b, i) => [b.chave, i]));
     for (const r of list) {
       if (!r.submitted_at) continue;
-      const d = new Date(r.submitted_at);
-      const idx = bucketIndex.get(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+      const idx = bucketIndex.get(mesDe(r.submitted_at));
       if (idx != null) buckets[idx].respondidos += 1;
     }
 
