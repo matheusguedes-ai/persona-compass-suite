@@ -30,8 +30,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  CircleCheck, ClipboardList, Clock, Download, FileSpreadsheet, FileText, Info, Lock,
-  LockOpen, MessageSquare, RotateCcw, TriangleAlert, UserX,
+  ClipboardList, Clock, Download, FileSpreadsheet, FileText, Info, Lock,
+  LockOpen, MessageSquare, RotateCcw, TriangleAlert, Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -185,9 +185,12 @@ export function ListaDePresenca({ treinamentoId }: { treinamentoId: string }) {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Fechar a lista desta aula?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            A partir daqui, quem não tem registro passa a constar como{" "}
-                            <strong>ausente</strong> — inclusive na planilha que vai para o RH. Dá
-                            para reabrir depois, se você achar um erro.
+                            Fechar faz três coisas: quem não tem registro passa a constar como{" "}
+                            <strong>ausente</strong> (inclusive na planilha que vai para o RH), a
+                            aula entra na conta da frequência, e <strong>os pontos do encontro
+                            são lançados</strong> no ranking. Depois disso, mudar alguém para
+                            ausente tira os pontos daquele encontro. Dá para reabrir, se você achar
+                            um erro.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -307,6 +310,15 @@ function Legenda({ tolerancia }: { tolerancia: number }) {
           Registro pelo professor é o caminho previsto para quem não tem celular, senha ou sinal.
         </span>
       </p>
+      <p className="flex items-start gap-1.5">
+        <Trophy className="mt-0.5 size-3 shrink-0" />
+        <span>
+          Os pontos do ranking entram <strong>quando você fecha a lista</strong>, para quem constar
+          como presente ou atrasado. Marcar alguém como ausente depois tira os pontos daquele
+          encontro; <strong>falta justificada não tira</strong>. Aluno sem login não entra no
+          ranking.
+        </span>
+      </p>
     </div>
   );
 }
@@ -377,8 +389,11 @@ function AjustarLinha({
   onFechar: () => void;
   onSalvo: () => void;
 }) {
+  // Sem linha de presença não há o que calcular: quem abre este diálogo está
+  // registrando alguma coisa. Oferecer "Pelo cálculo" aqui faria o professor
+  // criar presença (e ponto) só por ter escrito uma observação.
   const [situacao, setSituacao] = useState<Situacao | "calculado">(
-    linha.override ? linha.situacao : "calculado",
+    !linha.tem_registro ? "presente" : linha.override ? linha.situacao : "calculado",
   );
   const [observacao, setObservacao] = useState(linha.observacao ?? "");
 
@@ -405,7 +420,7 @@ function AjustarLinha({
   const faltaMotivo = exigeMotivo && observacao.trim().length < 3;
 
   const OPCOES: Array<[Situacao | "calculado", string]> = [
-    ["calculado", "Pelo cálculo"],
+    ...(linha.tem_registro ? ([["calculado", "Pelo cálculo"]] as Array<[Situacao | "calculado", string]>) : []),
     ["presente", ROTULO_SITUACAO.presente],
     ["atrasado", ROTULO_SITUACAO.atrasado],
     ["ausente", ROTULO_SITUACAO.ausente],

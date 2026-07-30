@@ -108,6 +108,9 @@ function Checkin() {
             Esta presença foi registrada pelo professor.
           </p>
         )}
+        <p className="mt-3 rounded-lg bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
+          Os pontos deste encontro entram no seu ranking quando o professor fechar a lista da aula.
+        </p>
         <Button asChild variant="outline" className="mt-5 w-full">
           <Link to="/aluno/classroom" search={{ ver: undefined }}>Ver o treinamento</Link>
         </Button>

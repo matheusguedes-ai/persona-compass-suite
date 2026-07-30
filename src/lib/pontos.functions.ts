@@ -14,6 +14,9 @@ import type { Database } from "@/integrations/supabase/types";
 
 export const ACOES = {
   aula: { pontos: 20, rotulo: "Concluir uma aula", tetoDiario: null },
+  // Encontro presencial do Classroom. Separado de `aula` para o extrato do aluno
+  // não misturar "assistiu um vídeo" com "esteve na sala".
+  presenca: { pontos: 20, rotulo: "Participar de um encontro presencial", tetoDiario: null },
   devolutiva: { pontos: 15, rotulo: "Participar de uma devolutiva", tetoDiario: null },
   publicar: { pontos: 8, rotulo: "Publicar na comunidade", tetoDiario: 3 },
   perfil: { pontos: 5, rotulo: "Completar o perfil", tetoDiario: null },
@@ -52,15 +55,49 @@ export async function darPonto(
         .gte("created_at", inicioDoDia.toISOString());
       if ((count ?? 0) >= cfg.tetoDiario) return;
     }
-    await supabase.from("pontos").insert({
+    const { error } = await supabase.from("pontos").insert({
       user_id: userId,
       mentor_id: mentorId,
       acao,
       pontos: cfg.pontos,
       referencia: referencia ?? null,
     });
-  } catch {
-    // Ver o comentário acima: pontuação não derruba a ação.
+    // Silenciosa NÃO quer dizer cega. 23505 é a trava de repetição funcionando —
+    // esperado. Qualquer outro erro precisa aparecer no log: uma ação inteira já
+    // passou meses sem pontuar ninguém porque a falha era engolida aqui, e
+    // ninguém tinha como descobrir.
+    if (error && error.code !== "23505") {
+      console.error(`[pontos] ${acao} não gravou para ${userId}: ${error.message}`);
+    }
+  } catch (e) {
+    console.error("[pontos] falha inesperada:", e);
+  }
+}
+
+/**
+ * Tira o ponto de uma ação que deixou de valer.
+ *
+ * Existe por causa da presença: quem escaneou o QR e foi embora pode ser marcado
+ * ausente pelo professor, e se os pontos ficassem, o ranking premiaria
+ * exatamente o comportamento que o QR rotativo não consegue impedir. Silenciosa
+ * pela mesma razão de `darPonto`.
+ */
+export async function tirarPonto(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  acao: Acao,
+  referencia: string,
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from("pontos")
+      .delete()
+      .eq("user_id", userId)
+      .eq("acao", acao)
+      .eq("referencia", referencia);
+    if (error) console.error(`[pontos] não deu para tirar ${acao} de ${userId}: ${error.message}`);
+  } catch (e) {
+    console.error("[pontos] falha inesperada ao tirar ponto:", e);
   }
 }
 

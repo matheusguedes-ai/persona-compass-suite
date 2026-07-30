@@ -34,8 +34,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, CalendarClock, ExternalLink, FileText, FolderKanban, Lock, MapPin, NotebookPen,
-  Paperclip, Pencil, Plus, Presentation, QrCode, Trash2, Upload, Video, X,
+  ArrowLeft, CalendarClock, CircleCheck, ExternalLink, FileText, FolderKanban, Lock, MapPin,
+  NotebookPen, Paperclip, Pencil, Plus, Presentation, QrCode, Trash2, Upload, Video, X,
 } from "lucide-react";
 import { CheckinDialog } from "@/components/checkin-professor";
 import { ListaDePresenca } from "@/components/lista-de-presenca";
@@ -47,6 +47,8 @@ type MaterialT = { id: string; titulo: string; url: string; kind: string };
 type AulaT = {
   id: string; modulo_id: string; titulo: string; descricao: string | null; anotacoes: string | null;
   comeca_em: string | null; termina_em: string | null; local: string | null; materiais: MaterialT[];
+  /** Eu estive nesta aula — o certo verde do painel do aluno. */
+  estive?: boolean;
 };
 type ModuloT = { id: string; titulo: string; aulas: AulaT[] };
 
@@ -151,6 +153,19 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
             {t.descricao && (
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t.descricao}</p>
             )}
+            {/* O número do aluno, contando só encontro com a lista fechada:
+                enquanto ela está aberta nada foi afirmado, e mostrar um total
+                que ainda vai mudar é pior que não mostrar. */}
+            {!podeEditar && data.minha_frequencia && data.minha_frequencia.de > 0 && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Você esteve em{" "}
+                <strong className="text-foreground">
+                  {data.minha_frequencia.estive} de {data.minha_frequencia.de}
+                </strong>{" "}
+                {data.minha_frequencia.de === 1 ? "encontro" : "encontros"} com a lista já fechada.
+              </p>
+            )}
+
             {/* Quem participa não precisa saber para quais grupos foi
                 publicado — e a RLS de `groups` nem entrega o nome ao aluno. */}
             {podeEditar && (
@@ -244,6 +259,14 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
                   </div>
                 )}
               </div>
+
+              {/* Para o aluno, a confirmação de que a presença dele está na
+                  lista — sem isso ele volta a escanear o QR por insegurança. */}
+              {!podeEditar && aula.estive && (
+                <p className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+                  <CircleCheck className="size-4" /> Sua presença neste encontro está registrada.
+                </p>
+              )}
 
               {aula.descricao && (
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
@@ -426,7 +449,11 @@ function ModuloBloco({
                 aulaId === a.id ? "bg-primary/5 font-medium" : ""
               }`}
             >
-              <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
+              {a.estive ? (
+                <CircleCheck className="size-4 shrink-0 text-emerald-600" />
+              ) : (
+                <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
+              )}
               <span className="min-w-0 flex-1 truncate">{a.titulo}</span>
               {a.comeca_em && (
                 <span className="shrink-0 text-[11px] text-muted-foreground">
