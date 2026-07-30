@@ -17,6 +17,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { confirmarPresenca, minhaPresenca } from "@/lib/classroom.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { distanciaLegivel } from "@/lib/geo";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/lib/brand";
 import { CalendarClock, CircleCheck, Hand, LogIn, MapPin, QrCode } from "lucide-react";
@@ -56,8 +57,26 @@ function Checkin() {
     enabled: logado === true,
   });
 
+  // A localização só é pedida quando a aula está travada num lugar. Pedir
+  // sempre gastaria a permissão — negada uma vez, o navegador não pergunta de
+  // novo — em aulas que nem usam, e aí a trava nasceria quebrada no dia em que
+  // o professor a ligasse.
   const confirmar = useMutation({
-    mutationFn: () => confirmarFn({ data: { aula_id: aulaId } }),
+    mutationFn: async () => {
+      let onde: { lat?: number; lng?: number; precisao_m?: number } = {};
+      if (data?.exige_local) {
+        const { posicaoAtual } = await import("@/lib/geo");
+        const p = await posicaoAtual();
+        if (p) {
+          onde = {
+            lat: p.coords.latitude,
+            lng: p.coords.longitude,
+            precisao_m: p.coords.accuracy,
+          };
+        }
+      }
+      return confirmarFn({ data: { aula_id: aulaId, ...onde } });
+    },
     onSuccess: () => refetch(),
   });
 
@@ -146,12 +165,27 @@ function Checkin() {
         </>
       )}
 
+      {data?.exige_local && (
+        <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
+          <MapPin className="mt-0.5 size-3.5 shrink-0" />
+          <span>
+            Esta aula confere o local. Ao confirmar, o celular vai pedir permissão de localização —
+            ela serve só para checar que você está no encontro, e a plataforma guarda a{" "}
+            <strong>distância</strong>, nunca o seu endereço.
+          </span>
+        </p>
+      )}
+
       <Button
         className="mt-5 w-full"
         disabled={confirmar.isPending}
         onClick={() => confirmar.mutate()}
       >
-        {confirmar.isPending ? "Confirmando…" : "Estou presente"}
+        {confirmar.isPending
+          ? data?.exige_local
+            ? "Conferindo o local…"
+            : "Confirmando…"
+          : "Estou presente"}
       </Button>
 
       {confirmar.isError && (
@@ -193,6 +227,29 @@ function Checkin() {
           >
             Sair e entrar com outra conta
           </button>
+        </Recado>
+      )}
+      {motivo === "sem_localizacao" && (
+        <Recado>
+          <MapPin className="mb-1 inline size-4" /> <strong>Falta liberar a localização.</strong>{" "}
+          Esta aula confere se você está no encontro. Toque em “Estou presente” de novo e permita o
+          acesso quando o celular perguntar — ou peça ao professor para registrar a sua presença.
+        </Recado>
+      )}
+      {motivo === "longe" && (
+        <Recado>
+          <MapPin className="mb-1 inline size-4" /> Você está{" "}
+          <strong>
+            {r && !r.ok && "distancia_m" in r && typeof r.distancia_m === "number"
+              ? distanciaLegivel(r.distancia_m)
+              : "longe"}
+          </strong>{" "}
+          do local do encontro, e o check-in aceita até{" "}
+          {r && !r.ok && "raio_m" in r && typeof r.raio_m === "number"
+            ? distanciaLegivel(r.raio_m)
+            : "o raio definido"}
+          . Se você <strong>está</strong> na sala, o sinal do GPS pode ter falhado aqui dentro —
+          peça ao professor para registrar a sua presença na lista.
         </Recado>
       )}
       {motivo === "sem_aula" && <Recado>Não encontrei esta aula. Confira o QR com o professor.</Recado>}

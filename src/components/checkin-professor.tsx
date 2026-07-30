@@ -18,14 +18,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { abrirCheckin, marcarPresencaManual } from "@/lib/classroom.functions";
+import { abrirCheckin, marcarPresencaManual, travarLocalDaAula } from "@/lib/classroom.functions";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  CalendarClock, Check, CircleCheck, Hand, QrCode, RefreshCw, TriangleAlert, UserX,
+  CalendarClock, Check, CircleCheck, Hand, MapPin, QrCode, RefreshCw, TriangleAlert, UserX,
 } from "lucide-react";
+import { distanciaLegivel } from "@/lib/geo";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -76,14 +77,21 @@ export function CheckinDialog({ aulaId, onFechar }: { aulaId: string; onFechar: 
 
         {data?.janela && (
           <div className="grid gap-6 md:grid-cols-[280px_1fr]">
-            <QrAoVivo
-              aulaId={aulaId}
-              codigos={data.codigos}
-              aberta={data.janela.aberta}
-              janela={data.janela}
-              onRenovar={() => refetch()}
-              recarregando={isFetching}
-            />
+            <div className="space-y-3">
+              <QrAoVivo
+                aulaId={aulaId}
+                codigos={data.codigos}
+                aberta={data.janela.aberta}
+                janela={data.janela}
+                onRenovar={() => refetch()}
+                recarregando={isFetching}
+              />
+              <TravaDeLocal
+                aulaId={aulaId}
+                trava={data.trava}
+                onMudou={() => qc.invalidateQueries({ queryKey: ["checkin", aulaId] })}
+              />
+            </div>
             <Turma
               aulaId={aulaId}
               turma={data.turma}
@@ -188,10 +196,103 @@ function QrAoVivo({
         </button>
       </div>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        O código muda a cada minuto — uma foto da tela mandada no grupo chega morta. Peça para
-        abrirem a <strong>câmera do celular</strong> e apontarem. Se não abrir, é o wifi: conectar
-        primeiro e escanear de novo.
+        O código muda a cada minuto: guardado, ele morre. Mas repassado{" "}
+        <strong>na hora</strong> ainda funciona — quem quiser marcar presença de casa consegue, e é
+        para isso que existe a trava de local abaixo. Peça para abrirem a{" "}
+        <strong>câmera do celular</strong> e apontarem. Se não abrir, é o wifi: conectar primeiro e
+        escanear de novo.
       </p>
+    </div>
+  );
+}
+
+/**
+ * A trava de local: um clique, a coordenada de quem está com o projetor.
+ *
+ * O QR rotativo prova quando, não onde. Enquanto o professor não travar, a foto
+ * do código repassada no grupo vale — e a tela diz isso com todas as letras em
+ * vez de deixar o professor supor que está protegido.
+ */
+function TravaDeLocal({
+  aulaId, trava, onMudou,
+}: {
+  aulaId: string;
+  trava: { raio_m: number; travado_em: string | null } | null;
+  onMudou: () => void;
+}) {
+  const travarFn = useServerFn(travarLocalDaAula);
+  const [pegando, setPegando] = useState(false);
+
+  const salvar = useMutation({
+    mutationFn: async (soltar: boolean) => {
+      if (soltar) return travarFn({ data: { aula_id: aulaId, lat: null, lng: null } });
+      setPegando(true);
+      try {
+        const { posicaoAtual } = await import("@/lib/geo");
+        const p = await posicaoAtual();
+        if (!p) throw new Error("SEM_GPS");
+        return await travarFn({
+          data: {
+            aula_id: aulaId,
+            lat: p.coords.latitude,
+            lng: p.coords.longitude,
+            // O raio absorve a imprecisão do próprio aparelho do professor: se o
+            // GPS dele erra 200 m, travar em 300 m reprovaria a turma inteira.
+            raio_m: Math.min(5000, Math.max(300, Math.round((p.coords.accuracy || 0) * 2))),
+          },
+        });
+      } finally {
+        setPegando(false);
+      }
+    },
+    onSuccess: (r) => {
+      toast.success(r.travada ? "Aula travada neste local." : "Trava de local removida.");
+      onMudou();
+    },
+    onError: (e) => {
+      toast.error(
+        (e as Error).message === "SEM_GPS"
+          ? "Não consegui a localização deste aparelho. Libere o acesso no navegador e tente de novo."
+          : (e as Error).message,
+      );
+    },
+  });
+
+  const ocupado = salvar.isPending || pegando;
+
+  return (
+    <div className="rounded-lg border p-3">
+      <p className="flex items-center gap-1.5 text-xs font-medium">
+        <MapPin className="size-3.5" />
+        {trava ? "Travada neste local" : "Sem trava de local"}
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+        {trava ? (
+          <>
+            Só confirma presença quem estiver a até{" "}
+            <strong>{distanciaLegivel(trava.raio_m)}</strong> daqui
+            {trava.travado_em ? ` (travada ${hhmm(trava.travado_em)})` : ""}. Quem receber o QR pelo
+            grupo é recusado. <strong>Confira se a sala é esta</strong> — travada na aula passada,
+            no endereço antigo, ela reprova a turma toda.
+          </>
+        ) : (
+          <>
+            Qualquer pessoa com o código do minuto confirma, de onde estiver. Trave para exigir que
+            o aluno esteja no encontro — faça isso <strong>na sala</strong>, com o seu aparelho.
+          </>
+        )}
+      </p>
+      <div className="mt-2 flex gap-2">
+        <Button size="sm" variant={trava ? "outline" : "default"} disabled={ocupado}
+          onClick={() => salvar.mutate(false)}>
+          {ocupado ? "Lendo o GPS…" : trava ? "Travar de novo, aqui" : "Travar neste local"}
+        </Button>
+        {trava && (
+          <Button size="sm" variant="ghost" disabled={ocupado} onClick={() => salvar.mutate(true)}>
+            Soltar
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -204,6 +305,7 @@ function Turma({
   presencas: Array<{
     person_id: string; nome: string; origem: string;
     escaneado_em: string | null; registrado_em: string; situacao: string | null;
+    distancia_m: number | null;
   }>;
   comecaEm: string | null;
   onMudou: () => void;
@@ -290,6 +392,7 @@ function Turma({
                     {p.origem === "manual" ? " · marcado pelo professor" : " · pelo QR"}
                     {atraso(p.escaneado_em) ? ` · ${atraso(p.escaneado_em)}` : ""}
                     {p.situacao === "justificado" ? " · falta justificada" : ""}
+                    {typeof p.distancia_m === "number" ? ` · a ${distanciaLegivel(p.distancia_m)}` : ""}
                   </p>
                 ) : (
                   <p className="text-[11px] text-muted-foreground">

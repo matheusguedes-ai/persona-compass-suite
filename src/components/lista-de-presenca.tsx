@@ -328,8 +328,9 @@ function Legenda({ tolerancia }: { tolerancia: number }) {
         <span>
           Os pontos do ranking entram <strong>quando você fecha a lista</strong>, para quem constar
           como presente ou atrasado. Marcar alguém como ausente depois tira os pontos daquele
-          encontro; <strong>falta justificada não tira</strong>. Aluno sem login não entra no
-          ranking.
+          encontro; <strong>falta justificada não tira</strong>. Quem ainda não criou o login não
+          aparece no ranking agora, mas <strong>recebe os pontos das presenças anteriores</strong> no
+          dia em que fizer o primeiro acesso.
         </span>
       </p>
     </div>

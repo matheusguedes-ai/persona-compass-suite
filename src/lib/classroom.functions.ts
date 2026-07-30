@@ -605,7 +605,7 @@ export const abrirCheckin = createServerFn({ method: "GET" })
 
     const { data: aula, error } = await supabase
       .from("treinamento_aulas")
-      .select("id, titulo, comeca_em, termina_em, local, modulo_id, cancelada")
+      .select("id, titulo, comeca_em, termina_em, local, modulo_id, cancelada, local_lat, local_lng, local_raio_m, local_travado_em")
       .eq("id", data.aula_id)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -631,7 +631,7 @@ export const abrirCheckin = createServerFn({ method: "GET" })
     // Presenças, com nome: é o que dá confirmação social à turma ("12 de 20").
     const { data: presencas, error: eP } = await supabase
       .from("treinamento_presencas")
-      .select("id, person_id, origem, escaneado_em, registrado_em, situacao, observacao, people(full_name)")
+      .select("id, person_id, origem, escaneado_em, registrado_em, situacao, observacao, distancia_m, people(full_name)")
       .eq("aula_id", aula.id)
       .order("registrado_em");
     if (eP) throw new Error(eP.message);
@@ -665,6 +665,16 @@ export const abrirCheckin = createServerFn({ method: "GET" })
         id: aula.id, titulo: aula.titulo, local: aula.local,
         comeca_em: aula.comeca_em, termina_em: aula.termina_em,
       },
+      // A trava de local, para a tela dizer se está ligada e desde quando.
+      // Nunca `null` colapsado com "desligada": travada com raio de 300 m e
+      // travada com raio de 2 km mudam quem entra.
+      trava:
+        aula.local_lat !== null && aula.local_lng !== null
+          ? {
+              raio_m: aula.local_raio_m ?? 300,
+              travado_em: aula.local_travado_em,
+            }
+          : null,
       janela: janela
         ? { inicio: janela.inicio.toISOString(), fim: janela.fim.toISOString(), aberta: dentroDaJanela(janela, agora) }
         : null,
@@ -681,10 +691,61 @@ export const abrirCheckin = createServerFn({ method: "GET" })
         registrado_em: p.registrado_em,
         situacao: p.situacao,
         observacao: p.observacao,
+        distancia_m: p.distancia_m,
       })),
       turma: [...porPessoa.entries()].map(([person_id, v]) => ({ person_id, ...v }))
         .sort((a, b) => a.nome.localeCompare(b.nome)),
     };
+  });
+
+/**
+ * Travar (ou soltar) a aula no lugar onde ela acontece.
+ *
+ * Separado de `abrirCheckin` de propósito: aquela é GET e a tela do professor a
+ * chama de minuto em minuto para girar o QR. Gravar ali faria a coordenada ser
+ * reescrita a cada giro — e um professor que abrisse a tela de casa na véspera
+ * travaria a aula na sala dele.
+ *
+ * A coordenada vem do aparelho de quem está conduzindo, no momento em que ele
+ * clica. É a única fonte confiável de "onde a aula é": o endereço digitado em
+ * `local` é texto livre, e geocodificar texto livre exige um serviço externo
+ * para acertar menos que o GPS na mão.
+ */
+export const travarLocalDaAula = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        aula_id: z.string().uuid(),
+        // Ausentes = soltar a trava.
+        lat: z.number().min(-90).max(90).nullable().optional(),
+        lng: z.number().min(-180).max(180).nullable().optional(),
+        raio_m: z.number().int().min(50).max(5000).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: pode, error: ePode } = await supabase.rpc("posso_dar_aula", { p_aula: data.aula_id });
+    if (ePode) throw new Error(ePode.message);
+    if (pode !== true) throw new Error("Você não conduz esta aula.");
+
+    const soltando = data.lat === null || data.lat === undefined || data.lng === null || data.lng === undefined;
+    const { error } = await supabase
+      .from("treinamento_aulas")
+      .update(
+        soltando
+          ? { local_lat: null, local_lng: null, local_travado_em: null }
+          : {
+              local_lat: data.lat,
+              local_lng: data.lng,
+              local_raio_m: data.raio_m ?? 300,
+              local_travado_em: new Date().toISOString(),
+            },
+      )
+      .eq("id", data.aula_id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const, travada: !soltando };
   });
 
 /**
@@ -703,7 +764,18 @@ export const abrirCheckin = createServerFn({ method: "GET" })
  */
 export const confirmarPresenca = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ aula_id: z.string().uuid() }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        aula_id: z.string().uuid(),
+        // Onde o aparelho diz que está. Opcionais porque a aula pode não estar
+        // travada — e porque o navegador pode simplesmente não devolver.
+        lat: z.number().min(-90).max(90).nullable().optional(),
+        lng: z.number().min(-180).max(180).nullable().optional(),
+        precisao_m: z.number().nonnegative().nullable().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const { lerPasse, nomeDoCookie, cookieDaRequisicao, janelaDaAula, dentroDaJanela } =
@@ -718,7 +790,7 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
 
     const { data: aula, error: eA } = await supabaseAdmin
       .from("treinamento_aulas")
-      .select("id, titulo, comeca_em, termina_em, modulo_id, fechada_em, cancelada")
+      .select("id, titulo, comeca_em, termina_em, modulo_id, fechada_em, cancelada, local_lat, local_lng, local_raio_m")
       .eq("id", data.aula_id)
       .maybeSingle();
     if (eA) throw new Error(eA.message);
@@ -729,6 +801,34 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
     const janela = janelaDaAula(aula);
     if (!janela || !dentroDaJanela(janela)) {
       return { ok: false as const, motivo: "fora_da_janela" as const, fim: janela?.fim.toISOString() ?? null };
+    }
+
+    // ---- Onde. É o que o QR rotativo sozinho não prova ----
+    //
+    // Só entra em cena com a aula travada. Sem trava, `distancia` fica nula e
+    // nada aqui reprova ninguém — o comportamento de antes, intacto.
+    const travada = aula.local_lat !== null && aula.local_lng !== null;
+    let distancia: number | null = null;
+    if (travada) {
+      if (typeof data.lat !== "number" || typeof data.lng !== "number") {
+        // Recusa explícita, e não silenciosa: sem esta porta, negar a permissão
+        // de localização viraria o jeito mais fácil de burlar a trava.
+        return { ok: false as const, motivo: "sem_localizacao" as const };
+      }
+      const { distanciaEmMetros, folgaDaPrecisao } = await import("@/lib/geo");
+      distancia = distanciaEmMetros(
+        { lat: aula.local_lat as number, lng: aula.local_lng as number },
+        { lat: data.lat, lng: data.lng },
+      );
+      const limite = (aula.local_raio_m ?? 300) + folgaDaPrecisao(data.precisao_m);
+      if (distancia > limite) {
+        return {
+          ok: false as const,
+          motivo: "longe" as const,
+          distancia_m: distancia,
+          raio_m: aula.local_raio_m ?? 300,
+        };
+      }
     }
 
     const { data: modulo, error: eM } = await supabaseAdmin
@@ -796,6 +896,10 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
         origem: "qr",
         escaneado_em: escaneadoEm,
         passe_nonce: passe.nonce,
+        // A DISTÂNCIA, não a coordenada. Guardar onde cada aluno estava seria
+        // um rastro de localização que a lista de presença não precisa ter —
+        // e que a plataforma teria de proteger para sempre.
+        distancia_m: distancia,
       })
       .select("id, escaneado_em")
       .maybeSingle();
@@ -831,6 +935,7 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
             origem: "qr",
             escaneado_em: escaneadoEm,
             passe_nonce: passe.nonce,
+            distancia_m: distancia,
             situacao:
               existente.situacao === "ausente" || existente.situacao === "justificado"
                 ? null
@@ -886,9 +991,12 @@ async function pontuarPresenca(
     const { darPonto, tirarPonto } = await import("@/lib/pontos.functions");
     const { data: pessoa } = await supabaseAdmin
       .from("people").select("user_id").eq("id", personId).maybeSingle();
-    // Sem login não há a quem dar ponto: `pontos.user_id` aponta para auth.users.
-    // É o aluno que nunca fez o primeiro acesso — ele não aparece em ranking
-    // nenhum, então não há o que explicar na tela.
+    // Sem login não há a quem dar ponto agora: `pontos.user_id` aponta para
+    // auth.users. Não é perda — a presença fica gravada em
+    // `treinamento_presencas`, e `claim_student_profile()` concede os pontos de
+    // todas as aulas fechadas no dia em que a pessoa fizer o primeiro acesso
+    // (migração 20260730270000). Quem compareceu não perde o encontro por não
+    // ter criado a senha ainda.
     if (!pessoa?.user_id) return;
     if (presente) {
       await darPonto(supabaseAdmin, pessoa.user_id, contaId, "presenca", aulaId);
@@ -975,13 +1083,24 @@ export const minhaPresenca = createServerFn({ method: "GET" })
     // ao aluno do grupo.
     const { data: aula } = await supabase
       .from("treinamento_aulas")
-      .select("titulo, comeca_em, termina_em, local")
+      .select("titulo, comeca_em, termina_em, local, local_lat, local_lng")
       .eq("id", data.aula_id)
       .maybeSingle();
 
     return {
       presenca: p ? { quando: p.escaneado_em ?? p.registrado_em, origem: p.origem } : null,
-      aula: aula ?? null,
+      // As coordenadas ficam FORA: a tela do aluno só precisa saber que vai ter
+      // de liberar a localização. Devolver o ponto exato entregaria a quem
+      // quisesse burlar a coordenada a falsear.
+      exige_local: !!(aula?.local_lat !== null && aula?.local_lng !== null && aula),
+      aula: aula
+        ? {
+            titulo: aula.titulo,
+            comeca_em: aula.comeca_em,
+            termina_em: aula.termina_em,
+            local: aula.local,
+          }
+        : null,
     };
   });
 
