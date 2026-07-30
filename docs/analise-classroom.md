@@ -140,3 +140,66 @@ raciocínio que me fez criar tabela própria para a biblioteca.
 5. Das sugestões de tabela, quais você quer?
 
 Com essas respostas eu escrevo o plano por etapas, como fizemos com o Gestão.
+
+---
+
+# Decisões do Matheus — 29/07/2026
+
+1. **QR rotativo**, com **janela de validade escolhida por ele** (data e hora de
+   início e fim da aula). São duas travas somadas: o código muda sozinho E só
+   funciona dentro do horário.
+2. **Presença manual pelo professor: entra.**
+3. Botão do aluno: **abre a câmera do telefone** (foi o recomendado — o Safari
+   do iPhone não tem leitor nativo no navegador).
+4. **Estrutura própria**, separada da Academy.
+5. Colunas da tabela: ver a lista abaixo.
+6. Aluno sem senha **cria pelo primeiro acesso com validação por e-mail** — a
+   estrutura já existe. A presença manual cobre o imprevisto do dia.
+
+## A tabela de presença
+
+**Identificação:** nome (com link para o perfil) · grupo · data e hora do
+check-in.
+
+**Essenciais que eu acrescentei:**
+- **Como foi registrada** — QR pelo aluno ou marcada pelo professor. Sem isso a
+  tabela mente por omissão.
+- **Atraso** — minutos depois do início. Em turma corporativa vale mais que a
+  presença em si.
+- **Frequência acumulada** no treinamento ("4 de 6 aulas"): o número que o RH
+  pergunta.
+
+**Opcionais:** situação (presente/atrasado/ausente/justificado) · observação do
+professor · quem marcou, quando manual.
+
+**Fora de propósito:** resultado de teste. Lista de presença circula; perfil
+comportamental não pode ir junto.
+
+---
+
+# Plano por etapas
+
+| # | Etapa | Peso | Depende |
+|---|---|---|---|
+| 1 | Estrutura: treinamento → módulo → aula, com materiais e grupos | médio | — |
+| 2 | Menu Classroom do master, com o CRUD | médio | 1 |
+| 3 | Menu Classroom do aluno (trilha liberada por grupo) | leve | 1, 2 |
+| 4 | Check-in: QR rotativo + janela + confirmação + e-mail | **pesado** | 1–3 |
+| 5 | Tabela de presença, com marcação manual | médio | 4 |
+| 6 | ✅ verde nas aulas e pontos no ranking | leve | 4 |
+
+**A etapa 4 é o coração e a mais delicada.** Ela tem três partes que falham de
+formas diferentes:
+
+- **O QR rotativo** exige a tela do professor renovando o código sozinha e o
+  servidor aceitando só o código da vez. Um código antigo tem de ser recusado
+  mesmo que a janela ainda esteja aberta.
+- **A volta do login** precisa devolver o aluno ao check-in certo. Quem faz
+  primeiro acesso passa por e-mail e volta noutra aba — o destino tem de
+  sobreviver a isso, senão ele loga e cai no painel, sem entender.
+- **O e-mail de confirmação** não pode derrubar o check-in se o Resend falhar. A
+  presença fica registrada de qualquer forma; o e-mail é aviso, não prova.
+
+**Sugestão de ordem de entrega:** 1 → 2 → 3 entregam o Classroom utilizável
+(estrutura de treinamento visível para o aluno) mesmo sem check-in. Depois 4 → 5
+→ 6. Assim, se a etapa 4 demorar, o que já existe funciona.
