@@ -30,6 +30,8 @@ type ResponseRow = {
   created_at: string;
   observers_invited?: number;
   observers_answered?: number;
+  /** O teste aceita 360°? Só os de escolha forçada. Ver listEnvios. */
+  aceita_observador?: boolean;
   people: { id: string; full_name: string; email: string } | null;
   test_versions: { id: string; title: string; instrument_id: string } | null;
 };
@@ -256,9 +258,15 @@ function EnviosPage() {
                           <FileText className="size-3" /> Relatório
                         </Link>
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => inviteObserver(r.id)}>
-                        <UserPlus className="size-3" /> Convidar observador
-                      </Button>
+                      {/* Só onde o 360° existe de verdade. Antes o botão
+                          aparecia em tudo e o servidor recusava depois do
+                          clique — o mentor descobria o limite errando, uma vez
+                          por avaliado. */}
+                      {r.aceita_observador && (
+                        <Button variant="ghost" size="sm" onClick={() => inviteObserver(r.id)}>
+                          <UserPlus className="size-3" /> Convidar observador
+                        </Button>
+                      )}
                     </>
                   )}
                   <Button variant="ghost" size="sm" onClick={() => copyLink(r.id)}>

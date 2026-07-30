@@ -62,7 +62,16 @@ export function AvatarUpload({
     setEnviando(true);
     try {
       const ext = (file.name.split(".").pop() || "png").toLowerCase();
-      const caminho = `${userId}/foto-${Date.now()}.${ext}`;
+      // UUID, e não `Date.now()`. O bucket `avatares` é público — quem tem a URL
+      // vê a foto sem passar por RLS. Com o carimbo de tempo, o caminho inteiro
+      // era DERIVÁVEL: `{user_id}/foto-{timestamp}.png`, e user_id não é
+      // segredo. Bastava varrer alguns milhões de milissegundos para achar a
+      // foto de qualquer pessoa cujo id se conhecesse.
+      //
+      // Com 122 bits aleatórios não há o que varrer. As fotos JÁ enviadas
+      // mantêm o caminho antigo — quem trocar a foto sai do alcance; as demais
+      // continuam como estavam, e trocar o esquema não as move de lugar.
+      const caminho = `${userId}/foto-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("avatares").upload(caminho, file, {
         cacheControl: "3600",
         upsert: true,

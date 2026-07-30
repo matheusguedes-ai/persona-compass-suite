@@ -534,10 +534,33 @@ export const listResponses = createServerFn({ method: "GET" })
       if (o.submitted_at) c.answered += 1;
       counts.set(o.parent_response_id, c);
     }
+    // Quais versões aceitam percepção externa.
+    //
+    // `createObserverInvite` já recusava as que não aceitam ("Este teste não
+    // suporta percepção externa"), mas o BOTÃO aparecia em todas — então a
+    // pessoa descobria o limite errando, uma vez por avaliado. O critério é o
+    // mesmo dos dois lados: precisa ter pergunta `forced_choice`.
+    //
+    // A razão de fundo não é técnica: os itens de Big Five e QI são escritos na
+    // primeira pessoa ("eu me preocupo…", "qual figura completa a sequência").
+    // Um observador respondendo isso responderia sobre si mesmo — e QI é
+    // conhecimento, que ninguém responde no lugar do outro.
+    //
+    // Uma consulta para a página inteira, não uma por linha.
+    const versoes = [...new Set(list.map((r) => r.version_id))];
+    const { data: comEscolha, error: fcErr } = await context.supabase
+      .from("test_questions")
+      .select("version_id")
+      .eq("type", "forced_choice")
+      .in("version_id", versoes);
+    if (fcErr) throw new Error(fcErr.message);
+    const aceitaObservador = new Set((comEscolha ?? []).map((q) => q.version_id));
+
     return list.map((r) => ({
       ...r,
       observers_invited: counts.get(r.id)?.invited ?? 0,
       observers_answered: counts.get(r.id)?.answered ?? 0,
+      aceita_observador: aceitaObservador.has(r.version_id),
     }));
   });
 
