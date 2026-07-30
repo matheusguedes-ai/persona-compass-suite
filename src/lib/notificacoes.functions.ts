@@ -108,11 +108,28 @@ const AREA_DA_NOTIFICACAO: Record<string, string> = {
   devolutiva_realizada: "devolutivas",
   evento: "agenda",
   evento_novo: "agenda",
+  vespera_aula: "classroom",
+  vespera_devolutiva: "devolutivas",
 };
 
 export const listarNotificacoes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // Os avisos de véspera nascem AQUI, na leitura, e não num cron.
+    //
+    // A notificação do sino só tem efeito quando alguém abre a plataforma —
+    // então gravá-la de madrugada, para quem talvez nunca entre, seria uma
+    // extensão a mais para manter e uma fila que enche sozinha. Calculada na
+    // abertura, ela chega exatamente quando pode ser vista.
+    //
+    // Idempotente pelo índice único parcial (user_id, tipo, link): F5 não
+    // duplica. E silenciosa — o sino nunca deixa de abrir por causa disto.
+    try {
+      await (context.supabase.rpc as never as (n: string) => Promise<unknown>)("avisos_da_vespera");
+    } catch {
+      // Ver acima.
+    }
+
     const [lista, areas] = await Promise.all([
       context.supabase
         .from("notificacoes")
