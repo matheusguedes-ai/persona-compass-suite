@@ -37,11 +37,13 @@ const ACOES_DA_COMUNIDADE: Acao[] = ["publicar", "comentar", "curtir"];
  * que postar vale mais que aparecer — e "fui a todas as aulas e estou em
  * último" é uma reclamação legítima.
  *
- * 15 mantém a comunidade valendo a pena todo dia e abaixo de um encontro. Os
- * pesos de cada ação continuam como o Matheus definiu; o que entra é a ordem
- * entre os dois mundos.
+ * 16 é escolhido para caber DUAS publicações no dia (8 + 8) e ainda ficar
+ * abaixo de um encontro presencial. Cortar em 15 faria a segunda publicação do
+ * dia valer zero — punição estranha para quem publica duas vezes, e a pessoa não
+ * teria como entender por quê. Os pesos de cada ação continuam como o Matheus
+ * definiu; o que entra é a ordem entre os dois mundos.
  */
-export const TETO_COMUNIDADE_DIA = 15;
+export const TETO_COMUNIDADE_DIA = 16;
 
 /**
  * Meia-noite de Brasília, e não a do servidor.
