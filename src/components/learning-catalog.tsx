@@ -71,7 +71,10 @@ export function TrackCardItem({ t, base, search }: { t: TrackCard; base: Catalog
             <Lock className="size-2.5" /> rascunho
           </span>
         )}
-        {!!t.destinos_count && (
+        {/* Só no catálogo do professor. Na prévia "ver como aluno" quem consulta
+            continua sendo ele, e o número viria preenchido — o aluno passaria a
+            ver quantos colegas têm acesso, que não é assunto dele. */}
+        {base === "/educacao" && !!t.destinos_count && (
           <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
             <Users className="size-2.5" /> {t.destinos_count} com acesso
           </span>

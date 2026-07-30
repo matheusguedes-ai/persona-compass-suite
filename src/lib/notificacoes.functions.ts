@@ -93,18 +93,52 @@ export async function contaAtual(supabase: Cliente, userId: string): Promise<str
   return p?.mentor_id ?? null;
 }
 
+/**
+ * De que área do painel do aluno cada aviso fala.
+ *
+ * Serve para não avisar sobre uma parte que o grupo dele não libera: o aviso
+ * levaria a uma tela de "sem acesso", e um sino que só entrega beco sem saída
+ * é pior do que sino nenhum.
+ */
+const AREA_DA_NOTIFICACAO: Record<string, string> = {
+  comunidade_post: "comunidade",
+  comunidade_comentario: "comunidade",
+  devolutiva: "devolutivas",
+  devolutiva_agendada: "devolutivas",
+  devolutiva_realizada: "devolutivas",
+  evento: "agenda",
+  evento_novo: "agenda",
+};
+
 export const listarNotificacoes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("notificacoes")
-      .select("id, tipo, titulo, corpo, link, ator_nome, lida_em, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (error) throw new Error(error.message);
+    const [lista, areas] = await Promise.all([
+      context.supabase
+        .from("notificacoes")
+        .select("id, tipo, titulo, corpo, link, ator_nome, lida_em, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50),
+      context.supabase.rpc("minhas_areas"),
+    ]);
+    if (lista.error) throw new Error(lista.error.message);
+    if (areas.error) throw new Error(areas.error.message);
+
+    const minhas = new Set(
+      ((areas.data ?? []) as unknown as Array<string | Record<string, string>>).map((r) =>
+        typeof r === "string" ? r : Object.values(r)[0],
+      ),
+    );
+    // Tipo desconhecido passa: um aviso novo não deve sumir só porque este
+    // mapa ainda não o conhece.
+    const notificacoes = (lista.data ?? []).filter((n) => {
+      const area = AREA_DA_NOTIFICACAO[n.tipo];
+      return !area || minhas.has(area);
+    });
+
     return {
-      notificacoes: data ?? [],
-      naoLidas: (data ?? []).filter((n) => !n.lida_em).length,
+      notificacoes,
+      naoLidas: notificacoes.filter((n) => !n.lida_em).length,
     };
   });
 
