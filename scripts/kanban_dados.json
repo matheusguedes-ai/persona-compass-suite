@@ -1017,7 +1017,7 @@
    "status": "Precisa de melhorias",
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 1 plano A · fila-area-do-aluno.md § Mentor afiliado · seguranca-primeiro-a",
-   "prova": "A tela /mentores voltou ao menu — ela existia, funcionava e não tinha link nenhum, o que explica ninguém ter sido convidado. FALTA: convidar um parceiro de verdade e acompanhar até ele entrar.",
+   "prova": "A tela /mentores foi APOSENTADA (virou redirect para /pessoas): era o fluxo velho, que criava team_members sem person_id. O convite hoje é 'promover a mentor' na ficha da pessoa. FALTA: promover um parceiro de verdade e acompanhar até ele entrar — é o único jeito de provar que o e-mail de convite chega e o primeiro acesso funciona.",
    "prioridade": 102
   },
   {
