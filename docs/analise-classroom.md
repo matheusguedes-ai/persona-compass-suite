@@ -209,3 +209,42 @@ formas diferentes:
 **Sugestão de ordem de entrega:** 1 → 2 → 3 entregam o Classroom utilizável
 (estrutura de treinamento visível para o aluno) mesmo sem check-in. Depois 4 → 5
 → 6. Assim, se a etapa 4 demorar, o que já existe funciona.
+
+---
+
+# O que a etapa 4 decidiu na prática (30/07/2026)
+
+Quatro coisas mudaram em relação ao desenho inicial, depois de percorrer a cena
+de uma turma real e de tentar furar o esquema de propósito.
+
+**1. O QR não guarda segredo no banco.** A primeira versão derivava o código de
+um segredo por aula. Numa coluna da aula, esse segredo VAZA — a RLS entrega a
+linha inteira ao aluno, que tem token para ler a API direto e passaria a gerar
+código válido de casa, para sempre. Em tabela própria, ele só sobreviveria por
+uma policy nova estar escrita certa, mais criação preguiçosa, mais corrida entre
+duas abas do professor (a segunda invalidaria o QR projetado). O código passou a
+ser derivado da chave que já assina o `state` do Google: zero tabela, zero
+escrita, nada secreto para vazar.
+
+**2. O QR rotativo compra menos do que parece — e isso está escrito no código.**
+Ele obriga o cúmplice a estar **síncrono**: a foto mandada no grupo chega morta.
+Quem repassa a URL ao vivo, dentro do minuto, ainda passa. Não há trava barata
+contra isso que não reprove aluno legítimo com sinal ruim; o backstop honesto é
+o olho do professor e a lista ao vivo na tela dele.
+
+**3. A janela tem margem de cortesia: 30 min antes, 15 min depois.** Aula nenhuma
+começa no minuto cheio e o professor sempre projeta o QR antes da hora. Sem a
+margem, o check-in falharia justamente enquanto a sala enche — e a mensagem
+culparia o aluno.
+
+**4. Marcar presença à mão subiu da etapa 5 para a 4.** Sem isso, a primeira aula
+real iria ao ar sem plano B: quem nunca criou senha não consegue confirmar pelo
+QR, porque o link do primeiro acesso chega por e-mail e abre no navegador
+embutido do app de e-mail, onde o passe do scan não existe. A tela do professor
+também avisa, na véspera, quem do grupo ainda não tem senha — é isso que esvazia
+a fila na porta, não mensagem de erro bonita.
+
+O atraso é calculado da hora do **scan**, não do clique: quem escaneia às 19:00 e
+leva três minutos no login chegou às 19:00. E marcar alguém como ausente nunca
+apaga o fato de ter havido check-in por QR — a coluna `origem` existe para a
+lista não mentir por omissão.
