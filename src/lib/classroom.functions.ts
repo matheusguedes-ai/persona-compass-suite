@@ -517,11 +517,24 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
     if (!pessoa) return { ok: false as const, motivo: "nao_e_aluno" as const };
 
     // O grupo que autoriza — e que fica gravado na linha.
-    const { data: elo, error: eE } = await supabaseAdmin
+    //
+    // Em dois passos, e não por join aninhado: `treinamento_grupos` e
+    // `group_members` não têm chave estrangeira entre si (as duas apontam para
+    // `groups`), então o PostgREST recusa o embed com "could not find a
+    // relationship". Foi assim que este caminho quebrou no primeiro teste.
+    const { data: gruposDoTrein, error: eG } = await supabaseAdmin
       .from("treinamento_grupos")
-      .select("group_id, group_members!inner(person_id)")
-      .eq("treinamento_id", trein.id)
-      .eq("group_members.person_id", pessoa.id)
+      .select("group_id")
+      .eq("treinamento_id", trein.id);
+    if (eG) throw new Error(eG.message);
+    const idsDosGrupos = (gruposDoTrein ?? []).map((g) => g.group_id);
+    if (idsDosGrupos.length === 0) return { ok: false as const, motivo: "sem_grupo" as const };
+
+    const { data: elo, error: eE } = await supabaseAdmin
+      .from("group_members")
+      .select("group_id")
+      .eq("person_id", pessoa.id)
+      .in("group_id", idsDosGrupos)
       .limit(1);
     if (eE) throw new Error(eE.message);
     const groupId = (elo ?? [])[0]?.group_id ?? null;
