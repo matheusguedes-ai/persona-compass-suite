@@ -699,11 +699,23 @@ export function EixosMbti({
   const doTeste = origem === "teste";
   // Abaixo de 55% num eixo de dois polos, a letra é praticamente sorteio.
   const indeciso = (p: JungPares[number]) => Math.max(p.leftPct, p.rightPct) < 55;
+  // A sigla só vale como sigla quando as letras significam alguma coisa. Com
+  // dois eixos no muro, "ENTJ" e "ISFJ" descrevem a MESMA pessoa — exibir uma
+  // das duas é decidir na moeda e depois falar com convicção. É a mesma régua
+  // que `report.server.ts` já aplica à síntese do MBTI respondido.
+  const noMuro = jung.pares.filter(indeciso).length;
+  const siglaVale = noMuro < 2;
   return (
     <Section>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold">Tipos psicológicos</h2>
-        <span className="rounded-md bg-muted px-3 py-1 text-sm font-semibold tracking-[0.2em]">{jung.tipo}</span>
+        {siglaVale ? (
+          <span className="rounded-md bg-muted px-3 py-1 text-sm font-semibold tracking-[0.2em]">{jung.tipo}</span>
+        ) : (
+          <span className="rounded-md bg-muted px-3 py-1 text-xs text-muted-foreground">
+            sem sigla definida
+          </span>
+        )}
       </div>
       <div className="mt-2">
         <SourceBadge>
@@ -715,6 +727,20 @@ export function EixosMbti({
           ? "Leitura das preferências mentais a partir do inventário que você respondeu. Os polos são complementares: o percentual indica ênfase, não ausência do lado oposto."
           : "Você não respondeu um inventário de tipos psicológicos nesta avaliação. Os percentuais abaixo são uma estimativa calculada a partir do seu perfil DISC — útil como hipótese de leitura, não como resultado de teste."}
       </p>
+      {!doTeste && (
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          <strong>E uma ressalva que vale dizer inteira:</strong> o DISC mede quatro fatores, e os
+          eixos abaixo saem todos deles. Isso amarra os eixos entre si — na prática, a estimativa
+          distingue bem menos tipos do que um inventário respondido distinguiria. Leia os
+          percentuais, não a sigla.
+        </p>
+      )}
+      {!siglaVale && (
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {noMuro} dos quatro eixos ficaram praticamente empatados, então a sigla de quatro letras
+          seria sorteio. Os eixos que se definiram continuam valendo — estão abaixo.
+        </p>
+      )}
       <div className="mt-5 space-y-5">
         {jung.pares.map((p) => (
           <div key={p.left}>

@@ -11,7 +11,15 @@
  * e o relógio errado de um notebook mudaria a frequência de uma turma.
  */
 
-/** A partir de quantos minutos a chegada conta como atraso. Aparece na tela. */
+/**
+ * O padrão de quantos minutos depois do início a chegada vira atraso.
+ *
+ * PADRÃO, não regra: cada treinamento guarda o seu em
+ * `treinamentos.tolerancia_atraso_min`. Dez minutos serve a curso noturno com
+ * trânsito e é rigoroso demais para sessão de cinquenta minutos — a escolha é
+ * pedagógica e pertence a quem dá o curso. Este valor só entra quando o
+ * chamador não sabe de qual treinamento a aula é.
+ */
 export const TOLERANCIA_ATRASO_MIN = 10;
 
 /** Quanto tempo depois do fim a aula ainda aceita check-in (a mesma da janela). */
@@ -98,12 +106,16 @@ export function chegouAntes(reg: Registro | undefined, aula: AulaPresenca): bool
  * imprimiria "Ausente" para a turma inteira na planilha que vai para o RH —
  * exatamente a mentira que a regra do `fechada_em` existe para impedir.
  */
-export function situacaoDe(reg: Registro | undefined, aula: AulaPresenca): Situacao {
+export function situacaoDe(
+  reg: Registro | undefined,
+  aula: AulaPresenca,
+  toleranciaMin: number = TOLERANCIA_ATRASO_MIN,
+): Situacao {
   if (reg?.situacao) return reg.situacao as Situacao;
   if (!reg && aula.cancelada) return "sem_registro";
   if (reg) {
     const atraso = atrasoMin(reg, aula);
-    return atraso != null && atraso >= TOLERANCIA_ATRASO_MIN ? "atrasado" : "presente";
+    return atraso != null && atraso >= toleranciaMin ? "atrasado" : "presente";
   }
   return aula.fechada_em ? "ausente" : "sem_registro";
 }
@@ -156,6 +168,7 @@ export function frequenciaDe(
   porAula: Map<string, Registro>,
   referencia: number,
   ate?: AulaPresenca,
+  toleranciaMin: number = TOLERANCIA_ATRASO_MIN,
 ): Frequencia {
   const desde = aluno.conta_desde ? new Date(aluno.conta_desde).getTime() : null;
   const limite = ate?.comeca_em ? new Date(ate.comeca_em).getTime() : null;
@@ -186,7 +199,7 @@ export function frequenciaDe(
       if (ultimaPresenca != null && quando != null && quando > ultimaPresenca) continue;
     }
     contadas++;
-    const s = situacaoDe(reg, aula);
+    const s = situacaoDe(reg, aula, toleranciaMin);
     if (contaComoPresenca(s)) presentes++;
     if (s === "justificado") justificadas++;
   }
@@ -264,8 +277,12 @@ export function textoOrigem(reg: Registro | undefined): string {
 }
 
 /** A situação foi decidida à mão, contra o que o cálculo diria? */
-export function ehOverride(reg: Registro | undefined, aula: AulaPresenca): boolean {
+export function ehOverride(
+  reg: Registro | undefined,
+  aula: AulaPresenca,
+  toleranciaMin: number = TOLERANCIA_ATRASO_MIN,
+): boolean {
   if (!reg?.situacao) return false;
   const semOverride = { ...reg, situacao: null };
-  return reg.situacao !== situacaoDe(semOverride, aula);
+  return reg.situacao !== situacaoDe(semOverride, aula, toleranciaMin);
 }

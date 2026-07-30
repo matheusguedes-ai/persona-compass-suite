@@ -839,9 +839,9 @@ export type Database = {
         Relationships: []
       }
       treinamentos: {
-        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; capa_url: string | null; publicado: boolean; created_at: string; updated_at: string }
-        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string }
-        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string }
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; capa_url: string | null; publicado: boolean; created_at: string; updated_at: string; tolerancia_atraso_min: number }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string; tolerancia_atraso_min?: number }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string; tolerancia_atraso_min?: number }
         Relationships: []
       }
       treinamento_modulos: {

@@ -76,9 +76,14 @@ export async function montarTabelaPresenca(
   const agora = Date.now();
 
   const { data: treinamento, error: eT } = await supabase
-    .from("treinamentos").select("id, titulo").eq("id", treinamentoId).maybeSingle();
+    .from("treinamentos").select("id, titulo, tolerancia_atraso_min").eq("id", treinamentoId).maybeSingle();
   if (eT) throw new Error(eT.message);
   if (!treinamento) throw new Error("Treinamento não encontrado.");
+
+  // O limiar do CURSO, decidido por quem o dá. `??` e não `||`: zero é uma
+  // escolha válida ("qualquer minuto depois já é atraso") e `||` a trocaria
+  // silenciosamente pelo padrão de dez.
+  const tolerancia = treinamento.tolerancia_atraso_min ?? TOLERANCIA_ATRASO_MIN;
 
   const { data: modulos, error: eM } = await supabase
     .from("treinamento_modulos")
@@ -228,10 +233,10 @@ export async function montarTabelaPresenca(
       // Aluno que já saiu só aparece nas aulas em que tem registro: listar
       // ausência dele numa aula posterior à saída seria inventar falta.
       if (!reg && aluno.saiu_do_grupo) continue;
-      const s = situacaoDe(reg, aula);
+      const s = situacaoDe(reg, aula, tolerancia);
       // "Frequência até esta aula": a linha da aula de junho não pode exibir o
       // total de julho — é o número que vai para uma conversa sobre junho.
-      const f = frequenciaDe(aluno, aulas, meus, agora, aula);
+      const f = frequenciaDe(aluno, aulas, meus, agora, aula, tolerancia);
       linhas.push({
         aula_id: aula.id,
         person_id: aluno.person_id,
@@ -245,7 +250,7 @@ export async function montarTabelaPresenca(
         atraso_texto: textoAtraso(reg, aula),
         situacao: s,
         situacao_rotulo: ROTULO_SITUACAO[s],
-        override: ehOverride(reg, aula),
+        override: ehOverride(reg, aula, tolerancia),
         frequencia: f.texto,
         frequencia_pct: f.pct,
         observacao: reg?.observacao ?? null,
@@ -257,7 +262,7 @@ export async function montarTabelaPresenca(
   }
 
   const resumo = alunos.map((aluno) => {
-    const f = frequenciaDe(aluno, aulas, porPessoa.get(aluno.person_id) ?? new Map(), agora);
+    const f = frequenciaDe(aluno, aulas, porPessoa.get(aluno.person_id) ?? new Map(), agora, undefined, tolerancia);
     return {
       person_id: aluno.person_id,
       aluno: aluno.nome,
@@ -293,7 +298,7 @@ export async function montarTabelaPresenca(
     resumo,
     referencia: new Date(agora).toISOString(),
     fora_da_conta,
-    tolerancia_min: TOLERANCIA_ATRASO_MIN,
+    tolerancia_min: tolerancia,
   };
 }
 

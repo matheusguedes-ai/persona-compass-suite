@@ -11,6 +11,7 @@ export type DerivedConfig = {
     extroversao?: Partial<Record<FactorKey, number>>;
     intuicao?: Partial<Record<FactorKey, number>>;
     pensamento?: Partial<Record<FactorKey, number>>;
+    julgamento?: Partial<Record<FactorKey, number>>;
   };
   indices?: {
     positividade?: Partial<Record<FactorKey, number>>;
@@ -19,10 +20,35 @@ export type DerivedConfig = {
   competencias?: Record<string, Partial<Record<FactorKey, number>>>;
 };
 
+/**
+ * Os quatro eixos junguianos estimados a partir do DISC.
+ *
+ * ATENÇÃO ao que estes números são e ao que não são. São uma LEITURA, não uma
+ * calibração: nenhum deles saiu de amostra. Medi o quanto isso custa —
+ * `scripts/medir_derivacao_jung.py` varre a grade de perfis DISC e conta os
+ * tipos que saem. Com os três eixos que existiam aqui, 95% dos perfis caíam em
+ * duas famílias (EN… e IS…), porque `extroversao` e `intuicao` usam os MESMOS
+ * dois fatores e por isso concordam quase sempre.
+ *
+ * A causa é estrutural, não de ajuste fino: o DISC tem essencialmente DOIS
+ * contrastes independentes (ritmo, D+I contra S+C; e foco, D+C contra I+S).
+ * Quatro eixos junguianos não cabem em dois contrastes — nenhum peso resolve
+ * isso. Por isso o relatório rotula esta seção como estimativa e, com dois ou
+ * mais eixos no muro, deixa de exibir a sigla.
+ *
+ * O eixo J/P entrou em 30/07/2026. Antes dele a sigla saía com TRÊS letras, o
+ * que é simplesmente um código malformado — "ENT" não é tipo nenhum.
+ * Julgamento usa C+S (fechar, planejar, sustentar a rotina); Percepção sai por
+ * complemento (D+I: manter aberto, decidir no fim).
+ *
+ * Substituíveis por versão, via `derived_config`. Quando houver amostra real,
+ * é AQUI que a calibração entra — e o script acima serve de linha de base.
+ */
 export const DEFAULT_JUNG = {
   extroversao: { I: 0.55, D: 0.45 } as Partial<Record<FactorKey, number>>,
   intuicao: { D: 0.5, I: 0.5 } as Partial<Record<FactorKey, number>>,
   pensamento: { D: 0.5, C: 0.5 } as Partial<Record<FactorKey, number>>,
+  julgamento: { C: 0.55, S: 0.45 } as Partial<Record<FactorKey, number>>,
 };
 
 export const DEFAULT_INDICES = {
@@ -100,15 +126,18 @@ export function computeDerived(
   const extroversao = r1(w(natural, jungCfg.extroversao));
   const intuicao = r1(w(natural, jungCfg.intuicao));
   const pensamento = r1(w(natural, jungCfg.pensamento));
+  const julgamento = r1(w(natural, jungCfg.julgamento));
   const jung = {
     tipo:
       (extroversao >= 50 ? "E" : "I") +
       (intuicao >= 50 ? "N" : "S") +
-      (pensamento >= 50 ? "T" : "F"),
+      (pensamento >= 50 ? "T" : "F") +
+      (julgamento >= 50 ? "J" : "P"),
     pares: [
       { left: "Extroversão", right: "Introversão", leftPct: extroversao, rightPct: r1(100 - extroversao), preferred: extroversao >= 50 ? "Extroversão" : "Introversão" },
       { left: "Intuição", right: "Sensação", leftPct: intuicao, rightPct: r1(100 - intuicao), preferred: intuicao >= 50 ? "Intuição" : "Sensação" },
       { left: "Pensamento", right: "Sentimento", leftPct: pensamento, rightPct: r1(100 - pensamento), preferred: pensamento >= 50 ? "Pensamento" : "Sentimento" },
+      { left: "Julgamento", right: "Percepção", leftPct: julgamento, rightPct: r1(100 - julgamento), preferred: julgamento >= 50 ? "Julgamento" : "Percepção" },
     ],
   };
 
@@ -187,6 +216,16 @@ export const JUNG_BULLETS: Record<string, string[]> = {
     "Você pondera o impacto humano das decisões antes de fechar uma posição.",
     "Busca harmonia e costuma perceber cedo quando alguém do grupo ficou desconfortável.",
     "Valoriza coerência com os próprios valores tanto quanto a eficiência do resultado.",
+  ],
+  "Julgamento": [
+    "Você prefere decidir e fechar: assunto em aberto ocupa espaço na sua cabeça.",
+    "Trabalha melhor com plano, prazo e etapas definidas do que descobrindo pelo caminho.",
+    "Mudança de última hora custa a você mais do que custa à maioria — não pela mudança, pelo replanejamento.",
+  ],
+  "Percepção": [
+    "Você prefere manter opções abertas e decidir com a informação mais recente possível.",
+    "Lida bem com imprevisto e costuma render sob pressão de prazo curto.",
+    "Estrutura demais cedo demais dá a você a sensação de estar fechando portas sem necessidade.",
   ],
 };
 

@@ -912,13 +912,19 @@ function MaterialDialog({
 function TreinamentoDialog({
   treinamento, gruposAtuais, onFechar, onSalvo,
 }: {
-  treinamento: { id: string; titulo: string; descricao: string | null; capa_url: string | null; publicado: boolean };
+  treinamento: {
+    id: string; titulo: string; descricao: string | null; capa_url: string | null;
+    publicado: boolean; tolerancia_atraso_min?: number | null;
+  };
   gruposAtuais: string[]; onFechar: () => void; onSalvo: () => void;
 }) {
   const [titulo, setTitulo] = useState(treinamento.titulo);
   const [descricao, setDescricao] = useState(treinamento.descricao ?? "");
   const [capaUrl, setCapaUrl] = useState(treinamento.capa_url ?? "");
   const [publicado, setPublicado] = useState(treinamento.publicado);
+  // Texto, não número, no estado: com `useState<number>` o campo não deixa
+  // apagar o "1" de "10" para digitar "5" — vira 0 no meio do caminho.
+  const [tolerancia, setTolerancia] = useState(String(treinamento.tolerancia_atraso_min ?? 10));
   const [grupos, setGrupos] = useState<string[]>(gruposAtuais);
 
   const gruposFn = useServerFn(meusGrupos);
@@ -934,6 +940,7 @@ function TreinamentoDialog({
         data: {
           id: treinamento.id, titulo: titulo.trim(), descricao: descricao.trim() || null,
           capa_url: capaUrl.trim() || null, publicado,
+          tolerancia_atraso_min: Math.min(120, Math.max(0, Number(tolerancia) || 0)),
         },
       });
       await setGruposFn({ data: { treinamento_id: treinamento.id, group_ids: grupos } });
@@ -982,6 +989,22 @@ function TreinamentoDialog({
                 ))
               )}
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Atraso a partir de</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number" min={0} max={120} className="w-24"
+                value={tolerancia}
+                onChange={(e) => setTolerancia(e.target.value)}
+              />
+              <span className="text-sm text-muted-foreground">minutos depois do início</span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Vale para a lista de presença e para a planilha que sai daqui. Não muda pontuação:
+              atrasado conta como presente no ranking. <strong>Zero</strong> = qualquer minuto
+              depois do início já é atraso.
+            </p>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">
             <div>

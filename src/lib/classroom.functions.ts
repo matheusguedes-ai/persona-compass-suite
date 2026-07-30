@@ -204,6 +204,9 @@ export const updateTreinamento = createServerFn({ method: "POST" })
       descricao: z.string().trim().max(2000).optional().nullable(),
       capa_url: z.string().trim().max(600).optional().nullable(),
       publicado: z.boolean().optional(),
+      // O mesmo intervalo do CHECK do banco. Validar aqui também dá mensagem
+      // legível em vez de erro cru do Postgres.
+      tolerancia_atraso_min: z.number().int().min(0).max(120).optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
