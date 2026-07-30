@@ -47,12 +47,26 @@ export function ResponseForm({
   onAlreadySubmitted,
   submitLabel = "Enviar respostas",
   showHeader = true,
+  onBrand,
 }: {
   responseId: string;
   onSubmitted: (json: { observer?: boolean; result?: Result }) => void;
   onAlreadySubmitted?: () => void;
   submitLabel?: string;
   showHeader?: boolean;
+  /**
+   * A marca do mentor, assim que o endpoint responde.
+   *
+   * O endpoint SEMPRE devolveu `brand` e este componente ignorava. Quem
+   * respondia o teste — a tela mais vista da plataforma — via a marca padrão e
+   * nenhum selo de empresa, na única página que a pessoa abre sem nunca ter
+   * ouvido falar de quem operou a avaliação.
+   *
+   * Sobe por callback e não é aplicada aqui porque o formulário é usado dentro
+   * da bateria também, e lá a marca já foi aplicada pela página de fora —
+   * aplicar de novo seria duas fontes mandando na mesma coisa.
+   */
+  onBrand?: (brand: unknown) => void;
 }) {
   const [payload, setPayload] = useState<ResponsePayload | null>(null);
   const [answers, setAnswers] = useState<Record<string, Record<string, unknown>>>({});
@@ -77,7 +91,8 @@ export function ResponseForm({
         }
         const json = await r.json();
         if (!active) return;
-        if (json?.submitted) { onAlreadySubmitted?.(); return; }
+        if (json?.submitted) { onBrand?.(json.brand ?? null); onAlreadySubmitted?.(); return; }
+        onBrand?.(json.brand ?? null);
         setPayload(json);
         const init: Record<string, Record<string, unknown>> = {};
         for (const q of json.questions as Question[]) {

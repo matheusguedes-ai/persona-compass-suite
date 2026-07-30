@@ -1004,10 +1004,10 @@
    "titulo": "Marcar e remarcar a data da devolutiva",
    "descricao": "Corrige dois bugs: devolutiva criada sem data não tinha caminho de volta ao campo, e a coluna date aparecia um dia antes no Brasil.",
    "area": "Agenda",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "feature-devolutivas.md linhas 38-42 · git log 22ae517",
-   "prova": "Remarcar mexendo só no dia move o compromisso 3 horas do horário combinado, sem avisar ninguém.",
+   "prova": "Já estava corrigido no código — a ressalva era memória velha, como a do fuso horário.",
    "prioridade": 101
   },
   {
@@ -1024,10 +1024,10 @@
    "titulo": "Mentor vira aluno promovido: um cadastro, um painel",
    "descricao": "team_members passa a apontar para people, promover/rebaixar vira ação na ficha da pessoa e /aluno ganha o menu Grupos.",
    "area": "Infra",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 3 itens 1, 2 e 4 · fila-area-do-aluno.md tabela linha 22 · git log bd83548",
-   "prova": "A tela antiga de Mentores continua no ar pelo endereço direto e ainda cria cadastro solto, fora do novo desenho; falta também conferir se a virada duplicou alguma pessoa.",
+   "prova": "/mentores virou redirect para /pessoas: era o fluxo VELHO, que criava team_members sem person_id (cadastro solto). O vigente é promover_a_mentor na ficha da pessoa. Conferido no banco: zero mentores sem person_id — a virada não duplicou ninguém.",
    "prioridade": 103
   },
   {
@@ -1084,10 +1084,10 @@
    "titulo": "Tipo de pergunta forced_choice",
    "descricao": "Escolha forçada most/least usada em DISC, Valores, Temperamentos e VAK, gerando natural e adaptado.",
    "area": "Testes",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "CLAUDE.md § Estado atual e § Motor de pontuação · git log dbb083a",
-   "prova": "O botão 'Convidar observador' aparece em todo teste respondido, mas em Big Five e QI ele só devolve erro — nesses dois deveria ficar escondido.",
+   "prova": "listResponses devolve aceita_observador; o botão some em Big Five e QI. O servidor continua recusando, como backstop.",
    "prioridade": 109
   },
   {

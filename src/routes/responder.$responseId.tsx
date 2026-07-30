@@ -5,6 +5,8 @@ import { CheckCircle2, LayoutDashboard } from "lucide-react";
 import { CriarContaNoFim } from "@/components/criar-conta-no-fim";
 import { ResponseForm } from "@/components/response-form";
 import type { Result, ResultDim, PerDimBand } from "@/components/response-form";
+import { SeloEmpresa } from "@/components/selo-empresa";
+import { useApplyBrand, type Brand } from "@/lib/brand";
 
 export const Route = createFileRoute("/responder/$responseId")({
   head: () => ({ meta: [{ title: "Responder teste" }, { name: "robots", content: "noindex" }] }),
@@ -16,35 +18,49 @@ function ResponderPage() {
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [observerDone, setObserverDone] = useState(false);
+  // A marca de quem aplicou o teste. O endpoint sempre devolveu; esta tela —
+  // a mais vista da plataforma, e a única que a pessoa abre sem nunca ter
+  // ouvido falar de quem operou a avaliação — ignorava.
+  const [brand, setBrand] = useState<Brand | null>(null);
+  useApplyBrand(brand);
+  const selo = <SeloEmpresa nome={brand?.company_seal_name} cnpj={brand?.company_cnpj} className="mt-10" />;
 
   if (observerDone) {
     return (
       <div className="mx-auto max-w-2xl p-10 text-center">
         <CheckCircle2 className="mx-auto size-10 text-emerald-500" />
         <p className="mt-3 text-lg font-medium">Obrigado! Sua percepção foi registrada.</p>
+        {selo}
       </div>
     );
   }
   if (alreadySubmitted && !result) {
-    return <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">Esta resposta já foi enviada. Obrigado!</div>;
+    return (
+      <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground">
+        Esta resposta já foi enviada. Obrigado!
+        {selo}
+      </div>
+    );
   }
-  if (result) return <ResultView result={result} responseId={responseId} />;
+  if (result) return <ResultView result={result} responseId={responseId} selo={selo} />;
 
   return (
     <div className="mx-auto max-w-2xl p-6">
       <ResponseForm
         responseId={responseId}
         onAlreadySubmitted={() => setAlreadySubmitted(true)}
+        onBrand={(b) => setBrand((b as Brand | null) ?? null)}
         onSubmitted={(json) => {
           if (json.observer) { setObserverDone(true); return; }
           if (json.result) setResult(json.result);
         }}
       />
+      {selo}
     </div>
   );
 }
 
-function ResultView({ result, responseId }: { result: Result; responseId: string }) {
+function ResultView({ result, responseId, selo }: { result: Result; responseId: string; selo: React.ReactNode }) {
   const entries = useMemo(() => Object.entries(result.totals).sort(([, a], [, b]) => b - a), [result.totals]);
   const perDim = result.per_dimension_bands ?? [];
   const naturalBands = perDim.filter((p) => p.mode === "natural");
@@ -105,6 +121,7 @@ function ResultView({ result, responseId }: { result: Result; responseId: string
           ))}
         </div>
       </div>
+      {selo}
     </div>
   );
 }

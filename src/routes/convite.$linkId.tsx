@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { BrandMark, useApplyBrand, type Brand } from "@/lib/brand";
+import { SeloEmpresa } from "@/components/selo-empresa";
 
 export const Route = createFileRoute("/convite/$linkId")({
   head: () => ({ meta: [{ title: "Convite para responder" }, { name: "robots", content: "noindex" }] }),
