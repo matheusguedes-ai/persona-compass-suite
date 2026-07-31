@@ -2169,6 +2169,26 @@
       "prioridade": 217,
       "origem": "Tropeço em produção durante o fechamento dos buckets, 31/07",
       "prova": "Não é bug de código, é desenho do ambiente. Enquanto for assim, toda mudança de banco que o código no ar não acompanha causa janela de quebra. Decisão a tomar: banco separado para desenvolvimento, ou aceitar e sempre publicar o código ANTES de mexer no banco."
+    },
+    {
+      "titulo": "Configurações da plataforma só o dono acessa",
+      "descricao": "'configuracoes' está na lista PERMISSOES (src/lib/team.functions.ts:21) como permissão delegável, ao lado de pessoas/grupos/testes. Um colaborador com todas as permissões pode trocar a marca, o logo, o nome da empresa e o e-mail de suporte — coisas que desconfiguram a plataforma inteira para todo mundo. Nenhum papel além do dono (colaborador, mentor convidado, aluno) pode alcançar isso. Não basta esconder o menu: a rota e as server functions têm de negar.",
+      "area": "Equipe / Permissões",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 218,
+      "origem": "Matheus, 31/07: criou o colaborador 'sucesso do aluno' com todas as permissões e viu que ele alcança Configurações",
+      "prova": "Confirmado no código: 'configuracoes' é o 8º item de PERMISSOES e app-sidebar.tsx:51 usa perm:'configuracoes'. Existe hoje um colaborador real com essa permissão ligada — a migração precisa tirar de quem já tem. CUIDADO: conferir se a tela de Configurações tem algo que faça sentido delegar (preferência pessoal, por exemplo); se tiver, separar antes de trancar a tela inteira."
+    },
+    {
+      "titulo": "A marca do dono não aparece para aluno, mentor e colaborador",
+      "descricao": "Mudar logo e nome da empresa nas Configurações não muda nada no painel do aluno — continua a marca antiga. A causa não é do aluno: loadBrandAndSettings busca profiles pelo user_id de quem está logado, e aluno, colaborador e mentor convidado têm perfil próprio SEM marca, então caem no padrão da plataforma. A marca tem de vir sempre do DONO da conta (acting_account()), em todo painel e todo papel. Vai junto com o selo da empresa no rodapé (#108) e com a decisão do nome da marca (#65): são o mesmo assunto — a identidade do dono aparecer inteira, em todo papel e toda tela.",
+      "area": "Plataforma",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 219,
+      "origem": "Matheus, 31/07: mudou a marca no master e o painel do aluno continuou com a antiga",
+      "prova": "Confirmado: src/lib/brand.server.ts:41 filtra profiles por user_id = mentorId. Nas telas PÚBLICAS funciona (passa o mentor dono do link); nos painéis logados, não. src/routes/aluno.tsx importa BrandMark de @/lib/brand. Afeta os três papéis, não só o aluno — o mentor convidado e o colaborador também veem a marca padrão."
     }
   ],
   "planilha": {
