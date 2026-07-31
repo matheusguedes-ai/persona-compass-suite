@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
+import { fetchComSessao } from "@/lib/fetch-com-sessao";
 
 export type Descritor = { body: string; band_min: number | null; band_max: number | null; active: boolean };
 
@@ -540,7 +541,7 @@ export function ActionPlanSection({ responseId, questions }: { responseId: strin
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/public/action-plan/${responseId}`)
+    fetchComSessao(`/api/public/action-plan/${responseId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (!j) return;
@@ -554,7 +555,7 @@ export function ActionPlanSection({ responseId, questions }: { responseId: strin
     async (payload: Record<string, string>, silent = false) => {
       setSaving(true);
       try {
-        const res = await fetch(`/api/public/action-plan/${responseId}`, {
+        const res = await fetchComSessao(`/api/public/action-plan/${responseId}`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ answers: payload }),

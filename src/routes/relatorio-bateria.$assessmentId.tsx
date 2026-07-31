@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { useApplyBrand } from "@/lib/brand";
 import { usePodeBaixar } from "@/lib/pode-baixar";
+import { fetchComSessao } from "@/lib/fetch-com-sessao";
 import {
   ActionPlanSection,
   IntroSection,
@@ -53,7 +54,7 @@ function RelatorioBateriaPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/public/report-bateria/${assessmentId}`)
+    fetchComSessao(`/api/public/report-bateria/${assessmentId}`)
       .then(async (r) => {
         const json = await r.json().catch(() => ({}));
         if (!r.ok) { setError(json.error ?? "Relatório indisponível."); return; }

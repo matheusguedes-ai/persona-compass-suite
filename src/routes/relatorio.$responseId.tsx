@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { useApplyBrand } from "@/lib/brand";
 import { usePodeBaixar } from "@/lib/pode-baixar";
+import { fetchComSessao } from "@/lib/fetch-com-sessao";
 import {
   ActionPlanSection,
   PLANO_ACAO,
@@ -37,7 +38,7 @@ function RelatorioPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/public/report/${responseId}`)
+    fetchComSessao(`/api/public/report/${responseId}`)
       .then(async (r) => {
         const json = await r.json().catch(() => ({}));
         if (!r.ok) { setError(json.error ?? "Relatório indisponível."); return; }
@@ -46,7 +47,10 @@ function RelatorioPage() {
       .catch(() => setError("Falha de conexão. Tente novamente."));
   }, [responseId]);
 
-  // A marca é a do mentor dono do link, não a de quem abre (ninguém está logado).
+  // A marca é a do mentor dono do link, não a de quem abre — a rota é pública
+  // e continua sendo aberta por gente sem conta (o avaliado que recebe o
+  // link por e-mail). Quem ABRE logado também passa por aqui, mas
+  // `fetchComSessao` já garante que só chega dado que a sessão pode ver.
   useApplyBrand(data?.brand);
   // null = ninguém logado; aí vale a preferência do mentor dono.
   const podeBaixar = usePodeBaixar(responseId);

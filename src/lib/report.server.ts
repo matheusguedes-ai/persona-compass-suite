@@ -5,10 +5,65 @@
  */
 import { computeDerived, type DerivedConfig, type FactorMap } from "@/lib/derivations";
 import { loadBrandAndSettings } from "@/lib/brand.server";
+import { getRequest } from "@tanstack/react-start/server";
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
+}
+
+/**
+ * Esta pessoa pode ser vista por quem está pedindo o relatório agora?
+ *
+ * `/relatorio/$id` é uma rota PÚBLICA de propósito: o avaliado recebe o link
+ * por e-mail e nunca precisa criar conta para ver o próprio resultado — o
+ * UUID da resposta É o token de acesso. Isso é correto e não muda aqui.
+ *
+ * O furo era outro: essa MESMA rota pública é a que a tela autenticada do
+ * mentor abre ao clicar em "Relatório" (`/_app/envios` → `/relatorio/$id`).
+ * Só que `buildReport` usa service role e nunca olhava para quem estava
+ * pedindo — então um mentor convidado, logado, trocando o UUID na barra de
+ * endereço, enxergava resposta de gente fora dos grupos dele. A fronteira de
+ * grupo (`can_see_person`) só existe nas policies das TABELAS; este caminho
+ * nunca passava por elas.
+ *
+ * SEM Authorization: sem sessão nenhuma — é o link público de sempre,
+ * comportamento inalterado.
+ * COM Authorization: alguém está logado, e a pergunta vira "esta sessão
+ * consegue ler esta pessoa pela RLS de sempre?" — verificado com o cliente do
+ * PRÓPRIO usuário, contra a tabela `people`. Não reimplemento a regra aqui:
+ * a policy de `people` já é `(mentor_id = acting_account()) AND
+ * can_see_person(id)) OR (user_id = auth.uid())`, que cobre dono, colaborador,
+ * mentor com o grupo certo E o próprio aluno vendo o seu resultado — de graça,
+ * pela mesma fonte de verdade que o resto da plataforma usa.
+ *
+ * Token ausente ou inválido no header: nega. Não é "decide na dúvida" — é
+ * "sessão que alega existir e não prova, não prova nada".
+ */
+export async function podeVerPessoaAutenticado(personId: string | null | undefined): Promise<boolean> {
+  if (!personId) return true;
+  const authHeader = getRequest()?.headers.get("authorization");
+  if (!authHeader?.toLowerCase().startsWith("bearer ")) return true;
+  const token = authHeader.slice(7).trim();
+  if (!token) return true;
+
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const SUPABASE_PUBLISHABLE_KEY =
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return false;
+
+    const escopado = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await escopado.from("people").select("id").eq("id", personId).maybeSingle();
+    if (error) return false;
+    return !!data;
+  } catch {
+    return false;
+  }
 }
 
 export type NormMap = Record<string, { natural: number; adaptado: number }>;
@@ -73,13 +128,17 @@ export async function buildReport(id: string) {
   const { data: response } = await supabase
     .from("test_responses")
     .select(
-      "id, submitted_at, started_at, computed_scores, version_id, mentor_id, people(full_name), test_versions(title, description, derived_config, instrument_id)",
+      "id, submitted_at, started_at, computed_scores, version_id, mentor_id, person_id, people(full_name), test_versions(title, description, derived_config, instrument_id)",
     )
     .eq("id", id)
     .maybeSingle();
 
   if (!response || !response.submitted_at) {
     return { status: 404 as const, error: "Relatório indisponível: o teste ainda não foi concluído." };
+  }
+
+  if (!(await podeVerPessoaAutenticado(response.person_id))) {
+    return { status: 404 as const, error: "Você não tem acesso a este relatório." };
   }
 
   const computed = (response.computed_scores ?? {}) as {

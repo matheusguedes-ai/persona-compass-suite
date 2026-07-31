@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { podeVerPessoaAutenticado } from "@/lib/report.server";
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -32,6 +33,15 @@ export const Route = createFileRoute("/api/public/action-plan/$id")({
       GET: async ({ params }) => {
         try {
           const supabase = await getAdmin();
+          // Mesma trava do relatório: o plano é dado da pessoa tanto quanto o
+          // resultado do teste, e este endpoint estava do lado de fora dela —
+          // um mentor logado trocando o UUID via /relatorio/$id lia (e por
+          // POST, sobrescrevia) o plano de gente fora dos grupos dele.
+          const { data: resp } = await supabase
+            .from("test_responses").select("person_id").eq("id", params.id).maybeSingle();
+          if (resp && !(await podeVerPessoaAutenticado(resp.person_id))) {
+            return json({ error: "Você não tem acesso a este plano." }, 404);
+          }
           const { data, error } = await supabase
             .from("action_plans")
             .select("answers, updated_at")
@@ -48,12 +58,15 @@ export const Route = createFileRoute("/api/public/action-plan/$id")({
           const supabase = await getAdmin();
           const { data: response, error: respError } = await supabase
             .from("test_responses")
-            .select("id, kind, submitted_at")
+            .select("id, kind, submitted_at, person_id")
             .eq("id", params.id)
             .maybeSingle();
           if (respError) return json({ error: "Não foi possível salvar o plano." }, 500);
           if (!response || response.kind !== "self" || !response.submitted_at) {
             return json({ error: "Plano indisponível para esta resposta." }, 404);
+          }
+          if (!(await podeVerPessoaAutenticado(response.person_id))) {
+            return json({ error: "Você não tem acesso a este plano." }, 404);
           }
 
           const body = (await request.json().catch(() => null)) as { answers?: unknown } | null;

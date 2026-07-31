@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { buildReport, buildMbtiFromFactors, formatDuration } from "@/lib/report.server";
+import { buildReport, buildMbtiFromFactors, formatDuration, podeVerPessoaAutenticado } from "@/lib/report.server";
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -20,11 +20,20 @@ async function buildBatteryReport(assessmentId: string) {
 
   const { data: assessment } = await supabase
     .from("assessment_responses")
-    .select("id, status, started_at, submitted_at, created_at, people(full_name)")
+    .select("id, status, started_at, submitted_at, created_at, person_id, people(full_name)")
     .eq("id", assessmentId)
     .maybeSingle();
 
   if (!assessment) return { status: 404 as const, error: "Bateria não encontrada." };
+
+  // Mesma trava de report.server.ts: sem sessão, é o link público de sempre;
+  // com sessão, ela precisa alcançar esta pessoa pela RLS de sempre. Barra
+  // ANTES de devolver `assessment` para quem chamou — `people(full_name)` já
+  // veio junto na consulta acima, e o nome também é dado da pessoa, não só
+  // os escores das etapas.
+  if (!(await podeVerPessoaAutenticado(assessment.person_id))) {
+    return { status: 404 as const, error: "Você não tem acesso a este relatório." };
+  }
 
   const { data: partRows, error: partsErr } = await supabase
     .from("test_responses")
