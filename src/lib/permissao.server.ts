@@ -75,3 +75,29 @@ export async function exigirAcessoAoGrupo(
   if (m.kind === "mentor" && m.groups.some((g) => g.group_id === groupId)) return;
   throw new Error("Você não tem acesso a esta área.");
 }
+
+/**
+ * Como `exigirPermissao`, mas para função COMPARTILHADA com quem só está
+ * vendo o que é dele — o aluno na área dele, o mentor promovido vendo o que
+ * foi atribuído a ele como pessoa. Não é a tela de administrar a área; é a
+ * MESMA consulta usada pelas duas pontas (ver `listTracks`/`listarBiblioteca`/
+ * `listarFeed`/`rankingDoGrupo` — todas têm o comentário "quem lê é a conta
+ * inteira: aluno, mentor e dono").
+ *
+ * A RLS já resolve o recorte de quem vê o quê para aluno e mentor (aluno só
+ * enxerga o que foi publicado/atribuído a ele; mentor só os grupos dele). O
+ * que falta é impedir que um COLABORADOR sem a permissão entre pela mesma
+ * porta e veja tudo — publicado ou não, de qualquer grupo — porque para a
+ * RLS "equipe da conta" é uma coisa só (`owner_id = acting_account()`), sem
+ * noção nenhuma de permissão por funcionalidade. Fecha #226.
+ */
+export async function exigirPermissaoOuVisitante(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  perm: Permissao,
+): Promise<void> {
+  const m = await membershipDoUsuario(supabase, userId);
+  if (m.kind === "owner" || m.kind === "mentor" || m.kind === "aluno") return;
+  if ((m.permissions as string[]).includes(perm)) return;
+  throw new Error("Você não tem acesso a esta área.");
+}

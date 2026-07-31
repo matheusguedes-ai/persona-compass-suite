@@ -398,6 +398,11 @@ export const setGroupInstruments = createServerFn({ method: "POST" })
 // ============================================================
 // Mentors (owner-scoped CRUD)
 // ============================================================
+// Modelo legado: a tela que chamava isto (`/mentores`) virou redirect faz
+// tempo — mentor hoje nasce promovido de uma pessoa (`promoverAMentor`, em
+// team.functions.ts). Nenhuma rota ou componente chama mais estas 4 funções.
+// Travado com `exigirDono` mesmo assim: eram alcançáveis por qualquer
+// colaborador, sem checar permissão nem dono da linha.
 const mentorSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(200),
@@ -407,9 +412,11 @@ const mentorSchema = z.object({
 export const listMentors = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirDono(context.supabase);
     const { data, error } = await context.supabase
       .from("mentors")
       .select("*")
+      .eq("owner_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -419,6 +426,7 @@ export const createMentor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => mentorSchema.parse(d))
   .handler(async ({ data, context }) => {
+    await exigirDono(context.supabase);
     const { data: row, error } = await context.supabase
       .from("mentors")
       .insert({ ...data, owner_id: context.userId })
@@ -432,11 +440,13 @@ export const updateMentor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).merge(mentorSchema.partial()).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirDono(context.supabase);
     const { id, ...rest } = data;
     const { data: row, error } = await context.supabase
       .from("mentors")
       .update(rest)
       .eq("id", id)
+      .eq("owner_id", context.userId)
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -447,7 +457,9 @@ export const deleteMentor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("mentors").delete().eq("id", data.id);
+    await exigirDono(context.supabase);
+    const { error } = await context.supabase
+      .from("mentors").delete().eq("id", data.id).eq("owner_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

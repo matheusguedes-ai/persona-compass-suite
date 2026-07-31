@@ -16,7 +16,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { exigirPermissao } from "@/lib/permissao.server";
+import { exigirPermissao, exigirPermissaoOuVisitante } from "@/lib/permissao.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { darPonto, contaDaPessoa } from "@/lib/pontos.functions";
@@ -75,6 +75,11 @@ export const listarFeed = createServerFn({ method: "GET" })
   )
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
+    // Compartilhada com aluno e mentor (o feed deles). Só falta barrar o
+    // colaborador sem 'grupos', que hoje entra pela mesma porta da equipe —
+    // `posso_ver_grupo()` libera qualquer colaborador da conta, sem checar
+    // permissão nenhuma.
+    await exigirPermissaoOuVisitante(supabase, context.userId, "grupos");
 
     // Sem filtro, vem tudo que a pessoa pode ver — que é o feed integrado: quem
     // está em três grupos vê os três juntos, quem está em um vê só o dele. A
@@ -312,6 +317,8 @@ export const membrosDosGrupos = createServerFn({ method: "GET" })
   )
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
+    // Mesmo motivo de `listarFeed`: a aba Membros é a mesma tela do aluno.
+    await exigirPermissaoOuVisitante(supabase, context.userId, "grupos");
 
     // A RLS de `group_members` já barra grupo que a pessoa não pode ver, então
     // não há como pedir a lista de um grupo alheio passando o id.

@@ -11,6 +11,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { exigirPermissaoOuVisitante } from "@/lib/permissao.server";
 
 export const ACOES = {
   aula: { pontos: 20, rotulo: "Concluir uma aula", tetoDiario: null },
@@ -195,6 +196,9 @@ export const rankingDoGrupo = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ group_id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
+    // Visível para o grupo todo (aluno e mentor incluídos). Só falta barrar o
+    // colaborador sem 'grupos' — mesma porta frouxa de `posso_ver_grupo()`.
+    await exigirPermissaoOuVisitante(supabase, context.userId, "grupos");
     const { data: membros, error } = await supabase
       .from("group_members")
       .select("person_id, people(full_name, user_id, avatar_url)")

@@ -18,7 +18,7 @@ import { urlOpcional } from "@/lib/url-segura";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
-import { exigirPermissao } from "@/lib/permissao.server";
+import { exigirPermissao, exigirPermissaoOuVisitante } from "@/lib/permissao.server";
 
 export const PUBLICOS = [
   { valor: "alunos", titulo: "Alunos", ajuda: "Só quem responde os testes." },
@@ -66,6 +66,10 @@ export const listTracks = createServerFn({ method: "GET" })
     z.object({ preview_person_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
+    // Compartilhada com o aluno (a própria tela dele) e o mentor (vê tudo,
+    // igual ao dono — ver `can_see_track`). Só falta barrar o colaborador
+    // sem 'educacao', que hoje entra pela mesma porta que a equipe.
+    await exigirPermissaoOuVisitante(context.supabase, context.userId, "educacao");
     const [lista, liberadas] = await Promise.all([
       context.supabase
         .from("learning_tracks")
@@ -107,6 +111,8 @@ export const getTrack = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Mesmo motivo de `listTracks`: tela compartilhada com aluno e mentor.
+    await exigirPermissaoOuVisitante(supabase, userId, "educacao");
     const { data: track, error } = await supabase
       .from("learning_tracks").select("*").eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);
@@ -176,6 +182,8 @@ export const getTrackDestinos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ track_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    // Só o professor marca as caixinhas — aluno e mentor nunca chamam isto.
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { data: rows, error } = await context.supabase
       .from("learning_track_destinos")
       .select("group_id, person_id")

@@ -9,7 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { exigirPermissao } from "@/lib/permissao.server";
+import { exigirPermissao, exigirPermissaoOuVisitante } from "@/lib/permissao.server";
 import type { Database } from "@/integrations/supabase/types";
 
 export const TIPOS = ["link", "pdf", "planilha", "imagem", "video", "audio", "outro"] as const;
@@ -36,6 +36,9 @@ export const listarBiblioteca = createServerFn({ method: "GET" })
     z.object({ preview_person_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
+    // Compartilhada com aluno e mentor (a Academy deles). Só falta barrar o
+    // colaborador sem 'educacao', que hoje entra pela mesma porta da equipe.
+    await exigirPermissaoOuVisitante(context.supabase, context.userId, "educacao");
     const ver = data.preview_person_id ?? null;
     const [mats, pastas, pLib, mLib] = await Promise.all([
       context.supabase
@@ -405,6 +408,10 @@ async function conferirPasta(supabase: SupabaseClient<Database>, pastaId: string
 export const listarBanners = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // Banner em si não tem cadeado de conteúdo (é vitrine, sempre ativo=true),
+    // mas ainda é parte da área Academy — mesma regra: sem 'educacao', o
+    // colaborador não alcança nada daqui, nem isto.
+    await exigirPermissaoOuVisitante(context.supabase, context.userId, "educacao");
     const { data, error } = await context.supabase
       .from("academy_banners")
       .select("id, imagem_url, link_url, titulo, ordem, ativo")

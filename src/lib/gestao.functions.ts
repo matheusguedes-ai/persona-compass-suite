@@ -16,6 +16,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao } from "@/lib/permissao.server";
+import { exigirDono } from "@/lib/team.functions";
 import { calcularFila } from "@/lib/devolutivas.functions";
 import { notificar, quandoBr } from "@/lib/notificacoes.functions";
 
@@ -147,6 +148,15 @@ export const agendaDoMes = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const { de, ate } = data;
 
+    // `somenteMinhas=false` é a Agenda/Gestão da EQUIPE — igual a
+    // `quadroDeGestao`, exige 'devolutivas' de quem é colaborador. Com
+    // `somenteMinhas=true` (painel do aluno, inclusive mentor vendo a própria
+    // agenda) não checa nada aqui: RLS já recorta para o que é da pessoa, e
+    // nem aluno nem mentor têm — nem deveriam ter — essa permissão.
+    if (!data.somenteMinhas) {
+      await exigirPermissao(context.supabase, context.userId, "devolutivas");
+    }
+
     // No painel do aluno o recorte da RLS não basta.
     //
     // Para o AVALIADO a RLS já entrega só o que é dele. Mas na prévia "Ver como
@@ -256,6 +266,12 @@ export const criarEvento = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
+    // "Só o master" (comentário acima) nunca foi de fato checado aqui — a
+    // policy `eventos_write` exige `conta_id = auth.uid()`, mas o INSERT
+    // sempre grava `conta_id: context.userId`, então um colaborador passava
+    // pela RLS gravando o próprio id como conta. Achado no caminho do #226,
+    // fora do pedido original.
+    await exigirDono(supabase);
 
     const { data: criado, error } = await supabase
       .from("eventos")
@@ -334,6 +350,8 @@ export const excluirEvento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    // Mesma regra de criarEvento: só o master apaga.
+    await exigirDono(context.supabase);
     // Os destinos caem por CASCADE.
     const { error } = await context.supabase.from("eventos").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
