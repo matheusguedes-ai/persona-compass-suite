@@ -88,11 +88,20 @@ Combinado com ele em 30/07:
   regra 3 existe para impedir.
 - O chat **não constrói feature**. Se der vontade de já corrigir o código
   enquanto planeja, o lugar disso é o prompt, não o commit.
+- Quando o Matheus disser que o Code terminou, o chat **confere por conta
+  própria** antes de mover o kanban: lê o commit, o código que mudou e o banco.
+  Ele não precisa colar a resposta do Code — basta dizer "terminou". Entrega dada
+  como pronta sem alguém olhar já voltou como "precisa de melhorias" dez vezes.
 
 ### Onde ficam as decisões e a fila
 
-- `kanban-demandas.xlsx` — o quadro. Fonte em `scripts/kanban_dados.json`,
-  versionada; a planilha é gerada por `scripts/kanban_planilha.py`.
+- **Notion — [Thrive Profiler — Kanban de demandas](https://app.notion.com/p/bd5f0a8df66e47c6a6ec6c0afff46393)**
+  é o quadro que o Matheus olha. Data source `c9814506-a2ca-408e-ac82-0bf42de6d2fb`.
+  **Ao fechar qualquer demanda, o chat atualiza o Notion na mesma hora** —
+  status, prova e fase. Não deixar para depois: kanban desatualizado é pior que
+  kanban nenhum, e a cópia velha no Google Drive já provou isso.
+- `scripts/kanban_dados.json` — a fonte versionada, para o histórico ficar no
+  git. `scripts/kanban_planilha.py` gera o `.xlsx`, que hoje é só um retrato.
 - `docs/roadmap-fases.md` — a ordem das fases e o que trava o quê.
 - `docs/dores-plano-comercial.md` — as dores de coach que a plataforma resolve.
 

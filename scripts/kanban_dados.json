@@ -984,10 +984,10 @@
       "titulo": "Fotos de perfil (avatares)",
       "descricao": "Bucket 'avatares' com leitura pública e escrita restrita à pasta do usuário; avatar para todos os papéis.",
       "area": "Plataforma",
-      "status": "Precisa de melhorias",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "feature-tema-fotos-e-ver-como-aluno.md · git log 7b97f42",
-      "prova": "Enumeração fechada: o caminho virou {user_id}/foto-{uuid} — antes era foto-{Date.now()}, derivável de um user_id conhecido. FALTA: o bucket segue público, então quem tem a URL continua vendo. Fechar exige bucket privado com URL assinada.",
+      "prova": "Fechado junto com a biblioteca em c03134c. Bucket avatares virou privado; link assinado com 1 hora de validade — prazo maior de propósito, porque o avatar aparece em muitas listas ao mesmo tempo (ranking, comunidade, equipe) e quem pode ver a foto já é decidido por quem pode ver a pessoa. CONFERIDO POR FORA: bucket public=false; a chave pública não assina mais. Corrige a ressalva antiga (\"o caminho deixou de ser adivinhável, mas o bucket segue público\").",
       "prioridade": 99
     },
     {
@@ -1104,10 +1104,10 @@
       "titulo": "Arquivo da biblioteca continua acessível por link direto",
       "descricao": "O bucket 'biblioteca' é público. O cadeado esconde a LINHA, não o ARQUIVO: quem já tinha a URL continua baixando depois de perder o acesso. Fechar exige bucket privado + URL assinada.",
       "area": "Academy",
-      "status": "Precisa de melhorias",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "levantamento das pastas, 30/07",
-      "prova": "Buckets ganharam teto e lista de tipos (migração 20260730300000). NÃO fecha o link direto: bucket público é público, e o caminho {user_id}/{uuid} torna a URL inadivinhável mas não revogável. Fechar exige bucket privado com URL assinada a cada leitura.",
+      "prova": "Fechado em c03134c (ponto de retorno em 6875626). Bucket biblioteca virou privado; toda tela pede link assinado ao servidor, que decide na hora quem pode ver (10 min para material/capa/banner). CONFERIDO POR FORA: bucket public=false; a URL pública antiga do material devolve HTTP 400 sem login; a chave pública (a que vai embutida no navegador) já não consegue assinar link — antes conseguia. ACHADO EXTRA fechado junto: com só a chave pública dava para pedir link válido de QUALQUER arquivo dos dois buckets pelo Console (F12); fechar o bucket sozinho não resolveria isso. Coluna arquivo_proprio substituiu a adivinhação pelo formato da URL. RESSALVA: mentor convidado e colaborador não foram testados com login separado — passam pela mesma função de servidor que dono e aluno, que foram testados. Fica coberto pela demanda #19 (provar os papéis com conta de colaborador).",
       "prioridade": 111
     },
     {
@@ -2123,7 +2123,7 @@
     {
       "titulo": "Menu Mentorias (substituir o painel de devolutivas)",
       "descricao": "Dois pilares: agendar a mentoria (aparece pro aluno, reaproveita a agenda do Classroom que ja tem check-in) e pos-mentoria (registro permanente que o aluno acessa pra sempre: resumo, desafios em checklist, materiais). Check-in, gamificacao e integracao com a agenda do aluno orbitam depois — nao mandar junto pro Claude Code.",
-      "area": "Relatorios",
+      "area": "Relatórios",
       "status": "Planejado",
       "depende_de": "Matheus",
       "origem": "Lembretes do iPhone, 30/07 21:43 (chat C1)",
@@ -2149,6 +2149,26 @@
       "origem": "Lembretes do iPhone, 30/07 21:49 (chat C1)",
       "prova": "Fora de fase no docs/roadmap-fases.md: e do fluxo de trabalho dele (cabeca -> chat -> design -> construcao), nao da plataforma.",
       "prioridade": 215
+    },
+    {
+      "titulo": "Fechar os outros três buckets públicos (marca, eventos, comunidade)",
+      "descricao": "Mesma raiz de biblioteca e avatares: marca (logo), eventos (banner) e comunidade (anexo de post) continuam públicos — quem tem o link continua vendo depois de qualquer trancamento. Cada um precisa da mesma varredura tela a tela antes de fechar, porque fechar antes das telas assinarem faz a imagem sumir.",
+      "area": "Infra",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 216,
+      "origem": "Varredura do Claude Code ao fechar biblioteca e avatares, 31/07",
+      "prova": "Confirmado por fora: os três estão public=true. O caminho já está trilhado (c03134c) — é repetir a mesma cirurgia. ATENÇÃO à ordem: telas primeiro, bucket por último. Fechar biblioteca antes de publicar o código deixou a produção 2-3 min sem imagem."
+    },
+    {
+      "titulo": "Local e produção compartilham o mesmo banco",
+      "descricao": "Mexer no banco pela máquina local altera a produção na hora, mesmo com o código novo ainda não publicado. Foi o que deixou a plataforma 2-3 minutos sem imagem ao fechar os buckets: o banco mudou antes do código no ar saber acompanhar.",
+      "area": "Infra",
+      "status": "Planejado",
+      "depende_de": "Matheus",
+      "prioridade": 217,
+      "origem": "Tropeço em produção durante o fechamento dos buckets, 31/07",
+      "prova": "Não é bug de código, é desenho do ambiente. Enquanto for assim, toda mudança de banco que o código no ar não acompanha causa janela de quebra. Decisão a tomar: banco separado para desenvolvimento, ou aceitar e sempre publicar o código ANTES de mexer no banco."
     }
   ],
   "planilha": {
