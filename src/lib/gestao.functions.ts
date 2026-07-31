@@ -15,6 +15,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { exigirPermissao } from "@/lib/permissao.server";
 import { calcularFila } from "@/lib/devolutivas.functions";
 import { notificar, quandoBr } from "@/lib/notificacoes.functions";
 
@@ -38,6 +39,7 @@ function diasAte(iso: string): number {
 export const quadroDeGestao = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirPermissao(context.supabase, context.userId, "devolutivas");
     const supabase = context.supabase;
 
     const [fila, { data: devs, error }] = await Promise.all([

@@ -212,6 +212,12 @@ function Dashboard() {
 function Panorama() {
   const fn = useServerFn(getPanoramaGeral);
   const { data, isLoading } = useQuery({ queryKey: ["panorama"], queryFn: () => fn() });
+  const membershipFn = useServerFn(getMyMembership);
+  const { data: membership } = useQuery({
+    queryKey: ["my-membership"], queryFn: () => membershipFn(), staleTime: 300_000,
+  });
+  const souDono = (membership?.kind ?? "owner") === "owner";
+  const minhasPermissoes = membership?.permissions ?? [];
 
   if (isLoading || !data) {
     return (
@@ -283,20 +289,27 @@ function Panorama() {
     });
   }
 
-  const cartoes = [
-    { to: "/grupos", icone: FolderKanban, rotulo: "Grupos",
+  // Mesma regra do menu lateral (app-sidebar.tsx): cada cartão só aparece se
+  // a permissão correspondente existir. Sem isso, um colaborador só de Envios
+  // via aqui um atalho clicável para telas que ele não deveria nem saber que
+  // existem — o cartão de "Pessoas" já seria, sozinho, o convite a testar.
+  const cartoesTodos = [
+    { to: "/grupos" as const, icone: FolderKanban, rotulo: "Grupos", perm: "grupos" as const,
       n: grupos.total, det: `${grupos.pessoasEmGrupo} em grupo` },
-    { to: "/pessoas", icone: Users, rotulo: "Pessoas",
+    { to: "/pessoas" as const, icone: Users, rotulo: "Pessoas", perm: "pessoas" as const,
       n: pessoas.total, det: `${pessoas.comLogin} com login` },
-    { to: "/colaboradores", icone: UsersRound, rotulo: "Equipe",
+    { to: "/colaboradores" as const, icone: UsersRound, rotulo: "Equipe", perm: null,
       n: equipe.ativos, det: `${equipe.mentores} mentor${equipe.mentores === 1 ? "" : "es"}` },
-    { to: "/devolutivas", icone: MessagesSquare, rotulo: "Devolutivas",
+    { to: "/devolutivas" as const, icone: MessagesSquare, rotulo: "Devolutivas", perm: "devolutivas" as const,
       n: devolutivas.naFila, det: `${devolutivas.realizadas} já feitas` },
-    { to: "/educacao", icone: BookOpen, rotulo: "Academy",
+    { to: "/educacao" as const, icone: BookOpen, rotulo: "Academy", perm: "educacao" as const,
       n: educacao.aulas, det: `${educacao.trilhas} trilha${educacao.trilhas === 1 ? "" : "s"}` },
-    { to: "/comunidades", icone: MessagesSquare, rotulo: "Comunidade",
+    { to: "/comunidades" as const, icone: MessagesSquare, rotulo: "Comunidade", perm: "grupos" as const,
       n: comunidade.posts, det: `${comunidade.comentarios} comentário${comunidade.comentarios === 1 ? "" : "s"}` },
-  ] as const;
+  ];
+  const cartoes = cartoesTodos.filter(
+    (c) => souDono || (c.perm === null ? false : minhasPermissoes.includes(c.perm)),
+  );
 
   return (
     <>

@@ -19,6 +19,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { exigirPermissaoOuMentor } from "@/lib/permissao.server";
 import { notificar, nomeDoUsuario, quandoBr } from "@/lib/notificacoes.functions";
 import type { Database } from "@/integrations/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -150,13 +151,15 @@ export const listarFila = createServerFn({ method: "GET" })
   .inputValidator((d) =>
     z.object({ group_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
   )
-  .handler(async ({ context, data }) => ({
-    fila: await calcularFila(context.supabase, data.group_id),
-  }));
+  .handler(async ({ context, data }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "devolutivas");
+    return { fila: await calcularFila(context.supabase, data.group_id) };
+  });
 
 export const listarDevolutivas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "devolutivas");
     const { data, error } = await context.supabase
       .from("devolutivas")
       .select(
@@ -197,6 +200,7 @@ export const agendarDevolutiva = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "devolutivas");
     const supabase = context.supabase;
     // Ownership: a RLS já barra, mas errar aqui devolve mensagem legível em vez
     // de um "violates row-level security policy" na cara do mentor.
@@ -271,6 +275,7 @@ export const registrarDevolutiva = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "devolutivas");
     const { error } = await context.supabase
       .from("devolutivas")
       .update({
@@ -332,6 +337,7 @@ export const atualizarDevolutiva = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "devolutivas");
     const { id, ...campos } = data;
     // Só o que veio no envio entra no patch: mandar `undefined` para o Supabase
     // apagaria o valor que já estava lá.
@@ -369,6 +375,7 @@ export const excluirDevolutiva = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "devolutivas");
     // Descobre de quem é ANTES de apagar: depois a linha não existe mais.
     const { data: dev } = await context.supabase
       .from("devolutivas").select("mentor_id").eq("id", data.id).maybeSingle();
@@ -395,6 +402,7 @@ export const carregarPainel = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "devolutivas");
     const supabase = context.supabase;
     const { data: dev, error } = await supabase
       .from("devolutivas")
@@ -506,6 +514,7 @@ export const carregarPainel = createServerFn({ method: "GET" })
 export const listarPessoasParaDevolutiva = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "devolutivas");
     const { data, error } = await context.supabase
       .from("people")
       .select("id, full_name, email")

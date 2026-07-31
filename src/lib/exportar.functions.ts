@@ -13,6 +13,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { exigirPermissao } from "@/lib/permissao.server";
 
 export const dadosParaExportar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -23,6 +24,7 @@ export const dadosParaExportar = createServerFn({ method: "POST" })
     }).parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "pessoas");
     const supabase = context.supabase;
 
     let q = supabase

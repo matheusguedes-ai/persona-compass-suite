@@ -44,8 +44,12 @@ export const PERMISSAO_LABEL: Record<Permissao, { titulo: string; ajuda: string 
 /**
  * Só o dono administra a equipe. Um convidado — mesmo colaborador com todas as
  * permissões — não convida outras pessoas nem muda o próprio acesso.
+ *
+ * Exportada: o Classroom (`classroom.functions.ts`) é "menu do master" pela
+ * mesma regra — nenhum colaborador ou mentor administra treinamentos, só quem
+ * é dono. Reaproveitar em vez de escrever a checagem de novo.
  */
-async function exigirDono(supabase: SupabaseClient<Database>) {
+export async function exigirDono(supabase: SupabaseClient<Database>) {
   const { data, error } = await supabase.rpc("member_kind");
   if (error) throw new Error(error.message);
   if (data !== "owner") {
@@ -306,71 +310,80 @@ export const setMemberGroups = createServerFn({ method: "POST" })
  * segurança** — quem barra de verdade é a RLS do banco; esconder um menu só
  * evita que a pessoa esbarre num erro.
  */
+/**
+ * O papel de quem está pedindo, e o que ele pode.
+ *
+ * Extraída de `getMyMembership` para ser chamada também por
+ * `exigirPermissao` (`@/lib/permissao.server`) — a checagem de permissão de
+ * colaborador precisa exatamente desta mesma resposta, e duplicar a consulta
+ * seria duas fontes de verdade para "quem é essa pessoa".
+ */
+export async function membershipDoUsuario(supabase: SupabaseClient<Database>, userId: string) {
+  // `.order(...).limit(1)` e NÃO `.maybeSingle()`. Quem aceitou convite de
+  // duas contas tem duas linhas ativas aqui, e `maybeSingle` responde 406 —
+  // a pessoa não entraria em lugar nenhum, com erro que não explica nada.
+  // A mais antiga vence, para o painel não trocar de conta entre dois
+  // carregamentos. Atender a duas contas ao mesmo tempo é outro problema,
+  // que precisa de um seletor de conta e não de um desempate silencioso.
+  const { data: rows, error } = await supabase
+    .from("team_members")
+    .select("id, kind, permissions, owner_id, name, status, created_at, team_member_groups(group_id, can_download_reports, can_schedule_devolutivas, groups(name))")
+    .eq("user_id", userId)
+    .eq("status", "ativo")
+    .order("created_at", { ascending: true })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  const row = (rows ?? [])[0];
+
+  // Esta pessoa também é AVALIADA em alguma conta? As duas coisas convivem: o
+  // mentor que faz o próprio DISC com um colega, o colaborador que participa
+  // de um treinamento da casa. O código tratava os papéis como excludentes
+  // (`ehAluno` exigia NÃO ter avaliados), então quem tinha conta própria
+  // nunca chegava à área de aluno — a rota respondia, mas nenhum link levava
+  // até ela. Isto é o que acende o atalho.
+  const { count: vezesAvaliado } = await supabase
+    .from("people").select("id", { count: "exact", head: true }).eq("user_id", userId);
+
+  if (!row) {
+    // Não é da equipe. Pode ser o dono da conta ou um avaliado que criou
+    // login: o que separa os dois é ter cadastro próprio (`user_id`) sem ter
+    // avaliados sob a sua gestão (`mentor_id`).
+    const { count: tenhoAvaliados } = await supabase
+      .from("people").select("id", { count: "exact", head: true }).eq("mentor_id", userId);
+    const ehAluno = (vezesAvaliado ?? 0) > 0 && (tenhoAvaliados ?? 0) === 0;
+    return {
+      kind: (ehAluno ? "aluno" : "owner") as "owner" | "aluno",
+      permissions: ehAluno ? [] : ([...PERMISSOES] as string[]),
+      account_id: userId,
+      member_id: null as string | null,
+      // Dono que também é avaliado em outra conta. Aluno puro não precisa do
+      // atalho: ele JÁ está na área dele.
+      tambem_avaliado: !ehAluno && (vezesAvaliado ?? 0) > 0,
+      groups: [] as Array<{ group_id: string; name: string; can_download_reports: boolean; can_schedule_devolutivas: boolean }>,
+    };
+  }
+  return {
+    kind: row.kind as "mentor" | "colaborador" | "owner" | "aluno",
+    // Mentor não tem permissões de funcionalidade: ele acessa os grupos dele.
+    permissions: row.kind === "colaborador" ? row.permissions : ["relatorios"],
+    account_id: row.owner_id,
+    member_id: row.id,
+    tambem_avaliado: (vezesAvaliado ?? 0) > 0,
+    // Os grupos ATRIBUÍDOS a ele como mentor. Não confundir com os grupos em
+    // que ele participa como avaliado: ser membro de um grupo e cuidar dele
+    // são coisas diferentes, e só a segunda dá acesso aos resultados.
+    groups: (row.team_member_groups ?? []).map((g) => ({
+      group_id: g.group_id,
+      name: g.groups?.name ?? "—",
+      can_download_reports: g.can_download_reports,
+      can_schedule_devolutivas: g.can_schedule_devolutivas ?? false,
+    })),
+  };
+}
+
 export const getMyMembership = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    // `.order(...).limit(1)` e NÃO `.maybeSingle()`. Quem aceitou convite de
-    // duas contas tem duas linhas ativas aqui, e `maybeSingle` responde 406 —
-    // a pessoa não entraria em lugar nenhum, com erro que não explica nada.
-    // A mais antiga vence, para o painel não trocar de conta entre dois
-    // carregamentos. Atender a duas contas ao mesmo tempo é outro problema,
-    // que precisa de um seletor de conta e não de um desempate silencioso.
-    const { data: rows, error } = await supabase
-      .from("team_members")
-      .select("id, kind, permissions, owner_id, name, status, created_at, team_member_groups(group_id, can_download_reports, can_schedule_devolutivas, groups(name))")
-      .eq("user_id", userId)
-      .eq("status", "ativo")
-      .order("created_at", { ascending: true })
-      .limit(1);
-    if (error) throw new Error(error.message);
-    const row = (rows ?? [])[0];
-
-    // Esta pessoa também é AVALIADA em alguma conta? As duas coisas convivem: o
-    // mentor que faz o próprio DISC com um colega, o colaborador que participa
-    // de um treinamento da casa. O código tratava os papéis como excludentes
-    // (`ehAluno` exigia NÃO ter avaliados), então quem tinha conta própria
-    // nunca chegava à área de aluno — a rota respondia, mas nenhum link levava
-    // até ela. Isto é o que acende o atalho.
-    const { count: vezesAvaliado } = await supabase
-      .from("people").select("id", { count: "exact", head: true }).eq("user_id", userId);
-
-    if (!row) {
-      // Não é da equipe. Pode ser o dono da conta ou um avaliado que criou
-      // login: o que separa os dois é ter cadastro próprio (`user_id`) sem ter
-      // avaliados sob a sua gestão (`mentor_id`).
-      const { count: tenhoAvaliados } = await supabase
-        .from("people").select("id", { count: "exact", head: true }).eq("mentor_id", userId);
-      const ehAluno = (vezesAvaliado ?? 0) > 0 && (tenhoAvaliados ?? 0) === 0;
-      return {
-        kind: (ehAluno ? "aluno" : "owner") as "owner" | "aluno",
-        permissions: ehAluno ? [] : ([...PERMISSOES] as string[]),
-        account_id: userId,
-        member_id: null as string | null,
-        // Dono que também é avaliado em outra conta. Aluno puro não precisa do
-        // atalho: ele JÁ está na área dele.
-        tambem_avaliado: !ehAluno && (vezesAvaliado ?? 0) > 0,
-        groups: [] as Array<{ group_id: string; name: string; can_download_reports: boolean; can_schedule_devolutivas: boolean }>,
-      };
-    }
-    return {
-      kind: row.kind as "mentor" | "colaborador" | "owner" | "aluno",
-      // Mentor não tem permissões de funcionalidade: ele acessa os grupos dele.
-      permissions: row.kind === "colaborador" ? row.permissions : ["relatorios"],
-      account_id: row.owner_id,
-      member_id: row.id,
-      tambem_avaliado: (vezesAvaliado ?? 0) > 0,
-      // Os grupos ATRIBUÍDOS a ele como mentor. Não confundir com os grupos em
-      // que ele participa como avaliado: ser membro de um grupo e cuidar dele
-      // são coisas diferentes, e só a segunda dá acesso aos resultados.
-      groups: (row.team_member_groups ?? []).map((g) => ({
-        group_id: g.group_id,
-        name: g.groups?.name ?? "—",
-        can_download_reports: g.can_download_reports,
-        can_schedule_devolutivas: g.can_schedule_devolutivas ?? false,
-      })),
-    };
-  });
+  .handler(async ({ context }) => membershipDoUsuario(context.supabase, context.userId));
 
 /** Aceita o convite. O vínculo é criado pela função do banco. */
 export const acceptInvite = createServerFn({ method: "POST" })

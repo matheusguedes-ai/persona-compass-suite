@@ -22,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar } from "@/components/avatar-upload";
 import { useServerFn } from "@tanstack/react-start";
 import { getPerson, deletePerson } from "@/lib/data.functions";
+import { getMyMembership } from "@/lib/team.functions";
 import { authorizeRetake, authorizeRetakeAssessment } from "@/lib/tests.functions";
 import { toast } from "sonner";
 
@@ -50,6 +51,10 @@ function PersonProfile() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["person", id],
     queryFn: () => getFn({ data: { id } }),
+  });
+  const membershipFn = useServerFn(getMyMembership);
+  const { data: minhaConta } = useQuery({
+    queryKey: ["my-membership"], queryFn: () => membershipFn(), staleTime: 300_000,
   });
   const del = useMutation({
     mutationFn: () => delFn({ data: { id } }),
@@ -80,6 +85,18 @@ function PersonProfile() {
 
   const { person, groups, responses } = data;
   const history = buildHistory(responses ?? []);
+
+  // O botão de baixar relatório segue a mesma trava que o dono liga por
+  // grupo ("Grupos que acompanha", mais abaixo). Dono e colaborador sempre
+  // veem; o mentor só se algum grupo em comum com esta pessoa tiver
+  // `can_download_reports` ligado — se não tiver nenhum grupo em comum aqui,
+  // é porque `getPerson` já teria negado a ficha inteira antes de chegar aqui.
+  const souMentor = minhaConta?.kind === "mentor";
+  const meusGruposComAcesso = new Set(
+    (minhaConta?.groups ?? []).filter((g) => g.can_download_reports).map((g) => g.group_id),
+  );
+  const podeBaixarRelatorio =
+    !souMentor || (groups ?? []).some((g) => meusGruposComAcesso.has(g.group_id));
 
   return (
     <div className="space-y-6">
@@ -202,7 +219,7 @@ function PersonProfile() {
                       >
                         {item.done === item.total ? "Concluído" : item.done > 0 ? "Parcial" : "Pendente"}
                       </span>
-                      {item.done > 0 &&
+                      {item.done > 0 && podeBaixarRelatorio &&
                         (item.assessmentId ? (
                           <Button asChild variant="ghost" size="sm">
                             <Link to="/relatorio-bateria/$assessmentId" params={{ assessmentId: item.assessmentId }}>

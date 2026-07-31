@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { exigirPermissao } from "@/lib/permissao.server";
 import type { Database } from "@/integrations/supabase/types";
 
 export const TIPOS = ["link", "pdf", "planilha", "imagem", "video", "audio", "outro"] as const;
@@ -133,6 +134,7 @@ export const salvarMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => materialSchema.extend({ id: z.string().uuid().optional() }).parse(d))
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { id, ...campos } = data;
     const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
     let url = campos.url;
@@ -172,6 +174,7 @@ export const excluirMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { error } = await context.supabase
       .from("biblioteca_materiais").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -192,6 +195,7 @@ export const salvarPasta = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { id, ...campos } = data;
     const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
     let capaUrl = campos.capa_url ?? null;
@@ -235,6 +239,7 @@ export const excluirPasta = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { error } = await context.supabase
       .from("biblioteca_pastas").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -247,6 +252,7 @@ export const moverPasta = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), direcao: z.enum(["cima", "baixo"]) }).parse(d),
   )
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const supabase = context.supabase;
     const { data: todas, error } = await supabase
       .from("biblioteca_pastas").select("id, ordem").order("ordem").order("created_at");
@@ -273,6 +279,7 @@ export const getDestinosBiblioteca = createServerFn({ method: "GET" })
     z.object({ alvo: z.enum(["pasta", "material"]), id: z.string().uuid() }).parse(d),
   )
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const q =
       data.alvo === "pasta"
         ? context.supabase
@@ -309,6 +316,7 @@ export const setDestinosBiblioteca = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const supabase = context.supabase;
     const ehPasta = data.alvo === "pasta";
 
@@ -423,6 +431,7 @@ export const salvarBanner = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     // Entra no fim da fila. Reordenar é outra ação; criar já mexendo na ordem
     // dos outros seria surpresa.
     const { data: ultimo } = await context.supabase
@@ -444,6 +453,7 @@ export const excluirBanner = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { error } = await context.supabase
       .from("academy_banners").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -456,6 +466,7 @@ export const moverBanner = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), direcao: z.enum(["cima", "baixo"]) }).parse(d),
   )
   .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const supabase = context.supabase;
     const { data: todos, error } = await supabase
       .from("academy_banners").select("id, ordem").order("ordem");

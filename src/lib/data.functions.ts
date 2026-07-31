@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { urlOpcional } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { exigirPermissao, exigirPermissaoOuMentor, exigirAcessoAoGrupo } from "@/lib/permissao.server";
 
 // ============================================================
 // Instruments (public read)
@@ -33,6 +34,7 @@ const personSchema = z.object({
 export const listPeople = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirPermissao(context.supabase, context.userId, "pessoas");
     const { data, error } = await context.supabase
       .from("people")
       .select("*")
@@ -45,6 +47,11 @@ export const getPerson = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    // O link "Perfil" na tela do grupo (`_app.grupos.$id.tsx`) é como o
+    // MENTOR abre a ficha de alguém do grupo que acompanha — sem permissão
+    // 'pessoas' nenhuma. A policy de people já usa `can_see_person()`, que
+    // recorta o mentor pelos grupos dele; aqui só falta deixá-lo passar.
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "pessoas");
     const { data: person, error } = await context.supabase
       .from("people")
       .select("*")
@@ -59,13 +66,21 @@ export const getPerson = createServerFn({ method: "GET" })
 
     // Histórico de testes da pessoa. Só `self`: respostas de observador (360°)
     // pertencem ao relatório do avaliado e já aparecem dentro dele.
+    //
+    // ⚠️ `mentor_id` compara com a CONTA (`acting_account()`), não com
+    // `context.userId`. Um colaborador ou mentor tem o próprio uid — as
+    // respostas são gravadas com o uid do DONO. Comparar com `context.userId`
+    // fazia esta aba mostrar "nenhum teste respondido" para todo mundo que não
+    // fosse o dono, mesmo com respostas reais — só nunca apareceu porque
+    // ninguém entrou como colaborador ou mentor de verdade para reparar.
+    const { data: conta } = await context.supabase.rpc("acting_account");
     const { data: responses, error: rErr } = await context.supabase
       .from("test_responses")
       .select(
         "id, status, submitted_at, started_at, created_at, assessment_response_id, assessment_sort, attempt, test_versions(title, instrument_id)",
       )
       .eq("person_id", data.id)
-      .eq("mentor_id", context.userId)
+      .eq("mentor_id", conta ?? context.userId)
       .eq("kind", "self")
       .order("created_at", { ascending: false });
     if (rErr) throw new Error(rErr.message);
@@ -81,6 +96,7 @@ export const createPerson = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => personSchema.parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "pessoas");
     const { data: row, error } = await context.supabase
       .from("people")
       .insert({ ...data, mentor_id: context.userId })
@@ -102,6 +118,7 @@ export const updatePerson = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).merge(personSchema.partial()).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "pessoas");
     const { id, ...rest } = data;
     const { data: row, error } = await context.supabase
       .from("people")
@@ -123,6 +140,7 @@ export const deletePerson = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "pessoas");
     const { error } = await context.supabase.from("people").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -184,6 +202,7 @@ const groupSchema = z.object({
 export const listGroups = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirPermissao(context.supabase, context.userId, "grupos");
     const { data, error } = await context.supabase
       .from("groups")
       .select("*, group_members(count), group_instruments(count)")
@@ -200,6 +219,7 @@ export const getGroup = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirAcessoAoGrupo(context.supabase, context.userId, data.id);
     const { data: group, error } = await context.supabase
       .from("groups")
       .select("*")
@@ -233,6 +253,7 @@ export const createGroup = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "grupos");
     const { person_ids, instrument_ids, ...groupData } = data;
     const { data: group, error } = await context.supabase
       .from("groups")
@@ -264,6 +285,7 @@ export const updateGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).merge(groupSchema.partial()).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "grupos");
     const { id, ...rest } = data;
     const patch =
       "areas_aluno" in rest ? { ...rest, areas_aluno: normalizarAreas(rest.areas_aluno) } : rest;
@@ -293,6 +315,7 @@ export const deleteGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "grupos");
     const { error } = await context.supabase.from("groups").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -307,6 +330,7 @@ export const addGroupMembers = createServerFn({ method: "POST" })
     z.object({ group_id: z.string().uuid(), person_ids: z.array(z.string().uuid()).min(1) }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "grupos");
     const rows = data.person_ids.map((person_id) => ({ group_id: data.group_id, person_id }));
     const { error } = await context.supabase
       .from("group_members")
@@ -319,6 +343,7 @@ export const removeGroupMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ group_id: z.string().uuid(), person_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "grupos");
     const { error } = await context.supabase
       .from("group_members")
       .delete()
@@ -337,6 +362,7 @@ export const setGroupInstruments = createServerFn({ method: "POST" })
     z.object({ group_id: z.string().uuid(), instrument_ids: z.array(z.string()) }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "grupos");
     // Diff current vs desired so we preserve version_id on rows that stay.
     const { data: current, error: curErr } = await context.supabase
       .from("group_instruments")
@@ -509,6 +535,7 @@ export const getGroupDna = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ group_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirAcessoAoGrupo(context.supabase, context.userId, data.group_id);
     const { supabase, userId } = context;
 
     const { data: group } = await supabase
@@ -609,11 +636,17 @@ export const getDashboardStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
+    // ⚠️ Mesma correção de getPerson: `mentor_id` é a CONTA
+    // (`acting_account()`), não o uid de quem está logado — um colaborador
+    // com Envios via este painel sempre zerado, porque as respostas são do
+    // dono, não dele.
+    const { data: conta } = await supabase.rpc("acting_account");
+    const contaId = conta ?? userId;
 
     const { data: rows, error } = await supabase
       .from("test_responses")
       .select("id, status, created_at, submitted_at, assessment_response_id, people(id, full_name), test_versions(instrument_id, title, instruments(name))")
-      .eq("mentor_id", userId)
+      .eq("mentor_id", contaId)
       .eq("kind", "self")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -621,7 +654,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const { count: peopleCount, error: pErr } = await supabase
       .from("people")
       .select("id", { count: "exact", head: true })
-      .eq("mentor_id", userId);
+      .eq("mentor_id", contaId);
     if (pErr) throw new Error(pErr.message);
 
     const list = rows ?? [];
@@ -731,6 +764,7 @@ export const importPeople = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "pessoas");
     const { supabase, userId } = context;
 
     if (data.group_id) {

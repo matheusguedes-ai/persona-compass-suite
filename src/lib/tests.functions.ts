@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { exigirPermissao } from "@/lib/permissao.server";
+import { membershipDoUsuario } from "@/lib/team.functions";
 import type { Json } from "@/integrations/supabase/types";
 
 // ============================================================
@@ -21,6 +23,7 @@ export const listTestVersions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ instrument_id: z.string().optional() }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     let q = context.supabase
       .from("test_versions")
       .select("*")
@@ -54,6 +57,7 @@ export const getTestVersion = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const [{ data: version, error: vErr }, dims, questions, bands] = await Promise.all([
       context.supabase.from("test_versions").select("*").eq("id", data.id).maybeSingle(),
       context.supabase.from("test_dimensions").select("*").eq("version_id", data.id).order("sort_order"),
@@ -104,6 +108,7 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ template_version_id: z.string().uuid(), title: z.string().min(1).max(160).optional() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { supabase, userId } = context;
     const { data: tpl, error: tErr } = await supabase
       .from("test_versions").select("*").eq("id", data.template_version_id).maybeSingle();
@@ -242,6 +247,7 @@ export const updateTestVersion = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { id, ...rest } = data;
     const { data: row, error } = await context.supabase
       .from("test_versions").update(rest).eq("id", id).select().single();
@@ -253,6 +259,7 @@ export const deleteTestVersion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     // O banco tem um gatilho que recusa apagar versão já respondida (a FK é
     // ON DELETE CASCADE, então sem ele o histórico ia junto). Aqui só
     // repassamos a mensagem dele, que já é escrita para o mentor ler.
@@ -276,6 +283,7 @@ export const upsertDimension = createServerFn({ method: "POST" })
     sort_order: z.number().int().default(0),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { data: row, error } = await context.supabase
       .from("test_dimensions").upsert(data).select().single();
     if (error) throw new Error(error.message);
@@ -286,6 +294,7 @@ export const deleteDimension = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { error } = await context.supabase.from("test_dimensions").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -303,6 +312,7 @@ export const createQuestion = createServerFn({ method: "POST" })
     type: questionTypeSchema,
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { data: max } = await context.supabase
       .from("test_questions").select("sort_order").eq("version_id", data.version_id)
       .order("sort_order", { ascending: false }).limit(1).maybeSingle();
@@ -331,6 +341,7 @@ export const updateQuestion = createServerFn({ method: "POST" })
     sort_order: z.number().int().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { id, config, ...rest } = data;
     const patch = { ...rest, ...(config !== undefined ? { config: config as Json } : {}) };
     const { data: row, error } = await context.supabase
@@ -343,6 +354,7 @@ export const deleteQuestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { error } = await context.supabase.from("test_questions").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -355,6 +367,7 @@ export const reorderQuestions = createServerFn({ method: "POST" })
     ordered_ids: z.array(z.string().uuid()),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const results = await Promise.all(
       data.ordered_ids.map((id, i) =>
         context.supabase.from("test_questions").update({ sort_order: i + 1 }).eq("id", id),
@@ -373,6 +386,7 @@ export const createOption = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ question_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { data: max } = await context.supabase
       .from("test_options").select("sort_order").eq("question_id", data.question_id)
       .order("sort_order", { ascending: false }).limit(1).maybeSingle();
@@ -392,6 +406,7 @@ export const updateOption = createServerFn({ method: "POST" })
     sort_order: z.number().int().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { id, ...rest } = data;
     const { data: row, error } = await context.supabase
       .from("test_options").update(rest).eq("id", id).select().single();
@@ -403,6 +418,7 @@ export const deleteOption = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { error } = await context.supabase.from("test_options").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -416,6 +432,7 @@ export const setOptionScore = createServerFn({ method: "POST" })
     points: z.number().finite(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     if (data.points === 0) {
       await context.supabase.from("option_scores").delete()
         .eq("option_id", data.option_id).eq("dimension_id", data.dimension_id);
@@ -445,6 +462,7 @@ export const upsertBand = createServerFn({ method: "POST" })
     mode: z.enum(["natural", "adaptado"]).optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { data: row, error } = await context.supabase
       .from("test_result_bands").upsert(data).select().single();
     if (error) throw new Error(error.message);
@@ -455,6 +473,7 @@ export const deleteBand = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
     const { error } = await context.supabase.from("test_result_bands").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -472,6 +491,7 @@ export const startResponse = createServerFn({ method: "POST" })
     expires_at: z.string().datetime().optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     // Verify ownership: person must belong to this mentor, and version must be
     // either a global template or owned by this mentor.
     const [personRes, versionRes] = await Promise.all([
@@ -507,6 +527,24 @@ export const listResponses = createServerFn({ method: "GET" })
     person_ids: z.array(z.string().uuid()).optional(),
   }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
+    // Duas telas, dois donos: a de Envios (permissão 'envios') e o painel do
+    // MENTOR dentro do grupo que ele acompanha (`_app.grupos.$id.tsx`, sem
+    // permissão de funcionalidade nenhuma — só o grupo atribuído). Uma
+    // checagem só de permissão bloquearia o mentor.
+    //
+    // Para o mentor não precisa checar nada aqui: a policy `tr_mentor_all` em
+    // test_responses já usa `can_see_person()`, que recorta pelos GRUPOS dele
+    // (`visible_group_ids()`) — pedir sem filtro ou com o id de outro grupo
+    // simplesmente não traz nada, o RLS já resolve. Só o colaborador precisa
+    // da permissão explícita, porque para ele `can_see_person()` não recorta
+    // nada (`member_kind() <> 'mentor'` libera geral).
+    const m = await membershipDoUsuario(context.supabase, context.userId);
+    if (m.kind === "colaborador" && !m.permissions.includes("envios")) {
+      throw new Error("Você não tem acesso a esta área.");
+    }
+    if (m.kind !== "owner" && m.kind !== "colaborador" && m.kind !== "mentor") {
+      throw new Error("Você não tem acesso a esta área.");
+    }
     let q = context.supabase
       .from("test_responses")
       .select("*, people(id, full_name, email), test_versions(id, title, instrument_id)")
@@ -570,6 +608,7 @@ export const createObserverInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ response_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     const { data: parent, error } = await context.supabase
       .from("test_responses")
       .select("id, kind, version_id, person_id, mentor_id")
@@ -610,6 +649,7 @@ export const startAssessment = createServerFn({ method: "POST" })
     expires_at: z.string().datetime().optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     const { supabase, userId } = context;
     const versionIds = Array.from(new Set(data.version_ids));
 
@@ -663,6 +703,7 @@ export const listAssessments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ person_id: z.string().uuid().optional() }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     let q = context.supabase
       .from("assessment_responses")
       .select("*, people(id, full_name, email)")
@@ -709,6 +750,7 @@ export const createInviteLink = createServerFn({ method: "POST" })
     max_responses: z.number().int().positive().max(10000).optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     const { supabase, userId } = context;
     const versionIds = Array.from(new Set(data.version_ids));
 
@@ -744,10 +786,15 @@ export const createInviteLink = createServerFn({ method: "POST" })
 export const listInviteLinks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
+    // ⚠️ Mesma correção de getPerson/getDashboardStats: `mentor_id` é a
+    // CONTA, não quem está logado — um colaborador com Envios via esta lista
+    // sempre vazia.
+    const { data: conta } = await context.supabase.rpc("acting_account");
     const { data, error } = await context.supabase
       .from("invite_links")
       .select("*, groups(name)")
-      .eq("mentor_id", context.userId)
+      .eq("mentor_id", conta ?? context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -757,11 +804,13 @@ export const setInviteLinkActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid(), is_active: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
+    const { data: conta } = await context.supabase.rpc("acting_account");
     const { data: row, error } = await context.supabase
       .from("invite_links")
       .update({ is_active: data.is_active })
       .eq("id", data.id)
-      .eq("mentor_id", context.userId)
+      .eq("mentor_id", conta ?? context.userId)
       .select()
       .single();
     if (error) throw new Error(error.message);
@@ -781,6 +830,7 @@ export const authorizeRetake = createServerFn({ method: "POST" })
     expires_at: z.string().datetime().optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     const { supabase, userId } = context;
     const { data: prev, error } = await supabase
       .from("test_responses")
@@ -813,6 +863,7 @@ export const authorizeRetakeAssessment = createServerFn({ method: "POST" })
     expires_at: z.string().datetime().optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     const { supabase, userId } = context;
     const { data: prev, error } = await supabase
       .from("assessment_responses")
@@ -874,6 +925,7 @@ export const setResponseCanceled = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid(), canceled: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     const { data: row, error } = await context.supabase
       .from("test_responses")
       .update({ canceled_at: data.canceled ? new Date().toISOString() : null })
@@ -888,6 +940,7 @@ export const setAssessmentCanceled = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid(), canceled: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     const quando = data.canceled ? new Date().toISOString() : null;
     const { data: row, error } = await context.supabase
       .from("assessment_responses")
@@ -910,6 +963,7 @@ export const deleteResponse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     const { error } = await context.supabase.from("test_responses").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -919,6 +973,7 @@ export const deleteAssessment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
     // As etapas caem junto pela FK (ON DELETE CASCADE).
     const { error } = await context.supabase.from("assessment_responses").delete().eq("id", data.id);
     if (error) throw new Error(error.message);

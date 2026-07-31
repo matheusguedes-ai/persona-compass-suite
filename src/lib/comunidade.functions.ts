@@ -16,6 +16,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { exigirPermissao } from "@/lib/permissao.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { darPonto, contaDaPessoa } from "@/lib/pontos.functions";
@@ -28,6 +29,7 @@ import { notificar } from "@/lib/notificacoes.functions";
 export const meusGrupos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirPermissao(context.supabase, context.userId, "grupos");
     const { data, error } = await context.supabase.from("groups").select("id, name").order("name");
     if (error) throw new Error(error.message);
     return { grupos: data ?? [] };
