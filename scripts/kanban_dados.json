@@ -2174,11 +2174,11 @@
       "titulo": "Configurações da plataforma só o dono acessa",
       "descricao": "'configuracoes' está na lista PERMISSOES (src/lib/team.functions.ts:21) como permissão delegável, ao lado de pessoas/grupos/testes. Um colaborador com todas as permissões pode trocar a marca, o logo, o nome da empresa e o e-mail de suporte — coisas que desconfiguram a plataforma inteira para todo mundo. Nenhum papel além do dono (colaborador, mentor convidado, aluno) pode alcançar isso. Não basta esconder o menu: a rota e as server functions têm de negar.",
       "area": "Equipe / Permissões",
-      "status": "Em andamento",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 218,
       "origem": "Matheus, 31/07: criou o colaborador 'sucesso do aluno' com todas as permissões e viu que ele alcança Configurações",
-      "prova": "Confirmado no código: 'configuracoes' é o 8º item de PERMISSOES e app-sidebar.tsx:51 usa perm:'configuracoes'. Existe hoje um colaborador real com essa permissão ligada — a migração precisa tirar de quem já tem. CUIDADO: conferir se a tela de Configurações tem algo que faça sentido delegar (preferência pessoal, por exemplo); se tiver, separar antes de trancar a tela inteira."
+      "prova": "Trancado por dois lados. (1) 'configuracoes' saiu de PERMISSOES (era o 8º item, ao lado de pessoas/grupos/testes) e a migração 20260731120000_configuracoes_so_dono.sql tirou a permissão de quem já tinha em produção — o colaborador 'Sucesso do Aluno' ficou com as outras 7. (2) A tela e as server functions de Marca/Relatório/Mensagens/Emails/Agenda agora exigem member_kind()='owner' (exigirDono), tanto na rota quanto em cada function que grava — upsertConfiguracoesConta, getEmailStatus/listEmailLogs/sendTestEmail, estadoDoGoogle/iniciarConexaoGoogle/desconectarGoogle. 'Perfil' (nome+foto) foi separado antes de trancar: é genuinamente pessoal e continua aberto a qualquer logado, via upsertMyProfile com schema próprio (perfilPessoalSchema). Provado com login real: colaborador com as 7 permissões vê só 'Meu perfil' no menu e é negado ao chamar upsertConfiguracoesConta direto no servidor ('Só o dono da conta pode gerenciar a equipe'); mentor convidado idem; dono continua vendo as 6 abas e salvando normalmente, marca real (INTENÇÃO ASSESSEMENT, #00b0f0) confirmada intacta depois de todos os testes. Achado de passagem (item 6 do pedido): learning.functions.ts (Academy) tinha os 10 writes sem nenhuma checagem de permissão — mesmo buraco que biblioteca.functions.ts tinha antes desta sessão; fechado com exigirPermissao(...,'educacao'). Commit 466a5b1 (31/07)."
     },
     {
       "titulo": "A marca do dono não aparece para aluno, mentor e colaborador",
