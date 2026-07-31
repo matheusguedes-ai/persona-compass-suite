@@ -49,6 +49,9 @@ export const getStudentArea = createServerFn({ method: "GET" })
 
     const { error: claimErr } = await supabase.rpc("claim_student_profile");
     if (claimErr) throw new Error(claimErr.message);
+    // Um mentor promovido "a frio" (nunca tinha logado) passa por este mesmo
+    // caminho no primeiro acesso — ver migração 20260731070000.
+    await supabase.rpc("claim_team_membership");
 
     const { data: pessoas, error: pErr } = await supabase
       .from("people")
@@ -100,6 +103,9 @@ export const getMyStudentProfile = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { error: claimErr } = await supabase.rpc("claim_student_profile");
     if (claimErr) throw new Error(claimErr.message);
+    // Um mentor promovido "a frio" (nunca tinha logado) passa por este mesmo
+    // caminho no primeiro acesso — ver migração 20260731070000.
+    await supabase.rpc("claim_team_membership");
 
     const { data, error } = await supabase
       .from("people")

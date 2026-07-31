@@ -60,7 +60,7 @@ export const solicitarAcessoAluno = createServerFn({ method: "POST" })
     // acesso sem enviar e-mail — o envio é nosso, pelo Resend, com o domínio
     // verificado e a marca do mentor.
     const site = process.env.SITE_URL || "https://persona-compass-suite.lovable.app";
-    const destino = `${site}/aluno/criar-senha`;
+    const destino = `${site}/criar-senha`;
     const { data: gerado, error: erroLink } = await supabase.auth.admin.generateLink({
       type: "magiclink",
       email,
@@ -187,7 +187,7 @@ export const concluirCadastroPeloLink = createServerFn({ method: "POST" })
     }
 
     const site = process.env.SITE_URL || "https://persona-compass-suite.lovable.app";
-    const destino = `${site}/aluno/criar-senha`;
+    const destino = `${site}/criar-senha`;
     const email = r.people.email;
     let link: string | undefined;
     const { data: g1, error: e1 } = await supabase.auth.admin.generateLink({
