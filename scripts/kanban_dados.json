@@ -54,10 +54,10 @@
       "titulo": "Aviso ao mudar o horário de uma aula que já tem presença",
       "descricao": "Achado T14+T15 da revisão da etapa 4: ao salvar o horário de uma aula com presenças gravadas, deveria aparecer um AlertDialog (\"3 pessoas já confirmaram presença. O atraso será recalculado a partir do novo horário\"). Hoje o horári",
       "area": "Classroom / Presença",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "Tabela de achados da revisão do check-in (sessão 30/07, linha T14+T15); grep confirma que não existe AlertDial",
-      "prova": "Mudar o horário recalcula o atraso de todo mundo em silêncio.",
+      "prova": "AlertDialog aparece ao salvar horário diferente numa aula com presença já gravada, com a contagem certa de pessoas e o texto pedido; 'Voltar' descarta sem salvar, confirmar salva e recalcula. Só o início dispara o aviso (o fim não entra no cálculo de atraso). Testado ao vivo sobre a aula real 'AULA 01' com fixture descartável, depois revertido ao horário original. Commit 2c1ddf9 (31/07).",
       "prioridade": 6
     },
     {
@@ -94,10 +94,10 @@
       "titulo": "BUG: select 'Dimensão pontuada' abre vazio",
       "descricao": "No editor de perguntas linear_scale, o select de dimensão aparece vazio mesmo com dimensão salva.",
       "area": "Testes",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "avaliacao-bateria-e-relatorios.md § Outros achados",
-      "prova": "Bug barato de consertar que faz o editor parecer ter perdido a dimensão.",
+      "prova": "Duas causas, as duas corrigidas: falta de key={q.id} no LinearScaleEditor fazia o React reaproveitar estado entre perguntas diferentes; e o select não validava se o dimension_id salvo ainda existia entre as dimensões atuais (referência órfã ficava muda em vez de cair num valor válido). Testado ao vivo contra o template real de Big Five, sem regressão. Commit 3879632 (31/07).",
       "prioridade": 10
     },
     {
@@ -134,20 +134,20 @@
       "titulo": "Migrar o mentor já convidado sem duplicar",
       "descricao": "O mentor criado pelo modelo antigo precisa virar (ou ser ligado a) uma pessoa em people, sem perder acesso.",
       "area": "Infra",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-area-do-aluno.md § Anexo 3, Cuidado na migração",
-      "prova": "Ficou meio dentro meio fora do modelo novo; quanto antes, menos bagunça.",
+      "prova": "createTeamMember não aceita mais kind='mentor' (a tela já era redirect, mas a função ainda abria a porta do modelo antigo). promover_a_mentor ganhou um segundo caso: acha convite solto do modelo antigo pelo e-mail e liga nele em vez de duplicar — antes esbarrava no índice único e falhava sem explicar por quê. Aplicado em produção e provado com fixture descartável (RPC devolveu o mesmo id da linha órfã); caso sem convite prévio testado, sem regressão. Commit b0a4e2a (31/07).",
       "prioridade": 14
     },
     {
       "titulo": "Limpeza: versões '(cópia)' e dados da Ana Teste",
       "descricao": "Sobraram no banco versões duplicadas com sufixo '(cópia)' e os dados da pessoa fictícia 'Ana Teste da Silva'.",
       "area": "Infra",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "roadmap-proximas-features.md parágrafo final",
-      "prova": "Lixo de teste no banco confunde qualquer contagem e é rápido de tirar.",
+      "prova": "Nenhuma versão de teste com sufixo '(cópia)' existia no banco (as 7 test_versions atuais são só os templates) — este pedaço já estava limpo. Achado e apagado no lugar: um grupo 'Empresa Teste - RH' com 4 pessoas fictícias, um grupo 'TURMA DE TESTE' com 1 pessoa fictícia (incluindo a conta de auth de teste), e a pessoa 'Matheus (teste aluno)'. NÃO apagado, por dúvida real (ver relatório da noite): o mentor 'Fulado de Tal' (matheusgc321@gmail.com) — parece resíduo de teste mas está de pé há dias e host de RLS role real; decisão do Matheus.",
       "prioridade": 15
     },
     {
@@ -174,30 +174,30 @@
       "titulo": "Classroom não testado com login de colaborador",
       "descricao": "O caminho do aluno foi exercitado de verdade, mas o papel de colaborador nunca, por falta de senha de terceiro.",
       "area": "Classroom",
-      "status": "Precisa de melhorias",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "estado-atual-e-fila.md § Classroom, bullet final",
-      "prova": "Falta a senha de um colaborador de verdade para exercitar o papel.",
+      "prova": "Provado com colaborador de teste real, permissão só 'testes': Classroom nega a rota (getTreinamento devolve erro, tela mostra 'Você não tem acesso') e some do menu. Fechado junto com #19/#98/#105 no commit db0cd9e (31/07).",
       "prioridade": 18
     },
     {
       "titulo": "Abas de Testes nunca conferidas com login de colaborador de permissão única",
       "descricao": "O plano do item A exigia explicitamente: \"entrar como colaborador com uma permissão só e conferir que as outras abas não existem — não basta estarem escondidas\". O código está lá (app-sidebar.tsx:45 usa perms: [testes, envios, dev",
       "area": "Equipe / Permissões",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-demandas-30-07.md, item A (\"Testar:\"); src/components/app-sidebar.tsx:43-46",
-      "prova": "Precisa entrar como colaborador real para provar que as outras abas não existem.",
+      "prova": "Provado com colaborador de teste real, permissão só 'envios': as abas de Testes e Devolutivas negam a rota (erro real do servidor, não só sumiço da tela) ao colar o link direto na barra de endereço. exigirPermissao aplicada em 31 funções de tests.functions.ts e 8 de devolutivas.functions.ts. Fechado no commit db0cd9e (31/07).",
       "prioridade": 19
     },
     {
       "titulo": "Exportação de Pessoas não conferida no Excel e no Google Sheets",
       "descricao": "O plano do item C previa: exportar 1 pessoa e 50, e abrir o XLSX no Excel e no Google Sheets, porque acentuação costuma quebrar em um dos dois. Esse teste nunca foi feito — e o arquivo é justamente o que sai da plataforma com dado",
       "area": "Pessoas / Exportação",
-      "status": "Planejado",
+      "status": "Precisa de melhorias",
       "depende_de": "Claude",
       "origem": "docs/plano-demandas-30-07.md, item C, bloco \"Testar\"",
-      "prova": "É o arquivo que sai com dado pessoal e a acentuação costuma quebrar.",
+      "prova": "Exportado de verdade (58 pessoas reais+teste, nomes com acento pesado, cedilha, til, apóstrofo, travessão) e validado byte a byte com openpyxl: 8 colunas certas, contagem de linhas batendo, zero mojibake, telefone gravado como texto (não vira número). Faltou o passo literal pedido — abrir no app do Excel e no Google Sheets de verdade: sem acesso interativo a computador esta noite, e o upload pro Drive foi recusado pela restrição de origem de arquivo da ferramenta. O arquivo exportado foi enviado para o Matheus conferir em 10 segundos.",
       "prioridade": 20
     },
     {
@@ -234,10 +234,10 @@
       "titulo": "Generalizar /aluno/criar-senha para /criar-senha",
       "descricao": "Reaproveitar a tela de criação de senha do aluno para o mentor, mandando os dois papéis para a mesma rota.",
       "area": "Infra",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-area-do-aluno.md § Anexo 1 plano B",
-      "prova": "Uma tela só para os dois papéis; barato e destrava o acesso do mentor.",
+      "prova": "/criar-senha vira rota de topo, fora do layout de /aluno; /aluno/criar-senha continua registrada (mesmo componente) como rede de segurança para link já enviado. Achado no caminho e fechado: mentor promovido antes de ter feito login nunca tinha o team_members ligado no primeiro acesso — claim_team_membership() fecha isso, só para kind='mentor' já vinculado ao auth.uid() (colaborador continua exigindo o token do convite). Provado de ponta a ponta com fixture descartável: promoção 'a fria' + primeiro login real terminam com member_kind()='mentor'. Commit f081e47 (31/07).",
       "prioridade": 24
     },
     {
@@ -974,10 +974,10 @@
       "titulo": "Equipe: mentor por grupo, colaborador por funcionalidade",
       "descricao": "team_members + team_member_groups com can_download_reports, tudo ancorado em acting_account().",
       "area": "Infra",
-      "status": "Precisa de melhorias",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "arquitetura-equipe-e-permissoes.md · fila-area-do-aluno.md tabela linha 21 · git log 0b81d22",
-      "prova": "Ninguém nunca entrou de fato como colaborador ou mentor convidado; as regras de quem vê o quê seguem sem prova real, e uma delas já tinha nascido quebrada.",
+      "prova": "Provado com mentor convidado real atribuído só ao grupo A: não alcança pessoa, resposta, relatório nem devolutiva do grupo B, nem pela tela nem colando id na URL — RLS (tr_mentor_all, can_see_person) barra antes mesmo da checagem do servidor. No caminho, achado e corrigido: getPerson/getDashboardStats comparavam contra o uid de quem chamava em vez de acting_account(), fazendo o mentor não ver nem as próprias respostas de quem ele acompanha. Fechado no commit db0cd9e (31/07).",
       "prioridade": 98
     },
     {
@@ -1044,10 +1044,10 @@
       "titulo": "Permissão de baixar PDF do relatório",
       "descricao": "Mentor sem a permissão 'pode baixar' no grupo deixa de ver o botão de PDF.",
       "area": "Relatórios",
-      "status": "Precisa de melhorias",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "git log b89c970",
-      "prova": "Ninguém entrou como mentor convidado para conferir se o botão de PDF some mesmo, e se a checagem falhar o botão continua aparecendo.",
+      "prova": "Provado: mentor sem 'pode baixar' naquele grupo não vê o botão de PDF em Pessoas, E a rota de download nega mesmo se o botão for forçado (checagem fecha aberta corretamente). Achado e corrigido no caminho: o Dashboard tinha cartões clicáveis para áreas fora da permissão do colaborador (bypass real, não só cosmético). Fechado no commit db0cd9e (31/07).",
       "prioridade": 105
     },
     {
