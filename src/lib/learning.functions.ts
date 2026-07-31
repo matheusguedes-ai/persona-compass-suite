@@ -18,6 +18,7 @@ import { urlOpcional } from "@/lib/url-segura";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
+import { exigirPermissao } from "@/lib/permissao.server";
 
 export const PUBLICOS = [
   { valor: "alunos", titulo: "Alunos", ajuda: "Só quem responde os testes." },
@@ -206,6 +207,7 @@ export const setTrackDestinos = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+    await exigirPermissao(supabase, context.userId, "educacao");
 
     const podeEditar = await supabase.rpc("can_edit_track", { _track_id: data.track_id });
     if (podeEditar.error) throw new Error(podeEditar.error.message);
@@ -289,6 +291,7 @@ export const createTrack = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await exigirPermissao(supabase, userId, "educacao");
     const { group_ids, person_ids, ...campos } = data;
     const { data: conta, error: cErr } = await supabase.rpc("acting_account");
     if (cErr) throw new Error(cErr.message);
@@ -323,6 +326,7 @@ export const updateTrack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).merge(trackSchema.partial()).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { id, ...rest } = data;
     const { data: row, error } = await context.supabase
       .from("learning_tracks").update(rest).eq("id", id).select().single();
@@ -334,6 +338,7 @@ export const deleteTrack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { error } = await context.supabase.from("learning_tracks").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -355,6 +360,7 @@ export const saveModule = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { id, ...rest } = data;
     const q = id
       ? context.supabase.from("learning_modules").update(rest).eq("id", id)
@@ -368,6 +374,7 @@ export const deleteModule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { error } = await context.supabase.from("learning_modules").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -392,6 +399,7 @@ export const saveLesson = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { id, ...rest } = data;
     const q = id
       ? context.supabase.from("learning_lessons").update(rest).eq("id", id)
@@ -405,6 +413,7 @@ export const deleteLesson = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { error } = await context.supabase.from("learning_lessons").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -427,6 +436,7 @@ export const saveMaterial = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { id, ...rest } = data;
     const q = id
       ? context.supabase.from("learning_materials").update(rest).eq("id", id)
@@ -440,6 +450,7 @@ export const deleteMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
     const { error } = await context.supabase.from("learning_materials").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };

@@ -48,7 +48,10 @@ const NAV = [
   { to: "/testes", label: "Testes", icon: FlaskConical, perms: ["testes", "envios", "devolutivas"] },
   { to: "/agenda", label: "Agenda", icon: CalendarDays, perm: "devolutivas" },
   { to: "/comunidades", label: "Comunidades", icon: Users2, perm: "grupos" },
-  { to: "/configuracoes", label: "Configurações", icon: Settings, perm: "configuracoes" },
+  // Sem `perm`/`soDono` de propósito: todo mundo chega, mas a tela em si só
+  // mostra Marca/Relatório/Mensagens/Emails/Agenda para o dono — quem não é
+  // dono vê só "Meu perfil" (nome e foto). Ver _app.configuracoes.tsx.
+  { to: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
 export function AppSidebar() {

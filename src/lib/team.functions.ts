@@ -17,7 +17,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-/** Permissões de colaborador. Cada uma libera um menu/ação da plataforma. */
+/**
+ * Permissões de colaborador. Cada uma libera um menu/ação da plataforma.
+ *
+ * 'configuracoes' NÃO está aqui de propósito (Fecha #218): a tela mexe em
+ * marca, logo, nome da empresa, mensagens-padrão e remetente — reconfigura a
+ * plataforma para todo mundo, não é uma ação de funcionalidade como as
+ * demais. Só o dono alcança isso, sempre — não é permissão que se marca.
+ */
 export const PERMISSOES = [
   "pessoas",
   "grupos",
@@ -26,7 +33,6 @@ export const PERMISSOES = [
   "relatorios",
   "devolutivas",
   "educacao",
-  "configuracoes",
 ] as const;
 export type Permissao = (typeof PERMISSOES)[number];
 
@@ -38,7 +44,6 @@ export const PERMISSAO_LABEL: Record<Permissao, { titulo: string; ajuda: string 
   relatorios: { titulo: "Relatórios", ajuda: "Abrir os relatórios dos avaliados." },
   devolutivas: { titulo: "Devolutivas", ajuda: "Agendar e registrar as conversas de resultado." },
   educacao: { titulo: "Educação", ajuda: "Publicar aulas, trilhas e materiais." },
-  configuracoes: { titulo: "Configurações", ajuda: "Mexer na marca e nas preferências da conta." },
 };
 
 /**

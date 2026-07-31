@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getMyProfile, upsertMyProfile, REPORT_BLOCKS } from "@/lib/data.functions";
+import { getMyProfile, upsertMyProfile, upsertConfiguracoesConta, REPORT_BLOCKS } from "@/lib/data.functions";
+import { getMyMembership } from "@/lib/team.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandMark, MARCA_PADRAO } from "@/lib/brand";
 import { AvatarUpload } from "@/components/avatar-upload";
@@ -70,7 +71,13 @@ function ConfiguracoesPage() {
   const qc = useQueryClient();
   const getFn = useServerFn(getMyProfile);
   const saveFn = useServerFn(upsertMyProfile);
+  const saveContaFn = useServerFn(upsertConfiguracoesConta);
+  const membershipFn = useServerFn(getMyMembership);
   const { data, isLoading } = useQuery({ queryKey: ["my-profile"], queryFn: () => getFn() });
+  const { data: membership } = useQuery({ queryKey: ["my-membership"], queryFn: () => membershipFn() });
+  // Sem resposta ainda, assume dono: é o caso da esmagadora maioria e evita a
+  // tela "piscar" entre a versão reduzida e a completa.
+  const souDono = (membership?.kind ?? "owner") === "owner";
 
   const [fullName, setFullName] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -108,8 +115,19 @@ function ConfiguracoesPage() {
     setResultMsg(p.result_message ?? "");
   }, [data]);
 
+  /** Perfil: nome e foto, qualquer um mexe no próprio. */
   const save = useMutation({
     mutationFn: (v: Record<string, unknown>) => saveFn({ data: v }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-profile"] });
+      toast.success("Alterações salvas");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  /** Marca, relatório, mensagens, remetente — reconfigura para todo mundo; só dono. */
+  const saveConta = useMutation({
+    mutationFn: (v: Record<string, unknown>) => saveContaFn({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-profile"] });
       toast.success("Alterações salvas");
@@ -140,7 +158,7 @@ function ConfiguracoesPage() {
       if (error) throw new Error(error.message);
       const { data: pub } = supabase.storage.from("marca").getPublicUrl(caminho);
       setLogoUrl(pub.publicUrl);
-      save.mutate({ logo_url: pub.publicUrl });
+      saveConta.mutate({ logo_url: pub.publicUrl });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
     } finally {
@@ -161,18 +179,24 @@ function ConfiguracoesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Personalize a plataforma, a identidade da marca e o que o avaliado vê.
+          {souDono
+            ? "Personalize a plataforma, a identidade da marca e o que o avaliado vê."
+            : "Seu nome e sua foto — como você aparece para a equipe."}
         </p>
       </div>
 
       <Tabs defaultValue="perfil">
         <TabsList>
-          <TabsTrigger value="perfil">Perfil da conta</TabsTrigger>
-          <TabsTrigger value="marca">Marca</TabsTrigger>
-          <TabsTrigger value="relatorio">Relatório</TabsTrigger>
-          <TabsTrigger value="mensagens">Mensagens</TabsTrigger>
-          <TabsTrigger value="emails">Emails</TabsTrigger>
-          <TabsTrigger value="agenda">Agenda</TabsTrigger>
+          <TabsTrigger value="perfil">{souDono ? "Perfil da conta" : "Meu perfil"}</TabsTrigger>
+          {souDono && (
+            <>
+              <TabsTrigger value="marca">Marca</TabsTrigger>
+              <TabsTrigger value="relatorio">Relatório</TabsTrigger>
+              <TabsTrigger value="mensagens">Mensagens</TabsTrigger>
+              <TabsTrigger value="emails">Emails</TabsTrigger>
+              <TabsTrigger value="agenda">Agenda</TabsTrigger>
+            </>
+          )}
         </TabsList>
 
         {/* ---------------- Perfil ---------------- */}
@@ -206,12 +230,18 @@ function ConfiguracoesPage() {
           </form>
         </TabsContent>
 
+        {/* Marca, Relatório, Mensagens, Emails e Agenda reconfiguram a conta
+            inteira — a lista de permissões nunca devia ter tratado isso como
+            delegável. Só o dono, aqui E em cada server function chamada
+            (a tela sumir não tranca nada sozinha). Ver Fecha #218. */}
+        {souDono && (
+          <>
         {/* ---------------- Marca ---------------- */}
         <TabsContent value="marca" className="mt-6">
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              save.mutate({
+              saveConta.mutate({
                 company_name: companyName.trim() || null,
                 brand_color: brandColor || null,
                 brand_accent_color: accentColor || null,
@@ -257,7 +287,7 @@ function ConfiguracoesPage() {
                   {enviando ? <><Loader2 className="size-4 animate-spin" /> Enviando…</> : <><ImageUp className="size-4" /> {logoUrl ? "Trocar imagem" : "Escolher imagem"}</>}
                 </Button>
                 {logoUrl && (
-                  <Button type="button" variant="ghost" onClick={() => { setLogoUrl(""); save.mutate({ logo_url: null }); }}>
+                  <Button type="button" variant="ghost" onClick={() => { setLogoUrl(""); saveConta.mutate({ logo_url: null }); }}>
                     <Trash2 className="size-4" /> Remover
                   </Button>
                 )}
@@ -298,8 +328,8 @@ function ConfiguracoesPage() {
               Site e email aparecem no rodapé do relatório, para o avaliado saber a quem recorrer.
             </p>
 
-            <Button type="submit" disabled={save.isPending || isLoading}>
-              {save.isPending ? "Salvando…" : "Aplicar marca"}
+            <Button type="submit" disabled={saveConta.isPending || isLoading}>
+              {saveConta.isPending ? "Salvando…" : "Aplicar marca"}
             </Button>
           </form>
         </TabsContent>
@@ -309,7 +339,7 @@ function ConfiguracoesPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              save.mutate({
+              saveConta.mutate({
                 report_allow_pdf: allowPdf,
                 report_show_brand: showBrand,
                 report_hidden_blocks: hidden,
@@ -362,8 +392,8 @@ function ConfiguracoesPage() {
               </div>
             </div>
 
-            <Button type="submit" disabled={save.isPending || isLoading}>
-              {save.isPending ? "Salvando…" : "Salvar preferências"}
+            <Button type="submit" disabled={saveConta.isPending || isLoading}>
+              {saveConta.isPending ? "Salvando…" : "Salvar preferências"}
             </Button>
           </form>
         </TabsContent>
@@ -373,7 +403,7 @@ function ConfiguracoesPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              save.mutate({
+              saveConta.mutate({
                 invite_message: inviteMsg.trim() || null,
                 reminder_message: reminderMsg.trim() || null,
                 result_message: resultMsg.trim() || null,
@@ -403,8 +433,8 @@ function ConfiguracoesPage() {
               ajuda="Enviado junto com o link do relatório."
             />
 
-            <Button type="submit" disabled={save.isPending || isLoading}>
-              {save.isPending ? "Salvando…" : "Salvar mensagens"}
+            <Button type="submit" disabled={saveConta.isPending || isLoading}>
+              {saveConta.isPending ? "Salvando…" : "Salvar mensagens"}
             </Button>
           </form>
         </TabsContent>
@@ -417,6 +447,8 @@ function ConfiguracoesPage() {
         <TabsContent value="emails" className="mt-6">
           <AbaEmails />
         </TabsContent>
+          </>
+        )}
 
       </Tabs>
     </div>
@@ -445,7 +477,7 @@ function CampoMensagem({
 /** Estado da ligação com o serviço de email + histórico do que saiu. */
 function AbaEmails() {
   const perfilFn = useServerFn(getMyProfile);
-  const salvarFn = useServerFn(upsertMyProfile);
+  const salvarFn = useServerFn(upsertConfiguracoesConta);
   const { data: perfil } = useQuery({ queryKey: ["my-profile"], queryFn: () => perfilFn() });
   const [remetente, setRemetente] = useState("");
   useEffect(() => { setRemetente(perfil?.profile?.email_from ?? ""); }, [perfil]);

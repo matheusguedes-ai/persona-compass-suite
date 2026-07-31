@@ -8,6 +8,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { exigirDono } from "@/lib/team.functions";
 
 const TEXTO_PADRAO: Record<"convite" | "lembrete" | "resultado", string> = {
   convite:
@@ -31,10 +32,11 @@ const ROTULO_BOTAO: Record<"convite" | "lembrete" | "resultado", string> = {
   resultado: "Ver meu relatório",
 };
 
-/** Diz à tela se dá para enviar e de qual remetente. */
+/** Diz à tela se dá para enviar e de qual remetente. Configuração da conta: só dono. */
 export const getEmailStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirDono(context.supabase);
     const { emailAtivo, remetente } = await import("@/lib/email.server");
     const { data: perfil } = await context.supabase
       .from("profiles").select("email_from").eq("user_id", context.userId).maybeSingle();
@@ -42,11 +44,12 @@ export const getEmailStatus = createServerFn({ method: "GET" })
     return { ativo: emailAtivo(), remetente: r.valor, remetente_de_teste: r.eh_teste };
   });
 
-/** Últimos envios, para a tela responder "eu mandei para essa pessoa?". */
+/** Últimos envios, para a tela responder "eu mandei para essa pessoa?". Configuração da conta: só dono. */
 export const listEmailLogs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ limit: z.number().int().min(1).max(200).default(50) }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
+    await exigirDono(context.supabase);
     const { data: rows, error } = await context.supabase
       .from("email_logs")
       .select("id, kind, to_email, subject, status, error, created_at, person_id")
@@ -155,11 +158,12 @@ export const sendMentorEmail = createServerFn({ method: "POST" })
     return { ok: true, para: pessoa.email };
   });
 
-/** Envio de teste para o próprio mentor, para conferir que a ligação funciona. */
+/** Envio de teste para o próprio dono, para conferir que a ligação funciona. Configuração da conta: só dono. */
 export const sendTestEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ origin: z.string().url().max(300) }).parse(d))
   .handler(async ({ data, context }) => {
+    await exigirDono(context.supabase);
     const { userId, claims } = context;
     const para = (claims as { email?: string })?.email;
     if (!para) throw new Error("Não consegui identificar o seu email.");

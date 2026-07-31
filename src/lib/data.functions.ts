@@ -1,8 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { urlOpcional } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao, exigirPermissaoOuMentor, exigirAcessoAoGrupo } from "@/lib/permissao.server";
+import { exigirDono } from "@/lib/team.functions";
 
 // ============================================================
 // Instruments (public read)
@@ -473,6 +476,16 @@ const profileSchema = z.object({
   report_hidden_blocks: z.array(z.enum(REPORT_BLOCKS)).optional(),
 });
 
+/**
+ * Só nome e foto — o resto do que mora em `profiles` é configuração da CONTA
+ * (marca, mensagens-padrão, relatório, remetente), não do indivíduo. Ver
+ * `upsertConfiguracoesConta`, que exige dono.
+ */
+const perfilPessoalSchema = z.object({
+  full_name: z.string().trim().max(160).optional().nullable(),
+  avatar_url: urlOpcional,
+});
+
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -491,27 +504,62 @@ export const getMyProfile = createServerFn({ method: "GET" })
     return { profile: data, email, user_id: context.userId };
   });
 
+/**
+ * A aba "Perfil" carrega a foto já ASSINADA (ver getMyProfile) e reenvia esse
+ * mesmo valor ao salvar nome/foto juntos sem trocar a foto — resolve de volta
+ * ao identificador cru gravado, em vez de persistir um link que expira em
+ * minutos.
+ */
+async function resolverAvatarParaGravar(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  avatarUrl: string,
+) {
+  const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+  if (!ehUrlAssinadaNossa(avatarUrl)) return avatarUrl;
+  const { data: atual } = await supabase
+    .from("profiles").select("avatar_url").eq("user_id", userId).maybeSingle();
+  return atual?.avatar_url ?? null;
+}
+
+/**
+ * Nome e foto — qualquer pessoa logada mexe no próprio (dono, colaborador).
+ * Mentor e aluno vivem em `/aluno`, com o próprio mecanismo de perfil; nem
+ * chegam nesta tela, mas a função em si já é segura por natureza: só toca na
+ * linha do PRÓPRIO `user_id`, nunca na de outra conta.
+ */
 export const upsertMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => profileSchema.parse(d))
+  .inputValidator((d) => perfilPessoalSchema.parse(d))
   .handler(async ({ data, context }) => {
-    // Campo esvaziado na tela chega como "" — guardar null mantém a checagem
-    // "tem valor?" simples em quem lê (um `??` resolve).
     const limpo: Record<string, unknown> = Object.fromEntries(
       Object.entries(data).map(([k, v]) => [k, v === "" ? null : v]),
     );
-    // A aba "Perfil" carrega a foto já ASSINADA (ver getMyProfile) e reenvia
-    // esse mesmo valor ao salvar nome/foto juntos sem trocar a foto —
-    // preserva o identificador já gravado em vez de persistir um link que
-    // expira em minutos.
     if (typeof limpo.avatar_url === "string") {
-      const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
-      if (ehUrlAssinadaNossa(limpo.avatar_url)) {
-        const { data: atual } = await context.supabase
-          .from("profiles").select("avatar_url").eq("user_id", context.userId).maybeSingle();
-        limpo.avatar_url = atual?.avatar_url ?? null;
-      }
+      limpo.avatar_url = await resolverAvatarParaGravar(context.supabase, context.userId, limpo.avatar_url);
     }
+    const { data: row, error } = await context.supabase
+      .from("profiles")
+      .upsert({ user_id: context.userId, ...limpo }, { onConflict: "user_id" })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+/**
+ * Marca, mensagens-padrão, remetente e preferências de relatório — reconfigura
+ * a plataforma para TODO MUNDO (a marca no menu, na tela de entrada, nos
+ * relatórios e nas páginas que o avaliado abre). Só o dono. Ver Fecha #218.
+ */
+export const upsertConfiguracoesConta = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => profileSchema.omit({ full_name: true, avatar_url: true }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirDono(context.supabase);
+    const limpo: Record<string, unknown> = Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, v === "" ? null : v]),
+    );
     const { data: row, error } = await context.supabase
       .from("profiles")
       .upsert({ user_id: context.userId, ...limpo }, { onConflict: "user_id" })

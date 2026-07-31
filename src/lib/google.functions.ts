@@ -6,10 +6,13 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { exigirDono } from "@/lib/team.functions";
 
+/** A conexão é da conta (as devolutivas de todo mundo caem na mesma agenda). Só dono. */
 export const estadoDoGoogle = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirDono(context.supabase);
     const { credenciais } = await import("@/lib/google.server");
     const { data } = await (context.supabase.rpc as never as (n: string) => Promise<{
       data: Array<{
@@ -36,6 +39,7 @@ export const estadoDoGoogle = createServerFn({ method: "GET" })
 export const iniciarConexaoGoogle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirDono(context.supabase);
     const { urlDeAutorizacao, assinarEstado } = await import("@/lib/google.server");
     const url = urlDeAutorizacao(assinarEstado(context.userId));
     if (!url) throw new Error("O Google ainda não foi configurado nesta plataforma.");
@@ -45,6 +49,7 @@ export const iniciarConexaoGoogle = createServerFn({ method: "POST" })
 export const desconectarGoogle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await exigirDono(context.supabase);
     // A RLS só deixa apagar a própria conexão. Os eventos já criados ficam no
     // Google: apagá-los sem avisar tiraria compromissos da agenda de alguém.
     const { error } = await context.supabase
