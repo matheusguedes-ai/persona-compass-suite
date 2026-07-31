@@ -2254,11 +2254,11 @@
       "titulo": "Colaborador sem permissão não vê nada daquele menu — nem a leitura",
       "descricao": "DECIDIDO pelo Matheus em 31/07: colaborador sem a permissão de uma área não tem acesso a NADA daquela área — nem escrita, nem leitura. Vale para a Academy (trilhas publicadas ou não) e para toda área com o mesmo padrão frouxo: hoje a regra de leitura olha só se o conteúdo é da conta, sem checar permissão. A escrita já foi trancada em 466a5b1; falta a leitura.",
       "area": "Academy",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 226,
       "origem": "Claude Code, 31/07, ao fechar #218 — corrigindo uma presunção anterior dele",
-      "prova": "Decisão tomada. Regra: sem a permissão, o menu não aparece E a rota nega — leitura inclusive. Varrer TODAS as áreas com o mesmo padrão (Academy e Biblioteca são as conhecidas), não só a Academy."
+      "prova": "Trancado nas 5 áreas com o mesmo padrão: Academy (listTracks/getTrack), Biblioteca (listarBiblioteca/listarBanners), Comunidade (listarFeed/membrosDosGrupos), Ranking por grupo (rankingDoGrupo) e a Agenda/Gestão da equipe (agendaDoMes, só o ramo sem 'somenteMinhas'). Todas seguem 'equipe da conta vê tudo' na RLS (owner_id = acting_account()), sem noção de permissão por funcionalidade — colaborador sem a permissão entrava pela mesma porta que dono/mentor. exigirPermissaoOuVisitante (permissao.server.ts) fecha isso sem quebrar quem só vê o próprio: owner/mentor/aluno passam direto (RLS já recorta certo pra eles), só colaborador precisa da permissão. getTrackDestinos (só quem edita) levou o exigirPermissao simples. De passagem: criarEvento/excluirEvento diziam 'só o master' no comentário mas não checavam nada — ganharam exigirDono; o CRUD legado de mentors (sem rota ativa) também. Provado com login real, local e em produção: colaborador com as 7 permissões passa em tudo; sem educacao/grupos/devolutivas, negado em tudo (inclusive chamando o servidor direto, conferido pelo corpo da resposta, não só pela tela); aluno de verdade (people.user_id ligado) intacto nas 5 áreas — testado abrindo material real da Biblioteca com URL assinada; mentor igual, e barrado ao tentar a agenda da equipe via chamada direta; dono sem mudança nenhuma, avatar e marca carregando. Commit 320c08b (31/07)."
     },
     {
       "titulo": "Conta sem vínculo nenhum vira dona de si mesma",
