@@ -1,13 +1,13 @@
 {
   "demandas": [
     {
-      "titulo": "Conferir vazamento de dado com o mentor afiliado real",
-      "descricao": "O mentor afiliado enxerga resultado de teste de quem não é cliente direta dele; validar antes de soltar.",
+      "titulo": "Vazamento do mentor afiliado no relatório por link",
+      "descricao": "A tela de relatório e a de plano de ação são públicas de propósito (o avaliado recebe o link por e-mail), mas são as MESMAS que o mentor logado abre dentro da plataforma. Elas nunca souberam distinguir os dois casos: um mentor convidado logado trocava o UUID na barra de endereço e via a resposta de qualquer pessoa da conta. No plano de ação dava até para sobrescrever o de outra pessoa (GET e POST).",
       "area": "Infra",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-area-do-aluno.md § Anexo 1, Risco a observar",
-      "prova": "Hoje um mentor afiliado enxerga resultado de quem não é cliente dele.",
+      "prova": "Fechado em 11a9253 (ponto de retorno em 2918f6e). podeVerPessoaAutenticado() em report.server.ts: sem sessão deixa passar (link público inalterado); com sessão monta cliente com o token de quem pediu e pergunta à policy de people — não reimplementa a regra. Aplicado em buildReport, buildBatteryReport e nas duas rotas do plano de ação. PROVADO com mentor convidado real em dois grupos: barrado fora do grupo, liberado dentro; dono e aluno inalterados; dados de teste apagados. RESSALVA: a checagem só roda quando há header de autenticação — barra curiosidade dentro do produto, não quem sai da sessão de propósito. O que segura de fato é o mentor não conseguir descobrir o UUID de outro grupo (policy de test_responses). A hipótese de que as policies de people/groups/devolutivas estavam abertas foi REFUTADA: o banco já estava correto.",
       "prioridade": 1
     },
     {
