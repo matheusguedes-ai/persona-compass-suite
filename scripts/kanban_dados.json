@@ -2174,7 +2174,7 @@
       "titulo": "Configurações da plataforma só o dono acessa",
       "descricao": "'configuracoes' está na lista PERMISSOES (src/lib/team.functions.ts:21) como permissão delegável, ao lado de pessoas/grupos/testes. Um colaborador com todas as permissões pode trocar a marca, o logo, o nome da empresa e o e-mail de suporte — coisas que desconfiguram a plataforma inteira para todo mundo. Nenhum papel além do dono (colaborador, mentor convidado, aluno) pode alcançar isso. Não basta esconder o menu: a rota e as server functions têm de negar.",
       "area": "Equipe / Permissões",
-      "status": "Planejado",
+      "status": "Em andamento",
       "depende_de": "Claude",
       "prioridade": 218,
       "origem": "Matheus, 31/07: criou o colaborador 'sucesso do aluno' com todas as permissões e viu que ele alcança Configurações",
