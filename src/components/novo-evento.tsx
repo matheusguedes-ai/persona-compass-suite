@@ -26,6 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarPlus, ImagePlus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { erroDeUpload } from "@/lib/erro-de-upload";
 
 export function NovoEvento() {
   const qc = useQueryClient();
@@ -52,7 +53,7 @@ export function NovoEvento() {
       const ext = f.name.split(".").pop() ?? "jpg";
       const caminho = `${sessao.user?.id}/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("eventos").upload(caminho, f);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(erroDeUpload(error, "eventos"));
       const { data: pub } = supabase.storage.from("eventos").getPublicUrl(caminho);
       setImagemUrl(pub.publicUrl);
     } catch (e) {

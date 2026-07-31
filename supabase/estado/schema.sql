@@ -1659,13 +1659,43 @@ AS $function$
 DECLARE
   v_destinos uuid[];
 BEGIN
+  -- ---- QUEM PODE ESCREVER NO SINO DE QUEM (guarda nova, 30/07/2026) ----
+  --
+  -- Ate hoje esta funcao aceitava qualquer chamador. Combinada com o EXECUTE
+  -- que estava concedido a PUBLIC, isso significava: qualquer pessoa da
+  -- internet escrevia uma notificacao com titulo e LINK arbitrarios no sino de
+  -- qualquer conta -- e ela chega com a cara do sistema. A migracao
+  -- 20260730340000 revogou o acesso anonimo; esta guarda fecha o resto.
+  --
+  -- auth.uid() NULO = service role. E o caminho dos endpoints publicos
+  -- (avisarQueRespondeu, no envio de resposta), que ja passou pela sua propria
+  -- checagem antes de chegar aqui. `anon` nao cai mais neste ramo porque o
+  -- EXECUTE dele foi revogado -- as duas coisas juntas e que fecham.
+  --
+  -- LOGADO: so escreve na conta a que ele pertence. Tres portas, as mesmas do
+  -- resto da plataforma: o dono, quem e da equipe, e quem e avaliado ali.
+  -- Levanta excecao em vez de devolver 0 em silencio: o TypeScript ja engole a
+  -- falha (notificacao nunca derruba a acao), entao um aviso legitimo nunca ve
+  -- este erro, e um ilegitimo fica registrado no log do banco.
+  IF auth.uid() IS NOT NULL AND NOT (
+       auth.uid() = p_conta
+       OR EXISTS (SELECT 1 FROM public.team_members tm
+                   WHERE tm.user_id = auth.uid()
+                     AND tm.owner_id = p_conta
+                     AND tm.status = 'ativo')
+       OR EXISTS (SELECT 1 FROM public.people pe
+                   WHERE pe.user_id = auth.uid()
+                     AND pe.mentor_id = p_conta)
+     ) THEN
+    RAISE EXCEPTION 'Sem permissao para notificar nesta conta.';
+  END IF;
   SELECT array_agg(DISTINCT u) INTO v_destinos FROM (
-    -- 1. O MASTER v√™ tudo que acontece na conta dele.
+    -- 1. O MASTER vê tudo que acontece na conta dele.
     SELECT p_conta AS u
 
     UNION
-    -- 2. MENTORES. Duas portas: o grupo √© dele, ou √© novidade do master
-    --    (`p_grupos IS NULL` = an√∫ncio da conta inteira).
+    -- 2. MENTORES. Duas portas: o grupo é dele, ou é novidade do master
+    --    (`p_grupos IS NULL` = anúncio da conta inteira).
     SELECT tm.user_id
       FROM public.team_members tm
       LEFT JOIN public.team_member_groups tmg ON tmg.team_member_id = tm.id
@@ -1676,12 +1706,12 @@ BEGIN
        AND (p_grupos IS NULL OR tmg.group_id = ANY(p_grupos))
 
     UNION
-    -- 3. O ALUNO DE QUEM O EVENTO TRATA. Sempre, mesmo fora de grupo: √© sobre
-    --    ele. √â o "referente a ele mesmo" da regra.
+    -- 3. O ALUNO DE QUEM O EVENTO TRATA. Sempre, mesmo fora de grupo: é sobre
+    --    ele. É o "referente a ele mesmo" da regra.
     SELECT p_pessoa_user WHERE p_pessoa_user IS NOT NULL
 
     UNION
-    -- 4. OS DEMAIS ALUNOS dos grupos, s√≥ quando o evento √© de comunidade.
+    -- 4. OS DEMAIS ALUNOS dos grupos, só quando o evento é de comunidade.
     SELECT pe.user_id
       FROM public.people pe
       JOIN public.group_members gm ON gm.person_id = pe.id

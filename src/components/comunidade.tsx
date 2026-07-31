@@ -20,8 +20,12 @@ import { Heart, MessageCircle, Paperclip, Trash2, FileText, X, Send } from "luci
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { youtubeId } from "@/lib/learning.functions";
+import { ACCEPT, LIMITES, erroDeUpload } from "@/lib/erro-de-upload";
 
-const LIMITE_MB = 8;
+// O MESMO numero do bucket. Antes era 8 aqui e 5 la: toda foto de celular
+// entre 5 e 8 MB passava pela mensagem amigavel da tela, subia pela rede
+// inteira e voltava com o erro cru do Supabase.
+const LIMITE_MB = LIMITES.comunidade.tamanhoMb;
 
 function quando(iso: string) {
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -97,7 +101,7 @@ export function Comunidade({
     const caminho = `${uid}/${crypto.randomUUID()}-${f.name.replace(/[^\w.-]/g, "_")}`;
     const { error } = await supabase.storage.from("comunidade").upload(caminho, f, { upsert: false });
     setEnviandoArquivo(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(erroDeUpload(error, "comunidade"));
     const { data: pub } = supabase.storage.from("comunidade").getPublicUrl(caminho);
     setArquivo({ url: pub.publicUrl, kind: ehImagem ? "imagem" : "pdf", nome: f.name });
   }
@@ -190,7 +194,7 @@ export function Comunidade({
           placeholder="Link (opcional)" className="mt-3"
         />
         <input
-          ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
+          ref={fileRef} type="file" accept={ACCEPT.comunidade} className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void escolherArquivo(f); }}
         />
         {escolherDestino && (

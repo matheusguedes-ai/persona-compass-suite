@@ -26,6 +26,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { erroDeUpload } from "@/lib/erro-de-upload";
 
 export function BannersAcademy({
   podeEditar = false, novo, onNovo,
@@ -71,7 +72,7 @@ export function BannersAcademy({
       const ext = f.name.split(".").pop() ?? "jpg";
       const caminho = `${sessao.user?.id}/banner-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("biblioteca").upload(caminho, f);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(erroDeUpload(error, "biblioteca"));
       const { data: pub } = supabase.storage.from("biblioteca").getPublicUrl(caminho);
       setForm((v) => ({ ...v, imagem_url: pub.publicUrl }));
     } catch (e) {

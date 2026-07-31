@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ImageUp, Loader2, Trash2, UserRound } from "lucide-react";
 import { toast } from "sonner";
+import { erroDeUpload } from "@/lib/erro-de-upload";
 
 /** Iniciais do nome, para quando não há foto. */
 function iniciais(nome: string | null | undefined) {
@@ -76,7 +77,7 @@ export function AvatarUpload({
         cacheControl: "3600",
         upsert: true,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(erroDeUpload(error, "avatares"));
       const { data } = supabase.storage.from("avatares").getPublicUrl(caminho);
       onChange(data.publicUrl);
     } catch (e) {

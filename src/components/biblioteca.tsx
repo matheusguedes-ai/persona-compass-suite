@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ACCEPT, erroDeUpload } from "@/lib/erro-de-upload";
 import { supabase } from "@/integrations/supabase/client";
 
 const ICONE = {
@@ -122,7 +123,7 @@ export function Biblioteca({
       const ext = f.name.split(".").pop() ?? "bin";
       const caminho = `${sessao.user?.id}/${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("biblioteca").upload(caminho, f);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(erroDeUpload(error, "biblioteca"));
       const { data: pub } = supabase.storage.from("biblioteca").getPublicUrl(caminho);
       if (alvo === "capa") setForm((v) => ({ ...v, capa_url: pub.publicUrl }));
       else if (alvo === "capaPasta") setFormPasta((v) => ({ ...v, capa_url: pub.publicUrl }));
@@ -360,7 +361,7 @@ export function Biblioteca({
                 <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                   <Upload className="size-4" />
                   {enviando === "arquivo" ? "Enviando…" : "Escolher arquivo (até 25 MB)"}
-                  <input type="file" className="hidden"
+                  <input type="file" accept={ACCEPT.biblioteca} className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) enviar(f, "arquivo"); }} />
                 </label>
               )}

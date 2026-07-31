@@ -42,6 +42,7 @@ import { ListaDePresenca } from "@/components/lista-de-presenca";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ACCEPT, erroDeUpload } from "@/lib/erro-de-upload";
 
 type MaterialT = { id: string; titulo: string; url: string; kind: string; visivel_aluno: boolean };
 type AulaT = {
@@ -770,7 +771,7 @@ function MaterialDialog({
       // O balde é o mesmo da biblioteca: leitura pública com nome aleatório, e
       // cada um escreve só na própria pasta. Um balde novo não traria regra nova.
       const { error } = await supabase.storage.from("biblioteca").upload(caminho, f);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(erroDeUpload(error, "biblioteca"));
       const { data: pub } = supabase.storage.from("biblioteca").getPublicUrl(caminho);
       setUrl(pub.publicUrl);
       if (!titulo) setTitulo(f.name.replace(/\.[^.]+$/, ""));
@@ -841,7 +842,7 @@ function MaterialDialog({
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                 <Upload className="size-4" />
                 {enviando ? "Enviando…" : "Escolher arquivo (até 25 MB)"}
-                <input type="file" className="hidden"
+                <input type="file" accept={ACCEPT.biblioteca} className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) enviar(f); }} />
               </label>
             )}
