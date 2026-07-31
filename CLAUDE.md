@@ -9,6 +9,93 @@ Tipos Psicológicos (Jung, 1921), Valores (Spranger, 1914), Big Five, VAK.
 - Editor/hospedagem: Lovable (projeto `7ec78bd4-7fd4-4894-a726-db340b8544a3`)
 - Repositório: `matheusguedes-ai/persona-compass-suite` (sync bidirecional com o Lovable)
 
+---
+
+## Constituição — as quatro regras que valem em toda demanda
+
+Matheus é leigo em programação. Ele decide o **quê**; o agente decide o **como**
+e responde pelo resultado. Estas quatro regras não são preferências de estilo:
+cada uma nasceu de um prejuízo real.
+
+### 1. Ponto de retorno antes de começar
+
+Antes de tocar em qualquer coisa numa demanda nova, criar um commit com nome
+claro em português — `versão estável antes de mexer nas mentorias`, não
+`wip`. É o único jeito de o Matheus dizer "me leva de volta pra aquele ponto"
+sem precisar entender git.
+
+Se ele pedir "salva um ponto de retorno", é isso. Se pedir "me leva de volta pra
+aquele ponto", achar o commit pelo nome e voltar — e explicar o que se perde.
+
+### 2. Todo registro de dado nasce com dono
+
+Toda tabela nova, toda coluna que guarda algo de alguém, nasce com a
+identificação do proprietário (`mentor_id`, `owner_id`, ou o que a tabela já
+usar — seguir o padrão de `acting_account()`).
+
+Hoje o dono é sempre o Matheus e não há segundo cliente, então **isto não é
+urgente — é preparação**. A plataforma vai virar SaaS. Cada tabela criada sem
+dono é uma cirurgia a mais depois. Cobrança, planos e escala plugam sem dor
+mais tarde; o isolamento por dono, não.
+
+Nunca perguntar se deve incluir o campo de dono. Incluir.
+
+### 3. Uma feature por vez
+
+Nunca amontoar duas demandas grandes na mesma entrega. Constrói, testa,
+funcionou, próxima.
+
+E o inverso também é regra: **quando o Matheus pedir demais de uma vez, avisar.**
+Ele sabe que tem essa tendência e pediu explicitamente para ser freado. Dizer
+qual pedaço vem primeiro e por quê, e perguntar se pode deixar o resto para
+depois. Isso não é insubordinação — é o combinado.
+
+### 4. Explicar em português simples ao terminar
+
+Ao final de toda demanda, sem ser pedido:
+
+- **o que foi feito**, em português de quem não lê código;
+- **o que pode ter quebrado** — que telas encostam nisso, que papéis (dono,
+  mentor convidado, colaborador, aluno) são afetados, o que vale conferir.
+
+Nunca responder mandando ele ler código ou diff. Explicar o mapa.
+
+### O que fazer sozinho, e o que trazer
+
+Regra dele: **problema identificado, conserte no mesmo trabalho e conte depois.**
+Não perguntar "quer que eu conserte?" — consertar e relatar. Parar e perguntar só
+quando o risco for alto (dado que sai da plataforma, mudança irreversível,
+decisão de produto que muda o que a feature é).
+
+Antes de dar algo como entregue, **abrir a plataforma e conferir nos papéis
+afetados.** "Concluído" que ninguém exercitou é "precisa de melhorias" com nome
+bonito — cinco demandas do kanban já provaram isso.
+
+### Quem faz o quê
+
+O planejamento acontece **no chat** (Cowork/claude.ai), onde o Matheus pensa,
+decide e recebe o prompt pronto. A construção acontece **no Claude Code**, onde
+ele cola o prompt. Arquiteto e pedreiro.
+
+Combinado com ele em 30/07:
+
+- Documento de planejamento (roadmap, spec, regra, caderno de dores) o **chat
+  escreve direto no repositório** — ele não copia nem cola nada. Mas o chat
+  **avisa sempre o que tocou**, senão o Code trabalha em cima de arquivo que
+  mudou sem ele saber.
+- Demanda vai para o Code **um prompt por vez**, no ritmo dele. Nunca um lote:
+  pilha de prompt vira vontade de mandar tudo junto, que é exatamente o que a
+  regra 3 existe para impedir.
+- O chat **não constrói feature**. Se der vontade de já corrigir o código
+  enquanto planeja, o lugar disso é o prompt, não o commit.
+
+### Onde ficam as decisões e a fila
+
+- `kanban-demandas.xlsx` — o quadro. Fonte em `scripts/kanban_dados.json`,
+  versionada; a planilha é gerada por `scripts/kanban_planilha.py`.
+- `docs/roadmap-fases.md` — a ordem das fases e o que trava o quê.
+- `docs/dores-plano-comercial.md` — as dores de coach que a plataforma resolve.
+
 ## Stack
 
 TanStack Start (SSR) + React 19 + TypeScript + Tailwind v4 + shadcn/ui.
