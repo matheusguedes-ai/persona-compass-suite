@@ -154,10 +154,10 @@
       "titulo": "Fechar o material Aula01_Slides, que continua visível aos alunos",
       "descricao": "Quando o material do Classroom ganhou audiência (\"só você\" / \"o aluno também\"), o material já existente dele — Aula01_Slides — foi deliberadamente mantido visível, porque mudar calado o que os alunos já podiam ter visto seria deci",
       "area": "Classroom / Materiais",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "Mensagem de entrega do commit c342813 (sessão 30/07): \"seu Aula01_Slides continua visível para os alunos\"",
-      "prova": "Só ele decide se aquele material continua aberto para a turma.",
+      "prova": "Fechado de lado pelo trabalho dos buckets (c03134c). Varredura no banco em 31/07: o material não existe em biblioteca_materiais (só a \"Apostila Aula 01: Autopercepção\"), biblioteca_material_destinos está vazia, e o arquivo .pptx que sobrou no storage é órfão — nenhuma tabela aponta para ele, conferido tabela a tabela. Com o bucket privado, nem a URL direta abre. Matheus confirmou na tela.",
       "prioridade": 16
     },
     {
@@ -624,10 +624,10 @@
       "titulo": "'Confirm email' ainda ligado no projeto novo",
       "descricao": "Afeta só o cadastro por e-mail/senha, não o login com Google.",
       "area": "Infra",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "migracao-supabase-proprio.md § Falta ainda",
-      "prova": "É uma chave no painel do Supabase e afeta só o cadastro por e-mail e senha.",
+      "prova": "Chave \"Confirm email\" desligada por ele no painel do Supabase (Authentication → Sign In / Providers → Email). A plataforma já manda o próprio e-mail de primeiro acesso; a chave do Supabase gerava um segundo e-mail e travava quem não entendia que precisava clicar. RESSALVA: sem essa confirmação, alguém poderia se cadastrar com o e-mail de outra pessoa. Risco baixo hoje porque o acesso nasce de convite, não de cadastro aberto — revisitar se um dia abrir cadastro público.",
       "prioridade": 63
     },
     {
