@@ -283,6 +283,7 @@ function EditorPage() {
 
                     {q.type === "linear_scale" && (
                       <LinearScaleEditor
+                        key={q.id}
                         question={q}
                         dimensions={dimensions}
                         onUpdate={(config) => updQ.mutate({ id: q.id, config })}
@@ -442,8 +443,17 @@ function LinearScaleEditor({ question, dimensions, onUpdate }: {
   const [minLabel, setMinLabel] = useState(String(cfg.minLabel ?? "Discordo"));
   const [maxLabel, setMaxLabel] = useState(String(cfg.maxLabel ?? "Concordo"));
   // Prefer dimension_id (stable UUID); migrate legacy dimension_key if present.
+  //
+  // O select aparecia vazio "com dimensão salva" quando o `dimension_id`
+  // gravado não batia com NENHUMA dimensão atual (ex.: a dimensão foi
+  // excluída depois de escolhida, ou a pergunta foi copiada de outra
+  // versão) — `cfg.dimension_id` continuava uma string não-vazia, então o
+  // primeiro `if` a devolvia direto, e o Select não achava nenhum item com
+  // aquele valor. Confere que o id ainda existe antes de confiar nele.
   const initialDimId = (() => {
-    if (typeof cfg.dimension_id === "string" && cfg.dimension_id) return cfg.dimension_id;
+    if (typeof cfg.dimension_id === "string" && cfg.dimension_id && dimensions.some((d) => d.id === cfg.dimension_id)) {
+      return cfg.dimension_id;
+    }
     if (typeof cfg.dimension_key === "string" && cfg.dimension_key) {
       return dimensions.find((d) => d.key === cfg.dimension_key)?.id ?? dimensions[0]?.id ?? "";
     }
