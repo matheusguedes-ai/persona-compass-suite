@@ -6,7 +6,7 @@
  * motivos: não é o painel dele, e sugeria um poder que ele não tem.
  *
  * Aqui saem só os grupos atribuídos, com o que ele pode fazer em cada um: ver
- * quem está lá e cuidar das devolutivas, quando o dono liberou.
+ * quem está lá e cuidar das mentorias, quando o dono liberou.
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -63,7 +63,7 @@ function Pagina() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{g.name}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {g.can_schedule_devolutivas ? "Você pode agendar devolutivas" : "Somente acompanhar"}
+                  {g.can_schedule_mentorias ? "Você pode agendar mentorias" : "Somente acompanhar"}
                   {" · "}
                   {g.can_download_reports ? "pode baixar relatórios" : "relatórios só na tela"}
                 </p>
@@ -74,10 +74,10 @@ function Pagina() {
                     <Users className="size-3.5" /> Comunidade
                   </Link>
                 </Button>
-                {g.can_schedule_devolutivas && (
+                {g.can_schedule_mentorias && (
                   <Button size="sm" asChild>
-                    <a href={`/grupos/${g.group_id}`}>
-                      <MessagesSquare className="size-3.5" /> Devolutivas
+                    <a href="/mentorias">
+                      <MessagesSquare className="size-3.5" /> Mentorias
                     </a>
                   </Button>
                 )}

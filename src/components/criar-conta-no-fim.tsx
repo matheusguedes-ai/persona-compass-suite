@@ -58,7 +58,7 @@ export function CriarContaNoFim({ responseId }: { responseId: string }) {
         <h2 className="mt-3 text-base font-medium">Quer guardar seus resultados?</h2>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
           Criando sua conta, você acompanha este e os próximos testes num painel só, com os
-          gráficos e o que ficar combinado nas devolutivas.
+          gráficos e o que ficar combinado nas mentorias.
         </p>
         <Button className="mt-4" onClick={() => setAberto(true)}>Criar minha conta</Button>
       </div>

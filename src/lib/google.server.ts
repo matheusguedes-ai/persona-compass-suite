@@ -167,7 +167,7 @@ export function verificarEstado(estado: string): string | null {
  * Cria, atualiza ou apaga um evento na agenda da plataforma.
  *
  * Silenciosa: como a pontuação e as notificações, o Google nunca derruba a ação
- * que a gerou. Se o calendário estiver fora do ar, a devolutiva é agendada do
+ * que a gerou. Se o calendário estiver fora do ar, a sessão é agendada do
  * mesmo jeito — a agenda de dentro da plataforma não depende dele.
  *
  * O erro fica registrado em `google_conexoes.ultimo_erro` para a tela poder
@@ -175,7 +175,7 @@ export function verificarEstado(estado: string): string | null {
  */
 export async function sincronizar(
   userId: string,
-  origem: "devolutiva" | "evento",
+  origem: "mentoria" | "evento",
   origemId: string,
   dados: { titulo: string; descricao?: string | null; quando: string; terminaEm?: string | null; duracaoMin?: number | null } | null,
 ): Promise<void> {

@@ -46,6 +46,30 @@ export const listPeople = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+/**
+ * Nome e e-mail de toda a conta, para um seletor de pessoa dentro de OUTRA
+ * tela — quem escolhe o destino de um evento (`novo-evento.tsx`) ou de um
+ * material da Academy (`quem-acessa.tsx`).
+ *
+ * Sem checar `pessoas`/`educacao`/`mentorias` de propósito: quem chama isto já
+ * passou pela permissão da TELA que abriu o seletor (`exigirDono` no evento,
+ * `educacao` no destino da Academy) — perguntar de novo aqui, por uma
+ * permissão que não é a da tela, bloquearia gente que tem todo o direito de
+ * estar ali. A RLS de `people` já limita o mentor convidado aos grupos dele;
+ * o resto é a conta inteira, que é exatamente o que um seletor precisa
+ * enxergar. Achado ao migrar `listarPessoasParaDevolutiva` (Fecha #213): ela
+ * exigia a permissão 'devolutivas' para estas duas telas que não têm nada a
+ * ver com mentoria.
+ */
+export const listarPessoasParaEscolher = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("people").select("id, full_name, email").order("full_name");
+    if (error) throw new Error(error.message);
+    return { pessoas: data ?? [] };
+  });
+
 export const getPerson = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
@@ -162,7 +186,7 @@ export const deletePerson = createServerFn({ method: "POST" })
 export const AREAS_DO_ALUNO = [
   { valor: "resultados", titulo: "Meus resultados", ajuda: "Os testes que ele respondeu e os relatórios." },
   { valor: "comunidade", titulo: "Comunidade", ajuda: "O feed do grupo, os membros e o ranking." },
-  { valor: "devolutivas", titulo: "Devolutivas", ajuda: "O histórico das conversas de resultado." },
+  { valor: "mentorias", titulo: "Mentorias", ajuda: "As sessões marcadas, o resumo e o checklist de cada uma." },
   { valor: "agenda", titulo: "Agenda", ajuda: "Eventos e aulas marcadas para ele." },
   { valor: "academy", titulo: "Academy", ajuda: "Trilhas, aulas gravadas e biblioteca." },
   { valor: "classroom", titulo: "Classroom", ajuda: "Treinamentos presenciais e presença." },

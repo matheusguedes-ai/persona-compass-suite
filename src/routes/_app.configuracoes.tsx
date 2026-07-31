@@ -663,7 +663,7 @@ function GoogleCalendar() {
       <div>
         <h2 className="text-base font-medium">Google Calendar</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          As devolutivas e os eventos que você marcar aqui aparecem numa agenda chamada
+          As mentorias e os eventos que você marcar aqui aparecem numa agenda chamada
           <strong> Métrica Humana</strong> no seu Google. O que você mexer lá não volta para cá.
         </p>
       </div>
@@ -696,7 +696,7 @@ function GoogleCalendar() {
           </div>
 
           {/* A última falha. Ela já era gravada e nenhuma tela lia: o mentor
-              marcava a devolutiva, a tela dizia "salvo", e o compromisso não
+              marcava a mentoria, a tela dizia "salvo", e o compromisso não
               chegava ao Google. Ele descobria no dia, quando o cliente não
               entrava na chamada. */}
           {data.ultimo_erro && (

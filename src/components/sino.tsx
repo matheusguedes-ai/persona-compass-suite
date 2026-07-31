@@ -38,7 +38,7 @@ function quando(iso: string): string {
  */
 const NO_ALUNO: Record<string, string> = {
   "/comunidades": "/aluno/comunidade",
-  "/devolutivas": "/aluno/devolutivas",
+  "/mentorias": "/aluno/mentorias",
   "/educacao": "/aluno/educacao",
   "/pessoas": "/aluno",
 };

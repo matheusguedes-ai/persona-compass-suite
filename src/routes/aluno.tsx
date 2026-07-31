@@ -39,7 +39,7 @@ export const Route = createFileRoute("/aluno")({
 const NAV = [
   { to: "/aluno", label: "Meus resultados", icon: LayoutList, exato: true, area: "resultados" },
   { to: "/aluno/comunidade", label: "Comunidade", icon: Users, exato: false, area: "comunidade" },
-  { to: "/aluno/devolutivas", label: "Devolutivas", icon: MessagesSquare, exato: false, area: "devolutivas" },
+  { to: "/aluno/mentorias", label: "Mentorias", icon: MessagesSquare, exato: false, area: "mentorias" },
   { to: "/aluno/agenda", label: "Agenda", icon: CalendarDays, exato: false, area: "agenda" },
   { to: "/aluno/educacao", label: "Academy", icon: GraduationCap, exato: false, area: "academy" },
   { to: "/aluno/classroom", label: "Classroom", icon: Presentation, exato: false, area: "classroom" },

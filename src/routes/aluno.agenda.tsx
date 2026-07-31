@@ -22,8 +22,8 @@ function Pagina() {
         <h1 className="text-2xl font-semibold tracking-tight">Agenda</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {ehMentor
-            ? "As devolutivas dos seus grupos e os eventos que você recebe."
-            : "Suas devolutivas e os eventos dos seus grupos."}
+            ? "As mentorias dos seus grupos e os eventos que você recebe."
+            : "Suas mentorias e os eventos dos seus grupos."}
         </p>
       </div>
       <Agenda area="aluno" somenteMinhas={!ehMentor} />

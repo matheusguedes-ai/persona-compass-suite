@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { criarEvento } from "@/lib/gestao.functions";
 import { meusGrupos } from "@/lib/comunidade.functions";
-import { listarPessoasParaDevolutiva } from "@/lib/devolutivas.functions";
+import { listarPessoasParaEscolher } from "@/lib/data.functions";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -32,7 +32,7 @@ export function NovoEvento() {
   const qc = useQueryClient();
   const criar = useServerFn(criarEvento);
   const gruposFn = useServerFn(meusGrupos);
-  const pessoasFn = useServerFn(listarPessoasParaDevolutiva);
+  const pessoasFn = useServerFn(listarPessoasParaEscolher);
 
   const [aberto, setAberto] = useState(false);
   const [titulo, setTitulo] = useState("");

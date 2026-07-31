@@ -165,78 +165,149 @@ export type Database = {
         Update: { post_id?: string; user_id?: string; created_at?: string }
         Relationships: []
       }
-      devolutivas: {
+      mentorias: {
         Row: {
-          agreements: string | null
-          assessment_id: string | null
-          completed_at: string | null
           created_at: string
-          created_by: string | null
-          duration_min: number | null
           id: string
           mentor_id: string
-          next_at: string | null
-          notes: string | null
+          observacoes: string | null
           person_id: string
-          response_id: string | null
-          scheduled_at: string | null
+          sessoes_contratadas: number
           status: string
+          titulo: string | null
           updated_at: string
         }
         Insert: {
-          agreements?: string | null
-          assessment_id?: string | null
-          completed_at?: string | null
           created_at?: string
-          created_by?: string | null
-          duration_min?: number | null
           id?: string
           mentor_id: string
-          next_at?: string | null
-          notes?: string | null
+          observacoes?: string | null
           person_id: string
-          response_id?: string | null
-          scheduled_at?: string | null
+          sessoes_contratadas?: number
           status?: string
+          titulo?: string | null
           updated_at?: string
         }
         Update: {
-          agreements?: string | null
-          assessment_id?: string | null
-          completed_at?: string | null
           created_at?: string
-          created_by?: string | null
-          duration_min?: number | null
           id?: string
           mentor_id?: string
-          next_at?: string | null
-          notes?: string | null
+          observacoes?: string | null
           person_id?: string
-          response_id?: string | null
-          scheduled_at?: string | null
+          sessoes_contratadas?: number
           status?: string
+          titulo?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "devolutivas_person_id_fkey"
+            foreignKeyName: "mentorias_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      mentoria_sessoes: {
+        Row: {
+          checklist_titulo: string | null
+          concluida_em: string | null
+          created_at: string
+          duracao_real_min: number | null
+          id: string
+          link_url: string | null
+          local: string | null
+          mentor_id: string
+          mentoria_id: string
+          modalidade: string
+          quando: string
+          resumo: string | null
+          status: string
+          termina_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          checklist_titulo?: string | null
+          concluida_em?: string | null
+          created_at?: string
+          duracao_real_min?: number | null
+          id?: string
+          link_url?: string | null
+          local?: string | null
+          mentor_id: string
+          mentoria_id: string
+          modalidade: string
+          quando: string
+          resumo?: string | null
+          status?: string
+          termina_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          checklist_titulo?: string | null
+          concluida_em?: string | null
+          created_at?: string
+          duracao_real_min?: number | null
+          id?: string
+          link_url?: string | null
+          local?: string | null
+          mentor_id?: string
+          mentoria_id?: string
+          modalidade?: string
+          quando?: string
+          resumo?: string | null
+          status?: string
+          termina_em?: string | null
+          updated_at?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "devolutivas_response_id_fkey"
-            columns: ["response_id"]
+            foreignKeyName: "mentoria_sessoes_mentoria_id_fkey"
+            columns: ["mentoria_id"]
             isOneToOne: false
-            referencedRelation: "test_responses"
+            referencedRelation: "mentorias"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      mentoria_tarefas: {
+        Row: {
+          concluida: boolean
+          concluida_em: string | null
+          created_at: string
+          id: string
+          mentor_id: string
+          ordem: number
+          sessao_id: string
+          titulo: string
+        }
+        Insert: {
+          concluida?: boolean
+          concluida_em?: string | null
+          created_at?: string
+          id?: string
+          mentor_id: string
+          ordem?: number
+          sessao_id: string
+          titulo: string
+        }
+        Update: {
+          concluida?: boolean
+          concluida_em?: string | null
+          created_at?: string
+          id?: string
+          mentor_id?: string
+          ordem?: number
+          sessao_id?: string
+          titulo?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "devolutivas_assessment_id_fkey"
-            columns: ["assessment_id"]
+            foreignKeyName: "mentoria_tarefas_sessao_id_fkey"
+            columns: ["sessao_id"]
             isOneToOne: false
-            referencedRelation: "assessment_responses"
+            referencedRelation: "mentoria_sessoes"
             referencedColumns: ["id"]
           },
         ]
@@ -1160,21 +1231,21 @@ export type Database = {
       team_member_groups: {
         Row: {
           can_download_reports: boolean
-          can_schedule_devolutivas: boolean
+          can_schedule_mentorias: boolean
           created_at: string
           group_id: string
           team_member_id: string
         }
         Insert: {
           can_download_reports?: boolean
-          can_schedule_devolutivas?: boolean
+          can_schedule_mentorias?: boolean
           created_at?: string
           group_id: string
           team_member_id: string
         }
         Update: {
           can_download_reports?: boolean
-          can_schedule_devolutivas?: boolean
+          can_schedule_mentorias?: boolean
           created_at?: string
           group_id?: string
           team_member_id?: string
@@ -1603,6 +1674,11 @@ export type Database = {
       update_my_person: {
         Args: { _full_name: string; _phone?: string | null; _avatar_url?: string | null }
         Returns: number
+      }
+      posso_agendar_mentoria: { Args: { p_person_id: string }; Returns: boolean }
+      marcar_tarefa_mentoria: {
+        Args: { _tarefa_id: string; _concluida: boolean }
+        Returns: undefined
       }
       can_see_track: { Args: { _track_id: string }; Returns: boolean }
       can_edit_track: { Args: { _track_id: string }; Returns: boolean }

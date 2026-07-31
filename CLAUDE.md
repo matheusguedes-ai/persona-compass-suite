@@ -60,6 +60,24 @@ Ao final de toda demanda, sem ser pedido:
 
 Nunca responder mandando ele ler código ou diff. Explicar o mapa.
 
+### Antes de pedir algo ao Matheus, tentar sozinho
+
+Já aconteceu duas vezes em 31/07: o agente pediu ao Matheus que fizesse à mão
+algo que ele mesmo alcançava — fechar bucket (era chamada de API com a chave de
+serviço) e aplicar migração (o editor SQL do Supabase é um Monaco, e dá para
+escrever nele pelo Chrome com `window.monaco.editor.getModels()[0].setValue()`,
+como registrado na memória do projeto).
+
+Antes de escrever "preciso que você faça isto", conferir nesta ordem:
+
+1. dá pela REST com a chave de serviço do `.env.local`?
+2. dá pelo Chrome dele, que fica conectado pela extensão?
+3. a sessão que expirou antes pode ter voltado — ele entra no painel o tempo
+   todo. Testar de novo em vez de assumir que continua caída.
+
+Só depois disso, pedir. E ao pedir, dizer **qual pedaço** exige ele — não
+transferir o trabalho inteiro.
+
 ### O que fazer sozinho, e o que trazer
 
 Regra dele: **problema identificado, conserte no mesmo trabalho e conte depois.**
@@ -100,6 +118,9 @@ Combinado com ele em 30/07:
   **Ao fechar qualquer demanda, o chat atualiza o Notion na mesma hora** —
   status, prova e fase. Não deixar para depois: kanban desatualizado é pior que
   kanban nenhum, e a cópia velha no Google Drive já provou isso.
+- **Demanda grande ganha checklist de etapas no corpo da página do Notion**, e o
+  chat vai marcando conforme os commits aparecem. Assim o Matheus acompanha sem
+  precisar perguntar ao Code em que pé está — e sem interromper no meio.
 - `scripts/kanban_dados.json` — a fonte versionada, para o histórico ficar no
   git. `scripts/kanban_planilha.py` gera o `.xlsx`, que hoje é só um retrato.
 - `docs/roadmap-fases.md` — a ordem das fases e o que trava o quê.

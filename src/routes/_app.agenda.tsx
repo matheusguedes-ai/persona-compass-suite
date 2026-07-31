@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_app/agenda")({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Agenda</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          As devolutivas marcadas e os eventos que você criar.
+          As mentorias marcadas e os eventos que você criar.
         </p>
       </div>
       <Agenda podeCriar />

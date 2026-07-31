@@ -1,8 +1,9 @@
 /**
- * Testes · Envios · Devolutivas — um menu só, três telas.
+ * Testes · Envios — um menu só, duas telas.
  *
- * O Matheus notou que os três são o mesmo assunto em momentos diferentes:
- * o que existe, o que foi disparado e a conversa depois. Viraram abas.
+ * O Matheus notou que são o mesmo assunto em momentos diferentes: o que
+ * existe e o que foi disparado. Viraram abas. Devolutivas era a terceira —
+ * saiu daqui e virou o menu Mentorias, de primeiro nível (Fecha #213).
  *
  * NÃO reescrevi as telas em abas de verdade. Cada uma continua sendo a sua
  * rota, e isto aqui é uma barra que navega entre elas. A diferença importa: a
@@ -10,8 +11,8 @@
  * eu lembrar de replicá-la numa aba.
  *
  * A aba só aparece se a pessoa tiver a permissão dela. Um colaborador com
- * acesso apenas a Envios não pode ganhar Testes e Devolutivas de brinde só
- * porque os menus foram agrupados — esse era o risco real desta mudança.
+ * acesso apenas a Envios não pode ganhar Testes de brinde só porque os menus
+ * foram agrupados — esse era o risco real desta mudança.
  */
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -22,7 +23,6 @@ import { cn } from "@/lib/utils";
 const ABAS = [
   { to: "/testes", label: "Testes", perm: "testes" },
   { to: "/envios", label: "Envios", perm: "envios" },
-  { to: "/devolutivas", label: "Devolutivas", perm: "devolutivas" },
 ] as const;
 
 export function AbasDeTestes() {

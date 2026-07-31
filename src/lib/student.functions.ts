@@ -165,58 +165,52 @@ export const updateMyStudentProfile = createServerFn({ method: "POST" })
   });
 
 /**
- * As devolutivas do próprio avaliado.
+ * As mentorias do próprio avaliado.
  *
- * A tabela nasceu como ferramenta do mentor, e o aluno — que é quem mais
- * precisa saber que a conversa está marcada — não via nada. A policy
- * `devolutivas_read_aluno` abriu a leitura; aqui a lista sai pronta para a tela.
- *
- * O campo `notes` NÃO sai daqui. É onde o mentor anota impressões da conversa,
- * e nem tudo ali é escrito para o avaliado ler. O que ele recebe é a data, quem
- * conduziu, o que ficou combinado e o acesso ao relatório.
+ * Ele não executa nada além do checklist — nunca agenda, nunca conclui,
+ * nunca edita o resumo. Vê as sessões agendadas (data, modalidade, link ou
+ * endereço), vê o resumo das concluídas, e marca os itens do checklist.
  */
-export const getMinhasDevolutivas = createServerFn({ method: "GET" })
+export const getMinhasMentorias = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const supabase = context.supabase;
-    const { data, error } = await supabase
-      .from("devolutivas")
+    const { data, error } = await context.supabase
+      .from("mentorias")
       .select(
-        "id, status, scheduled_at, completed_at, duration_min, agreements, next_at, response_id, assessment_id, created_by",
+        "id, titulo, status, mentoria_sessoes(id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em))",
       )
-      .neq("status", "cancelada")
-      .order("completed_at", { ascending: false, nullsFirst: true })
-      .order("scheduled_at", { ascending: false, nullsFirst: false });
+      .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
 
-    // Nome de quem conduziu. `profiles` não é legível pelo aluno — e não deve
-    // ser, guarda marca e e-mail da conta —, então vem por função definidora.
-    const autores = [...new Set((data ?? []).map((d) => d.created_by).filter(Boolean) as string[])];
-    const nomes = new Map<string, string>();
-    await Promise.all(
-      autores.map(async (uid) => {
-        const { data: nome } = await supabase.rpc("nome_do_mentor", { p_user_id: uid });
-        if (nome) nomes.set(uid, nome as string);
-      }),
+    type SessaoRow = {
+      id: string; quando: string; termina_em: string | null; modalidade: string;
+      local: string | null; link_url: string | null; status: string;
+      duracao_real_min: number | null; resumo: string | null; checklist_titulo: string | null;
+      concluida_em: string | null;
+      mentoria_tarefas: Array<{ id: string; titulo: string; ordem: number; concluida: boolean; concluida_em: string | null }> | null;
+    };
+
+    const sessoes = (data ?? []).flatMap((m) =>
+      ((m.mentoria_sessoes ?? []) as SessaoRow[])
+        .filter((s) => s.status !== "cancelada")
+        .map((s) => ({
+          id: s.id,
+          mentoria_titulo: m.titulo,
+          quando: s.quando,
+          termina_em: s.termina_em,
+          modalidade: s.modalidade,
+          local: s.local,
+          link_url: s.link_url,
+          status: s.status,
+          duracao_real_min: s.duracao_real_min,
+          resumo: s.resumo,
+          checklist_titulo: s.checklist_titulo,
+          concluida_em: s.concluida_em,
+          tarefas: (s.mentoria_tarefas ?? []).slice().sort((a, b) => a.ordem - b.ordem),
+        })),
     );
 
-    return {
-      devolutivas: (data ?? []).map((d) => ({
-        id: d.id,
-        status: d.status,
-        scheduled_at: d.scheduled_at,
-        completed_at: d.completed_at,
-        duration_min: d.duration_min,
-        agreements: d.agreements,
-        next_at: d.next_at,
-        mentor: (d.created_by && nomes.get(d.created_by)) || null,
-        relatorio: d.assessment_id
-          ? `/relatorio-bateria/${d.assessment_id}`
-          : d.response_id
-            ? `/relatorio/${d.response_id}`
-            : null,
-      })),
-    };
+    return { sessoes };
   });
 
 /**
@@ -279,4 +273,23 @@ export const getMeusResultados = createServerFn({ method: "GET" })
         })
         .filter((x): x is NonNullable<typeof x> => x != null),
     };
+  });
+
+/**
+ * Marca (ou desmarca) um item do checklist da mentoria. Só o aluno.
+ *
+ * Via RPC `marcar_tarefa_mentoria` — SECURITY DEFINER, confere ownership por
+ * dentro. Não existe policy de UPDATE aberta em `mentoria_tarefas` para
+ * ninguém: um UPDATE direto deixaria o aluno reescrever o título do item.
+ */
+export const marcarTarefaMentoria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ tarefa_id: z.string().uuid(), concluida: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("marcar_tarefa_mentoria", {
+      _tarefa_id: data.tarefa_id,
+      _concluida: data.concluida,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

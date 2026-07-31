@@ -2,7 +2,7 @@
  * Os gráficos do resultado, no painel do avaliado.
  *
  * A régua de cores é a mesma do relatório do mentor: se o aluno vê verde onde o
- * mentor vê verde, a conversa da devolutiva fica mais fácil. Duas telas com
+ * mentor vê verde, a conversa da mentoria fica mais fácil. Duas telas com
  * escalas diferentes para o mesmo número seria pedir confusão.
  */
 import { useQuery } from "@tanstack/react-query";

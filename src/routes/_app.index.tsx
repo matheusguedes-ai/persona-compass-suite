@@ -202,8 +202,8 @@ function Dashboard() {
  * Um indicador de cada menu, e o ranking geral.
  *
  * Duas partes, de propósito. Em cima, FRASES: o Matheus abre o Dashboard para
- * saber o que fazer hoje, e "3 pessoas esperando devolutiva há 12 dias" diz
- * isso — o número 3 sozinho, não. Embaixo, os cartões, para quem quer o número
+ * saber o que fazer hoje, e "3 mentorias agendadas pela frente" diz isso — o
+ * número 3 sozinho, não. Embaixo, os cartões, para quem quer o número
  * e o caminho para o menu.
  *
  * As frases são ordenadas por urgência e só aparecem quando têm o que dizer.
@@ -227,23 +227,13 @@ function Panorama() {
     );
   }
 
-  const { pessoas, grupos, equipe, devolutivas, educacao, comunidade, ranking } = data;
+  const { pessoas, grupos, equipe, mentorias, educacao, comunidade, ranking } = data;
 
   const plural = (n: number, um: string, muitos: string) => `${n} ${n === 1 ? um : muitos}`;
 
   // Cada frase é um recado. Tom: primeiro o que pede ação, depois o que vai bem.
   const recados: Array<{ texto: string; tom: "acao" | "neutro" }> = [];
 
-  if (devolutivas.naFila > 0) {
-    recados.push({
-      tom: "acao",
-      texto:
-        `${plural(devolutivas.naFila, "pessoa respondeu", "pessoas responderam")} e ainda não teve devolutiva` +
-        (devolutivas.maisAntigaDias > 0
-          ? ` — a mais antiga espera há ${plural(devolutivas.maisAntigaDias, "dia", "dias")}.`
-          : "."),
-    });
-  }
   if (pessoas.semGrupo > 0) {
     recados.push({
       tom: "acao",
@@ -264,10 +254,10 @@ function Panorama() {
       texto: "Ninguém criou login ainda — sem isso não há painel do aluno, comunidade nem pontos.",
     });
   }
-  if (devolutivas.agendadas > 0) {
+  if (mentorias.agendadas > 0) {
     recados.push({
       tom: "neutro",
-      texto: `${plural(devolutivas.agendadas, "devolutiva agendada", "devolutivas agendadas")} pela frente.`,
+      texto: `${plural(mentorias.agendadas, "mentoria agendada", "mentorias agendadas")} pela frente.`,
     });
   }
   if (comunidade.posts7 > 0 || comunidade.comentarios7 > 0) {
@@ -300,8 +290,8 @@ function Panorama() {
       n: pessoas.total, det: `${pessoas.comLogin} com login` },
     { to: "/colaboradores" as const, icone: UsersRound, rotulo: "Equipe", perm: null,
       n: equipe.ativos, det: `${equipe.mentores} mentor${equipe.mentores === 1 ? "" : "es"}` },
-    { to: "/devolutivas" as const, icone: MessagesSquare, rotulo: "Devolutivas", perm: "devolutivas" as const,
-      n: devolutivas.naFila, det: `${devolutivas.realizadas} já feitas` },
+    { to: "/mentorias" as const, icone: MessagesSquare, rotulo: "Mentorias", perm: "mentorias" as const,
+      n: mentorias.agendadas, det: `${mentorias.realizadas} já feitas` },
     { to: "/educacao" as const, icone: BookOpen, rotulo: "Academy", perm: "educacao" as const,
       n: educacao.aulas, det: `${educacao.trilhas} trilha${educacao.trilhas === 1 ? "" : "s"}` },
     { to: "/comunidades" as const, icone: MessagesSquare, rotulo: "Comunidade", perm: "grupos" as const,
@@ -358,7 +348,7 @@ function Panorama() {
 
         {!data.alguemPontuou ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Ninguém pontuou ainda. Os pontos vêm de concluir aula, participar de devolutiva,
+            Ninguém pontuou ainda. Os pontos vêm de concluir aula, participar de mentoria,
             publicar, comentar e curtir — responder teste não pontua.
           </p>
         ) : (

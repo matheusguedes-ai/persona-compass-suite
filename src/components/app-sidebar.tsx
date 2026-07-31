@@ -38,15 +38,17 @@ const NAV = [
   // Presencial. Só o dono, como os eventos: a RLS de escrita exige
   // mentor_id = auth.uid(), e a decisão registrada é "menu do master".
   { to: "/classroom", label: "Classroom", icon: Presentation, soDono: true },
-  // Testes, Envios e Devolutivas são o mesmo assunto em três momentos: o que
-  // existe, o que foi disparado, e a conversa depois. Viraram um item só, com
-  // abas dentro (ver AbasDeTestes).
+  // Testes e Envios são o mesmo assunto em dois momentos: o que existe e o
+  // que foi disparado. Viraram um item só, com abas dentro (ver AbasDeTestes).
+  // Devolutivas saiu daqui — virou o menu Mentorias, de primeiro nível
+  // (Fecha #213): não é mais parte de Testes, é parte do hub inteiro.
   //
   // `perms` no plural, e o destino é calculado: quem tem só Envios precisa ver
   // o menu E cair em /envios. Com um `perm` fixo em "testes", esse colaborador
   // ficaria sem menu nenhum e sem caminho para a tela que é dele.
-  { to: "/testes", label: "Testes", icon: FlaskConical, perms: ["testes", "envios", "devolutivas"] },
-  { to: "/agenda", label: "Agenda", icon: CalendarDays, perm: "devolutivas" },
+  { to: "/testes", label: "Testes", icon: FlaskConical, perms: ["testes", "envios"] },
+  { to: "/mentorias", label: "Mentorias", icon: MessagesSquare, perm: "mentorias" },
+  { to: "/agenda", label: "Agenda", icon: CalendarDays, perm: "mentorias" },
   { to: "/comunidades", label: "Comunidades", icon: Users2, perm: "grupos" },
   // Sem `perm`/`soDono` de propósito: todo mundo chega, mas a tela em si só
   // mostra Marca/Relatório/Mensagens/Emails/Agenda para o dono — quem não é
@@ -84,8 +86,7 @@ export function AppSidebar() {
     // E o destino é a primeira aba que ele realmente pode abrir.
     if (!("perms" in item) || kind === "owner") return item;
     const primeira = item.perms.find((p) => permissions.includes(p));
-    const rota = primeira === "envios" ? "/envios"
-      : primeira === "devolutivas" ? "/devolutivas" : "/testes";
+    const rota = primeira === "envios" ? "/envios" : "/testes";
     return { ...item, to: rota as typeof item.to };
   });
   const displayName = user?.displayName ?? "—";

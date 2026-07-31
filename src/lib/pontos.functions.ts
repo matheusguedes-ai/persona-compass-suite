@@ -18,7 +18,7 @@ export const ACOES = {
   // Encontro presencial do Classroom. Separado de `aula` para o extrato do aluno
   // não misturar "assistiu um vídeo" com "esteve na sala".
   presenca: { pontos: 20, rotulo: "Participar de um encontro presencial", tetoDiario: null },
-  devolutiva: { pontos: 15, rotulo: "Participar de uma devolutiva", tetoDiario: null },
+  mentoria: { pontos: 15, rotulo: "Participar de uma mentoria", tetoDiario: null },
   publicar: { pontos: 8, rotulo: "Publicar na comunidade", tetoDiario: 3 },
   perfil: { pontos: 5, rotulo: "Completar o perfil", tetoDiario: null },
   comentar: { pontos: 2, rotulo: "Comentar numa publicação", tetoDiario: 10 },

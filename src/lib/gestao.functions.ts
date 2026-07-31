@@ -1,105 +1,21 @@
 /**
- * Menu Gestão — a visão de quem coordena.
+ * Menu Gestão — o que sobrou dele depois do menu Mentorias.
  *
- * Etapa 1 do plano em `docs/plano-menu-gestao.md`: o Kanban das devolutivas.
- * Três colunas que respondem a uma pergunta só — em que pé está cada pessoa.
+ * O Kanban de devolutivas (`quadroDeGestao`/`QuadroGestao`) saiu inteiro: a
+ * coluna "sem devolutiva" vinha de `calcularFila`, que depende de teste
+ * respondido — e mentoria é justamente independente disso (não existe fila
+ * equivalente). O que sobrava era uma visão geral entre pessoas, que é
+ * exatamente o território da Fatia 3 (painel do professor, ainda não
+ * construída) — não algo para adaptar aqui. Ver Fecha #213.
  *
- * A coluna "sem devolutiva" NÃO é recalculada aqui: usa `calcularFila`, a mesma
- * do menu Devolutivas. Duas contas para a mesma pergunta divergiriam no
- * primeiro caso de canto, e o sintoma seria dois números diferentes na mesma
- * plataforma.
- *
- * Quem vê o quê é a RLS: o mentor só enxerga gente dos grupos dele, então o
- * mesmo código serve o master e o mentor sem `if` de papel.
+ * O que fica: a agenda unificada (`agendaDoMes`) e os eventos do master.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao } from "@/lib/permissao.server";
 import { exigirDono } from "@/lib/team.functions";
-import { calcularFila } from "@/lib/devolutivas.functions";
 import { notificar, quandoBr } from "@/lib/notificacoes.functions";
-
-export type CartaoGestao = {
-  id: string;
-  person_id: string;
-  person_name: string;
-  titulo: string;
-  /** Dias esperando (coluna 1) ou dias até/desde a data (colunas 2 e 3). */
-  quando: string | null;
-  dias: number | null;
-  atrasada: boolean;
-};
-
-function diasAte(iso: string): number {
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const alvo = new Date(iso); alvo.setHours(0, 0, 0, 0);
-  return Math.round((alvo.getTime() - hoje.getTime()) / 86_400_000);
-}
-
-export const quadroDeGestao = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    await exigirPermissao(context.supabase, context.userId, "devolutivas");
-    const supabase = context.supabase;
-
-    const [fila, { data: devs, error }] = await Promise.all([
-      calcularFila(supabase),
-      supabase
-        .from("devolutivas")
-        .select("id, person_id, status, scheduled_at, completed_at, agreements, people(full_name)")
-        .neq("status", "cancelada")
-        .order("scheduled_at", { ascending: true, nullsFirst: false }),
-    ]);
-    if (error) throw new Error(error.message);
-
-    const semDevolutiva: CartaoGestao[] = fila.map((f) => ({
-      id: f.assessment_id ?? f.response_id ?? f.person_id,
-      person_id: f.person_id,
-      person_name: f.person_name,
-      titulo: f.titulo,
-      quando: f.concluido_em,
-      dias: f.dias_esperando,
-      atrasada: f.dias_esperando >= 14,
-    }));
-
-    const agendadas: CartaoGestao[] = [];
-    const realizadas: CartaoGestao[] = [];
-
-    for (const d of devs ?? []) {
-      const base = {
-        id: d.id,
-        person_id: d.person_id,
-        person_name: d.people?.full_name ?? "—",
-      };
-      if (d.status === "agendada") {
-        const dias = d.scheduled_at ? diasAte(d.scheduled_at) : null;
-        agendadas.push({
-          ...base,
-          titulo: d.scheduled_at ? "Devolutiva marcada" : "Sem data definida",
-          quando: d.scheduled_at,
-          dias,
-          // Passou da data e ninguém registrou: é o que precisa de ação.
-          atrasada: dias !== null && dias < 0,
-        });
-      } else if (d.status === "realizada") {
-        realizadas.push({
-          ...base,
-          titulo: d.agreements?.trim() ? "Com combinados registrados" : "Realizada",
-          quando: d.completed_at,
-          dias: d.completed_at ? -diasAte(d.completed_at) : null,
-          atrasada: false,
-        });
-      }
-    }
-
-    // Quem espera há mais tempo primeiro; depois, o que está mais próximo.
-    semDevolutiva.sort((a, b) => (b.dias ?? 0) - (a.dias ?? 0));
-    agendadas.sort((a, b) => (a.dias ?? 999) - (b.dias ?? 999));
-    realizadas.sort((a, b) => (a.dias ?? 999) - (b.dias ?? 999));
-
-    return { semDevolutiva, agendadas, realizadas };
-  });
 
 /** Um compromisso na agenda. */
 export type Compromisso = {
@@ -110,8 +26,8 @@ export type Compromisso = {
   quando: string;
   status: "agendada" | "realizada";
   atrasada: boolean;
-  /** Devolutiva é conversa com uma pessoa; evento é o que o master publicou. */
-  tipo: "devolutiva" | "evento";
+  /** Mentoria é sessão com uma pessoa; evento é o que o master publicou. */
+  tipo: "mentoria" | "evento";
   descricao?: string | null;
   termina_em?: string | null;
   imagem_url?: string | null;
@@ -126,7 +42,7 @@ export type Compromisso = {
  * ⚠️ O PERÍODO VEM PRONTO DO NAVEGADOR, em ISO. Não recebe "ano e mês" para o
  * servidor converter: o servidor roda em **UTC**, então `new Date(2026, 6, 1)`
  * ali é 1º de julho 00:00 UTC — que no Brasil ainda é 30 de junho, 21h. Uma
- * devolutiva marcada para o último dia do mês às 22h cairia fora do intervalo e
+ * sessão marcada para o último dia do mês às 22h cairia fora do intervalo e
  * sumiria da agenda.
  *
  * Quem sabe onde o mês começa para o usuário é o navegador dele. É a mesma
@@ -141,20 +57,20 @@ export const agendaDoMes = createServerFn({ method: "GET" })
     z.object({
       de: z.string().datetime({ offset: true }),
       ate: z.string().datetime({ offset: true }),
-      /** Painel do aluno: só as devolutivas dele, não as da conta. */
+      /** Painel do aluno: só as sessões dele, não as da conta. */
       somenteMinhas: z.boolean().optional(),
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { de, ate } = data;
 
-    // `somenteMinhas=false` é a Agenda/Gestão da EQUIPE — igual a
-    // `quadroDeGestao`, exige 'devolutivas' de quem é colaborador. Com
-    // `somenteMinhas=true` (painel do aluno, inclusive mentor vendo a própria
-    // agenda) não checa nada aqui: RLS já recorta para o que é da pessoa, e
-    // nem aluno nem mentor têm — nem deveriam ter — essa permissão.
+    // `somenteMinhas=false` é a Agenda da EQUIPE, exige 'mentorias' de quem é
+    // colaborador. Com `somenteMinhas=true` (painel do aluno, inclusive
+    // mentor vendo a própria agenda) não checa nada aqui: RLS já recorta
+    // para o que é da pessoa, e nem aluno nem mentor têm — nem deveriam
+    // ter — essa permissão.
     if (!data.somenteMinhas) {
-      await exigirPermissao(context.supabase, context.userId, "devolutivas");
+      await exigirPermissao(context.supabase, context.userId, "mentorias");
     }
 
     // No painel do aluno o recorte da RLS não basta.
@@ -173,29 +89,31 @@ export const agendaDoMes = createServerFn({ method: "GET" })
       if (meus.length === 0) return { compromissos: [] };
     }
 
-    const { data: devs, error } = await context.supabase
-      .from("devolutivas")
-      .select("id, person_id, status, scheduled_at, completed_at, people(full_name)")
+    const { data: sess, error } = await context.supabase
+      .from("mentoria_sessoes")
+      .select("id, quando, status, mentorias(person_id, people(full_name))")
       .neq("status", "cancelada")
-      .not("scheduled_at", "is", null)
-      .gte("scheduled_at", de)
-      .lt("scheduled_at", ate)
-      .order("scheduled_at")
-      .then((r) => (meus ? { ...r, data: (r.data ?? []).filter((d) => meus!.includes(d.person_id)) } : r));
+      .gte("quando", de)
+      .lt("quando", ate)
+      .order("quando")
+      .then((r) => (meus
+        ? { ...r, data: (r.data ?? []).filter((s) => meus!.includes((s.mentorias as unknown as { person_id: string }).person_id)) }
+        : r));
     if (error) throw new Error(error.message);
 
     const agora = Date.now();
-    const compromissos: Compromisso[] = (devs ?? [])
-      .filter((d) => d.scheduled_at)
-      .map((d) => ({
-        id: d.id,
-        person_id: d.person_id,
-        person_name: d.people?.full_name ?? "—",
-        quando: d.scheduled_at!,
-        status: d.status as "agendada" | "realizada",
-        atrasada: d.status === "agendada" && new Date(d.scheduled_at!).getTime() < agora,
-        tipo: "devolutiva" as const,
-      }));
+    const compromissos: Compromisso[] = (sess ?? []).map((s) => {
+      const m = s.mentorias as unknown as { person_id: string; people: { full_name: string } | null };
+      return {
+        id: s.id,
+        person_id: m.person_id,
+        person_name: m.people?.full_name ?? "—",
+        quando: s.quando,
+        status: s.status === "concluida" ? ("realizada" as const) : ("agendada" as const),
+        atrasada: s.status === "agendada" && new Date(s.quando).getTime() < agora,
+        tipo: "mentoria" as const,
+      };
+    });
 
     // Os eventos do master entram na mesma agenda.
     //
@@ -315,7 +233,7 @@ export const criarEvento = createServerFn({ method: "POST" })
         tipo: "evento_novo",
         titulo: `Novo na agenda: ${data.titulo}`,
         corpo: texto,
-        link: "/gestao",
+        link: "/agenda",
         ator: context.userId,
         grupos: data.group_ids,
         paraAlunos: true,
@@ -328,7 +246,7 @@ export const criarEvento = createServerFn({ method: "POST" })
         tipo: "evento_novo",
         titulo: `Novo na agenda: ${data.titulo}`,
         corpo: texto,
-        link: "/gestao",
+        link: "/agenda",
         ator: context.userId,
         pessoaUser: p.user_id,
       });

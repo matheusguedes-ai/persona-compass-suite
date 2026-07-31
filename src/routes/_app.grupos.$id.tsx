@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RankingDoGrupo } from "@/components/ranking-do-grupo";
-import { DevolutivasPage } from "@/components/devolutivas-page";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -145,7 +144,6 @@ function GroupDetail() {
           <TabsTrigger value="testes">Testes liberados ({instruments.length})</TabsTrigger>
           <TabsTrigger value="acesso">Acesso</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
-          <TabsTrigger value="devolutivas">Devolutivas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-4">
@@ -251,12 +249,6 @@ function GroupDetail() {
 
         <TabsContent value="ranking" className="mt-4">
           <RankingDoGrupo groupId={id} />
-        </TabsContent>
-        <TabsContent value="devolutivas" className="mt-4">
-          {/* A mesma tela do menu, filtrada por este grupo. É por aqui que o
-              mentor afiliado agenda, quando o dono ligou a permissão dele
-              naquele grupo — a checagem em si é da RLS, não da tela. */}
-          <DevolutivasPage groupId={id} />
         </TabsContent>
       </Tabs>
     </div>

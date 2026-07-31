@@ -421,7 +421,7 @@ function BotaoMentor({ personId, nome }: { personId: string; nome: string }) {
  * avaliados daquele grupo é outra coisa, e é aqui.
  *
  * Ver o relatório dentro da plataforma vem junto com o grupo. Baixar e agendar
- * devolutiva são liberados um a um: o arquivo baixado sai da plataforma e
+ * mentoria são liberados um a um: o arquivo baixado sai da plataforma e
  * deixa de ter controle nenhum, então essa é a chave que merece pensar duas
  * vezes.
  */
@@ -440,7 +440,7 @@ function GruposDoMentor({ personId, nome }: { personId: string; nome: string }) 
   const salvar = useMutation({
     mutationFn: (v: {
       group_id: string; atribuir: boolean;
-      can_download_reports?: boolean; can_schedule_devolutivas?: boolean;
+      can_download_reports?: boolean; can_schedule_mentorias?: boolean;
     }) => salvarFn({ data: { person_id: personId, ...v } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["grupos-do-mentor", personId] }),
     onError: (e: Error) => toast.error(e.message),
@@ -461,7 +461,7 @@ function GruposDoMentor({ personId, nome }: { personId: string; nome: string }) 
           <DialogTitle>Grupos de {nome}</DialogTitle>
           <DialogDescription>
             Marque os grupos que {nome.split(" ")[0]} vai acompanhar. Ver o relatório na tela vem
-            junto; baixar e agendar devolutiva você libera separado.
+            junto; baixar e agendar mentoria você libera separado.
           </DialogDescription>
         </DialogHeader>
 
@@ -484,7 +484,7 @@ function GruposDoMentor({ personId, nome }: { personId: string; nome: string }) 
                       group_id: g.group_id,
                       atribuir: v === true,
                       can_download_reports: g.can_download_reports,
-                      can_schedule_devolutivas: g.can_schedule_devolutivas,
+                      can_schedule_mentorias: g.can_schedule_mentorias,
                     })
                   }
                 />
@@ -501,20 +501,20 @@ function GruposDoMentor({ personId, nome }: { personId: string; nome: string }) 
                         salvar.mutate({
                           group_id: g.group_id, atribuir: true,
                           can_download_reports: v,
-                          can_schedule_devolutivas: g.can_schedule_devolutivas,
+                          can_schedule_mentorias: g.can_schedule_mentorias,
                         })
                       }
                     />
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs text-muted-foreground">Agendar devolutivas</span>
+                    <span className="text-xs text-muted-foreground">Agendar mentorias</span>
                     <Switch
-                      checked={g.can_schedule_devolutivas}
+                      checked={g.can_schedule_mentorias}
                       onCheckedChange={(v) =>
                         salvar.mutate({
                           group_id: g.group_id, atribuir: true,
                           can_download_reports: g.can_download_reports,
-                          can_schedule_devolutivas: v,
+                          can_schedule_mentorias: v,
                         })
                       }
                     />

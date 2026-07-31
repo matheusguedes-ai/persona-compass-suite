@@ -24,7 +24,7 @@ export function RankingDoGrupo({ groupId }: { groupId: string }) {
   return (
     <div>
       <p className="mb-4 text-sm text-muted-foreground">
-        Pontos por participar: aula, devolutiva e comunidade. Responder teste não pontua — um
+        Pontos por participar: aula, mentoria e comunidade. Responder teste não pontua — um
         ranking que sobe ao responder pagaria a pessoa para clicar rápido.
       </p>
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}

@@ -3,8 +3,13 @@
  *
  * A ideia do Matheus é abrir o Dashboard e saber o que está acontecendo sem
  * passar menu por menu. Então cada bloco aqui responde a UMA pergunta prática
- * — "tem gente esperando devolutiva?", "a comunidade está viva?" — e não
- * despeja número por despejar.
+ * — "a comunidade está viva?" — e não despeja número por despejar.
+ *
+ * O bloco de mentorias mostrava a fila de devolutiva (quem respondeu teste e
+ * ainda não teve conversa) — conceito que não existe mais: mentoria é
+ * independente de teste respondido (Fecha #213). Ficam só as contagens
+ * diretas (agendadas/realizadas); uma visão mais rica (NPS, duração média)
+ * é a Fatia 3, ainda não construída — não é para inventar aqui.
  *
  * Nada aqui inventa: onde não há dado, o número é zero e a tela diz que está
  * zerado. É a mesma regra de honestidade dos relatórios.
@@ -26,7 +31,7 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
     // para a conta de quem está pedindo.
     const [
       pessoas, grupos, membros, equipe,
-      baterias, avulsas, devolutivas,
+      sessoesMentoria,
       trilhas, aulas, progresso,
       posts, comentarios, pontos,
     ] = await Promise.all([
@@ -34,9 +39,7 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
       supabase.from("groups").select("id, name"),
       supabase.from("group_members").select("person_id, group_id"),
       supabase.from("team_members").select("id, kind, status"),
-      supabase.from("assessment_responses").select("id, submitted_at").is("canceled_at", null),
-      supabase.from("test_responses").select("id, submitted_at, assessment_response_id").is("canceled_at", null),
-      supabase.from("devolutivas").select("id, status, scheduled_at, response_id, assessment_id"),
+      supabase.from("mentoria_sessoes").select("id, status, quando"),
       supabase.from("learning_tracks").select("id"),
       supabase.from("learning_lessons").select("id"),
       supabase.from("learning_progress").select("user_id, lesson_id, completed_at"),
@@ -47,7 +50,7 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
 
     // Um erro silenciado aqui viraria "0" na tela, e "0" é uma afirmação —
     // "não tem ninguém esperando" quando na verdade a consulta falhou.
-    for (const r of [pessoas, grupos, membros, equipe, baterias, avulsas, devolutivas,
+    for (const r of [pessoas, grupos, membros, equipe, sessoesMentoria,
                      trilhas, aulas, progresso, posts, comentarios, pontos]) {
       if (r.error) throw new Error(r.error.message);
     }
@@ -56,27 +59,11 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
     const listaMembros = membros.data ?? [];
     const idsEmGrupo = new Set(listaMembros.map((m) => m.person_id));
 
-    // --- Devolutivas: a fila é calculada, não é uma tabela ---------------
-    // Mesma regra do menu Devolutivas: respondeu e ainda não teve conversa.
-    const jaTem = new Set(
-      (devolutivas.data ?? [])
-        .filter((d) => d.status !== "cancelada")
-        .flatMap((d) => [d.response_id, d.assessment_id].filter(Boolean) as string[]),
-    );
-    const esperando: number[] = [];
-    for (const b of baterias.data ?? []) {
-      if (b.submitted_at && !jaTem.has(b.id)) esperando.push(diasDesde(b.submitted_at));
-    }
-    for (const r of avulsas.data ?? []) {
-      if (r.submitted_at && !r.assessment_response_id && !jaTem.has(r.id)) {
-        esperando.push(diasDesde(r.submitted_at));
-      }
-    }
-
     const agora = Date.now();
-    const agendadas = (devolutivas.data ?? []).filter(
-      (d) => d.status === "agendada" && d.scheduled_at && new Date(d.scheduled_at).getTime() >= agora,
+    const agendadas = (sessoesMentoria.data ?? []).filter(
+      (s) => s.status === "agendada" && new Date(s.quando).getTime() >= agora,
     ).length;
+    const realizadas = (sessoesMentoria.data ?? []).filter((s) => s.status === "concluida").length;
 
     // --- Comunidade: movimento recente vale mais que o total -------------
     const seteDias = agora - 7 * 86_400_000;
@@ -132,11 +119,9 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
         ativos: (equipe.data ?? []).filter((t) => t.status === "ativo").length,
         mentores: (equipe.data ?? []).filter((t) => t.status === "ativo" && t.kind === "mentor").length,
       },
-      devolutivas: {
-        naFila: esperando.length,
-        maisAntigaDias: esperando.length ? Math.max(...esperando) : 0,
+      mentorias: {
         agendadas,
-        realizadas: (devolutivas.data ?? []).filter((d) => d.status === "realizada").length,
+        realizadas,
       },
       educacao: {
         trilhas: (trilhas.data ?? []).length,

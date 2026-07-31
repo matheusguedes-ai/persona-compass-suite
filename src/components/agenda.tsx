@@ -1,13 +1,13 @@
 /**
- * Agenda de devolutivas — visão de mês.
+ * Agenda de mentorias — visão de mês.
  *
  * Todo cálculo de data acontece AQUI, no navegador, e o período vai pronto para
  * o servidor. O servidor roda em UTC: se ele decidisse onde o mês começa,
- * viraria o mês três horas antes do Brasil e a devolutiva do último dia às 22h
+ * viraria o mês três horas antes do Brasil e a sessão do último dia às 22h
  * sumiria da tela.
  *
- * Serve o master (`/gestao`) e o mentor (`/aluno/gestao`) sem mudar nada: a RLS
- * já recorta os dados de cada um.
+ * Serve o master (`/agenda`) e o aluno (`/aluno/agenda`, `/aluno/mentorias`)
+ * sem mudar nada: a RLS já recorta os dados de cada um.
  */
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -46,10 +46,10 @@ function horaBr(iso: string): string | null {
  * `area` decide só para ONDE o compromisso leva — o mentor e o aluno vivem os
  * dois em /aluno, então ela não serve para decidir escopo.
  *
- * `somenteMinhas` é separado de propósito: o mentor abre a agenda em
- * `/aluno/gestao` e precisa ver o GRUPO dele; o aluno abre em
- * `/aluno/devolutivas` e precisa ver só o que é dele. Amarrar as duas coisas na
- * mesma prop deixaria o mentor com uma agenda quase sempre vazia.
+ * `somenteMinhas` é separado de propósito: o mentor pode acompanhar a agenda
+ * do grupo dele; o aluno abre em `/aluno/mentorias` e precisa ver só o que é
+ * dele. Amarrar as duas coisas na mesma prop deixaria o mentor com uma agenda
+ * quase sempre vazia.
  */
 export function Agenda({
   area = "dono",
@@ -190,7 +190,7 @@ export function Agenda({
                           </button>
                         ) : (
                           <Link
-                            to={area === "aluno" ? "/aluno/devolutivas" : "/devolutivas"}
+                            to={area === "aluno" ? "/aluno/mentorias" : "/mentorias"}
                             className={`block truncate rounded px-1.5 py-1 text-[11px] leading-tight ${
                               c.status === "realizada"
                                 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"

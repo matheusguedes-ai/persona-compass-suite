@@ -2,7 +2,7 @@
  * Exportar o cadastro das pessoas.
  *
  * SÓ CADASTRO — decisão do Matheus. Nada de resultado de teste, resposta ou
- * devolutiva. Isso derruba quase todo o risco do arquivo: uma planilha com nome
+ * mentoria. Isso derruba quase todo o risco do arquivo: uma planilha com nome
  * e telefone é dado comum de RH; a mesma planilha com perfil comportamental de
  * 200 pessoas seria outra coisa.
  *

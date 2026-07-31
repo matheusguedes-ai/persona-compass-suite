@@ -1,0 +1,380 @@
+/**
+ * O pacote aberto: cabeçalho com a conta, sessões em ordem de data.
+ *
+ * "Marcar como concluída" e "editar resumo depois" usam o mesmo diálogo —
+ * ver o comentário de `salvarResumoSessao` no server. A diferença de tela é
+ * só: na primeira vez pede os itens do checklist; depois, eles só aparecem
+ * (o professor não edita item — a spec não descreve essa edição).
+ */
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getMentoria, agendarSessao, salvarResumoSessao, atualizarMentoria } from "@/lib/mentorias.functions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  ArrowLeft, CalendarClock, CheckCircle2, MapPin, Link2, Plus, X, Pencil,
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+function dataHoraBr(iso: string) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+function paraCampoLocal(iso: string) {
+  const d = new Date(iso);
+  const z = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+function paraIso(local: string) {
+  return local ? new Date(local).toISOString() : null;
+}
+
+export function MentoriaDetalhe({ id }: { id: string }) {
+  const qc = useQueryClient();
+  const getFn = useServerFn(getMentoria);
+  const agendarFn = useServerFn(agendarSessao);
+  const salvarResumoFn = useServerFn(salvarResumoSessao);
+  const atualizarFn = useServerFn(atualizarMentoria);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["mentoria", id], queryFn: () => getFn({ data: { id } }),
+  });
+
+  const recarregar = () => qc.invalidateQueries({ queryKey: ["mentoria", id] });
+
+  // --- Agendar sessão ---------------------------------------------------
+  const [agendando, setAgendando] = useState(false);
+  const [quando, setQuando] = useState("");
+  const [terminaEm, setTerminaEm] = useState("");
+  const [modalidade, setModalidade] = useState<"presencial" | "online">("online");
+  const [local, setLocal] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+
+  const agendar = useMutation({
+    mutationFn: () =>
+      agendarFn({
+        data: {
+          mentoria_id: id,
+          quando: paraIso(quando)!,
+          termina_em: paraIso(terminaEm),
+          modalidade,
+          local: modalidade === "presencial" ? local : undefined,
+          link_url: modalidade === "online" ? linkUrl : undefined,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Sessão agendada.");
+      setAgendando(false); setQuando(""); setTerminaEm(""); setLocal(""); setLinkUrl("");
+      recarregar();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // --- Aumentar o pacote --------------------------------------------------
+  const [editandoPacote, setEditandoPacote] = useState(false);
+  const [novaQtd, setNovaQtd] = useState("");
+  const salvarPacote = useMutation({
+    mutationFn: () => atualizarFn({ data: { id, sessoes_contratadas: Number(novaQtd) } }),
+    onSuccess: () => { toast.success("Pacote atualizado."); setEditandoPacote(false); recarregar(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // --- Concluir / editar resumo ------------------------------------------
+  type Sessao = NonNullable<typeof data>["sessoes"][number];
+  const [resumindo, setResumindo] = useState<Sessao | null>(null);
+  const [duracao, setDuracao] = useState("");
+  const [resumo, setResumo] = useState("");
+  const [checklistTitulo, setChecklistTitulo] = useState("");
+  const [novosItens, setNovosItens] = useState<string[]>([""]);
+
+  const abrirResumo = (s: Sessao) => {
+    setResumindo(s);
+    setDuracao(s.duracao_real_min ? String(s.duracao_real_min) : "");
+    setResumo(s.resumo ?? "");
+    setChecklistTitulo(s.checklist_titulo ?? "");
+    setNovosItens([""]);
+  };
+
+  const salvarResumo = useMutation({
+    mutationFn: () =>
+      salvarResumoFn({
+        data: {
+          id: resumindo!.id,
+          duracao_real_min: Number(duracao),
+          resumo,
+          checklist_titulo: checklistTitulo.trim() || undefined,
+          itens: resumindo!.status === "agendada"
+            ? novosItens.map((t) => t.trim()).filter(Boolean)
+            : undefined,
+        },
+      }),
+    onSuccess: () => {
+      toast.success(resumindo?.status === "agendada" ? "Sessão concluída." : "Resumo atualizado.");
+      setResumindo(null);
+      recarregar();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+  if (error || !data) return <p className="text-sm text-destructive">{(error as Error)?.message ?? "Erro"}</p>;
+
+  const { mentoria, sessoes } = data;
+
+  return (
+    <div className="space-y-6">
+      <Link to="/mentorias" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="size-3" /> Voltar para mentorias
+      </Link>
+
+      <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">
+              {mentoria.people?.full_name ?? "—"}
+              {mentoria.titulo && <span className="font-normal text-muted-foreground"> · {mentoria.titulo}</span>}
+            </h1>
+            {mentoria.observacoes && (
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{mentoria.observacoes}</p>
+            )}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => { setNovaQtd(String(mentoria.sessoes_contratadas)); setEditandoPacote(true); }}>
+            <Pencil className="size-3.5" /> {mentoria.sessoes_contratadas} contratadas
+          </Button>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-4 text-sm">
+          <span><strong className="tabular-nums">{mentoria.realizadas}</strong> realizadas</span>
+          <span><strong className="tabular-nums">{mentoria.agendadas}</strong> agendadas</span>
+          <span><strong className="tabular-nums">{mentoria.faltam}</strong> a agendar</span>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={() => setAgendando(true)}>
+          <CalendarClock className="size-4" /> Agendar sessão
+        </Button>
+      </div>
+
+      {sessoes.length === 0 && (
+        <p className="rounded-xl bg-muted/40 p-6 text-center text-sm text-muted-foreground">
+          Nenhuma sessão agendada ainda.
+        </p>
+      )}
+
+      <ul className="space-y-3">
+        {sessoes.map((s) => (
+          <li key={s.id} className="rounded-xl border border-black/5 bg-card p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  {s.status === "concluida" ? (
+                    <CheckCircle2 className="size-4 text-emerald-600" />
+                  ) : (
+                    <CalendarClock className="size-4" />
+                  )}
+                  {dataHoraBr(s.quando)}
+                </p>
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {s.modalidade === "presencial" ? <MapPin className="size-3" /> : <Link2 className="size-3" />}
+                  {s.modalidade === "presencial" ? (s.local || "presencial") : (s.link_url || "online")}
+                </p>
+              </div>
+              {s.status === "agendada" && (
+                <Button size="sm" onClick={() => abrirResumo(s)}>
+                  <CheckCircle2 className="size-3.5" /> Marcar como concluída
+                </Button>
+              )}
+              {s.status === "concluida" && (
+                <Button size="sm" variant="outline" onClick={() => abrirResumo(s)}>
+                  <Pencil className="size-3.5" /> Editar resumo
+                </Button>
+              )}
+            </div>
+
+            {s.status === "concluida" && (
+              <div className="mt-3 space-y-3 border-t border-black/5 pt-3">
+                <p className="text-xs text-muted-foreground">{s.duracao_real_min} minutos</p>
+                {s.resumo && <p className="text-sm leading-relaxed">{s.resumo}</p>}
+                {s.tarefas.length > 0 && (
+                  <div>
+                    {s.checklist_titulo && <p className="text-xs font-medium">{s.checklist_titulo}</p>}
+                    <ul className="mt-1.5 space-y-1">
+                      {s.tarefas.map((t) => (
+                        <li key={t.id} className="flex items-center gap-2 text-xs">
+                          <span className={cn("size-3 shrink-0 rounded-sm border", t.concluida ? "border-emerald-600 bg-emerald-600" : "border-muted-foreground/40")} />
+                          <span className={t.concluida ? "text-muted-foreground line-through" : ""}>{t.titulo}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {/* ---------------------------------------------------- agendar --- */}
+      <Dialog open={agendando} onOpenChange={(v) => !v && setAgendando(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agendar sessão</DialogTitle>
+            <DialogDescription>{mentoria.people?.full_name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium">Início</label>
+                <Input type="datetime-local" value={quando} onChange={(e) => setQuando(e.target.value)} className="mt-1.5" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Fim (opcional)</label>
+                <Input type="datetime-local" value={terminaEm} onChange={(e) => setTerminaEm(e.target.value)} className="mt-1.5" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Modalidade</label>
+              <div className="mt-1.5 flex gap-2">
+                <Button
+                  type="button" variant={modalidade === "online" ? "default" : "outline"} size="sm"
+                  onClick={() => setModalidade("online")}
+                >
+                  Online
+                </Button>
+                <Button
+                  type="button" variant={modalidade === "presencial" ? "default" : "outline"} size="sm"
+                  onClick={() => setModalidade("presencial")}
+                >
+                  Presencial
+                </Button>
+              </div>
+            </div>
+            {modalidade === "online" ? (
+              <div>
+                <label className="text-sm font-medium">Link da chamada</label>
+                <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} className="mt-1.5" placeholder="https://…" />
+              </div>
+            ) : (
+              <div>
+                <label className="text-sm font-medium">Endereço</label>
+                <Input value={local} onChange={(e) => setLocal(e.target.value)} className="mt-1.5" />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAgendando(false)}>Cancelar</Button>
+            <Button onClick={() => agendar.mutate()} disabled={!quando || agendar.isPending}>
+              {agendar.isPending ? "Agendando…" : "Agendar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* --------------------------------------------- aumentar pacote --- */}
+      <Dialog open={editandoPacote} onOpenChange={setEditandoPacote}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sessões contratadas</DialogTitle>
+            <DialogDescription>Fechou mais sessões? Edite o total — não crie um pacote novo.</DialogDescription>
+          </DialogHeader>
+          <Input type="number" min={1} max={999} value={novaQtd} onChange={(e) => setNovaQtd(e.target.value)} />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditandoPacote(false)}>Cancelar</Button>
+            <Button onClick={() => salvarPacote.mutate()} disabled={!novaQtd || salvarPacote.isPending}>
+              {salvarPacote.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ------------------------------------------------------ resumo --- */}
+      <Dialog open={!!resumindo} onOpenChange={(v) => !v && setResumindo(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {resumindo?.status === "agendada" ? "Concluir sessão" : "Editar resumo"}
+            </DialogTitle>
+            <DialogDescription>
+              {resumindo && dataHoraBr(resumindo.quando)}. Salvar {resumindo?.status === "agendada" ? "publica" : "atualiza"} para o aluno na hora.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Duração real (min)</label>
+              <Input
+                type="number" min={1} max={600} value={duracao}
+                onChange={(e) => setDuracao(e.target.value)} className="mt-1.5" placeholder="60"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Resumo</label>
+              <Textarea value={resumo} onChange={(e) => setResumo(e.target.value)} rows={5} className="mt-1.5" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Nome do checklist (opcional)</label>
+              <Input
+                value={checklistTitulo} onChange={(e) => setChecklistTitulo(e.target.value)} className="mt-1.5"
+                placeholder="Ex.: Desafios até o próximo encontro"
+              />
+            </div>
+
+            {resumindo?.status === "agendada" ? (
+              <div>
+                <label className="text-sm font-medium">Itens do checklist</label>
+                <div className="mt-1.5 space-y-2">
+                  {novosItens.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <Input
+                        value={item}
+                        onChange={(e) => setNovosItens(novosItens.map((v, j) => (j === i ? e.target.value : v)))}
+                        placeholder={`Item ${i + 1}`}
+                      />
+                      {novosItens.length > 1 && (
+                        <Button variant="ghost" size="sm" onClick={() => setNovosItens(novosItens.filter((_, j) => j !== i))}>
+                          <X className="size-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => setNovosItens([...novosItens, ""])}>
+                  <Plus className="size-3.5" /> Adicionar item
+                </Button>
+              </div>
+            ) : (
+              resumindo && resumindo.tarefas.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium">Itens do checklist</label>
+                  <ul className="mt-1.5 space-y-1">
+                    {resumindo.tarefas.map((t) => (
+                      <li key={t.id} className="text-xs text-muted-foreground">
+                        {t.concluida ? "☑" : "☐"} {t.titulo}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setResumindo(null)}>Cancelar</Button>
+            <Button
+              onClick={() => salvarResumo.mutate()}
+              disabled={!duracao || !resumo.trim() || salvarResumo.isPending}
+            >
+              {salvarResumo.isPending ? "Salvando…" : resumindo?.status === "agendada" ? "Concluir" : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

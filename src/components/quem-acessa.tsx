@@ -11,7 +11,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { meusGrupos } from "@/lib/comunidade.functions";
-import { listarPessoasParaDevolutiva } from "@/lib/devolutivas.functions";
+import { listarPessoasParaEscolher } from "@/lib/data.functions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Lock, Unlock } from "lucide-react";
@@ -27,7 +27,7 @@ export function QuemAcessa({
   ativo?: boolean;
 }) {
   const gruposFn = useServerFn(meusGrupos);
-  const pessoasFn = useServerFn(listarPessoasParaDevolutiva);
+  const pessoasFn = useServerFn(listarPessoasParaEscolher);
   const { data: dg } = useQuery({ queryKey: ["grupos"], queryFn: () => gruposFn(), enabled: ativo });
   const { data: dp } = useQuery({
     queryKey: ["pessoas-destino"], queryFn: () => pessoasFn(), enabled: ativo,

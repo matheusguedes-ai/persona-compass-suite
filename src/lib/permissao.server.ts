@@ -33,10 +33,10 @@ export async function exigirPermissao(
 
 /**
  * Como `exigirPermissao`, mas para função compartilhada com o painel do
- * MENTOR (`_app.grupos.$id.tsx`: `DevolutivasPage`, `GroupDashboard`).
+ * MENTOR (`_app.grupos.$id.tsx`: `GroupDashboard`; `mentorias.functions.ts`).
  *
- * Testes/Devolutivas nessas telas já chegam recortados pelo próprio RLS — as
- * policies usam `can_see_person()`/`posso_agendar_devolutiva()`, que restringem
+ * Testes/Mentorias nessas telas já chegam recortados pelo próprio RLS — as
+ * policies usam `can_see_person()`/`posso_agendar_mentoria()`, que restringem
  * o MENTOR aos grupos dele (e liberam geral para quem não é mentor). Então
  * aqui o mentor sempre passa: pedir sem filtro, ou com o id de outro grupo,
  * simplesmente não traz nada — o banco já resolve. Só o colaborador precisa

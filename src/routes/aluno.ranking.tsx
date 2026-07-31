@@ -62,7 +62,7 @@ function Pagina() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Ranking</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pontos por participar: assistir aula, comparecer à devolutiva, publicar e conversar na
+          Pontos por participar: assistir aula, comparecer à mentoria, publicar e conversar na
           comunidade. Responder teste não pontua — é para você responder com calma, não rápido.
         </p>
       </div>

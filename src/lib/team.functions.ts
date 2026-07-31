@@ -31,7 +31,7 @@ export const PERMISSOES = [
   "testes",
   "envios",
   "relatorios",
-  "devolutivas",
+  "mentorias",
   "educacao",
 ] as const;
 export type Permissao = (typeof PERMISSOES)[number];
@@ -42,7 +42,7 @@ export const PERMISSAO_LABEL: Record<Permissao, { titulo: string; ajuda: string 
   testes: { titulo: "Testes", ajuda: "Criar e editar inventários." },
   envios: { titulo: "Envios", ajuda: "Disparar testes e gerar links." },
   relatorios: { titulo: "Relatórios", ajuda: "Abrir os relatórios dos avaliados." },
-  devolutivas: { titulo: "Devolutivas", ajuda: "Agendar e registrar as conversas de resultado." },
+  mentorias: { titulo: "Mentorias", ajuda: "Criar pacotes, agendar sessões e escrever o resumo." },
   educacao: { titulo: "Educação", ajuda: "Publicar aulas, trilhas e materiais." },
 };
 
@@ -77,7 +77,7 @@ export const listTeamMembers = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     let q = supabase
       .from("team_members")
-      .select("*, team_member_groups(group_id, can_download_reports, can_schedule_devolutivas, groups(id, name))")
+      .select("*, team_member_groups(group_id, can_download_reports, can_schedule_mentorias, groups(id, name))")
       .eq("owner_id", userId)
       .order("created_at", { ascending: false });
     if (data.kind) q = q.eq("kind", data.kind);
@@ -284,7 +284,7 @@ export const setMemberGroups = createServerFn({ method: "POST" })
       groups: z.array(z.object({
         group_id: z.string().uuid(),
         can_download_reports: z.boolean().default(false),
-        can_schedule_devolutivas: z.boolean().default(false),
+        can_schedule_mentorias: z.boolean().default(false),
       })).max(200),
     }).parse(d),
   )
@@ -314,6 +314,10 @@ export const setMemberGroups = createServerFn({ method: "POST" })
           team_member_id: data.member_id,
           group_id: g.group_id,
           can_download_reports: g.can_download_reports,
+          // Achado no caminho do #213: o schema já aceitava este campo, mas o
+          // insert nunca gravava — o toggle "pode agendar" na tela de Equipe
+          // não fazia nada. Ver Fecha #213.
+          can_schedule_mentorias: g.can_schedule_mentorias,
         })),
       );
       if (insErr) throw new Error(insErr.message);
@@ -345,7 +349,7 @@ export async function membershipDoUsuario(supabase: SupabaseClient<Database>, us
   // que precisa de um seletor de conta e não de um desempate silencioso.
   const { data: rows, error } = await supabase
     .from("team_members")
-    .select("id, kind, permissions, owner_id, name, status, created_at, team_member_groups(group_id, can_download_reports, can_schedule_devolutivas, groups(name))")
+    .select("id, kind, permissions, owner_id, name, status, created_at, team_member_groups(group_id, can_download_reports, can_schedule_mentorias, groups(name))")
     .eq("user_id", userId)
     .eq("status", "ativo")
     .order("created_at", { ascending: true })
@@ -377,7 +381,7 @@ export async function membershipDoUsuario(supabase: SupabaseClient<Database>, us
       // Dono que também é avaliado em outra conta. Aluno puro não precisa do
       // atalho: ele JÁ está na área dele.
       tambem_avaliado: !ehAluno && (vezesAvaliado ?? 0) > 0,
-      groups: [] as Array<{ group_id: string; name: string; can_download_reports: boolean; can_schedule_devolutivas: boolean }>,
+      groups: [] as Array<{ group_id: string; name: string; can_download_reports: boolean; can_schedule_mentorias: boolean }>,
     };
   }
   return {
@@ -394,7 +398,7 @@ export async function membershipDoUsuario(supabase: SupabaseClient<Database>, us
       group_id: g.group_id,
       name: g.groups?.name ?? "—",
       can_download_reports: g.can_download_reports,
-      can_schedule_devolutivas: g.can_schedule_devolutivas ?? false,
+      can_schedule_mentorias: g.can_schedule_mentorias ?? false,
     })),
   };
 }
@@ -596,7 +600,7 @@ export const gruposDoMentor = createServerFn({ method: "GET" })
     const [{ data: todos, error: eG }, { data: meus, error: eV }] = await Promise.all([
       supabase.from("groups").select("id, name").order("name"),
       supabase.from("team_member_groups")
-        .select("group_id, can_download_reports, can_schedule_devolutivas")
+        .select("group_id, can_download_reports, can_schedule_mentorias")
         .eq("team_member_id", membro.id),
     ]);
     if (eG) throw new Error(eG.message);
@@ -610,7 +614,7 @@ export const gruposDoMentor = createServerFn({ method: "GET" })
           name: g.name,
           atribuido: !!v,
           can_download_reports: v?.can_download_reports ?? false,
-          can_schedule_devolutivas: v?.can_schedule_devolutivas ?? false,
+          can_schedule_mentorias: v?.can_schedule_mentorias ?? false,
         };
       }),
     };
@@ -631,7 +635,7 @@ export const definirGrupoDoMentor = createServerFn({ method: "POST" })
       group_id: z.string().uuid(),
       atribuir: z.boolean(),
       can_download_reports: z.boolean().optional(),
-      can_schedule_devolutivas: z.boolean().optional(),
+      can_schedule_mentorias: z.boolean().optional(),
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
@@ -659,7 +663,7 @@ export const definirGrupoDoMentor = createServerFn({ method: "POST" })
       team_member_id: membro.id,
       group_id: data.group_id,
       can_download_reports: data.can_download_reports ?? false,
-      can_schedule_devolutivas: data.can_schedule_devolutivas ?? false,
+      can_schedule_mentorias: data.can_schedule_mentorias ?? false,
     }, { onConflict: "team_member_id,group_id" });
     if (error) throw new Error(error.message);
     return { ok: true };
