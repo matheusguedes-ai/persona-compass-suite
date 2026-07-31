@@ -21,6 +21,7 @@ import {
   getDestinosBiblioteca, setDestinosBiblioteca,
   TIPOS, ROTULO_TIPO, ORDEM_TIPOS,
 } from "@/lib/biblioteca.functions";
+import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -49,9 +50,9 @@ const ICONE = {
 } as const;
 
 type Material = {
-  id: string; titulo: string; descricao: string | null; url: string; kind: string;
+  id: string; titulo: string; descricao: string | null; url: string | null; kind: string;
   categoria: string | null; capa_url: string | null; pasta_id: string | null;
-  liberado: boolean; destinos_count: number;
+  liberado: boolean; destinos_count: number; arquivo_proprio: boolean;
 };
 type Pasta = {
   id: string; titulo: string; descricao: string | null; capa_url: string | null;
@@ -83,6 +84,7 @@ export function Biblioteca({
   const salvarPastaFn = useServerFn(salvarPasta);
   const excluirPastaFn = useServerFn(excluirPasta);
   const moverPastaFn = useServerFn(moverPasta);
+  const previaFn = useServerFn(assinarMeuEnvio);
 
   const [busca, setBusca] = useState("");
   const [categoria, setCategoria] = useState<string | null>(null);
@@ -94,6 +96,13 @@ export function Biblioteca({
   // nada, porque o formulário só aceitava colar URL.
   const [origem, setOrigem] = useState<"link" | "arquivo">("link");
   const [enviando, setEnviando] = useState<null | "arquivo" | "capa" | "capaPasta">(null);
+  // O bucket é privado: form.capa_url/formPasta.capa_url guardam o
+  // IDENTIFICADOR (o que salva). Estes dois guardam a versão ASSINADA de um
+  // upload feito NESTA sessão, só para o <img> ter o que mostrar antes de
+  // salvar — nunca vão para o servidor. `null` cai no fallback (o que já veio
+  // assinado da listagem, ao editar um material/pasta existente).
+  const [capaPreview, setCapaPreview] = useState<string | null>(null);
+  const [capaPastaPreview, setCapaPastaPreview] = useState<string | null>(null);
 
   // Abertura: controlada pelo pai quando ele manda, com estado próprio de
   // reserva — a tela do aluno não tem menu "Criar".
@@ -125,9 +134,23 @@ export function Biblioteca({
       const { error } = await supabase.storage.from("biblioteca").upload(caminho, f);
       if (error) throw new Error(erroDeUpload(error, "biblioteca"));
       const { data: pub } = supabase.storage.from("biblioteca").getPublicUrl(caminho);
-      if (alvo === "capa") setForm((v) => ({ ...v, capa_url: pub.publicUrl }));
-      else if (alvo === "capaPasta") setFormPasta((v) => ({ ...v, capa_url: pub.publicUrl }));
-      else {
+      if (alvo === "capa" || alvo === "capaPasta") {
+        // Pede ao servidor a versão assinada deste MESMO arquivo que acabei de
+        // enviar, só para o preview — o bucket privado não deixa o navegador
+        // assinar sozinho. Se falhar, ainda salva certo (o identificador vai
+        // do mesmo jeito); só o preview imediato fica sem imagem até recarregar.
+        let previa: string | null = null;
+        try {
+          previa = (await previaFn({ data: { url: pub.publicUrl } })).url;
+        } catch { /* sem preview agora — não impede salvar */ }
+        if (alvo === "capa") {
+          setForm((v) => ({ ...v, capa_url: pub.publicUrl }));
+          setCapaPreview(previa);
+        } else {
+          setFormPasta((v) => ({ ...v, capa_url: pub.publicUrl }));
+          setCapaPastaPreview(previa);
+        }
+      } else {
         // O título vem do nome do arquivo quando ainda está vazio: poupa
         // digitação e evita material sem nome. O tipo também é adivinhado pela
         // extensão — escolher "pdf" à mão depois de enviar um PDF é trabalho à toa.
@@ -157,6 +180,7 @@ export function Biblioteca({
           categoria: form.categoria || undefined,
           capa_url: form.capa_url || null,
           pasta_id: form.pasta_id,
+          arquivo_proprio: origem === "arquivo",
         },
       }),
     onSuccess: () => {
@@ -165,6 +189,7 @@ export function Biblioteca({
       abrirMat(false);
       setForm(VAZIO);
       setOrigem("link");
+      setCapaPreview(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -184,6 +209,7 @@ export function Biblioteca({
       inv();
       abrirPasta(false);
       setFormPasta({ id: undefined, titulo: "", descricao: "", capa_url: "" });
+      setCapaPastaPreview(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -219,10 +245,14 @@ export function Biblioteca({
 
   function editarMaterial(m: Material) {
     setForm({
-      id: m.id, titulo: m.titulo, descricao: m.descricao ?? "", url: m.url, kind: m.kind,
+      id: m.id, titulo: m.titulo, descricao: m.descricao ?? "", url: m.url ?? "", kind: m.kind,
       categoria: m.categoria ?? "", capa_url: m.capa_url ?? "", pasta_id: m.pasta_id,
     });
-    setOrigem(m.url.includes("/storage/v1/object/public/biblioteca/") ? "arquivo" : "link");
+    // A pessoa já disse, ao cadastrar, se enviou arquivo ou colou link — não se
+    // adivinha mais pelo formato da URL (ver a migração
+    // `20260731040000_origem_do_material_explicita`).
+    setOrigem(m.arquivo_proprio ? "arquivo" : "link");
+    setCapaPreview(null);
     abrirMat(true);
   }
 
@@ -236,7 +266,8 @@ export function Biblioteca({
           </p>
         </div>
         {podeEditar && !onNovoMaterial && (
-          <Button size="sm" className="ml-auto" onClick={() => { setForm(VAZIO); abrirMat(true); }}>
+          <Button size="sm" className="ml-auto"
+            onClick={() => { setForm(VAZIO); setOrigem("link"); setCapaPreview(null); abrirMat(true); }}>
             <Plus className="size-4" /> Adicionar material
           </Button>
         )}
@@ -288,13 +319,16 @@ export function Biblioteca({
               setFormPasta({
                 id: p.id, titulo: p.titulo, descricao: p.descricao ?? "", capa_url: p.capa_url ?? "",
               });
+              setCapaPastaPreview(null);
               abrirPasta(true);
             }}
             onExcluir={() => excluirP.mutate(p.id)}
             onMover={(d) => mover.mutate({ id: p.id, direcao: d })}
             onEditarMaterial={editarMaterial}
             onExcluirMaterial={(id) => excluir.mutate(id)}
-            onAdicionarAqui={() => { setForm({ ...VAZIO, pasta_id: p.id }); abrirMat(true); }}
+            onAdicionarAqui={() => {
+              setForm({ ...VAZIO, pasta_id: p.id }); setOrigem("link"); setCapaPreview(null); abrirMat(true);
+            }}
           />
         ))}
       </div>
@@ -319,7 +353,9 @@ export function Biblioteca({
       )}
 
       {/* -------- Diálogo do material -------- */}
-      <Dialog open={matAberto} onOpenChange={(v) => { abrirMat(v); if (!v) setForm(VAZIO); }}>
+      <Dialog open={matAberto} onOpenChange={(v) => {
+        abrirMat(v); if (!v) { setForm(VAZIO); setCapaPreview(null); }
+      }}>
         <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{form.id ? "Editar material" : "Novo material"}</DialogTitle>
@@ -371,8 +407,9 @@ export function Biblioteca({
               <Label>Capa (opcional)</Label>
               {form.capa_url ? (
                 <div className="relative mt-1 overflow-hidden rounded-lg">
-                  <img src={form.capa_url} alt="" className="h-24 w-full object-cover" />
-                  <button type="button" onClick={() => setForm({ ...form, capa_url: "" })}
+                  <img src={capaPreview ?? form.capa_url} alt="" className="h-24 w-full object-cover" />
+                  <button type="button"
+                    onClick={() => { setForm({ ...form, capa_url: "" }); setCapaPreview(null); }}
                     className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white"
                     title="Remover capa">
                     <X className="size-3.5" />
@@ -445,7 +482,10 @@ export function Biblioteca({
       {/* -------- Diálogo da pasta -------- */}
       <Dialog open={pastaAberta} onOpenChange={(v) => {
         abrirPasta(v);
-        if (!v) setFormPasta({ id: undefined, titulo: "", descricao: "", capa_url: "" });
+        if (!v) {
+          setFormPasta({ id: undefined, titulo: "", descricao: "", capa_url: "" });
+          setCapaPastaPreview(null);
+        }
       }}>
         <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
           <DialogHeader>
@@ -466,8 +506,9 @@ export function Biblioteca({
               <Label>Capa (opcional)</Label>
               {formPasta.capa_url ? (
                 <div className="relative mt-1 overflow-hidden rounded-lg">
-                  <img src={formPasta.capa_url} alt="" className="h-24 w-full object-cover" />
-                  <button type="button" onClick={() => setFormPasta({ ...formPasta, capa_url: "" })}
+                  <img src={capaPastaPreview ?? formPasta.capa_url} alt="" className="h-24 w-full object-cover" />
+                  <button type="button"
+                    onClick={() => { setFormPasta({ ...formPasta, capa_url: "" }); setCapaPastaPreview(null); }}
                     className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white"
                     title="Remover capa">
                     <X className="size-3.5" />
@@ -667,7 +708,7 @@ function GradeMateriais({
                 <p className="mt-1 text-xs text-muted-foreground">Não liberado para você</p>
               </div>
             ) : (
-              <a href={m.url} target="_blank" rel="noopener noreferrer" className="block">
+              <a href={m.url ?? undefined} target="_blank" rel="noopener noreferrer" className="block">
                 {m.capa_url && (
                   <img src={m.capa_url} alt=""
                     className="-mt-1 mb-3 h-28 w-full rounded-lg object-cover" />

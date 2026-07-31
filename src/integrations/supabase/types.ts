@@ -74,9 +74,9 @@ export type Database = {
         Relationships: []
       }
       biblioteca_materiais: {
-        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; url: string; kind: string; categoria: string | null; capa_url: string | null; pasta_id: string | null; created_at: string }
-        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; url: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string }
-        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; url?: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string }
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; url: string; kind: string; categoria: string | null; capa_url: string | null; pasta_id: string | null; created_at: string; arquivo_proprio: boolean }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; url: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; url?: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean }
         Relationships: [
           {
             foreignKeyName: "biblioteca_materiais_pasta_id_fkey"

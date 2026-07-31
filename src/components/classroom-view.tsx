@@ -321,7 +321,7 @@ export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string
                       return (
                         <li key={m.id} className="flex items-center gap-2">
                           <a
-                            href={m.url} target="_blank" rel="noreferrer"
+                            href={m.url ?? undefined} target="_blank" rel="noreferrer"
                             className="flex flex-1 items-center gap-2 rounded-lg border border-black/5 px-3 py-2 text-sm hover:bg-muted/40"
                           >
                             <Icone className="size-4 shrink-0 text-muted-foreground" />

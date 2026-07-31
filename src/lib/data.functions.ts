@@ -70,6 +70,10 @@ export const getPerson = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (rErr) throw new Error(rErr.message);
 
+    const { assinarUrl, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    person.avatar_url = await assinarUrl(supabaseAdmin, person.avatar_url, TTL_AVATAR_SEGUNDOS);
+
     return { person, groups: groups ?? [], responses: responses ?? [] };
   });
 
@@ -453,6 +457,11 @@ export const getMyProfile = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     const email = (context.claims as { email?: string })?.email ?? null;
+    if (data) {
+      const { assinarUrl, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      data.avatar_url = await assinarUrl(supabaseAdmin, data.avatar_url, TTL_AVATAR_SEGUNDOS);
+    }
     return { profile: data, email, user_id: context.userId };
   });
 
@@ -462,9 +471,21 @@ export const upsertMyProfile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // Campo esvaziado na tela chega como "" — guardar null mantém a checagem
     // "tem valor?" simples em quem lê (um `??` resolve).
-    const limpo = Object.fromEntries(
+    const limpo: Record<string, unknown> = Object.fromEntries(
       Object.entries(data).map(([k, v]) => [k, v === "" ? null : v]),
     );
+    // A aba "Perfil" carrega a foto já ASSINADA (ver getMyProfile) e reenvia
+    // esse mesmo valor ao salvar nome/foto juntos sem trocar a foto —
+    // preserva o identificador já gravado em vez de persistir um link que
+    // expira em minutos.
+    if (typeof limpo.avatar_url === "string") {
+      const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+      if (ehUrlAssinadaNossa(limpo.avatar_url)) {
+        const { data: atual } = await context.supabase
+          .from("profiles").select("avatar_url").eq("user_id", context.userId).maybeSingle();
+        limpo.avatar_url = atual?.avatar_url ?? null;
+      }
+    }
     const { data: row, error } = await context.supabase
       .from("profiles")
       .upsert({ user_id: context.userId, ...limpo }, { onConflict: "user_id" })

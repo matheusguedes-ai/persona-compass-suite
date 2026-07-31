@@ -6,11 +6,13 @@
  * insistir no arquivo antigo depois da troca.
  */
 import { useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ImageUp, Loader2, Trash2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { erroDeUpload } from "@/lib/erro-de-upload";
+import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 
 /** Iniciais do nome, para quando não há foto. */
 function iniciais(nome: string | null | undefined) {
@@ -52,7 +54,13 @@ export function AvatarUpload({
   size?: number;
 }) {
   const [enviando, setEnviando] = useState(false);
+  // O bucket é privado: `url` (prop) é o IDENTIFICADOR que o pai guarda e
+  // salva. Isto guarda a versão ASSINADA de um upload feito NESTA sessão, só
+  // para o <img> ter o que mostrar antes de salvar. `null` cai no fallback —
+  // o que já veio assinado do servidor, ao abrir a tela.
+  const [preview, setPreview] = useState<string | null>(null);
   const ref = useRef<HTMLInputElement>(null);
+  const previaFn = useServerFn(assinarMeuEnvio);
 
   async function enviar(file: File) {
     if (!userId) return;
@@ -63,11 +71,11 @@ export function AvatarUpload({
     setEnviando(true);
     try {
       const ext = (file.name.split(".").pop() || "png").toLowerCase();
-      // UUID, e não `Date.now()`. O bucket `avatares` é público — quem tem a URL
-      // vê a foto sem passar por RLS. Com o carimbo de tempo, o caminho inteiro
-      // era DERIVÁVEL: `{user_id}/foto-{timestamp}.png`, e user_id não é
-      // segredo. Bastava varrer alguns milhões de milissegundos para achar a
-      // foto de qualquer pessoa cujo id se conhecesse.
+      // UUID, e não `Date.now()`. O bucket `avatares` é privado, mas mesmo
+      // assim: com o carimbo de tempo, o caminho inteiro era DERIVÁVEL —
+      // `{user_id}/foto-{timestamp}.png`, e user_id não é segredo. Bastava
+      // varrer alguns milhões de milissegundos para achar a foto de qualquer
+      // pessoa cujo id se conhecesse.
       //
       // Com 122 bits aleatórios não há o que varrer. As fotos JÁ enviadas
       // mantêm o caminho antigo — quem trocar a foto sai do alcance; as demais
@@ -79,6 +87,12 @@ export function AvatarUpload({
       });
       if (error) throw new Error(erroDeUpload(error, "avatares"));
       const { data } = supabase.storage.from("avatares").getPublicUrl(caminho);
+      // Pede ao servidor o preview desta MESMA foto que acabei de enviar — o
+      // bucket privado não deixa o navegador assinar sozinho. Se falhar, ainda
+      // salva certo; só o preview imediato fica sem foto até recarregar.
+      try {
+        setPreview((await previaFn({ data: { url: data.publicUrl } })).url);
+      } catch { /* sem preview agora */ }
       onChange(data.publicUrl);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
@@ -90,7 +104,7 @@ export function AvatarUpload({
 
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <Avatar url={url} nome={nome} size={size} />
+      <Avatar url={preview ?? url} nome={nome} size={size} />
       <input
         ref={ref} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) enviar(f); }}
@@ -102,7 +116,7 @@ export function AvatarUpload({
             : <><ImageUp className="size-4" /> {url ? "Trocar foto" : "Escolher foto"}</>}
         </Button>
         {url && (
-          <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => { setPreview(null); onChange(null); }}>
             <Trash2 className="size-4" /> Remover
           </Button>
         )}

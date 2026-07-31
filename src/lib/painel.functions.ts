@@ -108,6 +108,11 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
       .slice(0, 10)
       .map((l, i) => ({ ...l, posicao: i + 1 }));
 
+    const { assinarUrls, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const avataresRanking = await assinarUrls(supabaseAdmin, ranking.map((l) => l.avatar_url), TTL_AVATAR_SEGUNDOS);
+    const rankingAssinado = ranking.map((l, i) => ({ ...l, avatar_url: avataresRanking[i] }));
+
     const concluidas = (progresso.data ?? []).filter((p) => p.completed_at);
 
     return {
@@ -145,7 +150,7 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
         posts7: recentes(posts.data ?? []),
         comentarios7: recentes(comentarios.data ?? []),
       },
-      ranking,
+      ranking: rankingAssinado,
       // Serve para a tela dizer "ninguém pontuou ainda" em vez de desenhar um
       // ranking em que todo mundo tem zero e a ordem é só alfabética.
       alguemPontuou: (pontos.data ?? []).length > 0,

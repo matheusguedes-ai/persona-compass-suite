@@ -84,10 +84,15 @@ export const listTeamMembers = createServerFn({ method: "GET" })
     const { data: perfis } = await supabase
       .from("profiles").select("user_id, avatar_url").in("user_id", ids);
     const porUsuario = new Map((perfis ?? []).map((p) => [p.user_id, p.avatar_url]));
-    return lista.map((m) => ({
+    const comAvatar = lista.map((m) => ({
       ...m,
       avatar_url: m.user_id ? porUsuario.get(m.user_id) ?? null : null,
     }));
+
+    const { assinarUrls, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const avatares = await assinarUrls(supabaseAdmin, comAvatar.map((m) => m.avatar_url), TTL_AVATAR_SEGUNDOS);
+    return comAvatar.map((m, i) => ({ ...m, avatar_url: avatares[i] }));
   });
 
 export const createTeamMember = createServerFn({ method: "POST" })

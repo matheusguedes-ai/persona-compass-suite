@@ -14,6 +14,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   listarBanners, salvarBanner, excluirBanner, moverBanner,
 } from "@/lib/biblioteca.functions";
+import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -41,6 +42,7 @@ export function BannersAcademy({
   const salvarFn = useServerFn(salvarBanner);
   const excluirFn = useServerFn(excluirBanner);
   const moverFn = useServerFn(moverBanner);
+  const previaFn = useServerFn(assinarMeuEnvio);
 
   const [atual, setAtual] = useState(0);
   const [parado, setParado] = useState(false);
@@ -49,6 +51,9 @@ export function BannersAcademy({
   const setAberto = (v: boolean) => (onNovo ? onNovo(v) : setAbertoLocal(v));
   const [form, setForm] = useState({ imagem_url: "", link_url: "", titulo: "" });
   const [enviando, setEnviando] = useState(false);
+  // O bucket é privado: form.imagem_url guarda o IDENTIFICADOR (o que salva).
+  // Isto guarda a versão ASSINADA do upload desta sessão, só para o <img>.
+  const [preview, setPreview] = useState<string | null>(null);
 
   const { data } = useQuery({ queryKey: ["banners"], queryFn: () => listaFn() });
   const banners = data?.banners ?? [];
@@ -74,6 +79,12 @@ export function BannersAcademy({
       const { error } = await supabase.storage.from("biblioteca").upload(caminho, f);
       if (error) throw new Error(erroDeUpload(error, "biblioteca"));
       const { data: pub } = supabase.storage.from("biblioteca").getPublicUrl(caminho);
+      // Pede ao servidor o preview desta MESMA imagem que acabei de enviar —
+      // o bucket privado não deixa o navegador assinar sozinho. Se falhar,
+      // ainda salva certo; só o preview imediato fica sem imagem.
+      try {
+        setPreview((await previaFn({ data: { url: pub.publicUrl } })).url);
+      } catch { /* sem preview agora */ }
       setForm((v) => ({ ...v, imagem_url: pub.publicUrl }));
     } catch (e) {
       toast.error((e as Error).message);
@@ -96,6 +107,7 @@ export function BannersAcademy({
       qc.invalidateQueries({ queryKey: ["banners"] });
       setAberto(false);
       setForm({ imagem_url: "", link_url: "", titulo: "" });
+      setPreview(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -125,10 +137,10 @@ export function BannersAcademy({
         >
           {b.link_url ? (
             <a href={b.link_url} target="_blank" rel="noopener noreferrer">
-              <img src={b.imagem_url} alt={b.titulo ?? ""} className="h-44 w-full object-cover sm:h-56" />
+              <img src={b.imagem_url ?? undefined} alt={b.titulo ?? ""} className="h-44 w-full object-cover sm:h-56" />
             </a>
           ) : (
-            <img src={b.imagem_url} alt={b.titulo ?? ""} className="h-44 w-full object-cover sm:h-56" />
+            <img src={b.imagem_url ?? undefined} alt={b.titulo ?? ""} className="h-44 w-full object-cover sm:h-56" />
           )}
 
           {b.titulo && (
@@ -187,8 +199,8 @@ export function BannersAcademy({
                   <Label>Imagem</Label>
                   {form.imagem_url ? (
                     <div className="relative mt-1 overflow-hidden rounded-lg">
-                      <img src={form.imagem_url} alt="" className="h-28 w-full object-cover" />
-                      <button onClick={() => setForm({ ...form, imagem_url: "" })}
+                      <img src={preview ?? form.imagem_url} alt="" className="h-28 w-full object-cover" />
+                      <button onClick={() => { setForm({ ...form, imagem_url: "" }); setPreview(null); }}
                         className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white">
                         <X className="size-3.5" />
                       </button>

@@ -332,7 +332,10 @@ export const membrosDosGrupos = createServerFn({ method: "GET" })
       }))
       .sort((a, b) => a.nome.localeCompare(b.nome));
 
-    return { membros };
+    const { assinarUrls, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const avatares = await assinarUrls(supabaseAdmin, membros.map((m) => m.avatar_url), TTL_AVATAR_SEGUNDOS);
+    return { membros: membros.map((m, i) => ({ ...m, avatar_url: avatares[i] })) };
   });
 
 /** A chave que a pessoa controla: os colegas veem meus dados ou não. */
@@ -384,5 +387,10 @@ export const perfilDoColega = createServerFn({ method: "GET" })
       "perfil_do_colega", { p_person: data.person_id },
     );
     if (error) throw new Error(error.message);
-    return { perfil: (r ?? [])[0] ?? null };
+    const perfil = (r ?? [])[0] ?? null;
+    if (!perfil) return { perfil: null };
+    const { assinarUrl, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    perfil.avatar_url = await assinarUrl(supabaseAdmin, perfil.avatar_url, TTL_AVATAR_SEGUNDOS);
+    return { perfil };
   });

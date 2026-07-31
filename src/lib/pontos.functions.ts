@@ -232,7 +232,12 @@ export const rankingDoGrupo = createServerFn({ method: "GET" })
     // Quem ainda não pontuou aparece no fim, não some: o ranking também serve
     // para o mentor ver quem não está engajando.
     linhas.sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
-    return { ranking: linhas.map((l, i) => ({ ...l, posicao: i + 1 })) };
+    const comPosicao = linhas.map((l, i) => ({ ...l, posicao: i + 1 }));
+
+    const { assinarUrls, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const avatares = await assinarUrls(supabaseAdmin, comPosicao.map((l) => l.avatar_url), TTL_AVATAR_SEGUNDOS);
+    return { ranking: comPosicao.map((l, i) => ({ ...l, avatar_url: avatares[i] })) };
   });
 
 /** Meus pontos, com o detalhe por ação — o aluno quer saber de onde vieram. */

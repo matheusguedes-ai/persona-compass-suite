@@ -164,6 +164,19 @@ export const getTreinamento = createServerFn({ method: "GET" })
       ),
     }));
 
+    // O upload de material de aula usa o MESMO bucket 'biblioteca' (agora
+    // privado) da biblioteca — ver o comentário em classroom-view.tsx. A RLS
+    // de treinamento_materiais já decide quem VÊ a linha (comentário acima);
+    // falta só decidir o link que ela abre. `null` só acontece se o arquivo
+    // sumiu do bucket — melhor "sem link" do que um link morto.
+    const todosOsMateriais = modules.flatMap((m) => m.aulas.flatMap((a) => a.materiais));
+    const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const urlsAssinadas = await assinarUrls(supabaseAdmin, todosOsMateriais.map((mat) => mat.url), TTL_ARQUIVO_SEGUNDOS);
+    todosOsMateriais.forEach((mat, i) => {
+      (mat as { url: string | null }).url = urlsAssinadas[i];
+    });
+
     return {
       treinamento,
       modules,
@@ -559,6 +572,15 @@ export const saveMaterialAula = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { id, ...rest } = data;
     if (id) {
+      const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+      // Editar o material sem trocar o conteúdo reenvia a URL ASSINADA que a
+      // aula mostrou (ver getTreinamento) — preserva o identificador já
+      // gravado em vez de persistir um link que expira em minutos.
+      if (ehUrlAssinadaNossa(rest.url)) {
+        const { data: atual } = await supabase
+          .from("treinamento_materiais").select("url").eq("id", id).maybeSingle();
+        if (atual?.url) rest.url = atual.url;
+      }
       const { data: row, error } = await supabase
         .from("treinamento_materiais").update(rest).eq("id", id).select().single();
       if (error) throw new Error(error.message);

@@ -39,7 +39,7 @@ export const listarBiblioteca = createServerFn({ method: "GET" })
     const [mats, pastas, pLib, mLib] = await Promise.all([
       context.supabase
         .from("biblioteca_materiais")
-        .select("id, titulo, descricao, url, kind, categoria, capa_url, pasta_id, created_at, biblioteca_material_destinos(count)")
+        .select("id, titulo, descricao, url, kind, categoria, capa_url, pasta_id, created_at, arquivo_proprio, biblioteca_material_destinos(count)")
         .order("created_at", { ascending: false }),
       context.supabase
         .from("biblioteca_pastas")
@@ -64,15 +64,39 @@ export const listarBiblioteca = createServerFn({ method: "GET" })
     const matsOk = ids(mLib.data);
     const conta = (v: unknown) => (v as Array<{ count: number }> | null)?.[0]?.count ?? 0;
 
-    const materiais = (mats.data ?? []).map((m) => ({
-      ...m,
-      liberado: matsOk.has(m.id),
-      destinos_count: conta(m.biblioteca_material_destinos),
-    }));
+    // O bucket 'biblioteca' é privado: a URL gravada no banco não abre sozinha,
+    // precisa ser assinada aqui. E — o que realmente fecha o cadeado — o link
+    // do ARQUIVO só é assinado para quem está liberado; a CAPA é assinada
+    // sempre, porque ela é a vitrine que continua visível mesmo trancado (ver
+    // o comentário do componente). Sem essa distinção, um material trancado
+    // continuaria entregando o link de download para quem abrisse o
+    // "Inspecionar" — o próprio motivo desta demanda.
+    const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const materiaisData = mats.data ?? [];
+    const pastasData = pastas.data ?? [];
+    const [urlsAssinadas, capasMatAssinadas, capasPastaAssinadas] = await Promise.all([
+      assinarUrls(supabaseAdmin, materiaisData.map((m) => m.url), TTL_ARQUIVO_SEGUNDOS),
+      assinarUrls(supabaseAdmin, materiaisData.map((m) => m.capa_url), TTL_ARQUIVO_SEGUNDOS),
+      assinarUrls(supabaseAdmin, pastasData.map((p) => p.capa_url), TTL_ARQUIVO_SEGUNDOS),
+    ]);
+
+    const materiais = materiaisData.map((m, i) => {
+      const liberado = matsOk.has(m.id);
+      return {
+        ...m,
+        // Trancado: sem link nenhum, nem assinado. A capa fica.
+        url: liberado ? urlsAssinadas[i] : null,
+        capa_url: capasMatAssinadas[i],
+        liberado,
+        destinos_count: conta(m.biblioteca_material_destinos),
+      };
+    });
     return {
       materiais,
-      pastas: (pastas.data ?? []).map((p) => ({
+      pastas: pastasData.map((p, i) => ({
         ...p,
+        capa_url: capasPastaAssinadas[i],
         liberada: pastasOk.has(p.id),
         destinos_count: conta(p.biblioteca_pasta_destinos),
         // Quantos materiais moram nela — para o AlertDialog de exclusão dizer
@@ -93,6 +117,9 @@ const materialSchema = z.object({
   categoria: z.string().trim().max(80).optional(),
   capa_url: z.string().url().nullable().optional(),
   pasta_id: z.string().uuid().nullable().optional(),
+  // A pessoa já sabe se clicou em "Enviar arquivo" ou colou um link — grava a
+  // escolha em vez de reconstruir depois olhando o formato da URL.
+  arquivo_proprio: z.boolean().default(false),
 });
 
 /**
@@ -107,14 +134,27 @@ export const salvarMaterial = createServerFn({ method: "POST" })
   .inputValidator((d) => materialSchema.extend({ id: z.string().uuid().optional() }).parse(d))
   .handler(async ({ context, data }) => {
     const { id, ...campos } = data;
+    const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+    let url = campos.url;
+    let capaUrl = campos.capa_url ?? null;
+    // Editar sem trocar o arquivo/capa reenvia o valor ASSINADO que a
+    // listagem mostrou (é o que está no campo do formulário) — preserva o que
+    // já estava gravado em vez de persistir um link que expira em minutos.
+    if (id && (ehUrlAssinadaNossa(url) || ehUrlAssinadaNossa(capaUrl))) {
+      const { data: atual } = await context.supabase
+        .from("biblioteca_materiais").select("url, capa_url").eq("id", id).maybeSingle();
+      if (ehUrlAssinadaNossa(url)) url = atual?.url ?? url;
+      if (ehUrlAssinadaNossa(capaUrl)) capaUrl = atual?.capa_url ?? null;
+    }
     const linha = {
       titulo: campos.titulo,
       descricao: campos.descricao?.trim() || null,
-      url: campos.url,
+      url,
       kind: campos.kind,
       categoria: campos.categoria?.trim() || null,
-      capa_url: campos.capa_url ?? null,
+      capa_url: capaUrl,
       pasta_id: campos.pasta_id ?? null,
+      arquivo_proprio: campos.arquivo_proprio,
     };
     if (campos.pasta_id) await conferirPasta(context.supabase, campos.pasta_id);
 
@@ -153,10 +193,19 @@ export const salvarPasta = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { id, ...campos } = data;
+    const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+    let capaUrl = campos.capa_url ?? null;
+    // Mesmo motivo do material: editar sem trocar a capa reenviaria o valor
+    // assinado que a listagem mostrou.
+    if (id && ehUrlAssinadaNossa(capaUrl)) {
+      const { data: atual } = await context.supabase
+        .from("biblioteca_pastas").select("capa_url").eq("id", id).maybeSingle();
+      capaUrl = atual?.capa_url ?? null;
+    }
     const linha = {
       titulo: campos.titulo,
       descricao: campos.descricao?.trim() || null,
-      capa_url: campos.capa_url ?? null,
+      capa_url: capaUrl,
     };
     if (id) {
       const { data: row, error } = await context.supabase
@@ -354,7 +403,14 @@ export const listarBanners = createServerFn({ method: "GET" })
       .eq("ativo", true)
       .order("ordem");
     if (error) throw new Error(error.message);
-    return { banners: data ?? [] };
+
+    // Banner não tem trava de acesso (não é material de curso) — assina sempre,
+    // sem checagem de liberado.
+    const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const banners = data ?? [];
+    const imagens = await assinarUrls(supabaseAdmin, banners.map((b) => b.imagem_url), TTL_ARQUIVO_SEGUNDOS);
+    return { banners: banners.map((b, i) => ({ ...b, imagem_url: imagens[i] })) };
   });
 
 export const salvarBanner = createServerFn({ method: "POST" })

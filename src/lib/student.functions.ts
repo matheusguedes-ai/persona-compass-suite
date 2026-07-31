@@ -111,6 +111,11 @@ export const getMyStudentProfile = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
 
     const email = (context.claims as { email?: string })?.email ?? null;
+    if (data) {
+      const { assinarUrl, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      data.avatar_url = await assinarUrl(supabaseAdmin, data.avatar_url, TTL_AVATAR_SEGUNDOS);
+    }
     return { pessoa: data, email_login: email, user_id: userId };
   });
 
@@ -132,10 +137,22 @@ export const updateMyStudentProfile = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    // A tela do aluno carrega a foto já ASSINADA (ver getMyStudentProfile) e
+    // reenvia esse mesmo valor ao salvar nome/telefone junto, sem trocar a
+    // foto — preserva o identificador já gravado em vez de persistir um link
+    // que expira em minutos.
+    const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+    let avatarUrl = data.avatar_url ?? null;
+    if (ehUrlAssinadaNossa(avatarUrl)) {
+      const { data: atual } = await context.supabase
+        .from("people").select("avatar_url").eq("user_id", context.userId)
+        .order("created_at").limit(1).maybeSingle();
+      avatarUrl = atual?.avatar_url ?? null;
+    }
     const { error } = await context.supabase.rpc("update_my_person", {
       _full_name: data.full_name,
       _phone: data.phone ?? null,
-      _avatar_url: data.avatar_url ?? null,
+      _avatar_url: avatarUrl,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
