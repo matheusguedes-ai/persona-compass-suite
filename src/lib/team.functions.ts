@@ -106,6 +106,19 @@ export const createTeamMember = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await exigirDono(supabase);
 
+    // Mentor não nasce mais por aqui — nasce promovido na ficha da pessoa
+    // (`promoverAMentor`), que reaproveita a linha de team_members quando já
+    // existe e amarra o `person_id`. Esta função criava um `team_members`
+    // SEM `person_id`: um cadastro solto, sem ficha, sem grupos como
+    // avaliado, sem histórico — o problema que a rota `/mentores` (agora
+    // redirect) causava. O caminho ainda aceitava `kind: "mentor"` porque
+    // ninguém tinha voltado para fechar depois de tirar a tela.
+    if (data.kind === "mentor") {
+      throw new Error(
+        "Mentor não se convida por aqui. Promova a pessoa a mentor na ficha dela, em Pessoas.",
+      );
+    }
+
     // Mentor não recebe permissões de funcionalidade: o acesso dele vem dos
     // grupos atribuídos. Guardar as duas coisas confundiria a leitura depois.
     const permissions = data.kind === "colaborador" ? data.permissions : [];
