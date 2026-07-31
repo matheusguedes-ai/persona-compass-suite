@@ -63,7 +63,7 @@ export const getTreinamento = createServerFn({ method: "GET" })
     const [mods, grupos] = await Promise.all([
       supabase
         .from("treinamento_modulos")
-        .select("*, treinamento_aulas(*, treinamento_materiais(*))")
+        .select("*, treinamento_aulas(*, treinamento_materiais(*), treinamento_presencas(count))")
         .eq("treinamento_id", data.id),
       supabase.from("treinamento_grupos").select("group_id, groups(id, name)").eq("treinamento_id", data.id),
     ]);
@@ -144,12 +144,17 @@ export const getTreinamento = createServerFn({ method: "GET" })
       treinamento_aulas: undefined,
       aulas: porOrdem(
         ((m.treinamento_aulas as unknown as Array<Record<string, unknown>>) ?? []).map((a) => {
-          const aula = a as { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number };
+          const aula = a as { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number; treinamento_presencas?: Array<{ count: number }> };
           return {
             ...aula,
             estive: estive.has(aula.id),
             anotacoes: anotPorAula.get(aula.id) ?? null,
             treinamento_materiais: undefined,
+            treinamento_presencas: undefined,
+            // Para o aviso ao mudar horário (o professor pode ter presença
+            // gravada mesmo com a lista ainda aberta): quantas pessoas já têm
+            // linha em treinamento_presencas para esta aula.
+            presencas_count: aula.treinamento_presencas?.[0]?.count ?? 0,
             // A RLS já recorta: o aluno só recebe o que foi liberado para ele.
             // O `visivel_aluno` que vem junto serve para a tela do professor
             // mostrar de quem é cada material.

@@ -10,7 +10,7 @@
  * Esta tela é do MASTER (etapa 2 do plano em docs/analise-classroom.md). A
  * versão do aluno é a etapa 3; check-in e presença, as etapas 4 e 5.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -52,6 +52,8 @@ type AulaT = {
   cancelada?: boolean;
   /** Eu estive nesta aula — o certo verde do painel do aluno. */
   estive?: boolean;
+  /** Quantas pessoas já têm presença gravada — avisa antes de mudar o horário. */
+  presencas_count?: number;
 };
 type ModuloT = { id: string; titulo: string; aulas: AulaT[] };
 
@@ -562,6 +564,7 @@ function AulaDialog({
   const [terminaEm, setTerminaEm] = useState(paraInputLocal(atual?.termina_em));
   const [local, setLocal] = useState(atual?.local ?? "");
   const [motivo, setMotivo] = useState("");
+  const [confirmandoHorario, setConfirmandoHorario] = useState(false);
 
   const saveFn = useServerFn(saveAula);
   const delFn = useServerFn(deleteAula);
@@ -605,6 +608,19 @@ function AulaDialog({
   });
 
   const fimInvalido = !!terminaEm && !!comecaEm && new Date(terminaEm) <= new Date(comecaEm);
+  // Só o início entra no cálculo do atraso (ver src/lib/presenca.ts,
+  // `atrasoMin`) — mudar só o fim não mexe em nada já registrado.
+  const horarioMudou = inicial.id && comecaEm !== paraInputLocal(atual?.comeca_em);
+  const presencasJaGravadas = atual?.presencas_count ?? 0;
+
+  function aoSubmeter(e: FormEvent) {
+    e.preventDefault();
+    if (horarioMudou && presencasJaGravadas > 0) {
+      setConfirmandoHorario(true);
+      return;
+    }
+    salvar.mutate();
+  }
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onFechar(); }}>
@@ -612,7 +628,7 @@ function AulaDialog({
         <DialogHeader>
           <DialogTitle>{inicial.id ? "Editar aula" : "Nova aula"}</DialogTitle>
         </DialogHeader>
-        <form id="form-aula-t" onSubmit={(e) => { e.preventDefault(); salvar.mutate(); }} className="space-y-4">
+        <form id="form-aula-t" onSubmit={aoSubmeter} className="space-y-4">
           <div className="space-y-2">
             <Label>Título</Label>
             <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} required maxLength={200} />
@@ -738,6 +754,28 @@ function AulaDialog({
             </Button>
           </div>
         </DialogFooter>
+
+        <AlertDialog open={confirmandoHorario} onOpenChange={setConfirmandoHorario}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mudar o horário deste encontro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {presencasJaGravadas === 1
+                  ? "1 pessoa já confirmou presença nesta aula."
+                  : `${presencasJaGravadas} pessoas já confirmaram presença nesta aula.`}{" "}
+                O atraso de todo mundo será recalculado a partir do novo horário.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Voltar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => { setConfirmandoHorario(false); salvar.mutate(); }}
+              >
+                Mudar horário e salvar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
