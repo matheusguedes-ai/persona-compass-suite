@@ -2189,6 +2189,86 @@
       "prioridade": 219,
       "origem": "Matheus, 31/07: mudou a marca no master e o painel do aluno continuou com a antiga",
       "prova": "Confirmado: src/lib/brand.server.ts:41 filtra profiles por user_id = mentorId. Nas telas PÚBLICAS funciona (passa o mentor dono do link); nos painéis logados, não. src/routes/aluno.tsx importa BrandMark de @/lib/brand. Afeta os três papéis, não só o aluno — o mentor convidado e o colaborador também veem a marca padrão."
+    },
+    {
+      "titulo": "Painel de engajamento: quem está sumindo",
+      "descricao": "Tela que mostra atividade e engajamento por aluno e por grupo: presença nas aulas, testes respondidos, progresso nas trilhas, último acesso. O objetivo não é medir por medir — é o mentor perceber que alguém está sumindo ANTES de perder a pessoa.",
+      "area": "Academy",
+      "prova": "A base já existe: tabelas pontos, learning_progress, treinamento_presencas e treinamento_aulas já coletam o dado hoje. Falta a tela que lê. É a mais barata das seis ideias e uma das de maior valor.",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 220,
+      "origem": "Matheus, 31/07: rodada de perguntas sobre o futuro da plataforma"
+    },
+    {
+      "titulo": "Certificado de conclusão com verificação pública",
+      "descricao": "Emitir certificado quando o aluno concluir uma trilha da Academy ou um treinamento do Classroom. Precisa de três coisas: a regra do que conta como concluído, o desenho do certificado, e um código de verificação — página pública onde a empresa confere se aquele certificado é real.",
+      "area": "Academy",
+      "prova": "learning_progress já sabe quem terminou o quê, e a plataforma já gera PDF com marca no relatório. Sem a verificação pública, certificado é figurinha — é ela que dá valor.",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 221,
+      "origem": "Matheus, 31/07: rodada de perguntas sobre o futuro da plataforma"
+    },
+    {
+      "titulo": "App do aluno para Android e iOS",
+      "descricao": "Só a versão do aluno. Três caminhos: PWA (o aluno adiciona à tela de início, funciona hoje com pouco trabalho, não vai às lojas), Capacitor (empacota o mesmo código e publica nas lojas, semanas de trabalho) ou nativo (caro, não se justifica). Recomendação: PWA primeiro, lojas depois se houver demanda.",
+      "area": "Plataforma",
+      "prova": "⚠️ DECISÃO DE NEGÓCIO ANTES: se o app vender qualquer coisa por dentro, a Apple cobra 15-30% e obriga o pagamento dela. É por isso que plataforma de curso costuma deixar a venda fora do app.",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 222,
+      "origem": "Matheus, 31/07: rodada de perguntas sobre o futuro da plataforma"
+    },
+    {
+      "titulo": "Carteirinha digital do aluno",
+      "descricao": "Credencial que o aluno apresenta em estabelecimento parceiro para provar nível e obter vantagem. QR code, página pública de validação, nível e foto.",
+      "area": "Academy",
+      "prova": "É a cara visível do clube de benefícios. SOZINHA vale pouco — bonita e sem uso. Só faz sentido depois de existirem parceiros e níveis de verdade.",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 223,
+      "origem": "Matheus, 31/07: rodada de perguntas sobre o futuro da plataforma"
+    },
+    {
+      "titulo": "Clube de benefícios e jornada de recompensas",
+      "descricao": "Aluno acumula pontos, alcança níveis e desbloqueia benefícios em parceiros ou dentro do próprio ecossistema. Pontos e ranking já existem; falta níveis, catálogo de benefícios, cadastro de parceiro e validação no balcão.",
+      "area": "Academy",
+      "prova": "⚠️ É um SEGUNDO PRODUTO, não uma feature. O trabalho difícil é comercial, não técnico: negociar parceiro, desenhar o benefício, operar a validação. A tabela pontos já existe e é a parte fácil.",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 224,
+      "origem": "Matheus, 31/07: rodada de perguntas sobre o futuro da plataforma"
+    },
+    {
+      "titulo": "Integrações externas: pagamento, Notion, Trello, WhatsApp, redes",
+      "descricao": "Quatro grupos com dificuldades muito diferentes. Notion e Trello: API aberta, fácil. Pagamento (Stripe, Mercado Pago, Asaas): direto, cerca de uma semana. WhatsApp: API oficial da Meta exige empresa verificada, número dedicado e cobra por conversa; o resto do mercado usa gambiarra que a Meta derruba. Redes sociais: publicar por API é muito limitado, o Instagram praticamente não deixa.",
+      "area": "Integrações",
+      "prova": "Fazer uma a uma, nunca em bloco. Depende da demanda #59 (escopo por chave, uso e revogação), que existe justamente porque integração é chave de terceiro entrando na casa.",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 225,
+      "origem": "Matheus, 31/07: rodada de perguntas sobre o futuro da plataforma"
+    },
+    {
+      "titulo": "Decisão: colaborador sem 'educacao' enxerga toda a Academy",
+      "descricao": "Hoje um colaborador sem a permissão 'educacao' vê todas as trilhas da conta — publicadas ou não —, porque a regra de leitura olha só se a trilha é da conta, sem checar permissão. Mesmo padrão da Biblioteca. A ESCRITA já foi trancada (as 10 funções que criam/editam/apagam trilha, módulo, aula e material passaram a exigir 'educacao'). Falta decidir se a LEITURA também tranca.",
+      "area": "Academy",
+      "status": "Planejado",
+      "depende_de": "Matheus",
+      "prioridade": 226,
+      "origem": "Claude Code, 31/07, ao fechar #218 — corrigindo uma presunção anterior dele",
+      "prova": "O Code havia dito que a leitura aberta era 'de propósito'; depois corrigiu: ninguém decidiu, é só como o código sempre funcionou. A favor de deixar aberto: é a mesma tela que o aluno usa. Contra: trilha não publicada é rascunho, e colaborador de uma área só não deveria ver o que ainda não saiu. Decisão do Matheus."
+    },
+    {
+      "titulo": "Conta sem vínculo nenhum vira dona de si mesma",
+      "descricao": "Uma pessoa que cria conta sem nunca ter sido convidada ou cadastrada por ninguém vira 'dona' de uma conta vazia e isolada — e consegue salvar configurações lá dentro. Não vaza nem toca a conta de ninguém: o que ela salva fica só no vazio dela. Mas o comportamento existe e ninguém desenhou.",
+      "area": "Infra",
+      "status": "Planejado",
+      "depende_de": "Matheus",
+      "prioridade": 227,
+      "origem": "Claude Code, 31/07, testando o papel de aluno ao fechar #218",
+      "prova": "Confirmado por ele com pessoa de teste sem vínculo: salvou na própria conta isolada; a marca do Matheus ficou intacta. NÃO é brecha da correção #218 nem vazamento — é decisão de arquitetura pendente: o que uma conta 'solta' pode fazer antes de ser convidada por alguém. Vira relevante quando a plataforma abrir cadastro público ou virar SaaS de verdade (regra 2 da constituição). Hoje o acesso nasce de convite, então não há caso real."
     }
   ],
   "planilha": {
