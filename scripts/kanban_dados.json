@@ -2124,10 +2124,10 @@
       "titulo": "Menu Mentorias — Fatia 1: o ciclo completo",
       "descricao": "Devolutivas sai do menu Testes e vira o menu Mentorias, de primeiro nível. FATIA 1 (indivisível): criar pacote de sessões, agendar sessão à mão (presencial/online, endereço/link), marcar concluída, cartão de pós-mentoria (duração real, resumo, checklist nomeável) e painel do aluno vendo tudo e marcando só o checklist. Spec completa em docs/plano-mentorias.md.",
       "area": "Plataforma",
-      "status": "Em andamento",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "Lembretes do iPhone, 30/07 21:43 (chat C1)",
-      "prova": "Migração aplicada em produção: 3 tabelas (mentorias/mentoria_sessoes/mentoria_tarefas) com RLS, e a permissão de colaborador 'devolutivas' renomeada para 'mentorias' migrando sozinha quem já tinha. Menu Mentorias substitui Devolutivas no menu Testes e na tela do grupo; painel-devolutiva.tsx removido. PROVADO com login real em produção os 7 itens da seção 5 de docs/plano-mentorias.md: (1) pacote de 3 sessões + 1 agendada → '0 realizadas · 1 agendada · 2 a agendar'; (2) professor conclui, informa 50 min, escreve resumo e cria 2 itens de checklist; (3) aluno entra e vê o resumo e os dois itens — o teste decisivo; (4) aluno marca um item e o professor vê marcado; (5) aluno barrado de concluir sessão/editar resumo mesmo colando a rota do professor (redirecionado para fora); (6) colaborador sem a permissão 'mentorias' não vê o menu nem consegue abrir a rota direto; (7) professor aumenta o pacote de 3 para 5 e a conta se ajusta sozinha ('5 contratadas · 1 realizada · 0 agendadas · 4 a agendar'). Dados de teste (3 contas, 2 pacotes, pontos e notificações) limpos e conferidos vazios via REST. EMERGÊNCIA no meio do caminho: renomear a permissão no banco antes de publicar o código novo derrubou o login em produção por alguns minutos (31/07 à tarde) — corrigido publicando o código na hora; virou a quinta regra da constituição (código no ar antes de banco que muda). ÚLTIMO PASSO, ainda pendente: o DROP TABLE devolutivas (bloco 9) — bloqueado pelo classificador de segurança do Claude Code por conter DROP TABLE; SQL pronto entregue ao Matheus para colar e rodar ele mesmo, é o único passo sem volta e o último de tudo.",
+      "prova": "NO AR e provado em produção com login real, nos 7 pontos da seção 5 do docs/plano-mentorias.md: a conta do pacote se calcula sozinha (0 realizadas · 1 agendada · 2 a agendar), o professor conclui informando duração e resumo, o ALUNO vê o resumo e o checklist (o teste que decidia), o aluno marca e o professor enxerga, o aluno é BARRADO ao colar a rota do professor, o colaborador sem a permissão não vê menu nem rota, e aumentar o pacote de 3 para 5 reajusta a conta. Commits f10314a e 290883b. Migração aplicada em 9 blocos pelo Chrome via monaco.setValue (colar pelo clipboard corrompia acento). CONFERIDO POR FORA pelo chat: tabela devolutivas apagada, função posso_agendar_devolutiva removida, contas de teste limpas (7 pessoas reais, 1 colaborador), git em dia. CUSTO: a produção caiu — o login parou enquanto a permissão era renomeada no banco com o código antigo ainda no ar. Deu origem à regra 5 da constituição.",
       "prioridade": 213
     },
     {
@@ -2309,6 +2309,16 @@
       "prioridade": 231,
       "origem": "Matheus, 31/07: detalhamento do menu Mentorias",
       "prova": "Reaproveita a avaliação construída na Fatia 2. O vínculo com check-in já existe em treinamento_presencas."
+    },
+    {
+      "titulo": "Quatro telas mostram lista vazia em vez de avisar que falta permissão",
+      "descricao": "Equipe, comunidade, ranking do grupo e quem-acessa não checam o erro de permissão negada: quando o servidor barra, a tela mostra lista vazia como se não houvesse nada. Quem não tem acesso pensa que o conteúdo não existe, e quem deveria ter acesso acha que perdeu o dado. Mesmo bug já corrigido em mentorias-page.tsx.",
+      "area": "Plataforma",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 232,
+      "origem": "Claude Code, 01/08, achado ao fechar o menu Mentorias",
+      "prova": "Ele corrigiu só a tela de mentorias, e fez certo em não sair consertando fora do escopo. As outras quatro seguem assim. Não é vazamento — o servidor barra corretamente; é a tela que mente sobre o motivo. Barato: é tratar o erro que já chega."
     }
   ],
   "planilha": {
