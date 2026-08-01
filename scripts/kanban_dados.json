@@ -204,10 +204,10 @@
       "titulo": "Rastro da exportação e titularidade no rodapé do PDF",
       "descricao": "Registrar quem exportou e quando, e escrever no rodapé do PDF a quem pertence o dado.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-demandas-30-07.md § C, bloco de alerta",
-      "prova": "Dado pessoal saindo da plataforma precisa de registro de quem levou.",
+      "prova": "Feito e provado em produção 01/08. Tabela nova export_logs (aditiva, RLS por acting_account()) registra quem exportou, quando, de qual CONTA (não de quem clicou — importa quando é um colaborador exportando) e quantas pessoas, nos dois formatos. Rodapé do PDF ganhou a frase de titularidade: \"Exportado por X em Y · N pessoas — Dados de propriedade de {empresa da conta}.\" Testado com login real (colaborador de teste, Excel e PDF): a resposta do servidor trouxe o rodapé com o texto exato esperado, e a tabela export_logs recebeu uma linha por exportação com owner_id da conta do dono (não do colaborador), exported_by do colaborador, formato e contagem certos — inclusive testado com seleção parcial (1 de 7 pessoas) para confirmar que row_count reflete o que foi realmente exportado, não o total da conta. Decisão #22 mantida: só cadastro sai, nenhum resultado de teste.",
       "prioridade": 21
     },
     {
