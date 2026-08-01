@@ -224,10 +224,10 @@
       "titulo": "Limite de tamanho e recorte de capas e banners",
       "descricao": "Capa e banner pesados travam o carregamento no celular; aplicar limite e recorte no envio, como já é feito com avatar.",
       "area": "Academy",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-demandas-30-07.md § G, bloco Cuidado",
-      "prova": "Capa pesada trava o carregamento no celular do aluno.",
+      "prova": "Feito e provado em produção 01/08. O limite de tamanho e a mensagem em português já existiam (3 MB, via erro-de-upload.ts); faltava o recorte em si — sem ele, o corte era sempre pelo centro (CSS object-cover), sem a pessoa escolher o enquadramento. Componente novo e compartilhado (recortar-imagem.tsx, biblioteca react-easy-crop) nos três pontos: capa de material e capa de pasta em 16:9, banner da Academy em 3:1. Testado com login real e arquivo de teste real: os três abrem o recorte, o resultado sai cortado de verdade (não só redimensionado) e no tamanho certo — confirmado pelas dimensões reais do arquivo salvo (759×427, 1000×563, 1500×500, todos batendo a proporção pedida). Achado no caminho: nada limitava o tamanho do arquivo ORIGINAL antes de abrir no recorte — uma foto de celular gigante ia direto para dentro de um canvas. Acrescentei um segundo limite (20 MB na entrada, com aviso em português), testado forçando um arquivo grande.",
       "prioridade": 23
     },
     {
