@@ -16,6 +16,7 @@ import {
   youtubeId, TIPOS_MATERIAL, PUBLICOS,
 } from "@/lib/learning.functions";
 import { QuemAcessa } from "@/components/quem-acessa";
+import { RecortarImagem } from "@/components/recorte-imagem";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,10 +30,13 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, Check, CircleCheck, ExternalLink, FileText, Lock, Paperclip, Pencil,
-  Plus, Trash2, Video,
+  ArrowLeft, Check, CircleCheck, ExternalLink, FileText, Image as ImageIcon, Lock, Paperclip,
+  Pencil, Plus, Trash2, Video, X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
+import { erroDeUpload } from "@/lib/erro-de-upload";
 
 type Material = { id: string; title: string; url: string; kind: string };
 type Lesson = {
@@ -691,6 +695,42 @@ function TrilhaDialog({
   const [audience, setAudience] = useState(track.audience);
   const [publicada, setPublicada] = useState(track.is_published);
 
+  // O bucket é privado: `coverUrl` guarda o IDENTIFICADOR (o que salva).
+  // `coverPreview` guarda a versão ASSINADA de um upload feito NESTA sessão,
+  // só para o <img> ter o que mostrar antes de salvar — nunca vai para o
+  // servidor. `null` cai no fallback (o que `getTrack` já devolveu assinado,
+  // ao editar uma capa que já existia).
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [enviandoCapa, setEnviandoCapa] = useState(false);
+  // A capa escolhida no seletor passa pelo recorte ANTES de virar upload.
+  const [paraRecortar, setParaRecortar] = useState<File | null>(null);
+  const previaFn = useServerFn(assinarMeuEnvio);
+
+  async function enviarCapa(f: File) {
+    if (f.size > 3 * 1024 * 1024) return toast.error("Imagem muito grande (máximo 3 MB).");
+    setEnviandoCapa(true);
+    try {
+      const { data: sessao } = await supabase.auth.getUser();
+      const ext = f.name.split(".").pop() ?? "jpg";
+      const caminho = `${sessao.user?.id}/trilha-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("biblioteca").upload(caminho, f);
+      if (error) throw new Error(erroDeUpload(error, "biblioteca"));
+      const { data: pub } = supabase.storage.from("biblioteca").getPublicUrl(caminho);
+      // Pede ao servidor a versão assinada deste MESMO arquivo que acabei de
+      // enviar, só para o preview — o bucket privado não deixa o navegador
+      // assinar sozinho. Se falhar, ainda salva certo; só o preview imediato
+      // fica sem imagem até recarregar.
+      try {
+        setCoverPreview((await previaFn({ data: { url: pub.publicUrl } })).url);
+      } catch { /* sem preview agora — não impede salvar */ }
+      setCoverUrl(pub.publicUrl);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setEnviandoCapa(false);
+    }
+  }
+
   const qc = useQueryClient();
   const destinosFn = useServerFn(getTrackDestinos);
   const setDestinosFn = useServerFn(setTrackDestinos);
@@ -737,84 +777,113 @@ function TrilhaDialog({
   });
 
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) onFechar(); }}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Editar trilha</DialogTitle></DialogHeader>
-        <form id="form-trilha-edit" onSubmit={(e) => { e.preventDefault(); salvar.mutate(); }} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Nome</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} />
-          </div>
-          <div className="space-y-2">
-            <Label>Descrição</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={2000} />
-          </div>
-          <div className="space-y-2">
-            <Label>Imagem de capa (link)</Label>
-            <Input value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} maxLength={600} placeholder="https://..." />
-            <p className="text-[11px] text-muted-foreground">Opcional. Sem capa, a trilha ganha uma cor própria.</p>
-          </div>
-          <div className="space-y-2">
-            <Label>Quem vai assistir</Label>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {PUBLICOS.map((p) => (
-                <button
-                  key={p.valor} type="button" onClick={() => setAudience(p.valor)}
-                  className={`rounded-lg border p-3 text-left transition ${
-                    audience === p.valor ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-black/10 hover:bg-muted/40"
-                  }`}
-                >
-                  <p className="text-sm font-medium">{p.titulo}</p>
-                  <p className="text-[11px] text-muted-foreground">{p.ajuda}</p>
-                </button>
-              ))}
+    <>
+      <Dialog open onOpenChange={(v) => { if (!v) onFechar(); }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Editar trilha</DialogTitle></DialogHeader>
+          <form id="form-trilha-edit" onSubmit={(e) => { e.preventDefault(); salvar.mutate(); }} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={200} />
             </div>
-          </div>
-          {/* Trilha só da equipe não tem aluno para trancar — a caixa apareceria
-              pedindo uma escolha que não muda nada. */}
-          {audience !== "equipe" && (
-            <QuemAcessa
-              grupos={grupos ?? []} pessoas={pessoas ?? []}
-              setGrupos={setGrupos} setPessoas={setPessoas}
-            />
-          )}
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">
-            <div>
-              <p className="text-sm font-medium">Publicada</p>
-              <p className="text-[11px] text-muted-foreground">
-                Desligada, a trilha fica como rascunho e ninguém de fora da equipe enxerga.
-              </p>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={2000} />
             </div>
-            <Switch checked={publicada} onCheckedChange={setPublicada} />
-          </div>
-        </form>
-        <DialogFooter className="gap-2 sm:justify-between">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" className="text-destructive"><Trash2 className="size-4" /> Remover trilha</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remover “{track.title}”?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Todos os módulos, aulas e materiais dela vão junto, e o progresso de quem assistiu
-                  também. Não dá para desfazer.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => remover.mutate()}>Remover</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={onFechar}>Cancelar</Button>
-            <Button type="submit" form="form-trilha-edit" disabled={salvar.isPending}>
-              {salvar.isPending ? "Salvando…" : "Salvar"}
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <div className="space-y-2">
+              <Label>Imagem de capa</Label>
+              {coverUrl ? (
+                <div className="relative overflow-hidden rounded-lg">
+                  <img src={coverPreview ?? coverUrl} alt="" className="h-28 w-full object-cover" />
+                  <button type="button"
+                    onClick={() => { setCoverUrl(""); setCoverPreview(null); }}
+                    className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white"
+                    title="Remover capa">
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+                  <ImageIcon className="size-4" />
+                  {enviandoCapa ? "Enviando…" : "JPG ou PNG (até 3 MB)"}
+                  <input type="file" accept="image/jpeg,image/png" className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setParaRecortar(f);
+                      e.target.value = "";
+                    }} />
+                </label>
+              )}
+              <p className="text-[11px] text-muted-foreground">Opcional. Sem capa, a trilha ganha uma cor própria.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Quem vai assistir</Label>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {PUBLICOS.map((p) => (
+                  <button
+                    key={p.valor} type="button" onClick={() => setAudience(p.valor)}
+                    className={`rounded-lg border p-3 text-left transition ${
+                      audience === p.valor ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-black/10 hover:bg-muted/40"
+                    }`}
+                  >
+                    <p className="text-sm font-medium">{p.titulo}</p>
+                    <p className="text-[11px] text-muted-foreground">{p.ajuda}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Trilha só da equipe não tem aluno para trancar — a caixa apareceria
+                pedindo uma escolha que não muda nada. */}
+            {audience !== "equipe" && (
+              <QuemAcessa
+                grupos={grupos ?? []} pessoas={pessoas ?? []}
+                setGrupos={setGrupos} setPessoas={setPessoas}
+              />
+            )}
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">
+              <div>
+                <p className="text-sm font-medium">Publicada</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Desligada, a trilha fica como rascunho e ninguém de fora da equipe enxerga.
+                </p>
+              </div>
+              <Switch checked={publicada} onCheckedChange={setPublicada} />
+            </div>
+          </form>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" className="text-destructive"><Trash2 className="size-4" /> Remover trilha</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remover “{track.title}”?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Todos os módulos, aulas e materiais dela vão junto, e o progresso de quem assistiu
+                    também. Não dá para desfazer.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => remover.mutate()}>Remover</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={onFechar}>Cancelar</Button>
+              <Button type="submit" form="form-trilha-edit" disabled={salvar.isPending}>
+                {salvar.isPending ? "Salvando…" : "Salvar"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <RecortarImagem
+        arquivo={paraRecortar}
+        aspecto={16 / 9}
+        onCancelar={() => setParaRecortar(null)}
+        onConcluir={(recortado) => { setParaRecortar(null); enviarCapa(recortado); }}
+      />
+    </>
   );
 }

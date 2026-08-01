@@ -89,8 +89,20 @@ export const listTracks = createServerFn({ method: "GET" })
         (r) => (typeof r === "string" ? r : r.trilhas_liberadas),
       ),
     );
-    return (lista.data ?? []).map((t) => ({
+
+    // Capa vem do bucket privado 'biblioteca' — precisa de link assinado para
+    // abrir, igual capa de material/pasta. É a vitrine do catálogo, então
+    // assina sempre, mesmo trancada (quem está trancado ainda vê o card). Link
+    // externo (capa antiga, colada) passa direto — assinarUrls só assina o que
+    // bate com o padrão do nosso storage.
+    const linhas = lista.data ?? [];
+    const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const capasAssinadas = await assinarUrls(supabaseAdmin, linhas.map((t) => t.cover_url), TTL_ARQUIVO_SEGUNDOS);
+
+    return linhas.map((t, i) => ({
       ...t,
+      cover_url: capasAssinadas[i],
       lessons_count: (t.learning_lessons as unknown as Array<{ count: number }>)?.[0]?.count ?? 0,
       // Quantos destinos a trilha tem: só o professor recebe > 0, e é o que
       // marca o card como "restrita" no catálogo dele.
@@ -117,6 +129,13 @@ export const getTrack = createServerFn({ method: "GET" })
       .from("learning_tracks").select("*").eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);
     if (!track) throw new Error("Trilha não encontrada.");
+
+    // Mesmo motivo de `listTracks`: a capa pode morar no bucket privado
+    // 'biblioteca' e precisa de link assinado para abrir — tanto na capa
+    // trancada em grayscale quanto no formulário de edição.
+    const { assinarUrl, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    track.cover_url = await assinarUrl(supabaseAdmin, track.cover_url, TTL_ARQUIVO_SEGUNDOS);
 
     const [mods, lessons, materials, progress, podeEditar, aberta] = await Promise.all([
       supabase.from("learning_modules").select("*").eq("track_id", data.id).order("sort_order"),
@@ -336,6 +355,18 @@ export const updateTrack = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "educacao");
     const { id, ...rest } = data;
+    // Editar sem trocar a capa reenvia o valor ASSINADO que `getTrack` mostrou
+    // (é o que ficou no campo do formulário) — preserva o identificador já
+    // gravado em vez de persistir um link que expira em minutos. Mesmo cuidado
+    // de `salvarPasta` em biblioteca.functions.ts.
+    if (rest.cover_url) {
+      const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+      if (ehUrlAssinadaNossa(rest.cover_url)) {
+        const { data: atual } = await context.supabase
+          .from("learning_tracks").select("cover_url").eq("id", id).maybeSingle();
+        rest.cover_url = atual?.cover_url ?? null;
+      }
+    }
     const { data: row, error } = await context.supabase
       .from("learning_tracks").update(rest).eq("id", id).select().single();
     if (error) throw new Error(error.message);
