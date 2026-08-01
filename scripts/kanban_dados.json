@@ -2319,6 +2319,16 @@
       "prioridade": 232,
       "origem": "Claude Code, 01/08, achado ao fechar o menu Mentorias",
       "prova": "Feito e provado em produção 01/08. Achado no caminho: o conserto já tinha sido feito e testado numa sessão anterior (comunidade, ranking do grupo e a metade Grupos de quem-acessa), mas ficou preso num branch que nunca foi mesclado — nunca chegou a publicar. Reaplicado via cherry-pick (commit f99ffb2), typecheck+build OK, reprovado com login real: colaborador de teste sem a permissão grupos via /comunidades, /grupos/:id (ranking) e o diálogo Nova trilha (quem-acessa) — as três mostram \"Você não tem acesso a esta área.\" em vez de lista vazia. Restaurada a permissão depois, tela volta ao normal. Equipe (team-page.tsx) foi reconferido do zero e CONFIRMADO que não tem esse bug: listTeamMembers depende só da RLS do banco, não existe erro de permissão pra essa tela capturar — por isso não faz parte do conserto."
+    },
+    {
+      "titulo": "Revisar os branches soltos: tem trabalho pronto que nunca chegou ao ar",
+      "descricao": "Existem branches no repositório com trabalho concluído que nunca foi trazido para a main. Confirmado em 01/08: claude/lucid-burnell-102292 tinha a correção da #232 pronta e testada (o kanban dizia 'pendente' e estava mentindo — o Code recuperou), e claude/ecstatic-bun-50995d tem 'Capa da trilha: upload com recorte' AINDA não trazido. Varrer todos os branches, listar o que existe neles e não está na main, e decidir item a item: traz, descarta ou vira demanda.",
+      "area": "Gestão do projeto",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 233,
+      "origem": "Claude Code, 01/08, ao corrigir a #232 — achou o próprio conserto preso num branch",
+      "prova": "O risco não é o código perdido, é o kanban mentir. Se uma demanda estava feita e marcada como pendente, outras podem estar no mesmo estado — e o inverso também: marcada como concluída com o trabalho parado num branch. A capa da trilha (ecstatic-bun) é trabalho real de hoje esperando decisão."
     }
   ],
   "planilha": {
