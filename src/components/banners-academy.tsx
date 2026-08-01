@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { erroDeUpload } from "@/lib/erro-de-upload";
+import { RecortarImagem } from "@/components/recorte-imagem";
 
 export function BannersAcademy({
   podeEditar = false, novo, onNovo,
@@ -54,6 +55,8 @@ export function BannersAcademy({
   // O bucket é privado: form.imagem_url guarda o IDENTIFICADOR (o que salva).
   // Isto guarda a versão ASSINADA do upload desta sessão, só para o <img>.
   const [preview, setPreview] = useState<string | null>(null);
+  // O arquivo escolhido passa pelo recorte antes de virar upload.
+  const [paraRecortar, setParaRecortar] = useState<File | null>(null);
 
   const { data } = useQuery({ queryKey: ["banners"], queryFn: () => listaFn() });
   const banners = data?.banners ?? [];
@@ -210,7 +213,11 @@ export function BannersAcademy({
                       <ImagePlus className="size-4" />
                       {enviando ? "Enviando…" : "JPG ou PNG (até 3 MB)"}
                       <input type="file" accept="image/jpeg,image/png" className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarImagem(f); }} />
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) setParaRecortar(f);
+                          e.target.value = "";
+                        }} />
                     </label>
                   )}
                 </div>
@@ -233,6 +240,13 @@ export function BannersAcademy({
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <RecortarImagem
+            arquivo={paraRecortar}
+            aspecto={3}
+            onCancelar={() => setParaRecortar(null)}
+            onConcluir={(recortado) => { setParaRecortar(null); enviarImagem(recortado); }}
+          />
 
           {b && (
             <>

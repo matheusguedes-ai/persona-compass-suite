@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { QuemAcessa } from "@/components/quem-acessa";
+import { RecortarImagem } from "@/components/recorte-imagem";
 import {
   FileText, FileSpreadsheet, Video, Music, Link as LinkIcon, Paperclip, Plus, Trash2, Search,
   Upload, Image as ImageIcon, X, Folder, FolderOpen, Lock, Pencil, ChevronUp, ChevronDown,
@@ -103,6 +104,9 @@ export function Biblioteca({
   // assinado da listagem, ao editar um material/pasta existente).
   const [capaPreview, setCapaPreview] = useState<string | null>(null);
   const [capaPastaPreview, setCapaPastaPreview] = useState<string | null>(null);
+  // A capa escolhida no seletor passa pelo recorte ANTES de virar upload —
+  // só então `enviar` roda, com o arquivo já cortado no lugar do original.
+  const [paraRecortar, setParaRecortar] = useState<{ arquivo: File; alvo: "capa" | "capaPasta" } | null>(null);
 
   // Abertura: controlada pelo pai quando ele manda, com estado próprio de
   // reserva — a tela do aluno não tem menu "Criar".
@@ -420,7 +424,11 @@ export function Biblioteca({
                   <ImageIcon className="size-4" />
                   {enviando === "capa" ? "Enviando…" : "JPG ou PNG (até 3 MB)"}
                   <input type="file" accept="image/jpeg,image/png" className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) enviar(f, "capa"); }} />
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setParaRecortar({ arquivo: f, alvo: "capa" });
+                      e.target.value = "";
+                    }} />
                 </label>
               )}
             </div>
@@ -519,7 +527,11 @@ export function Biblioteca({
                   <ImageIcon className="size-4" />
                   {enviando === "capaPasta" ? "Enviando…" : "JPG ou PNG (até 3 MB)"}
                   <input type="file" accept="image/jpeg,image/png" className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) enviar(f, "capaPasta"); }} />
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setParaRecortar({ arquivo: f, alvo: "capaPasta" });
+                      e.target.value = "";
+                    }} />
                 </label>
               )}
             </div>
@@ -539,6 +551,17 @@ export function Biblioteca({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RecortarImagem
+        arquivo={paraRecortar?.arquivo ?? null}
+        aspecto={16 / 9}
+        onCancelar={() => setParaRecortar(null)}
+        onConcluir={(recortado) => {
+          const alvo = paraRecortar!.alvo;
+          setParaRecortar(null);
+          enviar(recortado, alvo);
+        }}
+      />
     </section>
   );
 }
