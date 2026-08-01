@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 export function RankingDoGrupo({ groupId }: { groupId: string }) {
   const fn = useServerFn(rankingDoGrupo);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["ranking", groupId],
     queryFn: () => fn({ data: { group_id: groupId } }),
   });
@@ -28,13 +28,20 @@ export function RankingDoGrupo({ groupId }: { groupId: string }) {
         ranking que sobe ao responder pagaria a pessoa para clicar rápido.
       </p>
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
-      {!isLoading && semConta && (
+
+      {error && (
+        <div className="rounded-xl bg-destructive/10 p-8 text-center">
+          <p className="text-sm text-destructive">{(error as Error).message}</p>
+        </div>
+      )}
+
+      {!isLoading && !error && semConta && (
         <p className="rounded-xl bg-muted/40 p-6 text-sm text-muted-foreground">
           Ninguém do grupo criou conta ainda. O ranking começa quando os avaliados entram na
           plataforma — o primeiro acesso vai por e-mail.
         </p>
       )}
-      {linhas.length > 0 && (
+      {!error && linhas.length > 0 && (
         <ul className="divide-y divide-black/5 overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
           {linhas.map((r) => (
             <li key={r.person_id} className="flex items-center gap-3 p-4">

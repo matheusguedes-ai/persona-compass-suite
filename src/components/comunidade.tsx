@@ -88,7 +88,7 @@ export function Comunidade({
   // dono, e sem o filtro o feed traria posts de grupos que o aluno não tem.
   const idsDosGrupos = grupos.map((g) => g.id);
   const chave = ["feed", idsDosGrupos.join(",")];
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: chave,
     queryFn: () => feedFn({ data: { group_ids: idsDosGrupos } }),
     enabled: idsDosGrupos.length > 0,
@@ -176,7 +176,7 @@ export function Comunidade({
         publicar, quando ele pode — e é ele quem escreve. Publicar aqui, por sua
         vez, criaria uma publicação assinada por VOCÊ com a cara dele.
       */}
-      {somenteLeitura && (
+      {!error && somenteLeitura && (
         <div className="rounded-xl border border-dashed border-black/10 bg-card p-4">
           <div className="pointer-events-none select-none opacity-50">
             <Textarea rows={2} disabled placeholder="Compartilhe algo com o grupo…" />
@@ -188,7 +188,7 @@ export function Comunidade({
           </p>
         </div>
       )}
-      {!somenteLeitura && (
+      {!error && !somenteLeitura && (
       <div className="rounded-xl border border-black/5 bg-card p-4">
         <Textarea
           value={texto} onChange={(e) => setTexto(e.target.value)} rows={3}
@@ -257,7 +257,14 @@ export function Comunidade({
       )}
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
-      {!isLoading && posts.length === 0 && (
+
+      {error && (
+        <div className="rounded-xl bg-destructive/10 p-8 text-center">
+          <p className="text-sm text-destructive">{(error as Error).message}</p>
+        </div>
+      )}
+
+      {!isLoading && !error && posts.length === 0 && (
         <p className="rounded-xl bg-muted/40 p-6 text-sm text-muted-foreground">
           Ninguém publicou nada ainda. A primeira publicação costuma ser a mais difícil — e é a que
           faz o resto do grupo começar.
@@ -265,7 +272,7 @@ export function Comunidade({
       )}
 
       {/* ---------------------------------------------------- feed --- */}
-      {posts.map((p) => (
+      {!error && posts.map((p) => (
         <article key={p.id} className="rounded-xl border border-black/5 bg-card p-4">
           <div className="flex items-baseline justify-between gap-2">
             <div className="min-w-0">

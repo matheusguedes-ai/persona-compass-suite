@@ -14,7 +14,7 @@ import { Users } from "lucide-react";
 
 function Pagina() {
   const fn = useServerFn(meusGrupos);
-  const { data, isLoading } = useQuery({ queryKey: ["meus-grupos"], queryFn: () => fn() });
+  const { data, isLoading, error } = useQuery({ queryKey: ["meus-grupos"], queryFn: () => fn() });
   const grupos = data?.grupos ?? [];
 
   return (
@@ -28,7 +28,13 @@ function Pagina() {
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
 
-      {!isLoading && grupos.length === 0 && (
+      {error && (
+        <div className="rounded-xl bg-destructive/10 p-8 text-center">
+          <p className="text-sm text-destructive">{(error as Error).message}</p>
+        </div>
+      )}
+
+      {!isLoading && !error && grupos.length === 0 && (
         <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center">
           <Users className="mx-auto size-8 text-muted-foreground" />
           <h2 className="mt-4 text-base font-medium">Nenhum grupo ainda</h2>
@@ -38,7 +44,7 @@ function Pagina() {
         </div>
       )}
 
-      {grupos.length > 0 && <Comunidade grupos={grupos} escolherDestino />}
+      {!error && grupos.length > 0 && <Comunidade grupos={grupos} escolherDestino />}
     </div>
   );
 }

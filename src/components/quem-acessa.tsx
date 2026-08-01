@@ -28,7 +28,7 @@ export function QuemAcessa({
 }) {
   const gruposFn = useServerFn(meusGrupos);
   const pessoasFn = useServerFn(listarPessoasParaEscolher);
-  const { data: dg } = useQuery({ queryKey: ["grupos"], queryFn: () => gruposFn(), enabled: ativo });
+  const { data: dg, error: erroGrupos } = useQuery({ queryKey: ["grupos"], queryFn: () => gruposFn(), enabled: ativo });
   const { data: dp } = useQuery({
     queryKey: ["pessoas-destino"], queryFn: () => pessoasFn(), enabled: ativo,
   });
@@ -57,7 +57,11 @@ export function QuemAcessa({
       <div className="max-h-52 space-y-3 overflow-y-auto rounded-lg border border-black/5 p-3">
         <div>
           <p className="text-xs font-medium text-muted-foreground">Grupos</p>
-          {(dg?.grupos ?? []).length === 0 ? (
+          {erroGrupos ? (
+            <div className="mt-1 rounded-lg bg-destructive/10 p-3 text-center">
+              <p className="text-xs text-destructive">{(erroGrupos as Error).message}</p>
+            </div>
+          ) : (dg?.grupos ?? []).length === 0 ? (
             <p className="mt-1 text-xs text-muted-foreground">Nenhum grupo ainda.</p>
           ) : (
             <ul className="mt-1.5 space-y-1.5">
