@@ -2181,14 +2181,14 @@
       "prova": "Trancado por dois lados. (1) 'configuracoes' saiu de PERMISSOES (era o 8º item, ao lado de pessoas/grupos/testes) e a migração 20260731120000_configuracoes_so_dono.sql tirou a permissão de quem já tinha em produção — o colaborador 'Sucesso do Aluno' ficou com as outras 7. (2) A tela e as server functions de Marca/Relatório/Mensagens/Emails/Agenda agora exigem member_kind()='owner' (exigirDono), tanto na rota quanto em cada function que grava — upsertConfiguracoesConta, getEmailStatus/listEmailLogs/sendTestEmail, estadoDoGoogle/iniciarConexaoGoogle/desconectarGoogle. 'Perfil' (nome+foto) foi separado antes de trancar: é genuinamente pessoal e continua aberto a qualquer logado, via upsertMyProfile com schema próprio (perfilPessoalSchema). Provado com login real: colaborador com as 7 permissões vê só 'Meu perfil' no menu e é negado ao chamar upsertConfiguracoesConta direto no servidor ('Só o dono da conta pode gerenciar a equipe'); mentor convidado idem; dono continua vendo as 6 abas e salvando normalmente, marca real (INTENÇÃO ASSESSEMENT, #00b0f0) confirmada intacta depois de todos os testes. Achado de passagem (item 6 do pedido): learning.functions.ts (Academy) tinha os 10 writes sem nenhuma checagem de permissão — mesmo buraco que biblioteca.functions.ts tinha antes desta sessão; fechado com exigirPermissao(...,'educacao'). Commit 466a5b1 (31/07)."
     },
     {
-      "titulo": "A marca do dono não aparece para aluno, mentor e colaborador",
-      "descricao": "Mudar logo e nome da empresa nas Configurações não muda nada no painel do aluno — continua a marca antiga. A causa não é do aluno: loadBrandAndSettings busca profiles pelo user_id de quem está logado, e aluno, colaborador e mentor convidado têm perfil próprio SEM marca, então caem no padrão da plataforma. A marca tem de vir sempre do DONO da conta (acting_account()), em todo painel e todo papel. Vai junto com o selo da empresa no rodapé (#108) e com a decisão do nome da marca (#65): são o mesmo assunto — a identidade do dono aparecer inteira, em todo papel e toda tela.",
+      "titulo": "A marca do dono não chega ao aluno, mentor e colaborador",
+      "descricao": "Mudar logo, nome e cor nas Configurações só muda a tela do dono. A causa: loadBrandAndSettings busca profiles pelo user_id de QUEM ESTÁ LOGADO, e aluno, colaborador e mentor têm perfil próprio sem marca — caem no padrão da plataforma. A marca tem de vir sempre do DONO da conta (acting_account()), em todo painel e todo papel. REGRA: o master mudou, muda para todos, na hora.",
       "area": "Plataforma",
       "status": "Planejado",
       "depende_de": "Claude",
       "prioridade": 219,
       "origem": "Matheus, 31/07: mudou a marca no master e o painel do aluno continuou com a antiga",
-      "prova": "Confirmado: src/lib/brand.server.ts:41 filtra profiles por user_id = mentorId. Nas telas PÚBLICAS funciona (passa o mentor dono do link); nos painéis logados, não. src/routes/aluno.tsx importa BrandMark de @/lib/brand. Afeta os três papéis, não só o aluno — o mentor convidado e o colaborador também veem a marca padrão."
+      "prova": "Confirmado em src/lib/brand.server.ts:41 — filtra por user_id = mentorId. Nas telas PÚBLICAS funciona (passa o dono do link); nos painéis logados, não. O Matheus reforçou em 01/08 que isto é branding dele e importa. SUBIU de Fase 5 para o sprint atual por decisão dele. Barato: o conserto é num lugar só."
     },
     {
       "titulo": "Painel de engajamento: quem está sumindo",
@@ -2334,11 +2334,21 @@
       "titulo": "Editar pergunta de escala linear apaga 'reverse' e 'check_group'",
       "descricao": "O editor salva o config com cinco campos fixos — onUpdate({min,max,minLabel,maxLabel,dimension_id}) — sobrescrevendo o config inteiro. Toda edição de uma pergunta de escala linear APAGA as outras chaves: 'reverse' (a inversão de metade dos itens do Big Five) e 'check_group' (o par de checagem que alimenta o selo de confiabilidade). O resultado do teste continua saindo, errado, com cara de certo. O conserto são 3 linhas: espalhar o config existente antes de sobrescrever.",
       "area": "Testes",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 234,
       "origem": "Chat, 01/08, ao avaliar o branch keen-chebyshev — o Code apontou o sintoma, o chat achou que a causa era outra",
-      "prova": "ATIVO em produção. O conserto existe pronto e não commitado no worktree keen-chebyshev-176740 (_app.testes.$versionId.editar.tsx): troca onUpdate({...5 campos}) por onUpdate({...cfg, ...}). NÃO trazer o branch inteiro: a outra metade dele (remapear dimensão ao duplicar) JÁ está na main desde 815a3b3, por outro caminho e melhor. E a migração SQL que ele traz é desnecessária — conferi as 50 perguntas de escala linear e nenhuma aponta para dimensão de outra versão. Extrair só o conserto do editor."
+      "prova": "FEITO E EM PRODUÇÃO. LinearScaleEditor (_app.testes.$versionId.editar.tsx) agora espalha o config existente antes de sobrescrever — onUpdate({...cfg, min, max, minLabel, maxLabel, ...(dimId ? {dimension_id: dimId} : {})}) — em vez de trocar o config inteiro por 5 campos fixos. E quando o dimension_id salvo não bate com nenhuma dimensão atual (órfão), não chuta mais a primeira da lista: fica em aberto até o mentor escolher de verdade, sem sobrescrever o que já estava gravado. PROVA (pergunta 26f5148e-9185-4888-8a2f-3d7b464f433e, Big Five, versão 7c6d0667): ANTES do conserto, editar e salvar apagou reverse e check_group do banco (confirmado por REST, e dado restaurado na hora). DEPOIS do conserto, o mesmo teste — local e depois em produção, com login real do colaborador — manteve as duas chaves intactas, junto com dimension_id e os rótulos. Extraído do worktree claude/keen-chebyshev-176740 (branch e worktree apagados): só o conserto do editor veio; o remapeamento de dimensão ao duplicar já estava em produção via remapQuestionConfig (815a3b3), e a migração SQL do branch não achou nenhuma das 50 perguntas de escala linear com referência quebrada — nada para reparar. Commit 490dfe4 (01/08), publicado e conferido no ar."
+    },
+    {
+      "titulo": "Ícone da conta e app instalável no celular (manifest)",
+      "descricao": "Quando o dono sobe um ícone, ele deve ser a imagem que aparece na tela do celular de quem instalar a plataforma como aplicativo — dele e do aluno. HOJE NADA DISSO EXISTE: não há campo de ícone nas Configurações (o profile só tem logo_url), não há manifest, e a plataforma NÃO é instalável. Só existe um favicon.ico fixo da plataforma. Precisa de: campo de ícone, manifest gerado por conta (nome + ícone + cor da marca) e as meta tags de app.",
+      "area": "Plataforma",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 235,
+      "origem": "Matheus, 01/08: 'o ícone deve ser a imagem na tela do celular em modo aplicativo'",
+      "prova": "É o PRIMEIRO PASSO da demanda do app do aluno (PWA) — fazer o manifest dinâmico já torna a plataforma instalável, que era o caminho recomendado ali. Depende da #219 estar resolvida: o manifest tem de servir a marca do DONO da conta, não a de quem está logado — senão o aluno instala com o ícone padrão da plataforma."
     }
   ],
   "planilha": {
