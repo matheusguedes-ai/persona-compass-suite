@@ -460,6 +460,36 @@ export type Database = {
         }
         Relationships: []
       }
+      export_logs: {
+        Row: {
+          exported_at: string
+          exported_by: string
+          formato: string
+          id: string
+          kind: string
+          owner_id: string
+          row_count: number
+        }
+        Insert: {
+          exported_at?: string
+          exported_by: string
+          formato: string
+          id?: string
+          kind?: string
+          owner_id: string
+          row_count: number
+        }
+        Update: {
+          exported_at?: string
+          exported_by?: string
+          formato?: string
+          id?: string
+          kind?: string
+          owner_id?: string
+          row_count?: number
+        }
+        Relationships: []
+      }
       group_instruments: {
         Row: {
           added_at: string

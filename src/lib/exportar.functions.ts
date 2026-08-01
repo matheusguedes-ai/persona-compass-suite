@@ -21,6 +21,8 @@ export const dadosParaExportar = createServerFn({ method: "POST" })
     z.object({
       // Vazio = todas as que a pessoa pode ver. A RLS decide, não o pedido.
       ids: z.array(z.string().uuid()).optional(),
+      // Só para o rastro (demanda #21) — não muda o que é buscado.
+      formato: z.enum(["xlsx", "pdf"]),
     }).parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
@@ -60,10 +62,34 @@ export const dadosParaExportar = createServerFn({ method: "POST" })
     // Quem exportou e quando vai no arquivo. Não impede nada — só deixa rastro
     // de um arquivo que sai da plataforma com dado pessoal dentro.
     const { data: eu } = await supabase.auth.getUser();
+
+    // De qual CONTA são os dados — não necessariamente quem clicou. Um
+    // colaborador com a permissão `pessoas` exporta dado da conta do dono,
+    // não dele; é essa identidade que importa para "a quem o dado pertence".
+    const { data: ownerId } = await supabase.rpc("acting_account");
+    const { data: perfil } = ownerId
+      ? await supabase.from("profiles").select("company_name").eq("user_id", ownerId).maybeSingle()
+      : { data: null };
+
+    // Registro que sobrevive ao arquivo em si — se o rodapé for editado ou
+    // apagado depois, a conta ainda sabe quem exportou, quando e quantas
+    // pessoas. Não bloqueia a exportação se falhar por algum motivo.
+    if (ownerId) {
+      const { error: erroRastro } = await supabase.from("export_logs").insert({
+        owner_id: ownerId,
+        exported_by: context.userId,
+        kind: "pessoas",
+        formato: data.formato,
+        row_count: linhas.length,
+      });
+      if (erroRastro) console.error("Falha ao gravar rastro de exportação:", erroRastro.message);
+    }
+
     return {
       linhas,
       rodape: `Exportado por ${eu.user?.email ?? "—"} em ${new Date().toLocaleString("pt-BR", {
         timeZone: "America/Sao_Paulo",
-      })} · ${linhas.length} ${linhas.length === 1 ? "pessoa" : "pessoas"}`,
+      })} · ${linhas.length} ${linhas.length === 1 ? "pessoa" : "pessoas"}` +
+        (perfil?.company_name ? ` — Dados de propriedade de ${perfil.company_name}.` : ""),
     };
   });

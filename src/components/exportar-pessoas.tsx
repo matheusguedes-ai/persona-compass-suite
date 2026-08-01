@@ -41,7 +41,7 @@ export function ExportarPessoas({ pessoas }: { pessoas: Pessoa[] }) {
 
   const exportar = useMutation({
     mutationFn: async () => {
-      const r = await fn({ data: { ids: todas ? undefined : selecionadas } });
+      const r = await fn({ data: { ids: todas ? undefined : selecionadas, formato } });
       if (r.linhas.length === 0) throw new Error("Nenhuma pessoa para exportar.");
 
       if (formato === "xlsx") {
