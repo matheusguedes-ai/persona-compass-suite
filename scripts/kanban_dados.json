@@ -2272,13 +2272,13 @@
     },
     {
       "titulo": "Mentorias Fatia 2: a voz do aluno",
-      "descricao": "Avaliação por estrelas ao fim da sessão, comentário do aluno e arquivos anexados ao resumo do pós-mentoria.",
+      "descricao": "Avaliação por estrelas (1-5) ao fim da sessão, comentário do aluno e arquivos anexados ao resumo. Decisões do Matheus em 01/08: estrelas e não NPS (a média é SATISFAÇÃO/CSAT, e deve ser chamada assim — NPS é outra pergunta e outra conta); avaliação IDENTIFICADA (numa mentoria 1:1 o anônimo é ficção); e UMA VEZ SÓ, sem editar depois. Spec em docs/plano-mentorias-fatia2.md.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Em andamento",
       "depende_de": "Claude",
       "prioridade": 228,
       "origem": "Matheus, 31/07: detalhamento do menu Mentorias",
-      "prova": "Precisa da Fatia 1 no ar para ter o que avaliar. A avaliação alimenta o NPS da Fatia 3."
+      "prova": "A migração é puramente ADITIVA (3 colunas, 1 tabela, 1 bucket) — pela regra 5 da constituição pode ir antes do código, sem janela de quebra. O bucket mentorias NASCE PRIVADO com link assinado: não repetir o erro de biblioteca e avatares, que nasceram públicos e custaram uma demanda cada para fechar."
     },
     {
       "titulo": "Mentorias Fatia 3: painel do professor",
