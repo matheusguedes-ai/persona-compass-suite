@@ -450,17 +450,33 @@ function LinearScaleEditor({ question, dimensions, onUpdate }: {
   // versão) — `cfg.dimension_id` continuava uma string não-vazia, então o
   // primeiro `if` a devolvia direto, e o Select não achava nenhum item com
   // aquele valor. Confere que o id ainda existe antes de confiar nele.
+  // Idem para dimension_key: se não bate com nenhuma dimensão atual, também é
+  // referência órfã — mesmo raciocínio do bloco acima, não chuta a primeira.
   const initialDimId = (() => {
     if (typeof cfg.dimension_id === "string" && cfg.dimension_id && dimensions.some((d) => d.id === cfg.dimension_id)) {
       return cfg.dimension_id;
     }
     if (typeof cfg.dimension_key === "string" && cfg.dimension_key) {
-      return dimensions.find((d) => d.key === cfg.dimension_key)?.id ?? dimensions[0]?.id ?? "";
+      const porChave = dimensions.find((d) => d.key === cfg.dimension_key);
+      if (porChave) return porChave.id;
     }
-    return dimensions[0]?.id ?? "";
+    // Sem NENHUMA referência salva (pergunta nova): cai no primeiro item, tudo
+    // bem. Com uma referência (id ou key) que não bate com nenhuma dimensão
+    // atual — dimensão excluída depois de escolhida, ou pergunta copiada de
+    // outra versão: NÃO chuta a primeira. Fica vazio (select mostra
+    // "Selecione…", visível), e o save abaixo não sobrescreve o que estava
+    // gravado até o mentor escolher de verdade.
+    return (cfg.dimension_id || cfg.dimension_key) ? "" : (dimensions[0]?.id ?? "");
   })();
   const [dimId, setDimId] = useState(initialDimId);
-  const save = () => onUpdate({ min, max, minLabel, maxLabel, dimension_id: dimId });
+  // Espalha o config existente antes de sobrescrever — min/max/rótulos são só
+  // 4 das chaves possíveis. Chaves como `reverse` (inversão de pontuação do
+  // Big Five) e `check_group` (par do selo de confiabilidade) não aparecem
+  // nestes campos, mas precisam sobreviver a toda edição. Sem o spread, cada
+  // salvar apagava as duas em silêncio.
+  const persist = (proximoDimId: string) =>
+    onUpdate({ ...cfg, min, max, minLabel, maxLabel, ...(proximoDimId ? { dimension_id: proximoDimId } : {}) });
+  const save = () => persist(dimId);
 
   return (
     <div className="space-y-2 rounded-lg bg-muted/40 p-3 ring-1 ring-black/5">
@@ -472,7 +488,7 @@ function LinearScaleEditor({ question, dimensions, onUpdate }: {
       </div>
       <div>
         <Label className="text-[10px]">Dimensão pontuada</Label>
-        <Select value={dimId} onValueChange={(v) => { setDimId(v); onUpdate({ min, max, minLabel, maxLabel, dimension_id: v }); }}>
+        <Select value={dimId} onValueChange={(v) => { setDimId(v); persist(v); }}>
           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione…" /></SelectTrigger>
           <SelectContent>
             {dimensions.map((d) => <SelectItem key={d.id} value={d.id}>{d.label} ({d.key})</SelectItem>)}
