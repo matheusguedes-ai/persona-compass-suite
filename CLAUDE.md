@@ -11,7 +11,7 @@ Tipos Psicológicos (Jung, 1921), Valores (Spranger, 1914), Big Five, VAK.
 
 ---
 
-## Constituição — as quatro regras que valem em toda demanda
+## Constituição — as cinco regras que valem em toda demanda
 
 Matheus é leigo em programação. Ele decide o **quê**; o agente decide o **como**
 e responde pelo resultado. Estas quatro regras não são preferências de estilo:
@@ -59,6 +59,29 @@ Ao final de toda demanda, sem ser pedido:
   mentor convidado, colaborador, aluno) são afetados, o que vale conferir.
 
 Nunca responder mandando ele ler código ou diff. Explicar o mapa.
+
+### 5. Código no ar antes de banco que muda o que já existe
+
+Local e produção usam **o mesmo banco** (demanda #217). Toda mudança de banco
+atinge a produção no instante em que roda, mesmo com o código novo ainda parado
+no computador. Isso derrubou a plataforma duas vezes em 24 h — imagem quebrada
+em 30/07, login quebrado em 31/07.
+
+A regra, em três casos:
+
+- **Migração que só ADICIONA** (tabela nova, coluna nova, função nova): pode ir
+  antes do código. Nada que está no ar procura o que ainda não existe.
+- **Migração que RENOMEIA, REMOVE ou muda regra** (permissão, constraint,
+  coluna, valor de enum): o código novo tem de estar **publicado antes**. O que
+  está no ar continua procurando o nome velho até o deploy chegar.
+- **Quando os dois são necessários juntos**, fatiar em três passos: aplicar a
+  parte aditiva → publicar o código novo, que aguenta os dois nomes → aplicar a
+  parte que remove o antigo.
+
+Antes de rodar qualquer migração, responder por escrito: *isto remove ou renomeia
+alguma coisa que o código publicado ainda usa?* Se sim, publicar primeiro. Se
+não der para publicar antes, avisar o Matheus da janela de quebra **antes** de
+começar, não depois.
 
 ### Antes de pedir algo ao Matheus, tentar sozinho
 

@@ -2161,14 +2161,14 @@
       "prova": "Confirmado por fora: os três estão public=true. O caminho já está trilhado (c03134c) — é repetir a mesma cirurgia. ATENÇÃO à ordem: telas primeiro, bucket por último. Fechar biblioteca antes de publicar o código deixou a produção 2-3 min sem imagem."
     },
     {
-      "titulo": "Local e produção compartilham o mesmo banco",
-      "descricao": "Mexer no banco pela máquina local altera a produção na hora, mesmo com o código novo ainda não publicado. Foi o que deixou a plataforma 2-3 minutos sem imagem ao fechar os buckets: o banco mudou antes do código no ar saber acompanhar.",
+      "titulo": "Banco separado para desenvolvimento",
+      "descricao": "Local e produção usam o mesmo banco Supabase. Toda mudança de banco atinge a produção no instante em que roda, mesmo com o código novo ainda parado no computador. DERRUBOU A PLATAFORMA DUAS VEZES EM 24H: imagem quebrada em 30/07 ao fechar os buckets, e o LOGIN quebrado em 31/07 ao renomear a permissão durante a migração do menu Mentorias. Criar um segundo projeto Supabase para desenvolvimento, com o mesmo schema e dados de teste, e apontar o .env.local para ele.",
       "area": "Infra",
       "status": "Planejado",
-      "depende_de": "Matheus",
+      "depende_de": "Claude",
       "prioridade": 217,
       "origem": "Tropeço em produção durante o fechamento dos buckets, 31/07",
-      "prova": "Não é bug de código, é desenho do ambiente. Enquanto for assim, toda mudança de banco que o código no ar não acompanha causa janela de quebra. Decisão a tomar: banco separado para desenvolvimento, ou aceitar e sempre publicar o código ANTES de mexer no banco."
+      "prova": "Metade já resolvida em 31/07: a regra 5 da constituição (código no ar antes de banco que muda o que já existe) está gravada no CLAUDE.md e cobre a maioria dos casos sem custo nenhum. Esta demanda é a outra metade — a que resolve TODOS os casos. O que ela exige: criar o projeto, replicar o schema (supabase/estado/schema.sql já existe), semear dados de teste, apontar o .env.local, e decidir como as migrações passam de um para o outro. ATENÇÃO: hoje o .env commitado e o .env.local apontam para o MESMO projeto — foi assim desde a migração de banco. Separar exige cuidado para não repetir o cutover que já quebrou o login Google uma vez (ver memória publicacao-exige-cutover)."
     },
     {
       "titulo": "Configurações da plataforma só o dono acessa",
