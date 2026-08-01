@@ -2314,11 +2314,11 @@
       "titulo": "Quatro telas mostram lista vazia em vez de avisar que falta permissão",
       "descricao": "Equipe, comunidade, ranking do grupo e quem-acessa não checam o erro de permissão negada: quando o servidor barra, a tela mostra lista vazia como se não houvesse nada. Quem não tem acesso pensa que o conteúdo não existe, e quem deveria ter acesso acha que perdeu o dado. Mesmo bug já corrigido em mentorias-page.tsx.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 232,
       "origem": "Claude Code, 01/08, achado ao fechar o menu Mentorias",
-      "prova": "Ele corrigiu só a tela de mentorias, e fez certo em não sair consertando fora do escopo. As outras quatro seguem assim. Não é vazamento — o servidor barra corretamente; é a tela que mente sobre o motivo. Barato: é tratar o erro que já chega."
+      "prova": "Feito e provado em produção 01/08. Achado no caminho: o conserto já tinha sido feito e testado numa sessão anterior (comunidade, ranking do grupo e a metade Grupos de quem-acessa), mas ficou preso num branch que nunca foi mesclado — nunca chegou a publicar. Reaplicado via cherry-pick (commit f99ffb2), typecheck+build OK, reprovado com login real: colaborador de teste sem a permissão grupos via /comunidades, /grupos/:id (ranking) e o diálogo Nova trilha (quem-acessa) — as três mostram \"Você não tem acesso a esta área.\" em vez de lista vazia. Restaurada a permissão depois, tela volta ao normal. Equipe (team-page.tsx) foi reconferido do zero e CONFIRMADO que não tem esse bug: listTeamMembers depende só da RLS do banco, não existe erro de permissão pra essa tela capturar — por isso não faz parte do conserto."
     }
   ],
   "planilha": {
