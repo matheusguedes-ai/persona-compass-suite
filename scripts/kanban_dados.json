@@ -2154,11 +2154,11 @@
       "titulo": "Fechar os outros três buckets públicos (marca, eventos, comunidade)",
       "descricao": "Mesma raiz de biblioteca e avatares: marca (logo), eventos (banner) e comunidade (anexo de post) continuam públicos — quem tem o link continua vendo depois de qualquer trancamento. Cada um precisa da mesma varredura tela a tela antes de fechar, porque fechar antes das telas assinarem faz a imagem sumir.",
       "area": "Infra",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 216,
       "origem": "Varredura do Claude Code ao fechar biblioteca e avatares, 31/07",
-      "prova": "Confirmado por fora: os três estão public=true. O caminho já está trilhado (c03134c) — é repetir a mesma cirurgia. ATENÇÃO à ordem: telas primeiro, bucket por último. Fechar biblioteca antes de publicar o código deixou a produção 2-3 min sem imagem."
+      "prova": "Feito e provado em produção 01/08. Migração aditiva primeiro (assinatura de URL nos 10 pontos de leitura/preview: perfil/marca, e-mail, presença, agenda, comunidade, configurações), publicado e confirmado no ar pelo hash do commit (f433f83), só então a migração que fecha os buckets (public=false + DROP das 3 policies marca_leitura_publica, eventos_img_read, comunidade_leitura). Reprovado com login real DEPOIS do fechamento: logo da marca, imagem do evento e anexo de post continuam carregando (naturalWidth>0) pelo link assinado /storage/v1/object/sign/..., não mais pelo link público antigo. Dados de teste apagados (posts, evento, grupo, perfil, os 3 arquivos e a conta), sessão do navegador de teste derrubada e confirmada (recarregar joga para a tela de login). Achado no caminho: o logo usado no e-mail de convite precisa de um prazo de validade maior que os outros (e-mail já enviado não recarrega a imagem) — usei 30 dias de validade só para esse caso."
     },
     {
       "titulo": "Banco separado para desenvolvimento",
