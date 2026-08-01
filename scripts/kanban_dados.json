@@ -2274,11 +2274,11 @@
       "titulo": "Mentorias Fatia 2: a voz do aluno",
       "descricao": "Avaliação por estrelas (1-5) ao fim da sessão, comentário do aluno e arquivos anexados ao resumo. Decisões do Matheus em 01/08: estrelas e não NPS (a média é SATISFAÇÃO/CSAT, e deve ser chamada assim — NPS é outra pergunta e outra conta); avaliação IDENTIFICADA (numa mentoria 1:1 o anônimo é ficção); e UMA VEZ SÓ, sem editar depois. Spec em docs/plano-mentorias-fatia2.md.",
       "area": "Plataforma",
-      "status": "Em andamento",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 228,
       "origem": "Matheus, 31/07: detalhamento do menu Mentorias",
-      "prova": "A migração é puramente ADITIVA (3 colunas, 1 tabela, 1 bucket) — pela regra 5 da constituição pode ir antes do código, sem janela de quebra. O bucket mentorias NASCE PRIVADO com link assinado: não repetir o erro de biblioteca e avatares, que nasceram públicos e custaram uma demanda cada para fechar."
+      "prova": "Migração puramente aditiva (3 colunas em mentoria_sessoes, tabela mentoria_arquivos, RPC avaliar_sessao_mentoria, bucket 'mentorias' privado nascendo certo — 20 MB, link assinado de 10 min, sem nenhuma policy de SELECT em storage.objects). PROVADO com login real em produção os 8 itens da seção 5 de docs/plano-mentorias-fatia2.md: professor conclui e anexa arquivo; aluno vê o arquivo, baixa, avalia com 4 estrelas e comenta (o teste decisivo); aluno tenta avaliar de novo — negado direto na RPC; aluno tenta avaliar sessão ainda agendada — negado; professor vê nota, comentário e nome do aluno; média no cabeçalho com contagem certa ('4,5 (2 avaliações)'); professor tenta avaliar por fora — negado, isolado numa sessão concluída e não avaliada; link do arquivo expira em 10 min sem login — confirmado pelo token (exp-iat=600) funcionando dentro da janela e recusado depois. O seletor nativo de arquivo não é acessível pelas ferramentas de automação (bloqueio de segurança do navegador); o upload e o registro foram provados chamando o mesmo caminho real (SDK de Storage + tabela mentoria_arquivos) com o token de sessão do professor de teste, incluindo tentativa negada na pasta de outro usuário."
     },
     {
       "titulo": "Mentorias Fatia 3: painel do professor",
