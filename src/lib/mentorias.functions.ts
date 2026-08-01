@@ -16,6 +16,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissaoOuMentor } from "@/lib/permissao.server";
 import { notificar, nomeDoUsuario, quandoBr } from "@/lib/notificacoes.functions";
+import { assinarArquivosMentoria } from "@/lib/storage-assinado.server";
 import type { Database } from "@/integrations/supabase/types";
 
 export const MODALIDADES = ["presencial", "online"] as const;
@@ -96,7 +97,7 @@ export const getMentoria = createServerFn({ method: "GET" })
     const { data: sessoes, error: eS } = await context.supabase
       .from("mentoria_sessoes")
       .select(
-        "id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em)",
+        "id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, avaliacao_estrelas, avaliacao_comentario, avaliada_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em), mentoria_arquivos(id, nome, caminho, tamanho_bytes, tipo)",
       )
       .eq("mentoria_id", data.id)
       .order("quando", { ascending: false });
@@ -108,14 +109,30 @@ export const getMentoria = createServerFn({ method: "GET" })
     const agendadas = lista.filter((s) => s.status === "agendada" && new Date(s.quando).getTime() >= agora).length;
     const faltam = Math.max(0, m.sessoes_contratadas - realizadas - agendadas);
 
-    return {
-      mentoria: { ...m, realizadas, agendadas, faltam },
-      sessoes: lista.map((s) => ({
+    // Satisfação: só das sessões avaliadas, e sempre com a contagem junto —
+    // "4,5" sozinho engana quando vem de um voto só (spec, seção 3).
+    const notas = lista.map((s) => s.avaliacao_estrelas).filter((n): n is number => n != null);
+    const satisfacao = notas.length > 0
+      ? { media: notas.reduce((a, b) => a + b, 0) / notas.length, avaliacoes: notas.length }
+      : null;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const sessoesComArquivos = await Promise.all(
+      lista.map(async (s) => ({
         ...s,
         tarefas: ((s.mentoria_tarefas ?? []) as Array<{
           id: string; titulo: string; ordem: number; concluida: boolean; concluida_em: string | null;
         }>).slice().sort((a, b) => a.ordem - b.ordem),
+        arquivos: await assinarArquivosMentoria(
+          supabaseAdmin,
+          (s.mentoria_arquivos ?? []) as Array<{ id: string; nome: string; caminho: string; tamanho_bytes: number; tipo: string }>,
+        ),
       })),
+    );
+
+    return {
+      mentoria: { ...m, realizadas, agendadas, faltam, satisfacao },
+      sessoes: sessoesComArquivos,
     };
   });
 
@@ -336,4 +353,48 @@ export const salvarResumoSessao = createServerFn({ method: "POST" })
     }
 
     return { ok: true };
+  });
+
+// ============================================================
+// Arquivos anexados ao resumo (Fatia 2)
+// ============================================================
+
+const anexarArquivoSchema = z.object({
+  sessao_id: z.string().uuid(),
+  nome: z.string().trim().min(1).max(300),
+  caminho: z.string().trim().min(1).max(500),
+  tamanho_bytes: z.number().int().positive(),
+  tipo: z.string().trim().min(1).max(200),
+});
+
+/**
+ * Registra um arquivo já enviado ao bucket 'mentorias' (o upload em si
+ * acontece no navegador, na própria pasta do usuário — ver a policy de
+ * INSERT em storage.objects). Só o professor chama isto: a RLS de
+ * mentoria_arquivos exige mentor_id = acting_account() + posso_agendar_mentoria.
+ */
+export const anexarArquivoMentoria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => anexarArquivoSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "mentorias");
+    const { data: sessao, error: eS } = await context.supabase
+      .from("mentoria_sessoes").select("id, mentor_id").eq("id", data.sessao_id).maybeSingle();
+    if (eS) throw new Error(eS.message);
+    if (!sessao) throw new Error("Sessão não encontrada.");
+
+    const { data: row, error } = await context.supabase
+      .from("mentoria_arquivos")
+      .insert({
+        sessao_id: data.sessao_id,
+        mentor_id: sessao.mentor_id,
+        nome: data.nome,
+        caminho: data.caminho,
+        tamanho_bytes: data.tamanho_bytes,
+        tipo: data.tipo,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
   });

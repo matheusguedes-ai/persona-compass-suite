@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { urlOpcional } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assinarArquivosMentoria } from "@/lib/storage-assinado.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -177,7 +178,7 @@ export const getMinhasMentorias = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("mentorias")
       .select(
-        "id, titulo, status, mentoria_sessoes(id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em))",
+        "id, titulo, status, mentoria_sessoes(id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, avaliacao_estrelas, avaliacao_comentario, avaliada_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em), mentoria_arquivos(id, nome, caminho, tamanho_bytes, tipo))",
       )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -187,27 +188,36 @@ export const getMinhasMentorias = createServerFn({ method: "GET" })
       local: string | null; link_url: string | null; status: string;
       duracao_real_min: number | null; resumo: string | null; checklist_titulo: string | null;
       concluida_em: string | null;
+      avaliacao_estrelas: number | null; avaliacao_comentario: string | null; avaliada_em: string | null;
       mentoria_tarefas: Array<{ id: string; titulo: string; ordem: number; concluida: boolean; concluida_em: string | null }> | null;
+      mentoria_arquivos: Array<{ id: string; nome: string; caminho: string; tamanho_bytes: number; tipo: string }> | null;
     };
 
-    const sessoes = (data ?? []).flatMap((m) =>
-      ((m.mentoria_sessoes ?? []) as SessaoRow[])
-        .filter((s) => s.status !== "cancelada")
-        .map((s) => ({
-          id: s.id,
-          mentoria_titulo: m.titulo,
-          quando: s.quando,
-          termina_em: s.termina_em,
-          modalidade: s.modalidade,
-          local: s.local,
-          link_url: s.link_url,
-          status: s.status,
-          duracao_real_min: s.duracao_real_min,
-          resumo: s.resumo,
-          checklist_titulo: s.checklist_titulo,
-          concluida_em: s.concluida_em,
-          tarefas: (s.mentoria_tarefas ?? []).slice().sort((a, b) => a.ordem - b.ordem),
-        })),
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const sessoes = await Promise.all(
+      (data ?? []).flatMap((m) =>
+        ((m.mentoria_sessoes ?? []) as SessaoRow[])
+          .filter((s) => s.status !== "cancelada")
+          .map(async (s) => ({
+            id: s.id,
+            mentoria_titulo: m.titulo,
+            quando: s.quando,
+            termina_em: s.termina_em,
+            modalidade: s.modalidade,
+            local: s.local,
+            link_url: s.link_url,
+            status: s.status,
+            duracao_real_min: s.duracao_real_min,
+            resumo: s.resumo,
+            checklist_titulo: s.checklist_titulo,
+            concluida_em: s.concluida_em,
+            avaliacao_estrelas: s.avaliacao_estrelas,
+            avaliacao_comentario: s.avaliacao_comentario,
+            avaliada_em: s.avaliada_em,
+            tarefas: (s.mentoria_tarefas ?? []).slice().sort((a, b) => a.ordem - b.ordem),
+            arquivos: await assinarArquivosMentoria(supabaseAdmin, s.mentoria_arquivos ?? []),
+          })),
+      ),
     );
 
     return { sessoes };
@@ -289,6 +299,30 @@ export const marcarTarefaMentoria = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("marcar_tarefa_mentoria", {
       _tarefa_id: data.tarefa_id,
       _concluida: data.concluida,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
+ * Avalia a sessão: estrelas (1-5) e comentário opcional. As três regras —
+ * só o aluno, só concluída, uma vez só — vivem dentro da RPC
+ * `avaliar_sessao_mentoria`, não aqui; esta função só repassa e traduz o erro.
+ */
+export const avaliarSessaoMentoria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      sessao_id: z.string().uuid(),
+      estrelas: z.number().int().min(1).max(5),
+      comentario: z.string().trim().max(2000).optional().nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("avaliar_sessao_mentoria", {
+      _sessao_id: data.sessao_id,
+      _estrelas: data.estrelas,
+      _comentario: data.comentario ?? null,
     });
     if (error) throw new Error(error.message);
     return { ok: true };

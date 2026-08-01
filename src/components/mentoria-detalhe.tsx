@@ -10,7 +10,11 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getMentoria, agendarSessao, salvarResumoSessao, atualizarMentoria } from "@/lib/mentorias.functions";
+import {
+  getMentoria, agendarSessao, salvarResumoSessao, atualizarMentoria, anexarArquivoMentoria,
+} from "@/lib/mentorias.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { ACCEPT, erroDeUpload } from "@/lib/erro-de-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,10 +22,23 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft, CalendarClock, CheckCircle2, MapPin, Link2, Plus, X, Pencil,
+  ArrowLeft, CalendarClock, CheckCircle2, MapPin, Link2, Plus, X, Pencil, Star, Paperclip, FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+function Estrelas({ n }: { n: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          className={cn("size-3.5", i <= n ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30")}
+        />
+      ))}
+    </span>
+  );
+}
 
 function dataHoraBr(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", {
@@ -43,6 +60,7 @@ export function MentoriaDetalhe({ id }: { id: string }) {
   const agendarFn = useServerFn(agendarSessao);
   const salvarResumoFn = useServerFn(salvarResumoSessao);
   const atualizarFn = useServerFn(atualizarMentoria);
+  const anexarFn = useServerFn(anexarArquivoMentoria);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["mentoria", id], queryFn: () => getFn({ data: { id } }),
@@ -94,6 +112,8 @@ export function MentoriaDetalhe({ id }: { id: string }) {
   const [resumo, setResumo] = useState("");
   const [checklistTitulo, setChecklistTitulo] = useState("");
   const [novosItens, setNovosItens] = useState<string[]>([""]);
+  const [arquivosResumindo, setArquivosResumindo] = useState<Sessao["arquivos"]>([]);
+  const [enviandoArquivo, setEnviandoArquivo] = useState(false);
 
   const abrirResumo = (s: Sessao) => {
     setResumindo(s);
@@ -101,7 +121,36 @@ export function MentoriaDetalhe({ id }: { id: string }) {
     setResumo(s.resumo ?? "");
     setChecklistTitulo(s.checklist_titulo ?? "");
     setNovosItens([""]);
+    setArquivosResumindo(s.arquivos);
   };
+
+  async function enviarArquivo(f: File) {
+    setEnviandoArquivo(true);
+    try {
+      const { data: sessaoAuth } = await supabase.auth.getUser();
+      const ext = f.name.split(".").pop() ?? "bin";
+      const caminho = `${sessaoAuth.user?.id}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("mentorias").upload(caminho, f);
+      if (error) throw new Error(erroDeUpload(error, "mentorias"));
+      const row = await anexarFn({
+        data: {
+          sessao_id: resumindo!.id,
+          nome: f.name,
+          caminho,
+          tamanho_bytes: f.size,
+          tipo: f.type || "application/octet-stream",
+        },
+      });
+      setArquivosResumindo((atual) => [
+        ...atual,
+        { id: row.id, nome: f.name, tamanho_bytes: f.size, tipo: f.type, url: null },
+      ]);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setEnviandoArquivo(false);
+    }
+  }
 
   const salvarResumo = useMutation({
     mutationFn: () =>
@@ -150,10 +199,20 @@ export function MentoriaDetalhe({ id }: { id: string }) {
             <Pencil className="size-3.5" /> {mentoria.sessoes_contratadas} contratadas
           </Button>
         </div>
-        <div className="mt-4 flex flex-wrap gap-4 text-sm">
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
           <span><strong className="tabular-nums">{mentoria.realizadas}</strong> realizadas</span>
           <span><strong className="tabular-nums">{mentoria.agendadas}</strong> agendadas</span>
           <span><strong className="tabular-nums">{mentoria.faltam}</strong> a agendar</span>
+          {mentoria.satisfacao && (
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <Star className="size-3.5 fill-amber-400 text-amber-400" />
+              satisfação{" "}
+              <strong className="tabular-nums text-foreground">
+                {mentoria.satisfacao.media.toFixed(1).replace(".", ",")}
+              </strong>{" "}
+              ({mentoria.satisfacao.avaliacoes} {mentoria.satisfacao.avaliacoes === 1 ? "avaliação" : "avaliações"})
+            </span>
+          )}
         </div>
       </div>
 
@@ -216,6 +275,30 @@ export function MentoriaDetalhe({ id }: { id: string }) {
                     </ul>
                   </div>
                 )}
+                {s.arquivos.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {s.arquivos.map((a) => (
+                      <span key={a.id} className="inline-flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1 text-xs text-muted-foreground">
+                        <Paperclip className="size-3" /> {a.nome}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="rounded-lg bg-muted/30 p-3">
+                  {s.avaliacao_estrelas ? (
+                    <div className="space-y-1">
+                      <p className="flex items-center gap-2 text-xs font-medium">
+                        <Estrelas n={s.avaliacao_estrelas} />
+                        {mentoria.people?.full_name ?? "aluno"}
+                      </p>
+                      {s.avaliacao_comentario && (
+                        <p className="text-sm leading-relaxed">{s.avaliacao_comentario}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Aguardando avaliação do aluno.</p>
+                  )}
+                </div>
               </div>
             )}
           </li>
@@ -363,6 +446,32 @@ export function MentoriaDetalhe({ id }: { id: string }) {
                 </div>
               )
             )}
+
+            <div>
+              <label className="text-sm font-medium">Arquivos anexados</label>
+              <div className="mt-1.5 space-y-1.5">
+                {(arquivosResumindo ?? []).map((a) => (
+                  <p key={a.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <FileText className="size-3.5 shrink-0" /> {a.nome}
+                  </p>
+                ))}
+              </div>
+              <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-accent hover:underline">
+                <Paperclip className="size-3.5" />
+                {enviandoArquivo ? "Enviando…" : "Anexar arquivo"}
+                <input
+                  type="file"
+                  accept={ACCEPT.mentorias}
+                  className="hidden"
+                  disabled={enviandoArquivo}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (f) void enviarArquivo(f);
+                  }}
+                />
+              </label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setResumindo(null)}>Cancelar</Button>

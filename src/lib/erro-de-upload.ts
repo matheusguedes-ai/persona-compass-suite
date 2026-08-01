@@ -36,6 +36,10 @@ export const LIMITES: Record<string, LimiteDoBucket> = {
   },
   avatares: { tamanhoMb: 2, formatos: "imagem (JPG, PNG, WEBP)" },
   marca: { tamanhoMb: 2, formatos: "imagem (JPG, PNG, WEBP, SVG)" },
+  mentorias: {
+    tamanhoMb: 20,
+    formatos: "PDF, planilha, documento, apresentação ou imagem",
+  },
 };
 
 /** O `accept` do input, derivado do que o bucket realmente aceita. */
@@ -48,6 +52,12 @@ export const ACCEPT: Record<string, string> = {
     "text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
     "application/msword,application/vnd.openxmlformats-officedocument.presentationml.presentation," +
     "application/vnd.ms-powerpoint,text/plain,application/zip",
+  mentorias:
+    "application/pdf,image/png,image/jpeg,image/webp,image/heic,image/heif," +
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel," +
+    "text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
+    "application/msword,application/vnd.openxmlformats-officedocument.presentationml.presentation," +
+    "application/vnd.ms-powerpoint,text/plain",
 };
 
 /**

@@ -109,3 +109,34 @@ export async function assinarUrls(
   }
   return resultado;
 }
+
+export type ArquivoMentoriaParaAssinar = {
+  id: string; nome: string; caminho: string; tamanho_bytes: number; tipo: string;
+};
+export type ArquivoMentoriaAssinado = {
+  id: string; nome: string; tamanho_bytes: number; tipo: string; url: string | null;
+};
+
+/**
+ * Assina os anexos de mentoria: bucket 'mentorias' privado, sem nenhuma
+ * policy de SELECT em storage.objects — diferente de biblioteca/avatares,
+ * `mentoria_arquivos.caminho` já guarda o caminho CRU (não uma URL), então
+ * não passa por `partirUrl`. O `caminho` nunca sai desta função: só a URL
+ * assinada, com prazo, chega ao cliente.
+ */
+export async function assinarArquivosMentoria(
+  admin: SupabaseClient,
+  arquivos: ArquivoMentoriaParaAssinar[],
+): Promise<ArquivoMentoriaAssinado[]> {
+  if (arquivos.length === 0) return [];
+  const { data, error } = await admin.storage
+    .from("mentorias")
+    .createSignedUrls(arquivos.map((a) => a.caminho), TTL_ARQUIVO_SEGUNDOS);
+  return arquivos.map((a, i) => ({
+    id: a.id,
+    nome: a.nome,
+    tamanho_bytes: a.tamanho_bytes,
+    tipo: a.tipo,
+    url: error || !data ? null : (data[i]?.error ? null : (data[i]?.signedUrl ?? null)),
+  }));
+}

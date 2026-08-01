@@ -6,14 +6,38 @@
  * resumo — nem a tela oferece o botão, nem o servidor aceitaria (RLS não tem
  * policy de UPDATE de sessão para o aluno).
  */
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getMinhasMentorias, marcarTarefaMentoria } from "@/lib/student.functions";
+import { getMinhasMentorias, marcarTarefaMentoria, avaliarSessaoMentoria } from "@/lib/student.functions";
 import { Agenda } from "@/components/agenda";
-import { CalendarClock, CheckCircle2, MapPin, Link2, MessagesSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  CalendarClock, CheckCircle2, MapPin, Link2, MessagesSquare, Star, FileText, Download,
+} from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+function SeletorEstrelas({ valor, onChange }: { valor: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onChange(i)}
+          className="p-0.5"
+          aria-label={`${i} estrela${i > 1 ? "s" : ""}`}
+        >
+          <Star className={cn("size-5", i <= valor ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30")} />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function dataHoraBr(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", {
@@ -25,11 +49,27 @@ function Mentorias() {
   const qc = useQueryClient();
   const fn = useServerFn(getMinhasMentorias);
   const marcarFn = useServerFn(marcarTarefaMentoria);
+  const avaliarFn = useServerFn(avaliarSessaoMentoria);
   const { data, isLoading } = useQuery({ queryKey: ["minhas-mentorias"], queryFn: () => fn() });
 
   const marcar = useMutation({
     mutationFn: (v: { tarefa_id: string; concluida: boolean }) => marcarFn({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["minhas-mentorias"] }),
+  });
+
+  // Rascunho da avaliação por sessão, antes de enviar — uma vez enviada, o
+  // dado vem do servidor (`avaliacao_estrelas`) e este rascunho não importa mais.
+  const [rascunhos, setRascunhos] = useState<Record<string, { estrelas: number; comentario: string }>>({});
+  const rascunho = (id: string) => rascunhos[id] ?? { estrelas: 0, comentario: "" };
+
+  const avaliar = useMutation({
+    mutationFn: (v: { sessao_id: string; estrelas: number; comentario: string }) =>
+      avaliarFn({ data: { sessao_id: v.sessao_id, estrelas: v.estrelas, comentario: v.comentario.trim() || undefined } }),
+    onSuccess: () => {
+      toast.success("Avaliação enviada. Obrigado!");
+      qc.invalidateQueries({ queryKey: ["minhas-mentorias"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const lista = data?.sessoes ?? [];
@@ -126,6 +166,66 @@ function Mentorias() {
                     </ul>
                   </div>
                 )}
+                {s.arquivos.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {s.arquivos.map((a) => (
+                      <a
+                        key={a.id}
+                        href={a.url ?? undefined}
+                        download={a.nome}
+                        className={cn(
+                          "flex items-center gap-1.5 text-sm",
+                          a.url ? "text-accent hover:underline" : "pointer-events-none text-muted-foreground",
+                        )}
+                      >
+                        <FileText className="size-3.5" /> {a.nome} <Download className="size-3 shrink-0" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-3 border-t border-black/5 pt-3">
+                  {s.avaliacao_estrelas ? (
+                    <div>
+                      <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        Sua avaliação:
+                        <span className="inline-flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <Star
+                              key={i}
+                              className={cn("size-3.5", i <= s.avaliacao_estrelas! ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30")}
+                            />
+                          ))}
+                        </span>
+                      </p>
+                      {s.avaliacao_comentario && (
+                        <p className="mt-1.5 text-sm leading-relaxed">{s.avaliacao_comentario}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium">Como foi esta sessão?</p>
+                      <SeletorEstrelas
+                        valor={rascunho(s.id).estrelas}
+                        onChange={(n) => setRascunhos((v) => ({ ...v, [s.id]: { ...rascunho(s.id), estrelas: n } }))}
+                      />
+                      <Textarea
+                        value={rascunho(s.id).comentario}
+                        onChange={(e) => setRascunhos((v) => ({ ...v, [s.id]: { ...rascunho(s.id), comentario: e.target.value } }))}
+                        placeholder="Comentário (opcional)"
+                        rows={2}
+                        className="text-sm"
+                      />
+                      <Button
+                        size="sm"
+                        disabled={rascunho(s.id).estrelas < 1 || avaliar.isPending}
+                        onClick={() => avaliar.mutate({ sessao_id: s.id, ...rascunho(s.id) })}
+                      >
+                        {avaliar.isPending ? "Enviando…" : "Enviar avaliação"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

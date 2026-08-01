@@ -211,6 +211,9 @@ export type Database = {
       }
       mentoria_sessoes: {
         Row: {
+          avaliacao_comentario: string | null
+          avaliacao_estrelas: number | null
+          avaliada_em: string | null
           checklist_titulo: string | null
           concluida_em: string | null
           created_at: string
@@ -228,6 +231,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avaliacao_comentario?: string | null
+          avaliacao_estrelas?: number | null
+          avaliada_em?: string | null
           checklist_titulo?: string | null
           concluida_em?: string | null
           created_at?: string
@@ -245,6 +251,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avaliacao_comentario?: string | null
+          avaliacao_estrelas?: number | null
+          avaliada_em?: string | null
           checklist_titulo?: string | null
           concluida_em?: string | null
           created_at?: string
@@ -267,6 +276,47 @@ export type Database = {
             columns: ["mentoria_id"]
             isOneToOne: false
             referencedRelation: "mentorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentoria_arquivos: {
+        Row: {
+          caminho: string
+          created_at: string
+          id: string
+          mentor_id: string
+          nome: string
+          sessao_id: string
+          tamanho_bytes: number
+          tipo: string
+        }
+        Insert: {
+          caminho: string
+          created_at?: string
+          id?: string
+          mentor_id: string
+          nome: string
+          sessao_id: string
+          tamanho_bytes: number
+          tipo: string
+        }
+        Update: {
+          caminho?: string
+          created_at?: string
+          id?: string
+          mentor_id?: string
+          nome?: string
+          sessao_id?: string
+          tamanho_bytes?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentoria_arquivos_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "mentoria_sessoes"
             referencedColumns: ["id"]
           },
         ]
@@ -1678,6 +1728,10 @@ export type Database = {
       posso_agendar_mentoria: { Args: { p_person_id: string }; Returns: boolean }
       marcar_tarefa_mentoria: {
         Args: { _tarefa_id: string; _concluida: boolean }
+        Returns: undefined
+      }
+      avaliar_sessao_mentoria: {
+        Args: { _sessao_id: string; _estrelas: number; _comentario: string | null }
         Returns: undefined
       }
       can_see_track: { Args: { _track_id: string }; Returns: boolean }
