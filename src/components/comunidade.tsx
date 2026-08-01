@@ -11,6 +11,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   listarFeed, publicarPost, comentar, alternarCurtida, apagarPost, apagarComentario,
 } from "@/lib/comunidade.functions";
+import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,10 +60,16 @@ export function Comunidade({
   const curtirFn = useServerFn(alternarCurtida);
   const apagarFn = useServerFn(apagarPost);
   const apagarComentarioFn = useServerFn(apagarComentario);
+  const previaFn = useServerFn(assinarMeuEnvio);
 
   const [texto, setTexto] = useState("");
   const [link, setLink] = useState("");
   const [arquivo, setArquivo] = useState<{ url: string; kind: "imagem" | "pdf"; nome: string } | null>(null);
+  // O bucket 'comunidade' é privado: arquivo.url guarda o IDENTIFICADOR (o que
+  // salva). Isto guarda a versão ASSINADA do upload desta sessão, só para o
+  // <img> de imagem ter o que mostrar antes de publicar — o PDF não precisa,
+  // a prévia dele é só o ícone e o nome.
+  const [arquivoPreview, setArquivoPreview] = useState<string | null>(null);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const [comentando, setComentando] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
@@ -100,10 +107,19 @@ export function Comunidade({
     // Pasta com o id do usuário: a policy do bucket só deixa escrever na própria.
     const caminho = `${uid}/${crypto.randomUUID()}-${f.name.replace(/[^\w.-]/g, "_")}`;
     const { error } = await supabase.storage.from("comunidade").upload(caminho, f, { upsert: false });
-    setEnviandoArquivo(false);
-    if (error) return toast.error(erroDeUpload(error, "comunidade"));
+    if (error) { setEnviandoArquivo(false); return toast.error(erroDeUpload(error, "comunidade")); }
     const { data: pub } = supabase.storage.from("comunidade").getPublicUrl(caminho);
     setArquivo({ url: pub.publicUrl, kind: ehImagem ? "imagem" : "pdf", nome: f.name });
+    if (ehImagem) {
+      // Pede ao servidor a versão assinada deste MESMO arquivo que acabei de
+      // enviar, só para o preview — o bucket privado não deixa o navegador
+      // assinar sozinho. Se falhar, ainda publica certo; só o preview
+      // imediato fica sem imagem até recarregar.
+      try {
+        setArquivoPreview((await previaFn({ data: { url: pub.publicUrl } })).url);
+      } catch { /* sem preview agora — não impede publicar */ }
+    }
+    setEnviandoArquivo(false);
   }
 
   const publicar = useMutation({
@@ -118,7 +134,7 @@ export function Comunidade({
         },
       }),
     onSuccess: () => {
-      setTexto(""); setLink(""); setArquivo(null);
+      setTexto(""); setLink(""); setArquivo(null); setArquivoPreview(null);
       if (fileRef.current) fileRef.current.value = "";
       recarregar();
     },
@@ -181,10 +197,10 @@ export function Comunidade({
         {arquivo && (
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted/50 p-2 text-sm">
             {arquivo.kind === "imagem"
-              ? <img src={arquivo.url} alt="" className="size-10 rounded object-cover" />
+              ? <img src={arquivoPreview ?? arquivo.url} alt="" className="size-10 rounded object-cover" />
               : <FileText className="size-5 text-muted-foreground" />}
             <span className="min-w-0 flex-1 truncate">{arquivo.nome}</span>
-            <button onClick={() => setArquivo(null)} className="text-muted-foreground hover:text-foreground">
+            <button onClick={() => { setArquivo(null); setArquivoPreview(null); }} className="text-muted-foreground hover:text-foreground">
               <X className="size-4" />
             </button>
           </div>

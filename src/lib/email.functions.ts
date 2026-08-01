@@ -120,6 +120,14 @@ export const sendMentorEmail = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
 
+    // TTL longo de propósito — ver o comentário de TTL_LOGO_EMAIL_SEGUNDOS: o
+    // email é aberto dias ou meses depois, sem nenhuma "visita" que renove o link.
+    if (perfil?.logo_url) {
+      const { assinarUrl, TTL_LOGO_EMAIL_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      perfil.logo_url = await assinarUrl(supabaseAdmin, perfil.logo_url, TTL_LOGO_EMAIL_SEGUNDOS);
+    }
+
     const modeloDoMentor =
       data.kind === "convite" ? perfil?.invite_message
       : data.kind === "lembrete" ? perfil?.reminder_message
@@ -174,6 +182,12 @@ export const sendTestEmail = createServerFn({ method: "POST" })
     const { data: perfil } = await context.supabase
       .from("profiles").select("company_name, logo_url, brand_color, site_url, support_email, email_from")
       .eq("user_id", userId).maybeSingle();
+
+    if (perfil?.logo_url) {
+      const { assinarUrl, TTL_LOGO_EMAIL_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      perfil.logo_url = await assinarUrl(supabaseAdmin, perfil.logo_url, TTL_LOGO_EMAIL_SEGUNDOS);
+    }
 
     const assunto = "Teste de envio — Métrica Humana";
     const resultado = await enviarEmail({

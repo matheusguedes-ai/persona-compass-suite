@@ -129,7 +129,14 @@ export const agendaDoMes = createServerFn({ method: "GET" })
       .order("quando");
     if (eE2) throw new Error(eE2.message);
 
-    for (const e of evs ?? []) {
+    const listaEventos = evs ?? [];
+    const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const imagensAssinadas = await assinarUrls(
+      supabaseAdmin, listaEventos.map((e) => e.imagem_url), TTL_ARQUIVO_SEGUNDOS,
+    );
+
+    listaEventos.forEach((e, i) => {
       compromissos.push({
         id: e.id,
         person_id: "",
@@ -140,14 +147,14 @@ export const agendaDoMes = createServerFn({ method: "GET" })
         tipo: "evento",
         descricao: e.descricao,
         termina_em: e.termina_em,
-        imagem_url: e.imagem_url,
+        imagem_url: imagensAssinadas[i],
         link_url: e.link_url,
         // Evento que nasceu de uma aula do Classroom. A tela diz isso porque,
         // sem o aviso, apagá-lo aqui pareceria não funcionar: ele volta no
         // próximo salvamento da aula, que é a fonte dele.
         de_aula: !!e.aula_id,
       });
-    }
+    });
     compromissos.sort((a, b) => a.quando.localeCompare(b.quando));
 
     return { compromissos };

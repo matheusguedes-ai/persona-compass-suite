@@ -7,6 +7,7 @@ import { getMyMembership } from "@/lib/team.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandMark, MARCA_PADRAO } from "@/lib/brand";
 import { AvatarUpload } from "@/components/avatar-upload";
+import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,6 +85,12 @@ function ConfiguracoesPage() {
   const [brandColor, setBrandColor] = useState("#164e63");
   const [accentColor, setAccentColor] = useState("#0e7490");
   const [logoUrl, setLogoUrl] = useState("");
+  // O bucket 'marca' é privado: logoUrl guarda o IDENTIFICADOR (o que salva).
+  // Isto guarda a versão ASSINADA de um upload feito NESTA sessão, só para o
+  // <img> ter o que mostrar antes de salvar. `null` cai no fallback — o que já
+  // veio assinado de getMyProfile, ao abrir a tela.
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const previaLogoFn = useServerFn(assinarMeuEnvio);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [siteUrl, setSiteUrl] = useState("");
   const [supportEmail, setSupportEmail] = useState("");
@@ -104,6 +111,7 @@ function ConfiguracoesPage() {
     setBrandColor(p.brand_color ?? "#164e63");
     setAccentColor(p.brand_accent_color ?? "#0e7490");
     setLogoUrl(p.logo_url ?? "");
+    setLogoPreview(null);
     setAvatarUrl(p.avatar_url ?? null);
     setSiteUrl(p.site_url ?? "");
     setSupportEmail(p.support_email ?? "");
@@ -157,6 +165,13 @@ function ConfiguracoesPage() {
       });
       if (error) throw new Error(error.message);
       const { data: pub } = supabase.storage.from("marca").getPublicUrl(caminho);
+      // Pede ao servidor a versão assinada deste MESMO arquivo que acabei de
+      // enviar, só para o preview — o bucket privado não deixa o navegador
+      // assinar sozinho. Se falhar, ainda salva certo; só o preview imediato
+      // fica sem imagem até recarregar.
+      try {
+        setLogoPreview((await previaLogoFn({ data: { url: pub.publicUrl } })).url);
+      } catch { /* sem preview agora — não impede salvar */ }
       setLogoUrl(pub.publicUrl);
       saveConta.mutate({ logo_url: pub.publicUrl });
     } catch (e) {
@@ -169,7 +184,7 @@ function ConfiguracoesPage() {
 
   const previewBrand = {
     company_name: companyName || null,
-    logo_url: logoUrl || null,
+    logo_url: logoPreview ?? (logoUrl || null),
     brand_color: brandColor,
     brand_accent_color: accentColor,
   };
@@ -274,7 +289,7 @@ function ConfiguracoesPage() {
               <Label>Logo</Label>
               <div className="flex flex-wrap items-center gap-3">
                 {logoUrl && (
-                  <img src={logoUrl} alt="Logo" className="h-10 max-w-40 rounded object-contain ring-1 ring-black/5" />
+                  <img src={logoPreview ?? logoUrl} alt="Logo" className="h-10 max-w-40 rounded object-contain ring-1 ring-black/5" />
                 )}
                 <input
                   ref={fileRef}
@@ -287,7 +302,7 @@ function ConfiguracoesPage() {
                   {enviando ? <><Loader2 className="size-4 animate-spin" /> Enviando…</> : <><ImageUp className="size-4" /> {logoUrl ? "Trocar imagem" : "Escolher imagem"}</>}
                 </Button>
                 {logoUrl && (
-                  <Button type="button" variant="ghost" onClick={() => { setLogoUrl(""); saveConta.mutate({ logo_url: null }); }}>
+                  <Button type="button" variant="ghost" onClick={() => { setLogoUrl(""); setLogoPreview(null); saveConta.mutate({ logo_url: null }); }}>
                     <Trash2 className="size-4" /> Remover
                   </Button>
                 )}

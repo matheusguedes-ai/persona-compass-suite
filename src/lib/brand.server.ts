@@ -64,10 +64,13 @@ export async function loadBrandAndSettings(
   // Marca desligada nas configurações não deve vazar para a página pública.
   if (!settings.show_brand) return { brand: null, settings };
 
+  const { assinarUrl, TTL_MARCA_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+  const logoAssinado = await assinarUrl(supabase, data.logo_url, TTL_MARCA_SEGUNDOS);
+
   return {
     brand: {
       company_name: data.company_name,
-      logo_url: data.logo_url,
+      logo_url: logoAssinado,
       brand_color: data.brand_color,
       brand_accent_color: data.brand_accent_color,
       site_url: data.site_url,

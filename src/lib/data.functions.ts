@@ -533,9 +533,12 @@ export const getMyProfile = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     const email = (context.claims as { email?: string })?.email ?? null;
     if (data) {
-      const { assinarUrl, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+      const { assinarUrl, TTL_AVATAR_SEGUNDOS, TTL_MARCA_SEGUNDOS } = await import("@/lib/storage-assinado.server");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      data.avatar_url = await assinarUrl(supabaseAdmin, data.avatar_url, TTL_AVATAR_SEGUNDOS);
+      [data.avatar_url, data.logo_url] = await Promise.all([
+        assinarUrl(supabaseAdmin, data.avatar_url, TTL_AVATAR_SEGUNDOS),
+        assinarUrl(supabaseAdmin, data.logo_url, TTL_MARCA_SEGUNDOS),
+      ]);
     }
     return { profile: data, email, user_id: context.userId };
   });
@@ -596,6 +599,18 @@ export const upsertConfiguracoesConta = createServerFn({ method: "POST" })
     const limpo: Record<string, unknown> = Object.fromEntries(
       Object.entries(data).map(([k, v]) => [k, v === "" ? null : v]),
     );
+    // A aba "Marca" carrega o logo já ASSINADO (ver getMyProfile) e reenvia
+    // esse mesmo valor ao salvar outro campo (cor, site…) sem trocar o logo —
+    // preserva o identificador já gravado em vez de persistir um link que
+    // expira em minutos.
+    if (typeof limpo.logo_url === "string") {
+      const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+      if (ehUrlAssinadaNossa(limpo.logo_url)) {
+        const { data: atual } = await context.supabase
+          .from("profiles").select("logo_url").eq("user_id", context.userId).maybeSingle();
+        limpo.logo_url = atual?.logo_url ?? null;
+      }
+    }
     const { data: row, error } = await context.supabase
       .from("profiles")
       .upsert({ user_id: context.userId, ...limpo }, { onConflict: "user_id" })

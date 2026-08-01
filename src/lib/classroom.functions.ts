@@ -1063,6 +1063,11 @@ async function avisarPresenca(
       .eq("user_id", contaId)
       .maybeSingle();
 
+    if (perfil?.logo_url) {
+      const { assinarUrl, TTL_LOGO_EMAIL_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+      perfil.logo_url = await assinarUrl(supabaseAdmin, perfil.logo_url, TTL_LOGO_EMAIL_SEGUNDOS);
+    }
+
     const assunto = `Presença confirmada — ${aula}`;
     const resultado = await enviarEmail({
       to: pessoa.email,

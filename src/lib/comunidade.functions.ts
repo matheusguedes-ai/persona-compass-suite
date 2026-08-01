@@ -111,11 +111,19 @@ export const listarFeed = createServerFn({ method: "GET" })
     }));
     if (error) throw new Error(error.message);
 
+    const listaPosts = posts ?? [];
+    const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const arquivosAssinados = await assinarUrls(
+      supabaseAdmin, listaPosts.map((p) => p.file_url), TTL_ARQUIVO_SEGUNDOS,
+    );
+
     const eu = context.userId;
     return {
       eu,
-      posts: (posts ?? []).map((p) => ({
+      posts: listaPosts.map((p, i) => ({
         ...p,
+        file_url: arquivosAssinados[i],
         meu: p.author_id === eu,
         // Só aparece lixeira em post alheio para quem realmente pode moderar.
         modero: podeModerar.has(p.id),

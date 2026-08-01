@@ -15,6 +15,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { criarEvento } from "@/lib/gestao.functions";
 import { meusGrupos } from "@/lib/comunidade.functions";
 import { listarPessoasParaEscolher } from "@/lib/data.functions";
+import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -33,6 +34,7 @@ export function NovoEvento() {
   const criar = useServerFn(criarEvento);
   const gruposFn = useServerFn(meusGrupos);
   const pessoasFn = useServerFn(listarPessoasParaEscolher);
+  const previaFn = useServerFn(assinarMeuEnvio);
 
   const [aberto, setAberto] = useState(false);
   const [titulo, setTitulo] = useState("");
@@ -41,6 +43,10 @@ export function NovoEvento() {
   const [terminaEm, setTerminaEm] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [imagemUrl, setImagemUrl] = useState<string | null>(null);
+  // O bucket 'eventos' é privado: imagemUrl guarda o IDENTIFICADOR (o que
+  // salva). Isto guarda a versão ASSINADA do upload desta sessão, só para o
+  // <img> ter o que mostrar antes de salvar.
+  const [imagemPreview, setImagemPreview] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   async function enviarImagem(f: File) {
@@ -55,6 +61,13 @@ export function NovoEvento() {
       const { error } = await supabase.storage.from("eventos").upload(caminho, f);
       if (error) throw new Error(erroDeUpload(error, "eventos"));
       const { data: pub } = supabase.storage.from("eventos").getPublicUrl(caminho);
+      // Pede ao servidor a versão assinada deste MESMO arquivo que acabei de
+      // enviar, só para o preview — o bucket privado não deixa o navegador
+      // assinar sozinho. Se falhar, ainda salva certo; só o preview imediato
+      // fica sem imagem até recarregar.
+      try {
+        setImagemPreview((await previaFn({ data: { url: pub.publicUrl } })).url);
+      } catch { /* sem preview agora — não impede salvar */ }
       setImagemUrl(pub.publicUrl);
     } catch (e) {
       toast.error((e as Error).message);
@@ -95,7 +108,7 @@ export function NovoEvento() {
       qc.invalidateQueries({ queryKey: ["agenda"] });
       setAberto(false);
       setTitulo(""); setDescricao(""); setQuando(""); setTerminaEm("");
-      setLinkUrl(""); setImagemUrl(null); setGrupos([]); setPessoas([]);
+      setLinkUrl(""); setImagemUrl(null); setImagemPreview(null); setGrupos([]); setPessoas([]);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -154,9 +167,9 @@ export function NovoEvento() {
             <Label>Imagem (opcional)</Label>
             {imagemUrl ? (
               <div className="relative mt-1 overflow-hidden rounded-lg">
-                <img src={imagemUrl} alt="" className="h-28 w-full object-cover" />
+                <img src={imagemPreview ?? imagemUrl} alt="" className="h-28 w-full object-cover" />
                 <button
-                  onClick={() => setImagemUrl(null)}
+                  onClick={() => { setImagemUrl(null); setImagemPreview(null); }}
                   className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white"
                   title="Remover imagem"
                 >

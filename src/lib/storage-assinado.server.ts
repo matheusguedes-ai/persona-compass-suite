@@ -1,5 +1,6 @@
 /**
- * Assina URLs de arquivo dos buckets privados 'biblioteca' e 'avatares'.
+ * Assina URLs de arquivo dos buckets privados 'biblioteca', 'avatares',
+ * 'marca', 'eventos' e 'comunidade'.
  *
  * O que fica gravado no banco continua sendo a URL no formato que
  * `getPublicUrl()` monta no navegador
@@ -17,18 +18,35 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Material, capa e banner: refeita a cada carregamento de tela, prazo curto. */
+type BucketAssinavel = "biblioteca" | "avatares" | "marca" | "eventos" | "comunidade";
+
+/** Material, capa, banner de evento e anexo de post: refeita a cada carregamento de tela, prazo curto. */
 export const TTL_ARQUIVO_SEGUNDOS = 10 * 60;
 /** Avatar: aparece em várias listas ao mesmo tempo; prazo maior evita foto quebrada em navegação normal. */
 export const TTL_AVATAR_SEGUNDOS = 60 * 60;
+/** Marca (logo): aparece em toda tela — menu, entrada, relatório. Prazo curto criaria logo quebrado sem ganho. */
+export const TTL_MARCA_SEGUNDOS = 60 * 60;
+/**
+ * Logo dentro de um EMAIL já enviado, fora do padrão dos outros TTLs.
+ *
+ * As outras telas RECARREGAM a cada visita — um link de 10 min ou 1h vale
+ * porque a próxima visita já pede um novo. Email é o oposto: `montarHtml()`
+ * gera o HTML uma vez, no envio, e o cliente de email (Gmail, Outlook, app do
+ * celular) busca a imagem sempre que a pessoa abre ou reabre a mensagem —
+ * podem ser dias ou meses depois, sem nenhuma "visita" que renove o link. Um
+ * TTL curto aqui apagaria o logo de todo email já mandado, quase na hora.
+ * 30 dias é um meio-termo: cobre a esmagadora maioria das aberturas reais sem
+ * virar uma credencial eternamente válida.
+ */
+export const TTL_LOGO_EMAIL_SEGUNDOS = 30 * 24 * 60 * 60;
 
-const PADRAO_NOSSO_STORAGE = /\/storage\/v1\/object\/public\/(biblioteca|avatares)\/(.+)$/;
+const PADRAO_NOSSO_STORAGE = /\/storage\/v1\/object\/public\/(biblioteca|avatares|marca|eventos|comunidade)\/(.+)$/;
 
 /** Exportada para quem precisa decidir algo sobre bucket+caminho antes de assinar (ex.: checar dono). */
-export function partirUrl(url: string): { bucket: "biblioteca" | "avatares"; caminho: string } | null {
+export function partirUrl(url: string): { bucket: BucketAssinavel; caminho: string } | null {
   const m = url.match(PADRAO_NOSSO_STORAGE);
   if (!m) return null;
-  return { bucket: m[1] as "biblioteca" | "avatares", caminho: decodeURIComponent(m[2]) };
+  return { bucket: m[1] as BucketAssinavel, caminho: decodeURIComponent(m[2]) };
 }
 
 /**
@@ -53,7 +71,7 @@ export async function assinarUrl(
   return data.signedUrl;
 }
 
-const PADRAO_URL_ASSINADA = /\/storage\/v1\/object\/sign\/(biblioteca|avatares)\//;
+const PADRAO_URL_ASSINADA = /\/storage\/v1\/object\/sign\/(biblioteca|avatares|marca|eventos|comunidade)\//;
 
 /**
  * É uma URL ASSINADA (a de exibir), não o identificador cru (a de gravar)?
@@ -84,7 +102,7 @@ export async function assinarUrls(
   ttlSegundos: number,
 ): Promise<Array<string | null>> {
   const resultado: Array<string | null> = urls.map((u) => u ?? null);
-  const porBucket = new Map<"biblioteca" | "avatares", Array<{ idx: number; caminho: string }>>();
+  const porBucket = new Map<BucketAssinavel, Array<{ idx: number; caminho: string }>>();
 
   urls.forEach((u, idx) => {
     if (!u) return;
