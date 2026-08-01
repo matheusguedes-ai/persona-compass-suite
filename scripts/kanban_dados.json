@@ -2329,6 +2329,16 @@
       "prioridade": 233,
       "origem": "Claude Code, 01/08, ao corrigir a #232 — achou o próprio conserto preso num branch",
       "prova": "O risco não é o código perdido, é o kanban mentir. Se uma demanda estava feita e marcada como pendente, outras podem estar no mesmo estado — e o inverso também: marcada como concluída com o trabalho parado num branch. A capa da trilha (ecstatic-bun) é trabalho real de hoje esperando decisão."
+    },
+    {
+      "titulo": "Editar pergunta de escala linear apaga 'reverse' e 'check_group'",
+      "descricao": "O editor salva o config com cinco campos fixos — onUpdate({min,max,minLabel,maxLabel,dimension_id}) — sobrescrevendo o config inteiro. Toda edição de uma pergunta de escala linear APAGA as outras chaves: 'reverse' (a inversão de metade dos itens do Big Five) e 'check_group' (o par de checagem que alimenta o selo de confiabilidade). O resultado do teste continua saindo, errado, com cara de certo. O conserto são 3 linhas: espalhar o config existente antes de sobrescrever.",
+      "area": "Testes",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 234,
+      "origem": "Chat, 01/08, ao avaliar o branch keen-chebyshev — o Code apontou o sintoma, o chat achou que a causa era outra",
+      "prova": "ATIVO em produção. O conserto existe pronto e não commitado no worktree keen-chebyshev-176740 (_app.testes.$versionId.editar.tsx): troca onUpdate({...5 campos}) por onUpdate({...cfg, ...}). NÃO trazer o branch inteiro: a outra metade dele (remapear dimensão ao duplicar) JÁ está na main desde 815a3b3, por outro caminho e melhor. E a migração SQL que ele traz é desnecessária — conferi as 50 perguntas de escala linear e nenhuma aponta para dimensão de outra versão. Extrair só o conserto do editor."
     }
   ],
   "planilha": {
