@@ -2344,11 +2344,11 @@
       "titulo": "Ícone da conta e app instalável no celular (manifest)",
       "descricao": "Quando o dono sobe um ícone, ele deve ser a imagem que aparece na tela do celular de quem instalar a plataforma como aplicativo — dele e do aluno. HOJE NADA DISSO EXISTE: não há campo de ícone nas Configurações (o profile só tem logo_url), não há manifest, e a plataforma NÃO é instalável. Só existe um favicon.ico fixo da plataforma. Precisa de: campo de ícone, manifest gerado por conta (nome + ícone + cor da marca) e as meta tags de app.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Em andamento",
       "depende_de": "Claude",
       "prioridade": 235,
       "origem": "Matheus, 01/08: 'o ícone deve ser a imagem na tela do celular em modo aplicativo'",
-      "prova": "É o PRIMEIRO PASSO da demanda do app do aluno (PWA) — fazer o manifest dinâmico já torna a plataforma instalável, que era o caminho recomendado ali. Depende da #219 estar resolvida: o manifest tem de servir a marca do DONO da conta, não a de quem está logado — senão o aluno instala com o ícone padrão da plataforma."
+      "prova": "CÓDIGO PRONTO, publicado e parcialmente provado — falta só o upload de verdade, travado por um bug de infraestrutura sem relação com esta demanda (ver #245). Campo de ícone em Configurações (separado da logo, recorte quadrado, bucket 'marca'); rota /api/icone/$tamanho que assina por dentro a cada pedido (nunca expira, ao contrário de uma URL assinada de validade longa — decisão escrita no código); /api/manifest por conta; ressalva de multiconta escrita em resolveContaUnica(). Provado em produção: manifest reflete nome/cor reais da conta; ícone cai no favicon padrão quando não configurado (302); bundle confirmado no ar. Bloqueado: subir um ícone de teste falha com RLS negada no Storage — mesmo bug do #245, testado também no logo e no avatar (sem mexer em nenhum dos dois) e falha igual — não é bug desta demanda."
     },
     {
       "titulo": "Tirar 'Novo Envio' da barra superior — vai para dentro de Testes",
@@ -2439,6 +2439,16 @@
       "prioridade": 244,
       "origem": "Claude Code, 03/08, achado ao provar #239 em produção com login real de colaborador",
       "prova": "Fechado em 89f8d0c. _app.classroom.index.tsx e classroom-view.tsx (a tela de UM treinamento — achada no caminho, mesma classe) passam a checar isError e mostrar a mensagem do servidor, mesmo padrão do #232. Testado local com colaborador de teste sem permissão: as duas telas mostram 'Você não tem acesso a esta área.' em vez do estado vazio comum. Dono continua vendo tudo normal (lista e o treinamento aberto, com edição) — sem regressão. Dados de teste apagados ao final."
+    },
+    {
+      "titulo": "TODO upload de arquivo está quebrado em produção (RLS rejeita o storage)",
+      "descricao": "Qualquer envio de arquivo pelo navegador — logo, ícone, foto de perfil, e provavelmente capa de material da Biblioteca, banner de evento, post de comunidade e anexo de mentoria (mesma policy) — falha com '403: new row violates row-level security policy'. Achado tentando testar o upload do ícone novo (#235), NÃO é bug dessa demanda: confirmei testando logo e avatar (sem mexer em nenhum dos dois) e os dois falham exatamente igual.",
+      "area": "Segurança / RLS",
+      "status": "Planejado",
+      "depende_de": "Matheus",
+      "prioridade": 245,
+      "origem": "Claude Code, 03/08 — achado ao testar o upload da #235 com login real em produção",
+      "prova": "Reproduzido 4 vezes (ícone x2, logo, avatar), sessão real do Matheus, produção. O JWT enviado é válido — sub correto, exp no futuro, alg ES256 (chave de assinatura nova/assimétrica) — e o MESMO token funciona perfeitamente em chamadas de servidor (getMyProfile, via context.supabase, que manda esse token como Authorization fixo — Postgres/PostgREST resolve auth.uid() certo). O que falha é especificamente a API de Storage: mesmo Authorization e apikey corretos, RLS negada. A policy em si está certa (conferida no painel: (storage.foldername(name))[1] = auth.uid()::text, igual em todos os buckets). Hipótese mais provável: o serviço de Storage ainda não reconhece a verificação das NOVAS JWT Signing Keys (assimétricas) que este projeto usa. Não mexi em nada: Settings → JWT Keys do painel trava carregando (tela em branco) em toda tentativa; e mudar chave JWT é alto risco (pode derrubar sessão de todo mundo). Nenhum dado vazou ou ficou incompleto — todo teste falhou ANTES de gravar qualquer coisa."
     }
   ],
   "planilha": {
