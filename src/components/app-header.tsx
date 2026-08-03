@@ -1,5 +1,5 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Search, Plus, LogOut } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Search, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/lib/role-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,11 +37,6 @@ export function AppHeader() {
         <VerComoAluno />
         <Button variant="outline" size="sm" onClick={signOut}>
           <LogOut className="size-4" /> Sair
-        </Button>
-        <Button asChild size="sm">
-          <Link to="/envios/novo" search={{ personId: undefined, groupId: undefined }}>
-            <Plus className="size-4" /> Novo Envio
-          </Link>
         </Button>
       </div>
     </header>
