@@ -2429,6 +2429,16 @@
       "prioridade": 243,
       "origem": "Matheus, 03/08: viu a mentoria do 'Fulado de Tal' na prévia da Laila",
       "prova": "Fechado em 5bdd17b (ponto de retorno em 1c0ec23). Confirmado: agendaDoMes tinha DUAS falhas (mentorias E eventos, este segundo porque posso_ver_evento também libera o dono para a conta inteira). Varredura achou o MESMO esquecimento em mais 5 funções: getMinhasMentorias (sem filtro nenhum na prévia — mostrava a conta inteira), listTreinamentos (mostrava treinamento de grupo que a pessoa nem está — confirmado lendo posso_ver_treinamento), getTreinamento (anotações do professor e presença 'estive' vinham do dono, não da pessoa pré-visualizada), rankingDoGrupo (destacava a linha errada como 'você'). Todas corrigidas com o mesmo padrão preview_person_id. Achado à parte (não corrigido aqui, fora do escopo desta demanda): getMyMembership não sabe prever papel de um MENTOR promovido, então a prévia de um mentor aparece sempre como aluno comum. PROVADO com login real em produção: prévia da Laila Ferreira NÃO mostra a mentoria de 'Fulado de Tal' (agenda e mentorias, ambas vazias); prévia de 'Fulado de Tal' mostra a própria mentoria (02/08 18:12, resumo e avaliação corretos); dono em /agenda continua vendo tudo, inclusive a de Fulado de Tal. Não provado ao vivo: aluno real logado (Gabriela) vendo só o dele — o classificador de segurança bloqueou o login automatizado por magic link. Confiança por revisão de código: o caminho do aluno real é EXATAMENTE o mesmo código de antes (só ganhou um novo `if` que só ativa com preview_person_id)."
+    },
+    {
+      "titulo": "Classroom do dono mente sobre falta de acesso, igual ao #232",
+      "descricao": "_app.classroom.index.tsx usa `const { data: treinamentos = [] } = useQuery(...)` sem checar isError — um colaborador barrado por exigirVisitante (#239) vê 'Nenhum treinamento ainda, crie o primeiro' em vez de 'Você não tem acesso a esta área.'. Mesma classe do #232, mas essa tela específica nunca entrou naquela varredura.",
+      "area": "Classroom",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 244,
+      "origem": "Claude Code, 03/08, achado ao provar #239 em produção com login real de colaborador",
+      "prova": "CONFIRMADO em produção: a chamada de listTreinamentos devolveu {\"error\":{\"message\":\"Você não tem acesso a esta área.\"}} (a segurança do #239 está intacta — nenhum dado vaza), mas a tela renderizou o estado vazio comum porque não olha pro erro do useQuery. Não é vazamento de dado — é o mesmo tipo de mentira de UI que o #232 corrigiu em outras 3 telas. Não corrigido nesta demanda por instrução explícita do Matheus ('nada além disso', 'nada de código novo')."
     }
   ],
   "planilha": {
