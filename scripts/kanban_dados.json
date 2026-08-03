@@ -2324,11 +2324,11 @@
       "titulo": "Varredura completa: o kanban mente sobre o que já está pronto",
       "descricao": "Duas provas em 01/08 de que o quadro não é confiável. PRIMEIRA: trabalho pronto preso em branch que nunca chegou à main (claude/lucid-burnell tinha a correção da #232 feita e testada; claude/keen-chebyshev tinha um conserto de escala linear nunca commitado, que virou a #234). SEGUNDA, e pior: SEIS demandas de Agenda marcadas como pendentes já estavam prontas — a conexão com o Google funciona e sincronizou evento hoje, a renovação de token existe, o fim do evento é enviado. Varrer TODAS as áreas, não só permissão/buckets/mentorias.",
       "area": "Gestão do projeto",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 233,
       "origem": "Claude Code, 01/08, ao corrigir a #232 — achou o próprio conserto preso num branch",
-      "prova": "A primeira varredura (feita pelo Code em 01/08) cobriu só permissão, buckets e mentorias — e nessas três não achou divergência. Agenda não foi olhada, e era onde estava o buraco. O chat passou a sessão inteira recomendando '30 minutos no console do Google' para destravar dez demandas que já estavam destravadas. Enquanto a varredura não cobrir tudo, nenhuma contagem do quadro vale, e o roadmap prioriza pelo motivo errado."
+      "prova": "Fechado em 03/08. A varredura completa das 11 áreas foi feita e entregue: 237 demandas conferidas, 36 registros errados achados (17 já feitas sem registro, ~19 dadas como feitas sem estar no ar, 6 genuinamente quebradas) — o Matheus conferiu os 3 mais graves por fora e todos procederam. Restava só decidir o branch órfão claude/ecstatic-bun-50995d (capa da trilha com upload e recorte, achado ao lado da #234/#232). Revisado hoje: fazia sentido — mesmo padrão já usado em material/pasta/banner (#23), nada mudou nesses arquivos desde então (git log confirma zero commits em track-view.tsx/learning.functions.ts no meio termo), cherry-pick limpo, sem conflito. Testado de verdade (não só confiado na prova antiga): subi uma imagem sintética, recortei, salvei, conferi o card na prateleira mostrando a capa e o banco guardando um identificador do bucket, não o link assinado que expira. Dado de teste revertido e arquivo apagado do bucket ao final. Commit e100ccc; branch e worktree apagados."
     },
     {
       "titulo": "Editar pergunta de escala linear apaga 'reverse' e 'check_group'",
