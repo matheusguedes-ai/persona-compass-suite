@@ -2404,11 +2404,11 @@
       "titulo": "A receita de conserto do #114 reabre 3 funções fechadas por segurança",
       "descricao": "A prova do #114 recomenda rodar reconceder_grants() para reparar permissões. Quem seguir isso hoje REABRE três funções que foram fechadas de propósito depois, no trabalho de segurança de 30/07.",
       "area": "Segurança / RLS",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 241,
       "origem": "Varredura completa do Claude Code, 03/08",
-      "prova": "Conserto pequeno: ajustar a lista de exceções da função. O perigo é o texto do quadro virar instrução para alguém no futuro."
+      "prova": "Fechado em 311c894, migration 20260803010000_grants_excecoes_completa.sql. CONFERIDO POR FORA pelo chat: grants_excecoes() agora devolve as SEIS funções que devem ficar sem GRANT — track_liberada_para, bib_pasta_liberada_para, bib_material_liberado_para (as antigas) mais grants_faltando, reconceder_grants e retrato_do_schema (as três fechadas no trabalho de segurança de 30/07). Aplicada no banco, não só no arquivo. Agora quem seguir a receita do #114 não reabre nada. RESSALVA DE PROCESSO: o Code consertou e esqueceu de mover no kanban — o commit 9c931ff menciona #239, #236 e #232, mas não esta. Foi o chat que pegou na conferência."
     },
     {
       "titulo": "export_logs está vazia apesar da prova do #21 dizer o contrário",
