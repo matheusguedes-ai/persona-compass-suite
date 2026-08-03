@@ -627,7 +627,7 @@
       "status": "Precisa de melhorias",
       "depende_de": "Matheus",
       "origem": "migracao-supabase-proprio.md § Falta ainda",
-      "prova": "Não é vazamento: combinado com a #227, um estranho que se cadastra cai numa conta vazia e isolada, sem alcançar nada da conta do Matheus. Mas é porta destrancada que ninguém sabia estar aberta. Decidir as duas coisas juntas: a confirmação de e-mail e se o cadastro deve aceitar quem não foi convidado.",
+      "prova": "Não é vazamento: combinado com a #227, um estranho que se cadastra cai numa conta vazia e isolada, sem alcançar nada da conta do Matheus. Mas é porta destrancada que ninguém sabia estar aberta. Decidir as duas coisas juntas: a confirmação de e-mail e se o cadastro deve aceitar quem não foi convidado. DIAGNÓSTICO (03/08, sem mexer em nada): as duas chaves ficam na MESMA tela do painel do Supabase — Authentication (cadeado, menu à esquerda) → \"Sign In / Providers\" → aba \"Supabase Auth\" (já vem selecionada) → seção \"User Signups\". Lá tem \"Allow new users to sign up\" (hoje LIGADO — desligar fecha o cadastro público) e \"Confirm email\" (hoje LIGADO — desligar volta ao que era antes de 31/07). Botão \"Save changes\" no fim da seção. O QUE QUEBRA se \"Allow new users to sign up\" for desligado: NADA dos dois fluxos que perguntou. Convite de equipe (team.functions.ts, criarContaDoConvite) e primeiro acesso do aluno (acesso-aluno.functions.ts, solicitarAcessoAluno) usam admin.createUser/admin.generateLink com a chave de serviço, no servidor — não passam pelo cadastro público. O ÚNICO caminho que usa signUp() de verdade é o botão \"Criar agora\" da tela de login (auth.tsx:113), que é justamente a porta que se quer fechar. Seguro fechar.",
       "prioridade": 63
     },
     {
@@ -2374,11 +2374,11 @@
       "titulo": "Cancelar sessão de mentoria não avisa o Google — compromissos fantasma",
       "descricao": "Não existe função para cancelar uma sessão de mentoria e refletir no Google Calendar. Quem apaga a sessão no banco deixa o compromisso lá para sempre. AGORA MESMO há 3 registros em google_eventos e só 1 sessão viva: dois compromissos fantasma na agenda do Matheus, sobras da limpeza de dados de teste.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 238,
       "origem": "Varredura completa do Claude Code, 03/08 — confirmado por fora pelo chat",
-      "prova": "Conferido: google_eventos tem origem_id 5b354263 e 21cf3820 sem sessão correspondente. Vai se repetir a cada limpeza. Precisa de duas coisas: a função de cancelar (que apaga dos dois lados) e a limpeza dos dois fantasmas que já existem."
+      "prova": "FEITO E EM PRODUÇÃO. (a) Os 2 fantasmas (origem_id 5b354263 e 21cf3820) foram apagados dos dois lados: evento excluído no Google Calendar (isolei a agenda \"Métrica Humana\" no calendário do Matheus, achei os dois pelo processo de eliminação contra a única sessão real, apaguei um a um) e as 2 linhas de google_eventos apagadas via REST. (b) Construída cancelarSessaoMentoria (mentorias.functions.ts): marca a sessão \"cancelada\" (só cabe numa ainda \"agendada\") e chama sincronizar(..., null), que apaga o evento do Google e a linha de controle. PROVADO o ciclo completo: local (status muda, guarda contra cancelar 2x, não quebra sem credencial do Google) e em produção — criei um pacote+sessão de teste de verdade pelo próprio app, confirmei que um evento real foi criado no Google Calendar, chamei a função (só existe no servidor ainda, sem botão na tela) e confirmei que o evento sumiu do Google E da tabela, sem erro de sincronização. (c) Investigado: hoje NÃO existe botão de cancelar sessão em nenhum papel — o professor só tem \"Marcar como concluída\" para uma sessão agendada. Fica para o Matheus decidir se vale construir esse botão numa próxima entrega; não construí a tela agora, só a função, como pedido. Dados de teste apagados e sessão do colaborador de teste derrubada duas vezes (local e produção). Commit 8f215e9 (03/08), publicado e conferido no ar."
     },
     {
       "titulo": "Brecha de permissão no Classroom ficou fora da varredura do #226",
@@ -2419,6 +2419,16 @@
       "prioridade": 242,
       "origem": "Varredura completa do Claude Code, 03/08 — confirmado por fora pelo chat",
       "prova": "Confirmado: content-range */0. Se a gravação falha, o rastro que existe para auditoria não existe — o pior tipo de falha, porque só se descobre quando alguém precisa dele. Rodar uma exportação real e olhar a tabela na hora resolve a dúvida."
+    },
+    {
+      "titulo": "A prévia 'Ver como aluno' mostra a agenda do DONO, não a do aluno",
+      "descricao": "Na prévia de um aluno, a agenda mostra as mentorias de quem está LOGADO (o dono), não as da pessoa previsualizada. agendaDoMes filtra por people.user_id = usuário atual; na prévia isso resolve para o dono. Outras partes da prévia já recebem preview_person_id (aluno.tsx:86 passa para areasFn) — a agenda não recebe.",
+      "area": "Agenda",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 243,
+      "origem": "Matheus, 03/08: viu a mentoria do 'Fulado de Tal' na prévia da Laila",
+      "prova": "NÃO É VAZAMENTO — conferido: a Laila não tem login (user_id null), e a policy mentoria_sessoes_read recorta por my_person_ids() para aluno de verdade. É a PRÉVIA que mente. Grave assim mesmo: a prévia existe para o Matheus confiar no que o aluno vê, e ele tomou uma decisão errada olhando para ela (achou que era vazamento entre alunos). Conserto: agendaDoMes precisa aceitar preview_person_id e filtrar por ele quando presente, como areasFn já faz. VARRER as outras funções do painel do aluno atrás do mesmo padrão — se a agenda esqueceu, outras podem ter esquecido."
     }
   ],
   "planilha": {
