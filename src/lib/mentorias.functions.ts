@@ -263,6 +263,43 @@ export const agendarSessao = createServerFn({ method: "POST" })
     return { id: row.id };
   });
 
+/**
+ * Cancela uma sessão agendada — apaga dos dois lados: marca `cancelada` aqui
+ * e apaga o evento correspondente no Google (Fecha #238). Sem isto, uma sessão
+ * removida direto no banco (limpeza de dado de teste, por exemplo) deixava o
+ * compromisso para sempre na agenda do Google, porque nada avisava `sincronizar`
+ * de que aquele `origem_id` deixou de existir.
+ *
+ * Só cabe numa sessão ainda `agendada` — cancelar uma já concluída não faz
+ * sentido (o resumo já foi publicado para o aluno).
+ */
+const cancelarSessaoSchema = z.object({ id: z.string().uuid() });
+
+export const cancelarSessaoMentoria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => cancelarSessaoSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "mentorias");
+    const { data: sessao, error: eS } = await context.supabase
+      .from("mentoria_sessoes")
+      .select("id, mentor_id, status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (eS) throw new Error(eS.message);
+    if (!sessao) throw new Error("Sessão não encontrada.");
+    if (sessao.status !== "agendada") throw new Error("Só dá para cancelar uma sessão ainda agendada.");
+
+    const { error } = await context.supabase
+      .from("mentoria_sessoes").update({ status: "cancelada" }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+
+    // Mão única, silenciosa: se o Google falhar, o cancelamento aqui já valeu.
+    const { sincronizar } = await import("@/lib/google.server");
+    await sincronizar(sessao.mentor_id, "mentoria", sessao.id, null);
+
+    return { ok: true };
+  });
+
 const salvarResumoSchema = z.object({
   id: z.string().uuid(),
   duracao_real_min: z.number().int().min(1).max(600),
