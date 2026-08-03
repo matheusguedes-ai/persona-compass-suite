@@ -5,7 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { urlOpcional } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao, exigirPermissaoOuMentor, exigirAcessoAoGrupo } from "@/lib/permissao.server";
-import { exigirDono } from "@/lib/team.functions";
+import { exigirDono, membershipDoUsuario } from "@/lib/team.functions";
 
 // ============================================================
 // Instruments (public read)
@@ -541,6 +541,47 @@ export const getMyProfile = createServerFn({ method: "GET" })
       ]);
     }
     return { profile: data, email, user_id: context.userId };
+  });
+
+/**
+ * Marca para EXIBIR no painel — sidebar, cabeçalho etc. Sempre a da CONTA,
+ * nunca a do perfil de quem está logado. Um colaborador, um mentor convidado e
+ * um aluno têm perfil próprio sem marca nenhuma; se esta função lesse
+ * `profiles` pelo `context.userId` deles (como `getMyProfile`, que é para o
+ * formulário de EDITAR — só o dono chega lá), a marca do dono nunca
+ * apareceria fora do painel dele. Fecha #219.
+ *
+ * `acting_account()` não basta sozinha: ela só conhece `team_members`
+ * (mentor/colaborador), então devolve o próprio id de um ALUNO puro — que não
+ * é dono de nada, é só quem foi avaliado. Por isso usa `membershipDoUsuario`
+ * (mesma fonte de verdade de `getMyMembership`/`exigirPermissao`) e, só
+ * quando o papel é `aluno`, busca o mentor em `people.mentor_id`. Dono que
+ * também é avaliado em outra conta continua vendo a PRÓPRIA marca — o kind
+ * dele já sai `owner`, não `aluno`, então este passo extra nem roda.
+ *
+ * Reaproveita `loadBrandAndSettings`, a mesma função que já monta a marca das
+ * páginas públicas (convite, teste, relatório) — mesmo respeito ao
+ * `report_show_brand` e mesma URL assinada do logo, só muda QUEM é o id.
+ */
+export const getAccountBrand = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const membership = await membershipDoUsuario(context.supabase, context.userId);
+    let ownerId = membership.account_id;
+
+    if (membership.kind === "aluno") {
+      const { data: avaliacoes } = await context.supabase
+        .from("people")
+        .select("mentor_id, created_at")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: true })
+        .limit(1);
+      if (avaliacoes?.[0]?.mentor_id) ownerId = avaliacoes[0].mentor_id;
+    }
+
+    const { loadBrandAndSettings } = await import("@/lib/brand.server");
+    const { brand } = await loadBrandAndSettings(ownerId);
+    return { brand };
   });
 
 /**

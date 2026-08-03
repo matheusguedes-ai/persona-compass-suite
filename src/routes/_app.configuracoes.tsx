@@ -138,6 +138,10 @@ function ConfiguracoesPage() {
     mutationFn: (v: Record<string, unknown>) => saveContaFn({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-profile"] });
+      // A marca aplicada na sidebar/cabeçalho vem de outra consulta
+      // (`getAccountBrand`, ver brand.tsx) — sem isto, o dono salva e só vê a
+      // mudança na própria tela depois de recarregar a página.
+      qc.invalidateQueries({ queryKey: ["account-brand"] });
       toast.success("Alterações salvas");
     },
     onError: (e: Error) => toast.error(e.message),

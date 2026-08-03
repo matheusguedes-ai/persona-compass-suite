@@ -5,7 +5,7 @@ import { getMyMembership } from "@/lib/team.functions";
 import { minhasAreas } from "@/lib/data.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { BrandMark } from "@/lib/brand";
+import { BrandMark, BrandProvider, useBrand } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Eye, GraduationCap, LayoutList, Lock, LogOut, UserRound, MessagesSquare,
@@ -30,7 +30,14 @@ export const Route = createFileRoute("/aluno")({
       throw redirect({ to: "/auth", search: { next } });
     }
   },
-  component: AlunoLayout,
+  // Marca da conta (dono) — a mesma fonte usada no painel do mentor/dono, ver
+  // brand.tsx. Sem o Provider aqui, o menu deste layout renderizava sempre o
+  // padrão da plataforma: era o caminho que motivou a #219.
+  component: () => (
+    <BrandProvider>
+      <AlunoLayout />
+    </BrandProvider>
+  ),
 });
 
 // `area` liga o item à permissão do grupo (`groups.areas_aluno`). Sem `area` o
@@ -62,6 +69,7 @@ function areaDaRota(pathname: string): string | null {
 function AlunoLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { ver } = Route.useSearch();
+  const brand = useBrand();
   // O mentor é um avaliado promovido: mesmo painel, com Grupos a mais. Era o
   // desenho que faltava — antes ele tinha um cadastro à parte e caía no painel
   // do dono, vazio.
@@ -148,7 +156,7 @@ function AlunoLayout() {
         )}
       >
         <div className={cn("flex h-16 items-center px-4", recolhida && "justify-center px-0")}>
-          {!recolhida && <BrandMark />}
+          {!recolhida && <BrandMark brand={brand} />}
         </div>
         {navegacao}
         <button
@@ -168,7 +176,7 @@ function AlunoLayout() {
         <>
           <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setMenuAberto(false)} />
           <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-black/5 bg-card lg:hidden">
-            <div className="flex h-16 items-center px-4"><BrandMark /></div>
+            <div className="flex h-16 items-center px-4"><BrandMark brand={brand} /></div>
             {navegacao}
           </aside>
         </>
@@ -184,7 +192,7 @@ function AlunoLayout() {
             >
               <Menu className="size-4" />
             </button>
-            <div className="lg:hidden"><BrandMark /></div>
+            <div className="lg:hidden"><BrandMark brand={brand} /></div>
             <div className="ml-auto flex items-center gap-2">
               {/* O caminho de volta de quem tem conta própria E é avaliado em
                   outra. O aviso âmbar logo abaixo só aparece na PRÉVIA (`ver`);

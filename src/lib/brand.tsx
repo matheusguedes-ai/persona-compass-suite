@@ -1,13 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getMyProfile } from "@/lib/data.functions";
+import { getAccountBrand } from "@/lib/data.functions";
 
 /**
  * Marca do mentor aplicada na interface.
  *
  * Aparece em dois contextos diferentes:
- * - **logado**: a marca é a do próprio usuário (`BrandProvider`);
+ * - **logado**: a marca é a da CONTA — `acting_account()` —, nunca a do
+ *   perfil de quem está logado (`BrandProvider`, via `getAccountBrand`). O
+ *   master muda, muda para dono, colaborador, mentor convidado e aluno juntos.
  * - **página pública** (convite, teste, relatório): a marca é a do mentor DONO
  *   do link — quem abre não tem conta. Nesses casos o servidor manda a marca
  *   junto com os dados e a tela chama `useApplyBrand`.
@@ -94,27 +96,14 @@ export function useApplyBrand(b: Brand | null | undefined) {
 const BrandContext = createContext<Brand | null>(null);
 
 export function BrandProvider({ children }: { children: ReactNode }) {
-  const getFn = useServerFn(getMyProfile);
+  const getFn = useServerFn(getAccountBrand);
   const { data } = useQuery({
-    queryKey: ["my-profile"],
+    queryKey: ["account-brand"],
     queryFn: () => getFn(),
     staleTime: 60_000,
   });
 
-  const brand = useMemo<Brand | null>(() => {
-    const p = data?.profile;
-    if (!p) return null;
-    return {
-      company_name: p.company_name,
-      company_cnpj: p.company_cnpj,
-      company_seal_name: p.company_seal_name,
-      logo_url: p.logo_url,
-      brand_color: p.brand_color,
-      brand_accent_color: p.brand_accent_color,
-      site_url: p.site_url,
-      support_email: p.support_email,
-    };
-  }, [data]);
+  const brand = useMemo<Brand | null>(() => data?.brand ?? null, [data]);
 
   useApplyBrand(brand);
 
