@@ -2434,11 +2434,11 @@
       "titulo": "Classroom do dono mente sobre falta de acesso, igual ao #232",
       "descricao": "_app.classroom.index.tsx usa `const { data: treinamentos = [] } = useQuery(...)` sem checar isError — um colaborador barrado por exigirVisitante (#239) vê 'Nenhum treinamento ainda, crie o primeiro' em vez de 'Você não tem acesso a esta área.'. Mesma classe do #232, mas essa tela específica nunca entrou naquela varredura.",
       "area": "Classroom",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 244,
       "origem": "Claude Code, 03/08, achado ao provar #239 em produção com login real de colaborador",
-      "prova": "CONFIRMADO em produção: a chamada de listTreinamentos devolveu {\"error\":{\"message\":\"Você não tem acesso a esta área.\"}} (a segurança do #239 está intacta — nenhum dado vaza), mas a tela renderizou o estado vazio comum porque não olha pro erro do useQuery. Não é vazamento de dado — é o mesmo tipo de mentira de UI que o #232 corrigiu em outras 3 telas. Não corrigido nesta demanda por instrução explícita do Matheus ('nada além disso', 'nada de código novo')."
+      "prova": "Fechado em 89f8d0c. _app.classroom.index.tsx e classroom-view.tsx (a tela de UM treinamento — achada no caminho, mesma classe) passam a checar isError e mostrar a mensagem do servidor, mesmo padrão do #232. Testado local com colaborador de teste sem permissão: as duas telas mostram 'Você não tem acesso a esta área.' em vez do estado vazio comum. Dono continua vendo tudo normal (lista e o treinamento aberto, com edição) — sem regressão. Dados de teste apagados ao final."
     }
   ],
   "planilha": {
