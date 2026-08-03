@@ -621,13 +621,13 @@
       "prioridade": 62
     },
     {
-      "titulo": "Cadastro público aberto e 'Confirm email' ligado de novo",
+      "titulo": "Cadastro público fechado — só a plataforma cria conta",
       "descricao": "Conferido na API de auth em 03/08: mailer_autoconfirm=false (a confirmação está LIGADA de novo — o Matheus desligou em 31/07) e disable_signup=false (QUALQUER PESSOA da internet pode criar conta na plataforma). O segundo nunca tinha sido olhado.",
       "area": "Infra",
-      "status": "Precisa de melhorias",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "migracao-supabase-proprio.md § Falta ainda",
-      "prova": "CONFERIDO PELO CHAT em 03/08, respondendo à dúvida certa do Matheus ('e o link para o aluno se cadastrar?'). Existem CINCO caminhos de criação de conta na plataforma, e só UM é afetado por disable_signup:\n  • criar conta no fim do teste (CriarContaNoFim → concluirCadastroPeloLink) → admin.generateLink, chave de serviço → NÃO quebra\n  • primeiro acesso do aluno (solicitarAcessoAluno) → admin.generateLink → NÃO quebra\n  • convite de equipe (team.functions.ts:530) → admin.createUser → NÃO quebra\n  • link aberto /convite/$linkId → nem cria conta, leva direto a /responder → NÃO quebra\n  • aba 'criar conta' da tela /auth (auth.tsx:113, supabase.auth.signUp) → ÚNICO afetado, e é exatamente o que se quer fechar\nEm uma frase: conta criada PELA plataforma continua funcionando; conta criada por um estranho, não. Falta o Matheus desligar no painel — Authentication → Sign In/Providers → Email → desligar novos cadastros. A confirmação de e-mail fica como está: com o cadastro fechado, ela deixa de importar.",
+      "prova": "FECHADO pelo Matheus em 03/08, no painel do Supabase (Email provider → novos cadastros desligado). CONFERIDO POR FORA com teste real, não com a configuração: POST /auth/v1/signup com a chave pública devolve \"Email signups are disabled\". E o caminho de dentro continua vivo: admin/generate_link devolveu action_link normalmente, então criar conta no fim do teste, primeiro acesso e convite de equipe seguem funcionando. RESSALVA: o login com Google continua ativo e também cria conta — mas a tela de consentimento é Internal, então só e-mails @metodointencao.com.br entram. Vira porta aberta no dia em que a #61 abrir o Google para outros domínios. A confirmação de e-mail ficou LIGADA de propósito: com o cadastro fechado ela deixa de importar.",
       "prioridade": 63
     },
     {
