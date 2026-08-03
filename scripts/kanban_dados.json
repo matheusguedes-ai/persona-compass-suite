@@ -207,7 +207,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-demandas-30-07.md § C, bloco de alerta",
-      "prova": "Feito e provado em produção 01/08. Tabela nova export_logs (aditiva, RLS por acting_account()) registra quem exportou, quando, de qual CONTA (não de quem clicou — importa quando é um colaborador exportando) e quantas pessoas, nos dois formatos. Rodapé do PDF ganhou a frase de titularidade: \"Exportado por X em Y · N pessoas — Dados de propriedade de {empresa da conta}.\" Testado com login real (colaborador de teste, Excel e PDF): a resposta do servidor trouxe o rodapé com o texto exato esperado, e a tabela export_logs recebeu uma linha por exportação com owner_id da conta do dono (não do colaborador), exported_by do colaborador, formato e contagem certos — inclusive testado com seleção parcial (1 de 7 pessoas) para confirmar que row_count reflete o que foi realmente exportado, não o total da conta. Decisão #22 mantida: só cadastro sai, nenhum resultado de teste.",
+      "prova": "Feito e provado em produção 01/08. Tabela nova export_logs (aditiva, RLS por acting_account()) registra quem exportou, quando, de qual CONTA (não de quem clicou — importa quando é um colaborador exportando) e quantas pessoas, nos dois formatos. Rodapé do PDF ganhou a frase de titularidade: \"Exportado por X em Y · N pessoas — Dados de propriedade de {empresa da conta}.\" Testado com login real (colaborador de teste, Excel e PDF): a resposta do servidor trouxe o rodapé com o texto exato esperado, e a tabela export_logs recebeu uma linha por exportação com owner_id da conta do dono (não do colaborador), exported_by do colaborador, formato e contagem certos — inclusive testado com seleção parcial (1 de 7 pessoas) para confirmar que row_count reflete o que foi realmente exportado, não o total da conta. Decisão #22 mantida: só cadastro sai, nenhum resultado de teste.\n\nRECONFIRMADO em 03/08 (demanda #242): a varredura achou export_logs vazia e suspeitou de gravação silenciosamente falha. Não era isso — rodei uma exportação real de novo e a linha gravou certinha. A tabela ficou vazia porque a limpeza de dados de teste de 01/08 apagou a própria linha que provava o teste, junto com o resto do lixo. Mecanismo seguiu correto o tempo todo.",
       "prioridade": 21
     },
     {
@@ -2414,11 +2414,11 @@
       "titulo": "export_logs está vazia apesar da prova do #21 dizer o contrário",
       "descricao": "A prova do #21 (rastro da exportação) afirma que o registro foi testado. A tabela export_logs tem ZERO linhas. Ou a limpeza de dados de teste levou junto, ou a gravação falha em silêncio.",
       "area": "Pessoas / Exportação",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 242,
       "origem": "Varredura completa do Claude Code, 03/08 — confirmado por fora pelo chat",
-      "prova": "Confirmado: content-range */0. Se a gravação falha, o rastro que existe para auditoria não existe — o pior tipo de falha, porque só se descobre quando alguém precisa dele. Rodar uma exportação real e olhar a tabela na hora resolve a dúvida."
+      "prova": "Confirmado por teste real, não só por leitura de código: cliquei 'Exportar dados' de verdade (produção, sessão real do dono, Excel, 'Todas — 7 pessoas') e conferi export_logs no mesmo instante — gravou uma linha certa (owner_id e exported_by do dono, kind=pessoas, formato=xlsx, row_count=7). O CÓDIGO NUNCA TEVE BUG: dadosParaExportar grava a linha corretamente. A tabela estava vazia porque a limpeza de dados de teste do #21 original apagou o rastro do teste JUNTO com o resto — tratou uma linha real (prova de que funcionava) como lixo de teste. Corrigido: a prova do #21 abaixo ganhou esta reconfirmação; a linha de teste desta verificação também foi apagada ao final, para não inflar o histórico real do Matheus com uma exportação que ele não pediu."
     },
     {
       "titulo": "A prévia 'Ver como aluno' mostra a agenda do DONO, não a do aluno",
