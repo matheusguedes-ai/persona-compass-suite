@@ -28,13 +28,35 @@ export const TIPOS_MATERIAL_TREINAMENTO = [
 // ============================================================
 export const listTreinamentos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) =>
+    z.object({ preview_person_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ context, data: input }) => {
     const { data, error } = await context.supabase
       .from("treinamentos")
       .select("*, treinamento_grupos(count), treinamento_modulos(treinamento_aulas(count))")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).map((t) => {
+
+    // Na prévia "Ver como aluno" quem consulta é o dono, e `posso_ver_treinamento`
+    // libera o dono para QUALQUER treinamento da conta — publicado ou não, de
+    // QUALQUER grupo. O filtro de "publicado" que já existia na tela cobre só
+    // metade do problema; sem este aqui, a prévia mostrava treinamento de um
+    // grupo em que a pessoa nem está. Achado na varredura da demanda #243.
+    let liberados: Set<string> | null = null;
+    if (input.preview_person_id) {
+      const { data: membros, error: eM } = await context.supabase
+        .from("group_members").select("group_id").eq("person_id", input.preview_person_id);
+      if (eM) throw new Error(eM.message);
+      const groupIds = (membros ?? []).map((m) => m.group_id);
+      const { data: tg, error: eT } = groupIds.length
+        ? await context.supabase.from("treinamento_grupos").select("treinamento_id").in("group_id", groupIds)
+        : { data: [] as Array<{ treinamento_id: string }>, error: null };
+      if (eT) throw new Error(eT.message);
+      liberados = new Set((tg ?? []).map((t) => t.treinamento_id));
+    }
+
+    return (data ?? []).filter((t) => !liberados || liberados.has(t.id)).map((t) => {
       const grupos = t.treinamento_grupos as unknown as Array<{ count: number }>;
       const modulos = t.treinamento_modulos as unknown as Array<{
         treinamento_aulas: Array<{ count: number }>;
@@ -52,7 +74,12 @@ export const listTreinamentos = createServerFn({ method: "GET" })
 /** Treinamento inteiro com a árvore montada, para a tela do master. */
 export const getTreinamento = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d) =>
+    z.object({
+      id: z.string().uuid(),
+      preview_person_id: z.string().uuid().nullable().optional(),
+    }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: treinamento, error } = await supabase
@@ -73,7 +100,13 @@ export const getTreinamento = createServerFn({ method: "GET" })
     // As anotações moram em tabela própria com RLS só do dono (migração
     // 20260730150000): o aluno não recebe o roteiro do professor nem
     // consultando a API direto. Só vale buscar quando é o dono olhando.
-    const dono = treinamento.mentor_id === userId;
+    //
+    // `!data.preview_person_id` importa: na prévia "Ver como aluno" quem
+    // está autenticado é sempre o dono de verdade, então `mentor_id === userId`
+    // dava true mesmo pré-visualizando — e as anotações do professor, que
+    // NINGUÉM além dele deveria ver, viajavam até o navegador (o corte virava
+    // só da tela, não do servidor). Achado na varredura da demanda #243.
+    const dono = !data.preview_person_id && treinamento.mentor_id === userId;
     const anotPorAula = new Map<string, string>();
     if (dono) {
       const { data: anots, error: eAnots } = await supabase
@@ -91,15 +124,27 @@ export const getTreinamento = createServerFn({ method: "GET" })
     // aluno. Filtra pela pessoa explicitamente em vez de confiar na policy para
     // recortar: para o professor, `pres_professor` entregaria a turma inteira, e
     // o certo verde apareceria em aula a que ele nunca foi.
+    //
+    // Na prévia "Ver como aluno" quem está autenticado é o dono, não a pessoa
+    // pré-visualizada — filtrar por `people.user_id === userId` mostraria a
+    // presença do PRÓPRIO DONO (se ele tiver alguma), não a dela. Mesmo
+    // esquecimento achado em agendaDoMes, versão presença. Achado na
+    // varredura da demanda #243.
     const idsDasAulas = (mods.data ?? []).flatMap((m) =>
       ((m.treinamento_aulas as unknown as Array<{ id: string }>) ?? []).map((a) => a.id),
     );
     const { data: minhas, error: eMinhas } = idsDasAulas.length
-      ? await supabase
-          .from("treinamento_presencas")
-          .select("aula_id, situacao, escaneado_em, people!inner(user_id)")
-          .in("aula_id", idsDasAulas)
-          .eq("people.user_id", userId)
+      ? await (data.preview_person_id
+          ? supabase
+              .from("treinamento_presencas")
+              .select("aula_id, situacao, escaneado_em")
+              .in("aula_id", idsDasAulas)
+              .eq("person_id", data.preview_person_id)
+          : supabase
+              .from("treinamento_presencas")
+              .select("aula_id, situacao, escaneado_em, people!inner(user_id)")
+              .in("aula_id", idsDasAulas)
+              .eq("people.user_id", userId))
       : { data: [], error: null };
     if (eMinhas) throw new Error(eMinhas.message);
 

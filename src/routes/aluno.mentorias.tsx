@@ -46,11 +46,15 @@ function dataHoraBr(iso: string) {
 }
 
 function Mentorias() {
+  const { ver } = Route.useSearch();
   const qc = useQueryClient();
   const fn = useServerFn(getMinhasMentorias);
   const marcarFn = useServerFn(marcarTarefaMentoria);
   const avaliarFn = useServerFn(avaliarSessaoMentoria);
-  const { data, isLoading } = useQuery({ queryKey: ["minhas-mentorias"], queryFn: () => fn() });
+  const { data, isLoading } = useQuery({
+    queryKey: ["minhas-mentorias", ver ?? null],
+    queryFn: () => fn({ data: { preview_person_id: ver ?? null } }),
+  });
 
   const marcar = useMutation({
     mutationFn: (v: { tarefa_id: string; concluida: boolean }) => marcarFn({ data: v }),
@@ -88,7 +92,7 @@ function Mentorias() {
       {!isLoading && lista.length > 0 && (
         <section>
           <h2 className="mb-3 text-sm font-medium">No calendário</h2>
-          <Agenda area="aluno" somenteMinhas />
+          <Agenda area="aluno" somenteMinhas previewPersonId={ver ?? null} />
         </section>
       )}
 
@@ -155,7 +159,7 @@ function Mentorias() {
                             <input
                               type="checkbox"
                               checked={t.concluida}
-                              disabled={marcar.isPending}
+                              disabled={marcar.isPending || !!ver}
                               onChange={(e) => marcar.mutate({ tarefa_id: t.id, concluida: e.target.checked })}
                               className="size-4 rounded border-input"
                             />
@@ -202,6 +206,10 @@ function Mentorias() {
                         <p className="mt-1.5 text-sm leading-relaxed">{s.avaliacao_comentario}</p>
                       )}
                     </div>
+                  ) : ver ? (
+                    <p className="text-xs text-muted-foreground">
+                      Esta pessoa ainda não avaliou esta sessão.
+                    </p>
                   ) : (
                     <div className="space-y-2">
                       <p className="text-xs font-medium">Como foi esta sessão?</p>
@@ -236,6 +244,9 @@ function Mentorias() {
 }
 
 export const Route = createFileRoute("/aluno/mentorias")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    ver: typeof s.ver === "string" ? s.ver : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Mentorias — Métrica Humana" },

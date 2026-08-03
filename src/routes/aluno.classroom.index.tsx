@@ -12,18 +12,24 @@ import {
 } from "@/components/classroom-catalog";
 
 export const Route = createFileRoute("/aluno/classroom/")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    ver: typeof s.ver === "string" ? s.ver : undefined,
+  }),
   head: () => ({ meta: [{ title: "Classroom" }, { name: "robots", content: "noindex" }] }),
   component: ClassroomAluno,
 });
 
 function ClassroomAluno() {
+  const { ver } = Route.useSearch();
   const fn = useServerFn(listTreinamentos);
   const { data: treinamentos = [], isLoading } = useQuery({
-    queryKey: ["treinamentos"],
-    queryFn: () => fn(),
+    queryKey: ["treinamentos", ver ?? null],
+    queryFn: () => fn({ data: { preview_person_id: ver ?? null } }),
   });
   // Na prévia "Ver como aluno" quem consulta é o dono, e a RLS devolve também
-  // os rascunhos dele — o filtro mantém a prévia igual ao que o aluno vê.
+  // os rascunhos dele — o filtro mantém a prévia igual ao que o aluno vê. O
+  // recorte por grupo da pessoa pré-visualizada já vem pronto do servidor
+  // (ver preview_person_id em listTreinamentos, demanda #243).
   const lista = (treinamentos as TreinamentoCard[]).filter((t) => t.publicado);
 
   return (

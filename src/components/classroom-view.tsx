@@ -88,12 +88,19 @@ function formatarPeriodo(comeca: string | null, termina: string | null) {
 
 export type ClassroomViewBase = "/classroom" | "/aluno/classroom";
 
-export function TreinamentoView({ treinamentoId, base }: { treinamentoId: string; base: ClassroomViewBase }) {
+export function TreinamentoView({
+  treinamentoId, base, previewPersonId = null,
+}: {
+  treinamentoId: string;
+  base: ClassroomViewBase;
+  /** "Ver como aluno": de quem é a frequência/"estive" abaixo. */
+  previewPersonId?: string | null;
+}) {
   const qc = useQueryClient();
   const getFn = useServerFn(getTreinamento);
   const { data, isLoading } = useQuery({
-    queryKey: ["treinamento", treinamentoId],
-    queryFn: () => getFn({ data: { id: treinamentoId } }),
+    queryKey: ["treinamento", treinamentoId, previewPersonId],
+    queryFn: () => getFn({ data: { id: treinamentoId, preview_person_id: previewPersonId } }),
   });
   const inv = () => qc.invalidateQueries({ queryKey: ["treinamento", treinamentoId] });
 

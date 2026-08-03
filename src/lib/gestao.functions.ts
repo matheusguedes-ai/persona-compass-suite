@@ -59,6 +59,8 @@ export const agendaDoMes = createServerFn({ method: "GET" })
       ate: z.string().datetime({ offset: true }),
       /** Painel do aluno: só as sessões dele, não as da conta. */
       somenteMinhas: z.boolean().optional(),
+      /** "Ver como aluno": de quem são "as sessões dele", acima. */
+      preview_person_id: z.string().uuid().nullable().optional(),
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
@@ -79,13 +81,18 @@ export const agendaDoMes = createServerFn({ method: "GET" })
     // aluno" quem está autenticado é o DONO — e para ele a RLS entrega a conta
     // inteira. Sem este filtro, a agenda da prévia mostraria todos os
     // compromissos da conta como se fossem daquela pessoa. Foi exatamente o que
-    // aconteceu com a comunidade antes de `gruposDoAvaliado` existir.
+    // aconteceu com a comunidade antes de `gruposDoAvaliado` existir — e foi o
+    // que de fato aconteceu aqui, achado na demanda #243.
     let meus: string[] | null = null;
     if (data.somenteMinhas) {
-      const { data: eu, error: eE } = await context.supabase
-        .from("people").select("id").eq("user_id", context.userId);
-      if (eE) throw new Error(eE.message);
-      meus = (eu ?? []).map((p) => p.id);
+      if (data.preview_person_id) {
+        meus = [data.preview_person_id];
+      } else {
+        const { data: eu, error: eE } = await context.supabase
+          .from("people").select("id").eq("user_id", context.userId);
+        if (eE) throw new Error(eE.message);
+        meus = (eu ?? []).map((p) => p.id);
+      }
       if (meus.length === 0) return { compromissos: [] };
     }
 
@@ -129,7 +136,41 @@ export const agendaDoMes = createServerFn({ method: "GET" })
       .order("quando");
     if (eE2) throw new Error(eE2.message);
 
-    const listaEventos = evs ?? [];
+    let listaEventos = evs ?? [];
+
+    // MESMO problema das mentorias, versão evento: `posso_ver_evento` também
+    // libera o dono da conta para QUALQUER evento dela (é dono, publicou ou
+    // não). Na prévia, quem está autenticado é sempre o dono — então, sem este
+    // recorte, a prévia mostraria todo evento da conta como se fosse desta
+    // pessoa, o mesmo jeito que a mentoria mentia antes do conserto acima.
+    if (data.somenteMinhas && data.preview_person_id && listaEventos.length > 0) {
+      const alvo = data.preview_person_id;
+      const idsEventos = listaEventos.map((e) => e.id);
+      const { data: gruposDaPessoa, error: eG } = await context.supabase
+        .from("group_members").select("group_id").eq("person_id", alvo);
+      if (eG) throw new Error(eG.message);
+      const groupIds = (gruposDaPessoa ?? []).map((g) => g.group_id);
+
+      const [porPessoa, porGrupo] = await Promise.all([
+        context.supabase
+          .from("evento_destinos").select("evento_id")
+          .eq("person_id", alvo).in("evento_id", idsEventos),
+        groupIds.length
+          ? context.supabase
+              .from("evento_destinos").select("evento_id")
+              .in("group_id", groupIds).in("evento_id", idsEventos)
+          : Promise.resolve({ data: [] as Array<{ evento_id: string }>, error: null }),
+      ]);
+      if (porPessoa.error) throw new Error(porPessoa.error.message);
+      if (porGrupo.error) throw new Error(porGrupo.error.message);
+
+      const permitidos = new Set([
+        ...(porPessoa.data ?? []).map((d) => d.evento_id),
+        ...(porGrupo.data ?? []).map((d) => d.evento_id),
+      ]);
+      listaEventos = listaEventos.filter((e) => permitidos.has(e.id));
+    }
+
     const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const imagensAssinadas = await assinarUrls(

@@ -12,6 +12,7 @@ import { getMyMembership } from "@/lib/team.functions";
 import { Agenda } from "@/components/agenda";
 
 function Pagina() {
+  const { ver } = Route.useSearch();
   const fn = useServerFn(getMyMembership);
   const { data, isLoading } = useQuery({ queryKey: ["my-membership"], queryFn: () => fn() });
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
@@ -26,12 +27,15 @@ function Pagina() {
             : "Suas mentorias e os eventos dos seus grupos."}
         </p>
       </div>
-      <Agenda area="aluno" somenteMinhas={!ehMentor} />
+      <Agenda area="aluno" somenteMinhas={!ehMentor} previewPersonId={ver ?? null} />
     </div>
   );
 }
 
 export const Route = createFileRoute("/aluno/agenda")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    ver: typeof s.ver === "string" ? s.ver : undefined,
+  }),
   head: () => ({ meta: [{ title: "Agenda" }, { name: "robots", content: "noindex" }] }),
   component: Pagina,
 });

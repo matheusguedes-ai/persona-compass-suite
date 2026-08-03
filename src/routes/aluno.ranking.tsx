@@ -34,8 +34,8 @@ function Pagina() {
   const atual = escolhido ?? grupos[0]?.id ?? null;
 
   const { data: rank } = useQuery({
-    queryKey: ["ranking", atual],
-    queryFn: () => rankFn({ data: { group_id: atual! } }),
+    queryKey: ["ranking", atual, ver ?? null],
+    queryFn: () => rankFn({ data: { group_id: atual!, preview_person_id: ver ?? null } }),
     enabled: !!atual,
   });
   const { data: meus } = useQuery({

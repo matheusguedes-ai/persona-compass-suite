@@ -55,11 +55,14 @@ export function Agenda({
   area = "dono",
   somenteMinhas = false,
   podeCriar = false,
+  previewPersonId = null,
 }: {
   area?: "dono" | "aluno";
   somenteMinhas?: boolean;
   /** Só o master cria evento — o mentor não publica novidade para os grupos. */
   podeCriar?: boolean;
+  /** "Ver como aluno": de quem são "as minhas" sessões, quando somenteMinhas. */
+  previewPersonId?: string | null;
 }) {
   const hoje = new Date();
   const [ref, setRef] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1));
@@ -88,8 +91,8 @@ export function Agenda({
 
   const fn = useServerFn(agendaDoMes);
   const { data, isLoading } = useQuery({
-    queryKey: ["agenda", de, ate, somenteMinhas],
-    queryFn: () => fn({ data: { de, ate, somenteMinhas } }),
+    queryKey: ["agenda", de, ate, somenteMinhas, previewPersonId],
+    queryFn: () => fn({ data: { de, ate, somenteMinhas, preview_person_id: previewPersonId } }),
   });
 
   const compromissos = data?.compromissos ?? [];

@@ -174,13 +174,22 @@ export const updateMyStudentProfile = createServerFn({ method: "POST" })
  */
 export const getMinhasMentorias = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .inputValidator((d) =>
+    z.object({ preview_person_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ context, data: input }) => {
+    // Sem filtro nenhum além da RLS, "minhas mentorias" na prévia "Ver como
+    // aluno" vinha a conta INTEIRA: quem está autenticado ali é sempre o dono,
+    // e para ele a RLS entrega tudo. Achado na varredura da demanda #243, no
+    // mesmo formato do bug já achado em agendaDoMes.
+    let q = context.supabase
       .from("mentorias")
       .select(
         "id, titulo, status, mentoria_sessoes(id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, avaliacao_estrelas, avaliacao_comentario, avaliada_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em), mentoria_arquivos(id, nome, caminho, tamanho_bytes, tipo))",
       )
       .order("created_at", { ascending: false });
+    if (input.preview_person_id) q = q.eq("person_id", input.preview_person_id);
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
 
     type SessaoRow = {

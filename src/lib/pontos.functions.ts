@@ -193,7 +193,12 @@ export async function contaDaPessoa(
  */
 export const rankingDoGrupo = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ group_id: z.string().uuid() }).parse(d))
+  .inputValidator((d) =>
+    z.object({
+      group_id: z.string().uuid(),
+      preview_person_id: z.string().uuid().nullable().optional(),
+    }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
     // Visível para o grupo todo (aluno e mentor incluídos). Só falta barrar o
@@ -227,7 +232,13 @@ export const rankingDoGrupo = createServerFn({ method: "GET" })
         person_id: m.person_id,
         nome: m.people?.full_name ?? "—",
         avatar_url: m.people?.avatar_url ?? null,
-        eu: m.people?.user_id === context.userId,
+        // Na prévia "Ver como aluno" quem está autenticado é o dono, então
+        // comparar com `context.userId` destacava a linha do dono (se ele
+        // tivesse alguma), não a da pessoa pré-visualizada. Achado na
+        // varredura da demanda #243.
+        eu: data.preview_person_id
+          ? m.person_id === data.preview_person_id
+          : m.people?.user_id === context.userId,
         total: meus.reduce((a, b) => a + b.pontos, 0),
         acoes: meus.length,
       };
