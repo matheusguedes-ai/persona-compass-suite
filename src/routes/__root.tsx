@@ -86,6 +86,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Gerencie, dispare e analise testes de perfil, habilidades e competências humanas." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      // Cor fixa: o head daqui é estático (não sabe de qual conta é o
+      // pedido), diferente do manifest e do ícone abaixo, que resolvem a
+      // conta no SERVIDOR a cada chamada. Deixar esta tag dinâmica exigiria
+      // um loader assíncrono na rota raiz — para o tom da barra do
+      // navegador, não vale o risco de mexer no que toda página usa.
+      { name: "theme-color", content: "#164e63" },
     ],
     links: [
       {
@@ -98,7 +104,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap",
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      // O caminho é fixo; quem decide SE mostra o ícone da conta ou o
+      // favicon padrão é a rota /api/icone/$tamanho, no servidor — ver o
+      // comentário lá. Assim a aba do navegador já usa a marca da conta sem
+      // precisar tornar este head() dinâmico.
+      { rel: "icon", href: "/api/icone/192", type: "image/jpeg" },
+      { rel: "apple-touch-icon", href: "/api/icone/apple" },
+      { rel: "manifest", href: "/api/manifest" },
     ],
   }),
   shellComponent: RootShell,

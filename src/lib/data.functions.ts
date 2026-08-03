@@ -500,6 +500,7 @@ const profileSchema = z.object({
   brand_color: z.string().trim().max(32).optional().nullable(),
   brand_accent_color: z.string().trim().max(32).optional().nullable(),
   logo_url: z.string().trim().max(500).optional().nullable(),
+  icon_url: z.string().trim().max(500).optional().nullable(),
   avatar_url: urlOpcional,
   email_from: z.string().trim().max(200).optional().nullable(),
   support_email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
@@ -535,9 +536,10 @@ export const getMyProfile = createServerFn({ method: "GET" })
     if (data) {
       const { assinarUrl, TTL_AVATAR_SEGUNDOS, TTL_MARCA_SEGUNDOS } = await import("@/lib/storage-assinado.server");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      [data.avatar_url, data.logo_url] = await Promise.all([
+      [data.avatar_url, data.logo_url, data.icon_url] = await Promise.all([
         assinarUrl(supabaseAdmin, data.avatar_url, TTL_AVATAR_SEGUNDOS),
         assinarUrl(supabaseAdmin, data.logo_url, TTL_MARCA_SEGUNDOS),
+        assinarUrl(supabaseAdmin, data.icon_url, TTL_MARCA_SEGUNDOS),
       ]);
     }
     return { profile: data, email, user_id: context.userId };
@@ -650,6 +652,15 @@ export const upsertConfiguracoesConta = createServerFn({ method: "POST" })
         const { data: atual } = await context.supabase
           .from("profiles").select("logo_url").eq("user_id", context.userId).maybeSingle();
         limpo.logo_url = atual?.logo_url ?? null;
+      }
+    }
+    // Mesma situação do logo, para o ícone do app (#235).
+    if (typeof limpo.icon_url === "string") {
+      const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+      if (ehUrlAssinadaNossa(limpo.icon_url)) {
+        const { data: atual } = await context.supabase
+          .from("profiles").select("icon_url").eq("user_id", context.userId).maybeSingle();
+        limpo.icon_url = atual?.icon_url ?? null;
       }
     }
     const { data: row, error } = await context.supabase

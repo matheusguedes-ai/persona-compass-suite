@@ -35,6 +35,7 @@ import { Route as AlunoGruposRouteImport } from './routes/aluno.grupos'
 import { Route as AlunoMentoriasRouteImport } from './routes/aluno.mentorias'
 import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
 import { Route as AlunoRankingRouteImport } from './routes/aluno.ranking'
+import { Route as ApiManifestRouteImport } from './routes/api.manifest'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
 import { Route as CheckinAulaIdRouteImport } from './routes/checkin.$aulaId'
 import { Route as ConviteEquipeTokenRouteImport } from './routes/convite-equipe.$token'
@@ -62,6 +63,7 @@ import { Route as AlunoClassroomTreinamentoIdRouteImport } from './routes/aluno.
 import { Route as AlunoEducacaoIndexRouteImport } from './routes/aluno.educacao.index'
 import { Route as AlunoEducacaoTrackIdRouteImport } from './routes/aluno.educacao.$trackId'
 import { Route as ApiGoogleCallbackRouteImport } from './routes/api.google.callback'
+import { Route as ApiIconeTamanhoRouteImport } from './routes/api.icone.$tamanho'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
 import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
@@ -202,6 +204,11 @@ const AlunoRankingRoute = AlunoRankingRouteImport.update({
   path: '/ranking',
   getParentRoute: () => AlunoRoute,
 } as any)
+const ApiManifestRoute = ApiManifestRouteImport.update({
+  id: '/api/manifest',
+  path: '/api/manifest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
   id: '/bateria/$assessmentId',
   path: '/bateria/$assessmentId',
@@ -341,6 +348,11 @@ const ApiGoogleCallbackRoute = ApiGoogleCallbackRouteImport.update({
   path: '/api/google/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiIconeTamanhoRoute = ApiIconeTamanhoRouteImport.update({
+  id: '/api/icone/$tamanho',
+  path: '/api/icone/$tamanho',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppTestesVersionIdEditarRoute =
   AppTestesVersionIdEditarRouteImport.update({
     id: '/$versionId/editar',
@@ -409,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/aluno/mentorias': typeof AlunoMentoriasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
+  '/api/manifest': typeof ApiManifestRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
@@ -428,6 +441,7 @@ export interface FileRoutesByFullPath {
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
   '/classroom/': typeof AppClassroomIndexRoute
   '/educacao/': typeof AppEducacaoIndexRoute
   '/envios/': typeof AppEnviosIndexRoute
@@ -464,6 +478,7 @@ export interface FileRoutesByTo {
   '/aluno/mentorias': typeof AlunoMentoriasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
+  '/api/manifest': typeof ApiManifestRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
@@ -484,6 +499,7 @@ export interface FileRoutesByTo {
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
   '/classroom': typeof AppClassroomIndexRoute
   '/educacao': typeof AppEducacaoIndexRoute
   '/envios': typeof AppEnviosIndexRoute
@@ -528,6 +544,7 @@ export interface FileRoutesById {
   '/aluno/mentorias': typeof AlunoMentoriasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
+  '/api/manifest': typeof ApiManifestRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
@@ -548,6 +565,7 @@ export interface FileRoutesById {
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
+  '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
   '/_app/classroom/': typeof AppClassroomIndexRoute
   '/_app/educacao/': typeof AppEducacaoIndexRoute
   '/_app/envios/': typeof AppEnviosIndexRoute
@@ -593,6 +611,7 @@ export interface FileRouteTypes {
     | '/aluno/mentorias'
     | '/aluno/perfil'
     | '/aluno/ranking'
+    | '/api/manifest'
     | '/bateria/$assessmentId'
     | '/checkin/$aulaId'
     | '/convite-equipe/$token'
@@ -612,6 +631,7 @@ export interface FileRouteTypes {
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
+    | '/api/icone/$tamanho'
     | '/classroom/'
     | '/educacao/'
     | '/envios/'
@@ -648,6 +668,7 @@ export interface FileRouteTypes {
     | '/aluno/mentorias'
     | '/aluno/perfil'
     | '/aluno/ranking'
+    | '/api/manifest'
     | '/bateria/$assessmentId'
     | '/checkin/$aulaId'
     | '/convite-equipe/$token'
@@ -668,6 +689,7 @@ export interface FileRouteTypes {
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
+    | '/api/icone/$tamanho'
     | '/classroom'
     | '/educacao'
     | '/envios'
@@ -711,6 +733,7 @@ export interface FileRouteTypes {
     | '/aluno/mentorias'
     | '/aluno/perfil'
     | '/aluno/ranking'
+    | '/api/manifest'
     | '/bateria/$assessmentId'
     | '/checkin/$aulaId'
     | '/convite-equipe/$token'
@@ -731,6 +754,7 @@ export interface FileRouteTypes {
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
+    | '/api/icone/$tamanho'
     | '/_app/classroom/'
     | '/_app/educacao/'
     | '/_app/envios/'
@@ -758,6 +782,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiManifestRoute: typeof ApiManifestRoute
   BateriaAssessmentIdRoute: typeof BateriaAssessmentIdRoute
   CheckinAulaIdRoute: typeof CheckinAulaIdRoute
   ConviteEquipeTokenRoute: typeof ConviteEquipeTokenRoute
@@ -768,6 +793,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
+  ApiIconeTamanhoRoute: typeof ApiIconeTamanhoRoute
   ApiPublicActionPlanIdRoute: typeof ApiPublicActionPlanIdRoute
   ApiPublicAssessmentIdRoute: typeof ApiPublicAssessmentIdRoute
   ApiPublicCheckinAulaIdRoute: typeof ApiPublicCheckinAulaIdRoute
@@ -961,6 +987,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlunoRankingRouteImport
       parentRoute: typeof AlunoRoute
     }
+    '/api/manifest': {
+      id: '/api/manifest'
+      path: '/api/manifest'
+      fullPath: '/api/manifest'
+      preLoaderRoute: typeof ApiManifestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bateria/$assessmentId': {
       id: '/bateria/$assessmentId'
       path: '/bateria/$assessmentId'
@@ -1148,6 +1181,13 @@ declare module '@tanstack/react-router' {
       path: '/api/google/callback'
       fullPath: '/api/google/callback'
       preLoaderRoute: typeof ApiGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/icone/$tamanho': {
+      id: '/api/icone/$tamanho'
+      path: '/api/icone/$tamanho'
+      fullPath: '/api/icone/$tamanho'
+      preLoaderRoute: typeof ApiIconeTamanhoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/testes/$versionId/editar': {
@@ -1358,6 +1398,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiManifestRoute: ApiManifestRoute,
   BateriaAssessmentIdRoute: BateriaAssessmentIdRoute,
   CheckinAulaIdRoute: CheckinAulaIdRoute,
   ConviteEquipeTokenRoute: ConviteEquipeTokenRoute,
@@ -1368,6 +1409,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,
+  ApiIconeTamanhoRoute: ApiIconeTamanhoRoute,
   ApiPublicActionPlanIdRoute: ApiPublicActionPlanIdRoute,
   ApiPublicAssessmentIdRoute: ApiPublicAssessmentIdRoute,
   ApiPublicCheckinAulaIdRoute: ApiPublicCheckinAulaIdRoute,

@@ -1162,6 +1162,7 @@ export type Database = {
           created_at: string
           full_name: string | null
           logo_url: string | null
+          icon_url: string | null
           updated_at: string
           user_id: string
         }
@@ -1182,6 +1183,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           logo_url?: string | null
+          icon_url?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1202,6 +1204,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           logo_url?: string | null
+          icon_url?: string | null
           updated_at?: string
           user_id?: string
         }

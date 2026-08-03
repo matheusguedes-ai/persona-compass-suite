@@ -79,3 +79,36 @@ export async function loadBrandAndSettings(
     settings,
   };
 }
+
+/**
+ * Resolve "a conta" para pedidos SEM SESSÃO — o manifest.json e os ícones do
+ * app (#235) são buscados pelo navegador/celular às vezes sem cookie nenhum,
+ * na hora de instalar, então não há `userId` para saber de quem é a marca.
+ *
+ * ⚠️ Funciona HOJE só porque existe UM único cliente na plataforma: pega
+ * sempre o `profiles` mais antigo (`created_at` menor), configurado ou não —
+ * não depende de qual campo está preenchido, então não muda de dono se um dia
+ * outra conta configurar a marca dela primeiro.
+ *
+ * QUANDO HOUVER O SEGUNDO CLIENTE, isto passa a devolver a marca ERRADA para
+ * metade das contas — não há, hoje, nenhuma informação na requisição (domínio
+ * próprio, subdomínio, path com id) que diga qual conta o navegador quer.
+ * Antes de vender a plataforma para o segundo cliente, troque esta função por
+ * resolução real (subdomínio por conta, domínio próprio, ou id explícito na
+ * própria URL do manifest/ícone).
+ */
+export async function resolveContaUnica(): Promise<{
+  user_id: string;
+  icon_url: string | null;
+  company_name: string | null;
+  brand_color: string | null;
+} | null> {
+  const supabase = await getAdmin();
+  const { data } = await supabase
+    .from("profiles")
+    .select("user_id, icon_url, company_name, brand_color")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}

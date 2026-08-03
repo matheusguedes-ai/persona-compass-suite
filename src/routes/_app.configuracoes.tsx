@@ -7,6 +7,7 @@ import { getMyMembership } from "@/lib/team.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandMark, MARCA_PADRAO } from "@/lib/brand";
 import { AvatarUpload } from "@/components/avatar-upload";
+import { RecortarImagem } from "@/components/recorte-imagem";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,6 +92,12 @@ function ConfiguracoesPage() {
   // veio assinado de getMyProfile, ao abrir a tela.
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const previaLogoFn = useServerFn(assinarMeuEnvio);
+  // Ícone do app (#235) — separado da logo: quadrado, para a tela de
+  // instalar do celular. Mesmo esquema identificador/preview do logo acima.
+  const [iconUrl, setIconUrl] = useState("");
+  const [iconPreview, setIconPreview] = useState<string | null>(null);
+  const [paraRecortarIcone, setParaRecortarIcone] = useState<File | null>(null);
+  const [enviandoIcone, setEnviandoIcone] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [siteUrl, setSiteUrl] = useState("");
   const [supportEmail, setSupportEmail] = useState("");
@@ -102,6 +109,7 @@ function ConfiguracoesPage() {
   const [resultMsg, setResultMsg] = useState("");
   const [enviando, setEnviando] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const iconFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const p = data?.profile;
@@ -112,6 +120,8 @@ function ConfiguracoesPage() {
     setAccentColor(p.brand_accent_color ?? "#0e7490");
     setLogoUrl(p.logo_url ?? "");
     setLogoPreview(null);
+    setIconUrl(p.icon_url ?? "");
+    setIconPreview(null);
     setAvatarUrl(p.avatar_url ?? null);
     setSiteUrl(p.site_url ?? "");
     setSupportEmail(p.support_email ?? "");
@@ -183,6 +193,35 @@ function ConfiguracoesPage() {
     } finally {
       setEnviando(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  /**
+   * O arquivo já chega RECORTADO (quadrado, via RecortarImagem) — aqui só
+   * sobe para o bucket. Mesmo esquema de identificador+preview do logo, num
+   * caminho próprio (`icone-`) para não colidir com o logo na mesma pasta.
+   */
+  async function enviarIcone(file: File) {
+    const userId = data?.user_id;
+    if (!userId) return;
+    setEnviandoIcone(true);
+    try {
+      const caminho = `${userId}/icone-${Date.now()}.jpg`;
+      const { error } = await supabase.storage.from("marca").upload(caminho, file, {
+        cacheControl: "3600",
+        upsert: true,
+      });
+      if (error) throw new Error(error.message);
+      const { data: pub } = supabase.storage.from("marca").getPublicUrl(caminho);
+      try {
+        setIconPreview((await previaLogoFn({ data: { url: pub.publicUrl } })).url);
+      } catch { /* sem preview agora — não impede salvar */ }
+      setIconUrl(pub.publicUrl);
+      saveConta.mutate({ icon_url: pub.publicUrl });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao enviar o ícone.");
+    } finally {
+      setEnviandoIcone(false);
     }
   }
 
@@ -312,6 +351,41 @@ function ConfiguracoesPage() {
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">PNG, JPG, WEBP ou SVG, até 2 MB. Fundo transparente fica melhor.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Ícone do app</Label>
+              <div className="flex flex-wrap items-center gap-3">
+                {iconUrl && (
+                  <img
+                    src={iconPreview ?? iconUrl} alt="Ícone do app"
+                    className="size-10 rounded-lg object-cover ring-1 ring-black/5"
+                  />
+                )}
+                <input
+                  ref={iconFileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setParaRecortarIcone(f);
+                    e.target.value = "";
+                  }}
+                />
+                <Button type="button" variant="outline" disabled={enviandoIcone || isLoading} onClick={() => iconFileRef.current?.click()}>
+                  {enviandoIcone ? <><Loader2 className="size-4 animate-spin" /> Enviando…</> : <><ImageUp className="size-4" /> {iconUrl ? "Trocar ícone" : "Escolher ícone"}</>}
+                </Button>
+                {iconUrl && (
+                  <Button type="button" variant="ghost" onClick={() => { setIconUrl(""); setIconPreview(null); saveConta.mutate({ icon_url: null }); }}>
+                    <Trash2 className="size-4" /> Remover
+                  </Button>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Diferente da logo: precisa ser quadrado e continuar legível bem pequeno. É o que aparece
+                na aba do navegador e na tela do celular de quem instalar a plataforma como aplicativo.
+              </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -470,6 +544,14 @@ function ConfiguracoesPage() {
         )}
 
       </Tabs>
+
+      <RecortarImagem
+        arquivo={paraRecortarIcone}
+        aspecto={1}
+        ladoMaior={1024}
+        onCancelar={() => setParaRecortarIcone(null)}
+        onConcluir={(recortado) => { setParaRecortarIcone(null); enviarIcone(recortado); }}
+      />
     </div>
   );
 }
