@@ -2194,8 +2194,8 @@
       "titulo": "Painel de engajamento: quem está sumindo",
       "descricao": "Tela que mostra atividade e engajamento por aluno e por grupo: presença nas aulas, testes respondidos, progresso nas trilhas, último acesso. O objetivo não é medir por medir — é o mentor perceber que alguém está sumindo ANTES de perder a pessoa.",
       "area": "Academy",
-      "prova": "A base já existe: tabelas pontos, learning_progress, treinamento_presencas e treinamento_aulas já coletam o dado hoje. Falta a tela que lê. É a mais barata das seis ideias e uma das de maior valor.",
-      "status": "Planejado",
+      "prova": "ABSORVIDA pela #237 em 01/08, por decisão do Matheus: o painel de engajamento passa a ser uma função dentro do menu Dashboard, não uma tela própria. O conteúdo sobrevive inteiro na spec (docs/plano-dashboard.md, seção 'O bloco de engajamento'), com o critério proposto: sem nenhuma atividade há mais de 14 dias. Registro fechado aqui para não haver duas demandas para a mesma tela.",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 220,
       "origem": "Matheus, 31/07: rodada de perguntas sobre o futuro da plataforma"
@@ -2349,6 +2349,26 @@
       "prioridade": 235,
       "origem": "Matheus, 01/08: 'o ícone deve ser a imagem na tela do celular em modo aplicativo'",
       "prova": "É o PRIMEIRO PASSO da demanda do app do aluno (PWA) — fazer o manifest dinâmico já torna a plataforma instalável, que era o caminho recomendado ali. Depende da #219 estar resolvida: o manifest tem de servir a marca do DONO da conta, não a de quem está logado — senão o aluno instala com o ícone padrão da plataforma."
+    },
+    {
+      "titulo": "Tirar 'Novo Envio' da barra superior — vai para dentro de Testes",
+      "descricao": "O botão 'Novo Envio' ocupa lugar de destaque na barra superior de TODA tela (app-header.tsx:43), como se disparar teste fosse a ação principal da plataforma. Não é mais: virou uma ação entre várias. Sai da barra e passa a existir só dentro do menu Testes, onde faz sentido.",
+      "area": "Plataforma",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 236,
+      "prova": "Pequena e cirúrgica. CUIDADO: o app-header é compartilhado por todas as telas e tem também 'Ver como aluno' e o sino — não mexer nos outros. E conferir se algum fluxo depende do atalho (o convite, por exemplo) antes de remover.",
+      "origem": "Matheus, 01/08: a interface ainda é de plataforma de testes, o produto virou hub"
+    },
+    {
+      "titulo": "Dashboard vira resumo de toda a plataforma, não só dos testes",
+      "descricao": "O Dashboard responde hoje só sobre testes. Virou hub e a primeira tela não sabe. Passa a mostrar Mentorias, Classroom, Academy, Testes, Comunidade e o bloco de engajamento. Spec em docs/plano-dashboard.md.",
+      "area": "Plataforma",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 237,
+      "prova": "DECISÕES do Matheus em 01/08: o engajamento (#220) mora DENTRO do menu Dashboard, não é tela separada; recalcula toda vez que abre, sem cache; e cada papel vê só o que pode abrir — colaborador sem 'mentorias' não vê NENHUM número de mentoria. Este último não é estética: sem o recorte, o Dashboard vira a porta dos fundos que mostra em número o que as outras telas aprenderam a esconder. ORDEM: depois da Fatia 3 do Mentorias (#229), que constrói as contas que o Dashboard consome.",
+      "origem": "Matheus, 01/08: a interface ainda é de plataforma de testes, o produto virou hub"
     }
   ],
   "planilha": {
