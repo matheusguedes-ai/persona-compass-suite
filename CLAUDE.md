@@ -144,6 +144,17 @@ Combinado com ele em 30/07:
 - **Demanda grande ganha checklist de etapas no corpo da página do Notion**, e o
   chat vai marcando conforme os commits aparecem. Assim o Matheus acompanha sem
   precisar perguntar ao Code em que pé está — e sem interromper no meio.
+- **Decisão que apaga uma feature inteira resolve as demandas dela na mesma
+  hora.** Em 03/08 uma varredura achou 36 registros errados, e a maior parte
+  tinha uma causa só: o menu Mentorias substituiu Devolutivas em 31/07 e as
+  demandas antigas nunca foram revisitadas. Não foi desleixo de registro — foi
+  uma decisão grande que o quadro não acompanhou. Ao aposentar algo, varrer o
+  kanban atrás do que ficou órfão, antes de seguir.
+- **"Concluído" exige prova que aguente ser conferida.** A mesma varredura achou
+  quatro demandas dadas como testadas com aluno logado quando o teste nunca
+  aconteceu — a memória do projeto, escrita no mesmo dia, admitia que não tinha
+  sido possível. Prova que cita commit é conferível; prova que diz "testei" e
+  não diz como, não é.
 - `scripts/kanban_dados.json` — a fonte versionada, para o histórico ficar no
   git. `scripts/kanban_planilha.py` gera o `.xlsx`, que hoje é só um retrato.
 - `docs/roadmap-fases.md` — a ordem das fases e o que trava o quê.

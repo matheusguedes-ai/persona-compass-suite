@@ -84,10 +84,10 @@
       "titulo": "Academy: layout em fileiras (estilo Netflix)",
       "descricao": "Item G-3: trilhas em prateleiras horizontais com capa, em vez da grade atual. Único pedaço do G que falta.",
       "area": "Academy",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-demandas-30-07.md § G item 3 · estado-atual-e-fila.md § Fila depois do Classroom",
-      "prova": "As prateleiras horizontais já existiam desde o commit c8df882 — a descrição do G-3 estava desatualizada. O que faltava de verdade era o cabeçalho quebrado, corrigido agora. Segue aberto: setas de rolagem, 'continue assistindo' e barra de progresso no card.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Academy em fileiras: learning-catalog.tsx:105 e :119, usado em cinco telas. O que faltava virou #110 e #113, essas sim pendentes.",
       "prioridade": 9
     },
     {
@@ -174,10 +174,10 @@
       "titulo": "Classroom não testado com login de colaborador",
       "descricao": "O caminho do aluno foi exercitado de verdade, mas o papel de colaborador nunca, por falta de senha de terceiro.",
       "area": "Classroom",
-      "status": "Concluído",
+      "status": "Precisa de melhorias",
       "depende_de": "Matheus",
       "origem": "estado-atual-e-fila.md § Classroom, bullet final",
-      "prova": "Provado com colaborador de teste real, permissão só 'testes': Classroom nega a rota (getTreinamento devolve erro, tela mostra 'Você não tem acesso') e some do menu. Fechado junto com #19/#98/#105 no commit db0cd9e (31/07).",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ⚠️ A prova cita um commit que NÃO TOCA no Classroom — a própria mensagem do commit lista as áreas cobertas, e Classroom não está entre elas. O papel de colaborador no Classroom continua sem prova real.",
       "prioridade": 18
     },
     {
@@ -214,10 +214,10 @@
       "titulo": "Decisão: a exportação leva só o cadastro",
       "descricao": "Nada de resultados, respostas ou devolutivas na exportação; o seletor de seções sai.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-demandas-30-07.md § Decisões, item 2",
-      "prova": "Decisão dele já tomada: sem resultados nem devolutivas no arquivo.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Exportação leva só o cadastro: já é o comportamento do código.",
       "prioridade": 22
     },
     {
@@ -294,10 +294,10 @@
       "titulo": "Notificar ao criar um evento",
       "descricao": "Disparar notificação para quem vai ver o evento, reaproveitando o sino que já existe.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-menu-gestao.md § Etapa 3",
-      "prova": "Evento criado e ninguém avisado; o sino já existe para isso.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Notificar ao criar evento existe: gestao.functions.ts:238 e :251; três notificações 'evento_novo' vivas no banco.",
       "prioridade": 30
     },
     {
@@ -334,10 +334,10 @@
       "titulo": "Cortar a coluna Realizada por período",
       "descricao": "A coluna cresce para sempre e vira ruído; corte para os últimos 90 dias com filtro para ver o resto.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-menu-gestao.md § Etapa 1, Adequação provável",
-      "prova": "A coluna cresce para sempre e some com a informação útil.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (Kanban de devolutivas) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 34
     },
     {
@@ -504,10 +504,10 @@
       "titulo": "Mentor vê pontuação e ranking na tela do grupo",
       "descricao": "Tudo que o aluno vê fica visível para o mentor, com pontuação e ranking dentro da tela do grupo.",
       "area": "Academy",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-area-do-aluno.md § 5",
-      "prova": "Tudo que o aluno vê o mentor precisa ver, dentro da tela do grupo.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Aba Ranking em _app.grupos.$id.tsx:146, render em :251. No ar há dias.",
       "prioridade": 51
     },
     {
@@ -621,13 +621,13 @@
       "prioridade": 62
     },
     {
-      "titulo": "'Confirm email' ainda ligado no projeto novo",
-      "descricao": "Afeta só o cadastro por e-mail/senha, não o login com Google.",
+      "titulo": "Cadastro público aberto e 'Confirm email' ligado de novo",
+      "descricao": "Conferido na API de auth em 03/08: mailer_autoconfirm=false (a confirmação está LIGADA de novo — o Matheus desligou em 31/07) e disable_signup=false (QUALQUER PESSOA da internet pode criar conta na plataforma). O segundo nunca tinha sido olhado.",
       "area": "Infra",
-      "status": "Concluído",
+      "status": "Precisa de melhorias",
       "depende_de": "Matheus",
       "origem": "migracao-supabase-proprio.md § Falta ainda",
-      "prova": "Chave \"Confirm email\" desligada por ele no painel do Supabase (Authentication → Sign In / Providers → Email). A plataforma já manda o próprio e-mail de primeiro acesso; a chave do Supabase gerava um segundo e-mail e travava quem não entendia que precisava clicar. RESSALVA: sem essa confirmação, alguém poderia se cadastrar com o e-mail de outra pessoa. Risco baixo hoje porque o acesso nasce de convite, não de cadastro aberto — revisitar se um dia abrir cadastro público.",
+      "prova": "Não é vazamento: combinado com a #227, um estranho que se cadastra cai numa conta vazia e isolada, sem alcançar nada da conta do Matheus. Mas é porta destrancada que ninguém sabia estar aberta. Decidir as duas coisas juntas: a confirmação de e-mail e se o cadastro deve aceitar quem não foi convidado.",
       "prioridade": 63
     },
     {
@@ -764,20 +764,20 @@
       "titulo": "Decisão: ranking visível para o grupo todo",
       "descricao": "O ranking é público dentro do grupo e vira menu do painel do aluno (o plano recomendava ranking opcional).",
       "area": "Academy",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-area-do-aluno.md § Decisões, item 3",
-      "prova": "Ranking público dentro do grupo, já fechado.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Ranking visível para o grupo todo: travado na policy do banco.",
       "prioridade": 77
     },
     {
       "titulo": "Decisão: responder teste não pontua",
       "descricao": "Pontos não ligados aos testes, para não pagar a pessoa por clicar rápido.",
       "area": "Academy",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-area-do-aluno.md § Decisões, item 4 · fila-area-do-aluno.md linhas 35-37",
-      "prova": "Ponto não sai de teste, para não premiar quem clica rápido.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Responder teste não pontua: travado no constraint do banco, impossível de burlar.",
       "prioridade": 78
     },
     {
@@ -794,110 +794,110 @@
       "titulo": "Decisão: responder sem conta continua permitido",
       "descricao": "O link não passa a exigir cadastro; dá para responder a bateria inteira sem conta e ver o relatório.",
       "area": "Testes",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-area-do-aluno.md § Decisões, item 1 · fila-area-do-aluno.md linhas 31-32",
-      "prova": "O link aberto continua valendo; nada a fazer, é registro.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Responder sem conta continua permitido: já é a realidade do código.",
       "prioridade": 80
     },
     {
       "titulo": "Decisão: QR rotativo com janela de validade dele",
       "descricao": "Duas travas somadas: o código muda sozinho E só vale dentro do horário que ele define.",
       "area": "Classroom",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/analise-classroom.md § Decisões do Matheus, item 1",
-      "prova": "Duas travas somadas, já definidas por ele.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. QR rotativo com janela de validade: decisão já operacionalizada.",
       "prioridade": 81
     },
     {
       "titulo": "Decisão: presença manual pelo professor entra",
       "descricao": "Cobre aluno sem senha, celular sem bateria, sem internet ou sem smartphone.",
       "area": "Classroom",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/analise-classroom.md § Decisões do Matheus, item 2",
-      "prova": "Cobre celular sem bateria e aluno sem smartphone; já decidido.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Presença manual pelo professor: decisão já operacionalizada.",
       "prioridade": 82
     },
     {
       "titulo": "Decisão: o check-in abre a câmera do telefone",
       "descricao": "Não abre leitor de QR dentro do app, porque o Safari do iPhone não tem leitor nativo no navegador.",
       "area": "Classroom",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/analise-classroom.md § Decisões do Matheus, item 3",
-      "prova": "Sem leitor de QR dentro do app, por causa do Safari do iPhone.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Check-in abre a câmera: decisão já operacionalizada.",
       "prioridade": 83
     },
     {
       "titulo": "Decisão: aluno sem senha usa o primeiro acesso",
       "descricao": "Quem nunca criou senha cria pelo fluxo com validação por e-mail; a presença manual cobre o imprevisto do dia.",
       "area": "Classroom",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/analise-classroom.md § Decisões do Matheus, item 6",
-      "prova": "Fluxo com validação por e-mail; a presença manual cobre o imprevisto do dia.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Aluno sem senha usa o primeiro acesso: decisão já operacionalizada.",
       "prioridade": 84
     },
     {
       "titulo": "Decisão: resultado de teste fora da lista de presença",
       "descricao": "A lista é documento que circula (RH, cliente, arquivo), então perfil comportamental não entra nela.",
       "area": "Classroom",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/analise-classroom.md § A tabela de presença — definitiva",
-      "prova": "A lista circula pelo RH, então perfil comportamental não entra nela.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Resultado de teste fora da lista de presença: decisão já operacionalizada.",
       "prioridade": 85
     },
     {
       "titulo": "Decisão: Classroom com estrutura própria",
       "descricao": "Não reaproveita as tabelas da Academy, sem chance de curso presencial vazar na lista de trilhas online.",
       "area": "Classroom",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/analise-classroom.md § Decisões do Matheus, item 4",
-      "prova": "Sem reaproveitar as tabelas da Academy; já implementado assim.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Classroom com estrutura própria: decisão já operacionalizada.",
       "prioridade": 86
     },
     {
       "titulo": "Decisão: Kanban é do master e dos mentores",
       "descricao": "Ele incluiu os mentores (o plano propunha só o master) e manteve o aluno fora, porque o quadro mostra a situação dos colegas.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-menu-gestao.md § Três decisões, item 3 · backlog-menu-gestao.md item 3",
-      "prova": "Ele incluiu os mentores e manteve o aluno fora do quadro.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (Kanban de devolutivas) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 87
     },
     {
       "titulo": "Decisão: Google Calendar em mão única",
       "descricao": "O que é marcado na plataforma vai para o Google e nada volta, para evitar conflito de edição dos dois lados.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-menu-gestao.md § Três decisões, item 1 · backlog-menu-gestao.md item 1",
-      "prova": "Vai da plataforma para o Google e nada volta, para evitar conflito.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Google Calendar em mão única já implementado — não é só decisão registrada.",
       "prioridade": 88
     },
     {
       "titulo": "Decisão: só o master conecta o Google, por enquanto",
       "descricao": "Começar com uma conta só, evitando a verificação do Google exigida para escopo sensível aberto.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-menu-gestao.md § Três decisões, item 2 · backlog-menu-gestao.md item 2",
-      "prova": "Uma conta só, para não cair na verificação do Google agora.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Só o master conecta o Google: travado no código por exigirDono (google.functions.ts:15, :42, :52).",
       "prioridade": 89
     },
     {
       "titulo": "Decisão: colaborador continua como está",
       "descricao": "Colaborador não é aluno; é alguém da operação com permissões por funcionalidade.",
       "area": "Infra",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-area-do-aluno.md § Anexo 3, item 5",
-      "prova": "Colaborador é da operação, não é aluno; já fechado.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Decisão já implementada: código e banco batem com o modelo de colaborador de hoje.",
       "prioridade": 90
     },
     {
@@ -1007,7 +1007,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "feature-devolutivas.md linhas 38-42 · git log 22ae517",
-      "prova": "Já estava corrigido no código — a ressalva era memória velha, como a do fuso horário.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (o botão de marcar/remarcar data da devolutiva) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 101
     },
     {
@@ -1037,7 +1037,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-menu-gestao.md § Etapa 1 · backlog-menu-gestao.md",
-      "prova": "REGISTRO ERRADO — a feature foi cancelada, não esquecida. As telas foram criadas em c734857 e apagadas em b0e60a4 ('Gestão sai; Agenda vira menu e o Kanban vai para Devolutivas'), por decisão registrada.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. O 'REGISTRO ERRADO' já escrito aqui tem uma imprecisão sobre QUANDO as telas sumiram — o conteúdo da decisão segue certo.",
       "prioridade": 104
     },
     {
@@ -1137,7 +1137,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "CLAUDE.md § Modelo de dados",
-      "prova": "Conferido: reconceder_grants() e grants_faltando() no banco; faltando=vazio, reconceder=0. Se o scanner revogar, o conserto é SELECT public.reconceder_grants();",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Três funções seguem sem GRANT, e isso é INTENCIONAL — foram fechadas no trabalho de segurança de 30/07. Ver #241.",
       "prioridade": 114
     },
     {
@@ -1174,10 +1174,10 @@
       "titulo": "Ranking: caso do aluno não exercitado com login real",
       "descricao": "A correção da conta em que o ponto nasce foi testada pelo mesmo código, mas pela conta do dono.",
       "area": "Comunidade",
-      "status": "Concluído",
+      "status": "Precisa de melhorias",
       "depende_de": "Claude",
       "origem": "estado-atual-e-fila.md, aviso após a lista do ranking",
-      "prova": "Exercitado: publicação real de aluno real, ponto na conta certa.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ⚠️ A alegação de teste com aluno logado não se sustenta: zero dado de aluno em cinco tabelas diferentes, e a memória do projeto escrita no mesmo dia admite por escrito que 'o caso do aluno não pude exercitar'. O CÓDIGO do conserto está correto — o que não bate é a afirmação de que foi provado.",
       "prioridade": 118
     },
     {
@@ -1194,20 +1194,20 @@
       "titulo": "Pontuação e ranking do grupo",
       "descricao": "Pesos por esforço (aula 20, devolutiva 15, publicar 8, perfil 5, comentar 2, curtir 1) com teto diário nas ações baratas.",
       "area": "Comunidade",
-      "status": "Concluído",
+      "status": "Precisa de melhorias",
       "depende_de": "Claude",
       "origem": "docs/plano-area-do-aluno.md § 4 e Tabela de pontos · fila-area-do-aluno.md tabela linha 20 · git log 5cd972d",
-      "prova": "Testado com aluno real: publicou na comunidade, ponto gravado com user_id dele e mentor_id da CONTA DO DONO, ranking marcou 8 na tela.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ⚠️ Mesma raiz da #118: a alegação de teste real com aluno não se sustenta. O código está certo; a prova, não.",
       "prioridade": 120
     },
     {
       "titulo": "Três defeitos do ranking corrigidos",
       "descricao": "Devolutiva nunca pontuava, contaDaPessoa gravava na conta errada para aluno, e o teto da comunidade virou 16 pts/dia com virada à meia-noite de Brasília.",
       "area": "Comunidade",
-      "status": "Concluído",
+      "status": "Precisa de melhorias",
       "depende_de": "Claude",
       "origem": "estado-atual-e-fila.md lista numerada 1-3",
-      "prova": "A correção da conta certa foi PROVADA com aluno de verdade logado, não mais pelo caminho de código na conta do dono.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ⚠️ Mesma raiz da #118: a alegação de teste real com aluno não se sustenta. O código está certo; a prova, não.",
       "prioridade": 121
     },
     {
@@ -1387,7 +1387,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "bug-policy-autoreferente-insert-returning.md",
-      "prova": "Conferido: supabase/migrations/20260729010000_corrige_policy_autoreferente.sql (reescreve lt_read em learning_tracks e \"Mentors view their own groups\" em groups); commit 82b2fdb",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. O conserto continua válido; só o nome do artefato citado mudou em renomeações posteriores.",
       "prioridade": 139
     },
     {
@@ -1407,7 +1407,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "git log 1eed990",
-      "prova": "Conferido: supabase/migrations/20260729070000_bigfive_itens_revisados.sql — 50 perguntas linear_scale, 25 com `\"reverse\": true` (metade exata) e 19 com check_group + scripts/conteudo-bigfive.",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Tudo bate, exceto a contagem: a prova diz 19 pares de checagem, o real é 18.",
       "prioridade": 141
     },
     {
@@ -1417,7 +1417,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-painel-devolutiva.md § 4 Fase 1",
-      "prova": "Conferido: src/lib/devolutivas.functions.ts:411-419 (busca a última devolutiva da mesma pessoa com status 'realizada', ordenada por completed_at) e src/components/painel-devolutiva.tsx:140-14",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (o painel de devolutiva) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 142
     },
     {
@@ -1427,7 +1427,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-demandas-30-07.md § Decisões, item 5 · estado-atual-e-fila.md § O que fazer a seguir · git log 120d",
-      "prova": "Conferido: /Users/matheusguedescarneiro/Documents/persona-compass-suite/src/components/devolutivas-page.tsx:53-63 — função `paraCampoLocal(iso)` montada das partes locais (getFullYear/getMont",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (a tela que usava a correção de fuso) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 143
     },
     {
@@ -1577,7 +1577,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "git log 880c2bd",
-      "prova": "Conferido: commit 880c2bd; src/routes/aluno.devolutivas.tsx (143 linhas novas); supabase/migrations/20260729160000_devolutiva_do_aluno.sql; src/lib/student.functions.ts (nome de quem conduziu",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (a tela de devolutiva no painel do aluno) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 158
     },
     {
@@ -1737,7 +1737,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-menu-gestao.md § Etapa 1 · backlog-menu-gestao.md § 2 · git log c734857",
-      "prova": "Conferido: src/components/quadro-gestao.tsx (colunas 'Sem devolutiva' l.110, 'Agendada' l.119, 'Realizada' l.128; nenhum draggable/onDragStart no arquivo; o cartão é um <Link to=\"/pessoas/$id",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (Kanban de devolutivas em 3 colunas) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 174
     },
     {
@@ -1797,7 +1797,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "feature-devolutivas.md · git log ffa9121",
-      "prova": "Conferido: calcularFila em src/lib/devolutivas.functions.ts:80-146 (busca assessment_responses e test_responses com submitted_at e subtrai devolutivas com status <> 'cancelada'; bateria conta",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (a fila calculada de devolutivas) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 180
     },
     {
@@ -1807,7 +1807,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-demandas-30-07.md § A · docs/plano-demandas-30-07.md § A bloco de cuidado · git log eb9b059",
-      "prova": "Conferido: /Users/matheusguedescarneiro/Documents/persona-compass-suite/src/components/abas-testes.tsx (componente AbasDeTestes, filtro por permissão na linha 37) + src/components/app-sidebar",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. Hoje são 2 abas, não 3: Devolutivas virou o menu Mentorias. A mudança está rastreada na #213.",
       "prioridade": 181
     },
     {
@@ -1827,7 +1827,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-area-do-aluno.md § Anexo 1 plano C · git log c95ec7e",
-      "prova": "Conferido: Commit c95ec7e existe (src/components/app-sidebar.tsx e src/routes/_app.index.tsx), mas o estado ATUAL é outro: src/components/app-sidebar.tsx:68-69 diz explicitamente \"O mentor nã",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. A prova aponta código removido horas depois, mas o objetivo foi cumprido por outra arquitetura decidida no mesmo dia.",
       "prioridade": 183
     },
     {
@@ -1857,7 +1857,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-painel-devolutiva.md § 4 Fase 1 · referencia-cis-painel-devolutiva.md · git log 6f61c65",
-      "prova": "Conferido: src/routes/_app.devolutivas.$id.painel.tsx (rota /devolutivas/$id/painel); src/components/painel-devolutiva.tsx (componente Cartao, um por instrumento respondido); carregarPainel e",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (o painel de devolutiva) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 186
     },
     {
@@ -1887,7 +1887,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-area-do-aluno.md § Anexo 1 plano D · docs/plano-menu-gestao.md § Etapa 2",
-      "prova": "Conferido: supabase/migrations/20260729220000_mentor_agenda_devolutiva.sql:9 (`ALTER TABLE team_member_groups ADD COLUMN IF NOT EXISTS can_schedule_devolutivas boolean NOT NULL DEFAULT false`",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. A decisão continua válida; só o nome do artefato citado mudou em renomeações posteriores.",
       "prioridade": 189
     },
     {
@@ -1987,7 +1987,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "git log e7fce41",
-      "prova": "Conferido: commit e7fce41; src/lib/devolutivas.functions.ts:357-359 (atualizarDevolutiva relê a linha e manda null quando cancelada ou sem data) e :380-381 (excluirDevolutiva lê mentor_id ant",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. A capacidade de remarcar/cancelar refletindo no Google NÃO existe hoje — virou a demanda #238, com dois compromissos fantasma já confirmados na agenda do Matheus.",
       "prioridade": 199
     },
     {
@@ -2027,7 +2027,7 @@
       "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-painel-devolutiva.md § 4 Fase 1",
-      "prova": "Conferido: src/components/painel-devolutiva.tsx:128-138 — o bloco âmbar 'Leia os números com cautela' é renderizado ANTES de qualquer cartão; a escolha é pela PIOR ressalva entre os inventári",
+      "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ÓRFÃ: o objeto desta demanda (o painel de devolutiva) foi apagado em 31/07, quando o menu Mentorias substituiu Devolutivas. Não há mais o que fazer nem o que decidir. Registro mantido para o histórico não mentir sobre o que já foi planejado.",
       "prioridade": 203
     },
     {
@@ -2369,6 +2369,56 @@
       "prioridade": 237,
       "prova": "DECISÕES do Matheus em 01/08: o engajamento (#220) mora DENTRO do menu Dashboard, não é tela separada; recalcula toda vez que abre, sem cache; e cada papel vê só o que pode abrir — colaborador sem 'mentorias' não vê NENHUM número de mentoria. Este último não é estética: sem o recorte, o Dashboard vira a porta dos fundos que mostra em número o que as outras telas aprenderam a esconder. ORDEM: depois da Fatia 3 do Mentorias (#229), que constrói as contas que o Dashboard consome.",
       "origem": "Matheus, 01/08: a interface ainda é de plataforma de testes, o produto virou hub"
+    },
+    {
+      "titulo": "Cancelar sessão de mentoria não avisa o Google — compromissos fantasma",
+      "descricao": "Não existe função para cancelar uma sessão de mentoria e refletir no Google Calendar. Quem apaga a sessão no banco deixa o compromisso lá para sempre. AGORA MESMO há 3 registros em google_eventos e só 1 sessão viva: dois compromissos fantasma na agenda do Matheus, sobras da limpeza de dados de teste.",
+      "area": "Agenda",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 238,
+      "origem": "Varredura completa do Claude Code, 03/08 — confirmado por fora pelo chat",
+      "prova": "Conferido: google_eventos tem origem_id 5b354263 e 21cf3820 sem sessão correspondente. Vai se repetir a cada limpeza. Precisa de duas coisas: a função de cancelar (que apaga dos dois lados) e a limpeza dos dois fantasmas que já existem."
+    },
+    {
+      "titulo": "Brecha de permissão no Classroom ficou fora da varredura do #226",
+      "descricao": "O mesmo buraco que o #226 fechou em quatro áreas — a leitura não checar permissão — continua no Classroom. Não é explorável pela tela hoje, mas nada no banco impede por outro caminho.",
+      "area": "Classroom",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 239,
+      "origem": "Varredura completa do Claude Code, 03/08",
+      "prova": "Mesmo padrão já corrigido em Academy, Biblioteca, Comunidade, Ranking e Agenda. É repetir a cirurgia numa área a mais."
+    },
+    {
+      "titulo": "As 20 perguntas do QI existem só no banco, sem migração nem script",
+      "descricao": "O conteúdo do teste de QI — 20 questões com gabarito e as faixas de resultado — foi inserido direto no banco e nunca virou migração nem script em scripts/conteudo_*.py, como os outros seis instrumentos. Se o banco precisar ser reconstruído, o QI volta com 1 pergunta e 3 faixas, sem aviso nenhum.",
+      "area": "Conteúdo",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 240,
+      "origem": "Varredura completa do Claude Code, 03/08",
+      "prova": "É a mesma classe da demanda #2 ('as migrações não reconstroem o banco'), que foi fechada — mas o QI escapou. Deve ser resolvido ANTES da revisão do QI (#8): não faz sentido revisar conteúdo que não está versionado."
+    },
+    {
+      "titulo": "A receita de conserto do #114 reabre 3 funções fechadas por segurança",
+      "descricao": "A prova do #114 recomenda rodar reconceder_grants() para reparar permissões. Quem seguir isso hoje REABRE três funções que foram fechadas de propósito depois, no trabalho de segurança de 30/07.",
+      "area": "Segurança / RLS",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 241,
+      "origem": "Varredura completa do Claude Code, 03/08",
+      "prova": "Conserto pequeno: ajustar a lista de exceções da função. O perigo é o texto do quadro virar instrução para alguém no futuro."
+    },
+    {
+      "titulo": "export_logs está vazia apesar da prova do #21 dizer o contrário",
+      "descricao": "A prova do #21 (rastro da exportação) afirma que o registro foi testado. A tabela export_logs tem ZERO linhas. Ou a limpeza de dados de teste levou junto, ou a gravação falha em silêncio.",
+      "area": "Pessoas / Exportação",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 242,
+      "origem": "Varredura completa do Claude Code, 03/08 — confirmado por fora pelo chat",
+      "prova": "Confirmado: content-range */0. Se a gravação falha, o rastro que existe para auditoria não existe — o pior tipo de falha, porque só se descobre quando alguém precisa dele. Rodar uma exportação real e olhar a tabela na hora resolve a dúvida."
     }
   ],
   "planilha": {
