@@ -98,7 +98,7 @@ export function TreinamentoView({
 }) {
   const qc = useQueryClient();
   const getFn = useServerFn(getTreinamento);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["treinamento", treinamentoId, previewPersonId],
     queryFn: () => getFn({ data: { id: treinamentoId, preview_person_id: previewPersonId } }),
   });
@@ -141,6 +141,13 @@ export function TreinamentoView({
   const aula = aulas.find((a) => a.id === aulaId) ?? null;
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando treinamento…</p>;
+  if (error) {
+    return (
+      <div className="rounded-xl bg-destructive/10 p-8 text-center">
+        <p className="text-sm text-destructive">{(error as Error).message}</p>
+      </div>
+    );
+  }
   if (!data) return <p className="text-sm text-muted-foreground">Treinamento não encontrado.</p>;
 
   const t = data.treinamento;

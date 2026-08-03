@@ -41,7 +41,7 @@ function ClassroomPage() {
 
   const listFn = useServerFn(listTreinamentos);
   const createFn = useServerFn(createTreinamento);
-  const { data: treinamentos = [], isLoading } = useQuery({
+  const { data: treinamentos = [], isLoading, error } = useQuery({
     queryKey: ["treinamentos"],
     queryFn: () => listFn(),
   });
@@ -74,7 +74,11 @@ function ClassroomPage() {
         <Button onClick={() => setAberto(true)}><Plus className="size-4" /> Novo treinamento</Button>
       </div>
 
-      {lista.length === 0 ? (
+      {error ? (
+        <div className="rounded-xl bg-destructive/10 p-8 text-center">
+          <p className="text-sm text-destructive">{(error as Error).message}</p>
+        </div>
+      ) : lista.length === 0 ? (
         <ClassroomVazio podeEditar />
       ) : (
         <div className="space-y-8">
