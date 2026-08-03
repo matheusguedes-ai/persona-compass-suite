@@ -244,50 +244,50 @@
       "titulo": "Google Cloud: ativar a Calendar API e o escopo",
       "descricao": "Passos 1 e 2 dele no projeto metrica-humana: ativar a Google Calendar API e adicionar o escopo calendar.app.created em Acesso a dados.",
       "area": "Infra",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/plano-menu-gestao.md § Etapa 4 · docs/google-calendar-passo-a-passo.md Passos 1 e 2",
-      "prova": "Sem esse passo dele nada da agenda conversa com o Google.",
+      "prova": "Conferido por fora em 01/08: google_conexoes tem conexão VIVA (ultimo_erro null, ultimo_uso_em 01/08 02:33) e três eventos sincronizados em google_eventos, o último criado hoje. Nada disso funcionaria sem a API ativa, o URI autorizado e as chaves coladas — logo, os três passos JÁ FORAM FEITOS. O kanban ficou desatualizado.",
       "prioridade": 25
     },
     {
       "titulo": "Google Cloud: autorizar o URI de retorno",
       "descricao": "Passo 3: adicionar /api/google/callback aos URIs de redirecionamento do Cliente Web 1, sem apagar o endereço do login.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/google-calendar-passo-a-passo.md Passo 3",
-      "prova": "Passo seguinte no painel do Google, sem apagar o endereço do login.",
+      "prova": "Conferido por fora em 01/08: google_conexoes tem conexão VIVA (ultimo_erro null, ultimo_uso_em 01/08 02:33) e três eventos sincronizados em google_eventos, o último criado hoje. Nada disso funcionaria sem a API ativa, o URI autorizado e as chaves coladas — logo, os três passos JÁ FORAM FEITOS. O kanban ficou desatualizado.",
       "prioridade": 26
     },
     {
       "titulo": "Colar GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET",
       "descricao": "Passo 4: ele mesmo cola as chaves no painel de segredos; os valores não passam por mim.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "docs/google-calendar-passo-a-passo.md Passo 4",
-      "prova": "As chaves são dele e não passam por mim.",
+      "prova": "Conferido por fora em 01/08: google_conexoes tem conexão VIVA (ultimo_erro null, ultimo_uso_em 01/08 02:33) e três eventos sincronizados em google_eventos, o último criado hoje. Nada disso funcionaria sem a API ativa, o URI autorizado e as chaves coladas — logo, os três passos JÁ FORAM FEITOS. O kanban ficou desatualizado.",
       "prioridade": 27
     },
     {
       "titulo": "Renovação automática do token do Google",
       "descricao": "O token expira; precisa renovar sozinho e, quando não der, avisar em vez de falhar calado.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-menu-gestao.md § Etapa 4, Adequação provável",
-      "prova": "Token vencido não pode falhar calado; tem que avisar.",
+      "prova": "Existe em src/lib/google.server.ts: renovarAcesso(conexao.refresh_token) com grant_type=refresh_token. A conexão está viva desde 29/07 e foi usada em 01/08 — se não renovasse, teria morrido em uma hora. RESSALVA: a renovação é sob demanda (quando uma chamada precisa), não agendada. Se ninguém usar a agenda por meses, o refresh_token pode ser revogado pelo Google — caso raro e sem impacto hoje.",
       "prioridade": 28
     },
     {
       "titulo": "Mandar o fim real do evento para o Google Calendar",
       "descricao": "Hoje o evento vai ao Google com duração fixa de 60 min; com hora de fim de verdade a sincronização precisa mandar o fim correto.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "docs/plano-demandas-30-07.md § D, bloco Cuidado",
-      "prova": "Hoje todo evento vai com 60 minutos fixos, o que é hora errada na agenda.",
+      "prova": "Existe em google.server.ts:223 — end: { dateTime: fim.toISOString(), timeZone: 'America/Sao_Paulo' }. O fim real vai.",
       "prioridade": 29
     },
     {
@@ -641,13 +641,13 @@
       "prioridade": 64
     },
     {
-      "titulo": "Decidir o nome da marca da plataforma",
+      "titulo": "Nome e marca da plataforma são personalizáveis (não é decisão)",
       "descricao": "Escolher entre 'Métrica Humana' (padrão atual) e 'Método Intenção'; tecnicamente é só preencher company_name.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Matheus",
       "origem": "estado-atual-e-fila.md § Pendências que são DELE",
-      "prova": "Tecnicamente é preencher um campo; falta ele escolher o nome.",
+      "prova": "CANCELADA como decisão em 01/08, a pedido do Matheus. O nome NÃO é uma escolha a fazer: é um campo editável nas Configurações do master (profiles.company_name), que ele troca quando quiser. Já está preenchido com 'INTENÇÃO ASSESSEMENT'. Eu tratei como bloqueio o que é só um campo de texto — e cheguei a usar isso como argumento para adiar a #219, errado.",
       "prioridade": 65
     },
     {
@@ -2184,11 +2184,11 @@
       "titulo": "A marca do dono não chega ao aluno, mentor e colaborador",
       "descricao": "Mudar logo, nome e cor nas Configurações só muda a tela do dono. A causa: loadBrandAndSettings busca profiles pelo user_id de QUEM ESTÁ LOGADO, e aluno, colaborador e mentor têm perfil próprio sem marca — caem no padrão da plataforma. A marca tem de vir sempre do DONO da conta (acting_account()), em todo painel e todo papel. REGRA: o master mudou, muda para todos, na hora.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 219,
       "origem": "Matheus, 31/07: mudou a marca no master e o painel do aluno continuou com a antiga",
-      "prova": "Confirmado em src/lib/brand.server.ts:41 — filtra por user_id = mentorId. Nas telas PÚBLICAS funciona (passa o dono do link); nos painéis logados, não. O Matheus reforçou em 01/08 que isto é branding dele e importa. SUBIU de Fase 5 para o sprint atual por decisão dele. Barato: o conserto é num lugar só."
+      "prova": "FEITO E EM PRODUÇÃO. Causa: BrandProvider (sidebar/cabeçalho de quem está logado) buscava profiles pelo user_id de QUEM ESTAVA LOGADO (getMyProfile) — colaborador, mentor convidado e aluno têm perfil próprio sem marca nenhuma, caíam sempre no padrão da plataforma. Só o dono via a marca certa, porque para ele \"meu perfil\" e \"conta\" são a mesma linha. Conserto: getAccountBrand (nova, data.functions.ts) resolve o DONO de verdade antes de buscar a marca — usa membershipDoUsuario (mesma fonte de getMyMembership) para achar a conta de mentor/colaborador, e só para aluno puro busca o mentor em people.mentor_id (acting_account() sozinha não serve: só conhece team_members, devolveria o próprio id do aluno). Reaproveita loadBrandAndSettings, a mesma função das páginas públicas. /aluno tinha bug à parte: as 3 <BrandMark /> do layout nunca recebiam brand nenhum — nem existia BrandProvider ali. Ligado. PROVADO com login real, local e depois em produção: dono vê a própria marca; colaborador, mentor convidado e aluno (o papel que motivou a demanda) passam a ver a marca do DONO em vez do padrão da plataforma; link público (convite, sem login) continua mostrando a marca do mentor do link, intacto — não foi tocado. Dono que também é avaliado em outra conta (caso real já existente) continua vendo a PRÓPRIA marca, não a de quem o avalia. Dados de teste apagados e sessões derrubadas ao final. #235 (ícone/manifest) pode começar agora que esta está pronta. Commit 1b3cb50 (03/08), publicado e conferido no ar."
     },
     {
       "titulo": "Painel de engajamento: quem está sumindo",
@@ -2321,14 +2321,14 @@
       "prova": "Feito e provado em produção 01/08. Achado no caminho: o conserto já tinha sido feito e testado numa sessão anterior (comunidade, ranking do grupo e a metade Grupos de quem-acessa), mas ficou preso num branch que nunca foi mesclado — nunca chegou a publicar. Reaplicado via cherry-pick (commit f99ffb2), typecheck+build OK, reprovado com login real: colaborador de teste sem a permissão grupos via /comunidades, /grupos/:id (ranking) e o diálogo Nova trilha (quem-acessa) — as três mostram \"Você não tem acesso a esta área.\" em vez de lista vazia. Restaurada a permissão depois, tela volta ao normal. Equipe (team-page.tsx) foi reconferido do zero e CONFIRMADO que não tem esse bug: listTeamMembers depende só da RLS do banco, não existe erro de permissão pra essa tela capturar — por isso não faz parte do conserto."
     },
     {
-      "titulo": "Revisar os branches soltos: tem trabalho pronto que nunca chegou ao ar",
-      "descricao": "Existem branches no repositório com trabalho concluído que nunca foi trazido para a main. Confirmado em 01/08: claude/lucid-burnell-102292 tinha a correção da #232 pronta e testada (o kanban dizia 'pendente' e estava mentindo — o Code recuperou), e claude/ecstatic-bun-50995d tem 'Capa da trilha: upload com recorte' AINDA não trazido. Varrer todos os branches, listar o que existe neles e não está na main, e decidir item a item: traz, descarta ou vira demanda.",
+      "titulo": "Varredura completa: o kanban mente sobre o que já está pronto",
+      "descricao": "Duas provas em 01/08 de que o quadro não é confiável. PRIMEIRA: trabalho pronto preso em branch que nunca chegou à main (claude/lucid-burnell tinha a correção da #232 feita e testada; claude/keen-chebyshev tinha um conserto de escala linear nunca commitado, que virou a #234). SEGUNDA, e pior: SEIS demandas de Agenda marcadas como pendentes já estavam prontas — a conexão com o Google funciona e sincronizou evento hoje, a renovação de token existe, o fim do evento é enviado. Varrer TODAS as áreas, não só permissão/buckets/mentorias.",
       "area": "Gestão do projeto",
       "status": "Planejado",
       "depende_de": "Claude",
       "prioridade": 233,
       "origem": "Claude Code, 01/08, ao corrigir a #232 — achou o próprio conserto preso num branch",
-      "prova": "O risco não é o código perdido, é o kanban mentir. Se uma demanda estava feita e marcada como pendente, outras podem estar no mesmo estado — e o inverso também: marcada como concluída com o trabalho parado num branch. A capa da trilha (ecstatic-bun) é trabalho real de hoje esperando decisão."
+      "prova": "A primeira varredura (feita pelo Code em 01/08) cobriu só permissão, buckets e mentorias — e nessas três não achou divergência. Agenda não foi olhada, e era onde estava o buraco. O chat passou a sessão inteira recomendando '30 minutos no console do Google' para destravar dez demandas que já estavam destravadas. Enquanto a varredura não cobrir tudo, nenhuma contagem do quadro vale, e o roadmap prioriza pelo motivo errado."
     },
     {
       "titulo": "Editar pergunta de escala linear apaga 'reverse' e 'check_group'",
