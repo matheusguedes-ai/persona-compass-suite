@@ -17,6 +17,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { notificar } from "@/lib/notificacoes.functions";
+import { exigirVisitante } from "@/lib/permissao.server";
 
 /** Inclui `slide` e `roteiro`, que a Academy não tem: são o material de quem dá aula presencial. */
 export const TIPOS_MATERIAL_TREINAMENTO = [
@@ -32,6 +33,15 @@ export const listTreinamentos = createServerFn({ method: "GET" })
     z.object({ preview_person_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
   )
   .handler(async ({ context, data: input }) => {
+    // A RLS (`posso_ver_treinamento`) usa auth.uid() direto, não
+    // acting_account() — então hoje um colaborador sem grupo atribuído já sai
+    // sem linha nenhuma. Mas nada aqui checava isso explicitamente, e o menu
+    // do dono é soDono (app-sidebar.tsx): não existe permissão de
+    // funcionalidade para "Classroom" que um colaborador possa ter. Mesma
+    // cirurgia do #226, adaptada: sem tecla para dar bypass, barra
+    // colaborador sempre. Fecha #239.
+    await exigirVisitante(context.supabase, context.userId);
+
     const { data, error } = await context.supabase
       .from("treinamentos")
       .select("*, treinamento_grupos(count), treinamento_modulos(treinamento_aulas(count))")
@@ -82,6 +92,10 @@ export const getTreinamento = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Mesmo motivo de listTreinamentos: sem permissão de funcionalidade
+    // própria para Classroom, colaborador não entra por aqui de jeito nenhum.
+    await exigirVisitante(supabase, userId);
+
     const { data: treinamento, error } = await supabase
       .from("treinamentos").select("*").eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);

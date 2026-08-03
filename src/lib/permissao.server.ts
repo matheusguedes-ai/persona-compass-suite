@@ -101,3 +101,22 @@ export async function exigirPermissaoOuVisitante(
   if ((m.permissions as string[]).includes(perm)) return;
   throw new Error("Você não tem acesso a esta área.");
 }
+
+/**
+ * Como `exigirPermissaoOuVisitante`, mas sem escape nenhum para colaborador.
+ *
+ * Existe para função compartilhada com quem só vê o que é seu (aluno, mentor
+ * do grupo) numa área que NUNCA ganhou permissão de funcionalidade própria —
+ * a decisão para o Classroom foi "só o dono administra" (`soDono: true` em
+ * app-sidebar.tsx, mesmo tratamento de `/colaboradores`). Sem uma tecla
+ * dedicada, dar o bypass por qualquer permissão já existente (`educacao`,
+ * por exemplo) deixaria entrar quem a decisão original queria de fora.
+ */
+export async function exigirVisitante(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+): Promise<void> {
+  const m = await membershipDoUsuario(supabase, userId);
+  if (m.kind === "owner" || m.kind === "mentor" || m.kind === "aluno") return;
+  throw new Error("Você não tem acesso a esta área.");
+}
