@@ -2424,11 +2424,11 @@
       "titulo": "A prévia 'Ver como aluno' mostra a agenda do DONO, não a do aluno",
       "descricao": "Na prévia de um aluno, a agenda mostra as mentorias de quem está LOGADO (o dono), não as da pessoa previsualizada. agendaDoMes filtra por people.user_id = usuário atual; na prévia isso resolve para o dono. Outras partes da prévia já recebem preview_person_id (aluno.tsx:86 passa para areasFn) — a agenda não recebe.",
       "area": "Agenda",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 243,
       "origem": "Matheus, 03/08: viu a mentoria do 'Fulado de Tal' na prévia da Laila",
-      "prova": "NÃO É VAZAMENTO — conferido: a Laila não tem login (user_id null), e a policy mentoria_sessoes_read recorta por my_person_ids() para aluno de verdade. É a PRÉVIA que mente. Grave assim mesmo: a prévia existe para o Matheus confiar no que o aluno vê, e ele tomou uma decisão errada olhando para ela (achou que era vazamento entre alunos). Conserto: agendaDoMes precisa aceitar preview_person_id e filtrar por ele quando presente, como areasFn já faz. VARRER as outras funções do painel do aluno atrás do mesmo padrão — se a agenda esqueceu, outras podem ter esquecido."
+      "prova": "Fechado em 5bdd17b (ponto de retorno em 1c0ec23). Confirmado: agendaDoMes tinha DUAS falhas (mentorias E eventos, este segundo porque posso_ver_evento também libera o dono para a conta inteira). Varredura achou o MESMO esquecimento em mais 5 funções: getMinhasMentorias (sem filtro nenhum na prévia — mostrava a conta inteira), listTreinamentos (mostrava treinamento de grupo que a pessoa nem está — confirmado lendo posso_ver_treinamento), getTreinamento (anotações do professor e presença 'estive' vinham do dono, não da pessoa pré-visualizada), rankingDoGrupo (destacava a linha errada como 'você'). Todas corrigidas com o mesmo padrão preview_person_id. Achado à parte (não corrigido aqui, fora do escopo desta demanda): getMyMembership não sabe prever papel de um MENTOR promovido, então a prévia de um mentor aparece sempre como aluno comum. PROVADO com login real em produção: prévia da Laila Ferreira NÃO mostra a mentoria de 'Fulado de Tal' (agenda e mentorias, ambas vazias); prévia de 'Fulado de Tal' mostra a própria mentoria (02/08 18:12, resumo e avaliação corretos); dono em /agenda continua vendo tudo, inclusive a de Fulado de Tal. Não provado ao vivo: aluno real logado (Gabriela) vendo só o dele — o classificador de segurança bloqueou o login automatizado por magic link. Confiança por revisão de código: o caminho do aluno real é EXATAMENTE o mesmo código de antes (só ganhou um novo `if` que só ativa com preview_person_id)."
     }
   ],
   "planilha": {
