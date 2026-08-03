@@ -2318,7 +2318,7 @@
       "depende_de": "Claude",
       "prioridade": 232,
       "origem": "Claude Code, 01/08, achado ao fechar o menu Mentorias",
-      "prova": "Feito e provado em produção 01/08. Achado no caminho: o conserto já tinha sido feito e testado numa sessão anterior (comunidade, ranking do grupo e a metade Grupos de quem-acessa), mas ficou preso num branch que nunca foi mesclado — nunca chegou a publicar. Reaplicado via cherry-pick (commit f99ffb2), typecheck+build OK, reprovado com login real: colaborador de teste sem a permissão grupos via /comunidades, /grupos/:id (ranking) e o diálogo Nova trilha (quem-acessa) — as três mostram \"Você não tem acesso a esta área.\" em vez de lista vazia. Restaurada a permissão depois, tela volta ao normal. Equipe (team-page.tsx) foi reconferido do zero e CONFIRMADO que não tem esse bug: listTeamMembers depende só da RLS do banco, não existe erro de permissão pra essa tela capturar — por isso não faz parte do conserto."
+      "prova": "Feito e provado em produção 01/08. Achado no caminho: o conserto já tinha sido feito e testado numa sessão anterior (comunidade, ranking do grupo e a metade Grupos de quem-acessa), mas ficou preso num branch que nunca foi mesclado — nunca chegou a publicar. Reaplicado via cherry-pick (commit f99ffb2), typecheck+build OK, reprovado com login real: colaborador de teste sem a permissão grupos via /comunidades, /grupos/:id (ranking) e o diálogo Nova trilha (quem-acessa) — as três mostram \"Você não tem acesso a esta área.\" em vez de lista vazia. Restaurada a permissão depois, tela volta ao normal. Equipe (team-page.tsx) foi reconferido do zero e CONFIRMADO que não tem esse bug: listTeamMembers depende só da RLS do banco, não existe erro de permissão pra essa tela capturar — por isso não faz parte do conserto.\n\nRECONFERIDO em 03/08, a pedido do Matheus ('confira se ainda existe'): nenhum dos 3 arquivos (_app.comunidades.tsx, _app.grupos.$id.tsx, quem-acessa.tsx) foi tocado por nenhum commit desde f99ffb2 — lido o código atual dos três e confirmado que o tratamento de erro (error/isError exibindo a mensagem do servidor em vez de lista vazia) continua exatamente como descrito acima. Nenhuma mudança feita — não havia o que corrigir."
     },
     {
       "titulo": "Varredura completa: o kanban mente sobre o que já está pronto",
@@ -2354,10 +2354,10 @@
       "titulo": "Tirar 'Novo Envio' da barra superior — vai para dentro de Testes",
       "descricao": "O botão 'Novo Envio' ocupa lugar de destaque na barra superior de TODA tela (app-header.tsx:43), como se disparar teste fosse a ação principal da plataforma. Não é mais: virou uma ação entre várias. Sai da barra e passa a existir só dentro do menu Testes, onde faz sentido.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 236,
-      "prova": "Pequena e cirúrgica. CUIDADO: o app-header é compartilhado por todas as telas e tem também 'Ver como aluno' e o sino — não mexer nos outros. E conferir se algum fluxo depende do atalho (o convite, por exemplo) antes de remover.",
+      "prova": "Feito e testado local 03/08 (commit 06ef6d3). Removido o botão 'Novo Envio' de app-header.tsx (aparecia em toda tela da plataforma). O atalho não se perde: Testes → aba Envios já tem seu próprio botão 'Novo envio' (_app.envios.index.tsx), e Pessoas/Grupos continuam linkando direto com personId/groupId pré-preenchidos — nenhum fluxo dependia do atalho do header. 'Ver como aluno' e o sino, no mesmo header, não foram tocados. Testado local: header sem o botão; Testes → Envios abre o formulário normalmente.",
       "origem": "Matheus, 01/08: a interface ainda é de plataforma de testes, o produto virou hub"
     },
     {
@@ -2384,11 +2384,11 @@
       "titulo": "Brecha de permissão no Classroom ficou fora da varredura do #226",
       "descricao": "O mesmo buraco que o #226 fechou em quatro áreas — a leitura não checar permissão — continua no Classroom. Não é explorável pela tela hoje, mas nada no banco impede por outro caminho.",
       "area": "Classroom",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "prioridade": 239,
       "origem": "Varredura completa do Claude Code, 03/08",
-      "prova": "Mesmo padrão já corrigido em Academy, Biblioteca, Comunidade, Ranking e Agenda. É repetir a cirurgia numa área a mais."
+      "prova": "Feito e testado local 03/08 (commit 8a51147, ponto de retorno em 1b8dee1). listTreinamentos/getTreinamento não checavam nada além da RLS. Diferente de Academy/Comunidade/Ranking — onde um colaborador PODE ganhar a permissão —, o menu do Classroom sempre foi soDono (app-sidebar.tsx): não existe tecla de funcionalidade 'classroom' para dar a um colaborador. Por isso não reusei exigirPermissaoOuVisitante (qualquer permissão existente viraria bypass indevido) — criei exigirVisitante (permissao.server.ts): owner/mentor/aluno passam, colaborador nunca passa, com ou sem qualquer permissão marcada. TESTADO com 4 sessões reais geradas via admin (colaborador sem permissão nenhuma, colaborador com as 7 permissões, dono, aluno real): só os dois colaboradores foram barrados com 'Você não tem acesso a esta área.'; dono viu os 2 treinamentos normalmente, aluno (Gabriela) seguiu vendo o dela (0, sem erro). Dados de teste (colaborador e usuário criados só para o teste) apagados ao final."
     },
     {
       "titulo": "As 20 perguntas do QI existem só no banco, sem migração nem script",
