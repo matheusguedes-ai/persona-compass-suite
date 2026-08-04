@@ -55,6 +55,12 @@ export type Database = {
         Update: { id?: string; evento_id?: string; group_id?: string | null; person_id?: string | null }
         Relationships: []
       }
+      google_agendas_criadas: {
+        Row: { mentor_id: string; calendar_id: string; criado_em: string }
+        Insert: { mentor_id: string; calendar_id: string; criado_em?: string }
+        Update: { mentor_id?: string; calendar_id?: string; criado_em?: string }
+        Relationships: []
+      }
       google_conexoes: {
         Row: { user_id: string; refresh_token: string; calendar_id: string | null; email: string | null; conectado_em: string; ultimo_erro: string | null; ultimo_uso_em: string | null }
         Insert: { user_id: string; refresh_token: string; calendar_id?: string | null; email?: string | null; conectado_em?: string; ultimo_erro?: string | null; ultimo_uso_em?: string | null }

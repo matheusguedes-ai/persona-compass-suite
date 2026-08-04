@@ -7,7 +7,7 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  trocarCodigoPorTokens, criarAgenda, emailDaConta, verificarEstado,
+  trocarCodigoPorTokens, criarAgenda, agendaExiste, emailDaConta, verificarEstado,
 } from "@/lib/google.server";
 
 const DESTINO = "/configuracoes";
@@ -46,12 +46,27 @@ export const Route = createFileRoute("/api/google/callback")({
             return volta("O Google não devolveu a autorização de longo prazo. Tente de novo.", false);
           }
 
-          const [agenda, email] = await Promise.all([
-            criarAgenda(tokens.access_token),
-            emailDaConta(tokens.access_token),
-          ]);
-
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+          // #249: reaproveita a agenda já criada antes, se ainda existir no
+          // Google — sem isto, cada reconexão deixava uma "Métrica Humana"
+          // órfã para trás (já eram três antes deste conserto).
+          const agendaPromise = (async () => {
+            const { data: lembrada } = await supabaseAdmin
+              .from("google_agendas_criadas")
+              .select("calendar_id")
+              .eq("mentor_id", userId)
+              .maybeSingle();
+            if (lembrada && (await agendaExiste(tokens.access_token, lembrada.calendar_id))) {
+              return lembrada.calendar_id;
+            }
+            const nova = await criarAgenda(tokens.access_token);
+            await supabaseAdmin.from("google_agendas_criadas").upsert({ mentor_id: userId, calendar_id: nova });
+            return nova;
+          })();
+
+          const [agenda, email] = await Promise.all([agendaPromise, emailDaConta(tokens.access_token)]);
+
           const { error } = await supabaseAdmin.from("google_conexoes").upsert({
             user_id: userId,
             refresh_token: tokens.refresh_token,

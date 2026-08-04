@@ -163,6 +163,17 @@ export async function criarAgenda(accessToken: string): Promise<string> {
   return ((await r.json()) as { id: string }).id;
 }
 
+/**
+ * A agenda lembrada (tabela `google_agendas_criadas`) ainda existe no Google?
+ * Cobre o caso do professor ter apagado "Métrica Humana" manualmente por lá.
+ */
+export async function agendaExiste(accessToken: string, calendarId: string): Promise<boolean> {
+  const r = await fetch(`${CAL}/calendars/${encodeURIComponent(calendarId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return r.ok;
+}
+
 /** Quem autorizou — só para a tela dizer "conectado como fulano@". */
 export async function emailDaConta(accessToken: string): Promise<string | null> {
   try {
