@@ -15,7 +15,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { agendaDoMes, excluirEvento, type Compromisso } from "@/lib/gestao.functions";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Clock, ExternalLink, Trash2 } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, Clock, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -25,6 +25,9 @@ import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { NovoEvento } from "@/components/novo-evento";
 
 const SEMANA = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
@@ -68,6 +71,7 @@ export function Agenda({
   const [ref, setRef] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1));
   // O compromisso aberto no pop-up. Null = fechado.
   const [aberto, setAberto] = useState<Compromisso | null>(null);
+  const [novoEventoAberto, setNovoEventoAberto] = useState(false);
   const qc = useQueryClient();
   const excluirFn = useServerFn(excluirEvento);
   const excluir = useMutation({
@@ -144,7 +148,30 @@ export function Agenda({
           Hoje
         </Button>
         {isLoading && <span className="text-xs text-muted-foreground">carregando…</span>}
-        {podeCriar && <NovoEvento />}
+        {podeCriar && (
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="ml-auto">
+                  <Plus className="size-4" /> Criar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setNovoEventoAberto(true)}>
+                  <CalendarPlus className="size-4" />
+                  <span>Criar evento</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/mentorias/agendamento">
+                    <Link2 className="size-4" />
+                    <span>Criar link de agendamento</span>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <NovoEvento open={novoEventoAberto} onOpenChange={setNovoEventoAberto} />
+          </>
+        )}
       </div>
 
       <div className="overflow-x-auto">

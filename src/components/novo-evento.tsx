@@ -17,26 +17,29 @@ import { meusGrupos } from "@/lib/comunidade.functions";
 import { listarPessoasParaEscolher } from "@/lib/data.functions";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CalendarPlus, ImagePlus, X } from "lucide-react";
+import { ImagePlus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { erroDeUpload } from "@/lib/erro-de-upload";
 
-export function NovoEvento() {
+/**
+ * O diálogo é controlado de fora: desde a #251, o gatilho é um item dentro
+ * do menu "Criar" da Agenda, não mais um botão próprio aqui.
+ */
+export function NovoEvento({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const qc = useQueryClient();
   const criar = useServerFn(criarEvento);
   const gruposFn = useServerFn(meusGrupos);
   const pessoasFn = useServerFn(listarPessoasParaEscolher);
   const previaFn = useServerFn(assinarMeuEnvio);
 
-  const [aberto, setAberto] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [quando, setQuando] = useState("");
@@ -78,9 +81,9 @@ export function NovoEvento() {
   const [grupos, setGrupos] = useState<string[]>([]);
   const [pessoas, setPessoas] = useState<string[]>([]);
 
-  const { data: dg } = useQuery({ queryKey: ["grupos"], queryFn: () => gruposFn(), enabled: aberto });
+  const { data: dg } = useQuery({ queryKey: ["grupos"], queryFn: () => gruposFn(), enabled: open });
   const { data: dp } = useQuery({
-    queryKey: ["pessoas-evento"], queryFn: () => pessoasFn(), enabled: aberto,
+    queryKey: ["pessoas-evento"], queryFn: () => pessoasFn(), enabled: open,
   });
 
   const alternar = (lista: string[], set: (v: string[]) => void, id: string) =>
@@ -106,7 +109,7 @@ export function NovoEvento() {
     onSuccess: () => {
       toast.success("Evento criado.");
       qc.invalidateQueries({ queryKey: ["agenda"] });
-      setAberto(false);
+      onOpenChange(false);
       setTitulo(""); setDescricao(""); setQuando(""); setTerminaEm("");
       setLinkUrl(""); setImagemUrl(null); setImagemPreview(null); setGrupos([]); setPessoas([]);
     },
@@ -119,12 +122,7 @@ export function NovoEvento() {
   const fimInvalido = !!terminaEm && !!quando && new Date(terminaEm) <= new Date(quando);
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
-      <DialogTrigger asChild>
-        <Button size="sm" className="ml-auto">
-          <CalendarPlus className="size-4" /> Novo evento
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Novo evento na agenda</DialogTitle>
