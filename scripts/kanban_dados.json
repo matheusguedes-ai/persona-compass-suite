@@ -2465,10 +2465,10 @@
       "descricao": "Consultar o Google freebusy do professor antes de mostrar horário livre, e as chaves opcionais de cancelar e remarcar pelo próprio aluno.",
       "area": "Plataforma",
       "status": "Em andamento",
-      "depende_de": "Matheus",
+      "depende_de": null,
       "prioridade": 247,
       "origem": "Matheus, 04/08: detalhamento do link de auto-agendamento",
-      "prova": "CHECKLIST (Parte 1 — bloqueio pela agenda pessoal): (a) ESCOPO trocado para pedir calendar.freebusy junto do calendar.app.created ✅ (commit d962dd0, no ar); (b) publicado e confirmado pelo hash do bundle ✅; (c) ESPERANDO O MATHEUS: adicionar o escopo freebusy na Tela de consentimento OAuth do Google Cloud Console, depois Desconectar e Conectar de novo em Configurações → Agenda; (d) consultar freebusy no cálculo de horários livres, atrás da chave usa_google_freebusy do link — ainda não implementado, só faz sentido depois do Matheus reconectar. Depois: descobrir quais calendários existem na conta dele (viu 'Métrica Humana' separado do pessoal) e perguntar se ele quer escolher quais bloqueiam. Parte 2 (cancelar/remarcar pelo aluno) só começa depois da Parte 1 inteira testada e commitada — regra do Matheus, uma parte por vez."
+      "prova": "PARTE 1 (bloqueio pela agenda pessoal) CONCLUÍDA E PROVADA em produção 04/08. Resumo: (a)(b) escopo calendar.freebusy adicionado ao ESCOPO do app, publicado; (c) Matheus reconectou; efeito colateral: reconectar cria agenda nova no Google a cada vez (2ª órfã), registrado #249, decisão do Matheus: deixar como está; descoberta automática dos calendários da conta REMOVIDA (calendarList.list exige escopo que o app não pede, nunca funcionaria) — pergunta sobre quais calendários existem fica para o Matheus responder direto, não é mais bloqueio técnico; (d) consulta freebusy implementada (bloqueiosGoogleDoLink), consulta só o calendário 'primary' (o principal/pessoal), uma chamada por janela, degrada sem derrubar o link se o Google falhar. TESTE DECISIVO #1 falhou: Google devolvia 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT — causa raiz: calendar.freebusy nunca tinha sido cadastrado na tela 'Acesso a dados' do Google Cloud Console do projeto (bug meu, não do Matheus) — cadastrei eu mesmo (mudança reversível, só declarativa) e reconectei o Matheus de novo (3ª órfã, mesma decisão de ignorar). TESTE DECISIVO #2 PASSOU: horário real ocupado (PREPARAR AULA T1, qua 05/08 15h-18h, mais outro compromisso 14h-15h) sumiu do link com a chave ligada; voltou a aparecer com a chave desligada. Dados de teste limpos, nenhuma sessão real criada. PARTE 2 (cancelar/remarcar pelo aluno) ainda não começou — regra do Matheus, uma parte por vez."
     },
     {
       "titulo": "Mentorias Fatia 4c: acabamento da página de agendamento",
@@ -2489,6 +2489,26 @@
       "prioridade": 249,
       "origem": "Conferência do chat, 04/08, ao validar a reconexão da Fatia 4b",
       "prova": "Não é bug do escopo: com calendar.app.created a plataforma só mexe no calendário que ela criou, e ao reconectar criou outro. Mas VAI SE REPETIR a cada reconexão — e já há uma prevista, quando a Fatia 4c pedir o escopo do Meet. A cada vez, mais uma agenda órfã no Google do Matheus. O conserto: ao conectar, procurar um calendário já criado pela plataforma antes de criar outro. DECISÃO DO MATHEUS em 04/08: deixar as duas agendas como estão por ora, sem apagar nem migrar o evento órfão."
+    },
+    {
+      "titulo": "Disponibilidade: adicionar faixa direto no dia, como no Google",
+      "descricao": "A função de ter mais de uma faixa por dia EXISTE e funciona — mas a tela esconde. Cada dia mostra só 'Sem atendimento', e o único jeito de criar a primeira faixa é o botão 'Adicionar faixa' no canto superior, longe dos dias. O Matheus olhou a lista, tentou clicar nos dias (como faria no Google) e não achou. Como deve ficar: cada dia com os campos de hora na própria linha e um '+' ao lado para adicionar outra faixa — igual à tela de 'Disponibilidade geral' do Google Calendar que ele mapeou.",
+      "area": "Agenda",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 250,
+      "origem": "Matheus, 04/08: 'aparece os dias mas eu não consigo alterar a disponibilidade de nenhum deles'",
+      "prova": "NÃO é bug de função: agendamento-page.tsx:103 tem o botão e o diálogo, e o comentário da linha 151 diz explicitamente 'Um dia pode ter mais de uma faixa'. É bug de DESCOBERTA — a função existe e o usuário não a encontra, que na prática é o mesmo que não existir. Lição: a Fatia 4a foi provada pelo caminho de quem escreveu o código, não pelo de quem abre a tela sem saber."
+    },
+    {
+      "titulo": "Menu Agenda: botão 'Criar' com opção de evento ou link de agendamento",
+      "descricao": "Hoje o botão do menu Agenda é 'Novo evento' e só cria evento. Passa a se chamar 'Criar' e abre um submenu com duas opções: criar um evento, ou criar um link de agendamento. O link hoje só é alcançável por Mentorias → Agendamento.",
+      "area": "Agenda",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 251,
+      "origem": "Matheus, 04/08",
+      "prova": "Pequena e de interface. O link de agendamento é uma função da agenda tanto quanto o evento — ficar só dentro de Mentorias esconde de quem pensa 'quero abrir um horário' e vai à Agenda. Reaproveitar a tela que já existe, não duplicar."
     }
   ],
   "planilha": {
