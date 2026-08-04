@@ -60,6 +60,28 @@ export function AgendamentoPage() {
 // Disponibilidade
 // ============================================================
 
+type Faixa = { id: string; dia_semana: number; hora_inicio: string; hora_fim: string; ativo: boolean };
+
+/**
+ * Horário sugerido para a próxima faixa de um dia, calculado a partir das que
+ * já existem — quem clica no + não parte de 00:00. Sem faixa ainda: manhã
+ * padrão (9h-12h). Com faixa: começa 2h depois da última (o intervalo de
+ * almoço) e dura 4h — para o caso do enunciado (9h-12h e depois 14h-18h) isso
+ * cai certinho sem precisar editar nada.
+ */
+function faixaPadrao(doDia: Faixa[]): { hora_inicio: string; hora_fim: string } {
+  if (doDia.length === 0) return { hora_inicio: "09:00", hora_fim: "12:00" };
+  const paraTexto = (min: number) => {
+    const c = Math.min(Math.max(min, 0), 23 * 60 + 59);
+    return `${String(Math.floor(c / 60)).padStart(2, "0")}:${String(c % 60).padStart(2, "0")}`;
+  };
+  const [h, m] = doDia.map((f) => f.hora_fim.slice(0, 5)).sort().at(-1)!.split(":").map(Number);
+  const ultimoFimMin = h * 60 + m;
+  const inicioMin = ultimoFimMin + 120;
+  if (inicioMin >= 23 * 60 + 59) return { hora_inicio: paraTexto(ultimoFimMin), hora_fim: paraTexto(ultimoFimMin + 60) };
+  return { hora_inicio: paraTexto(inicioMin), hora_fim: paraTexto(inicioMin + 240) };
+}
+
 function AbaDisponibilidade() {
   const qc = useQueryClient();
   const listaFn = useServerFn(listarDisponibilidade);
@@ -70,16 +92,11 @@ function AbaDisponibilidade() {
   const { data, isLoading } = useQuery({ queryKey: ["mentoria-disponibilidade"], queryFn: () => listaFn() });
   const faixas = data?.faixas ?? [];
 
-  const [aberto, setAberto] = useState(false);
-  const [diaNovo, setDiaNovo] = useState("1");
-  const [inicioNovo, setInicioNovo] = useState("09:00");
-  const [fimNovo, setFimNovo] = useState("12:00");
-
   const invalidar = () => qc.invalidateQueries({ queryKey: ["mentoria-disponibilidade"] });
 
   const criar = useMutation({
-    mutationFn: () => criarFn({ data: { dia_semana: Number(diaNovo), hora_inicio: inicioNovo, hora_fim: fimNovo } }),
-    onSuccess: () => { toast.success("Faixa adicionada."); setAberto(false); invalidar(); },
+    mutationFn: (args: { dia_semana: number; hora_inicio: string; hora_fim: string }) => criarFn({ data: args }),
+    onSuccess: invalidar,
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -98,23 +115,25 @@ function AbaDisponibilidade() {
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={() => setAberto(true)}><Plus className="size-4" /> Adicionar faixa</Button>
-      </div>
-
-      <div className="space-y-4">
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Clique no <Plus className="inline size-3" /> ao lado do dia para abrir um horário. Um dia pode ter mais de
+        uma faixa — manhã e tarde separadas, por exemplo.
+      </p>
+      <div className="divide-y divide-black/5 rounded-xl border border-black/5 bg-card">
         {DIAS.map((nome, dia) => {
-          const doDia = faixas.filter((f) => f.dia_semana === dia);
+          const doDia = faixas
+            .filter((f) => f.dia_semana === dia)
+            .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
           return (
-            <div key={dia} className="rounded-xl border border-black/5 bg-card p-4">
-              <p className="text-sm font-medium">{nome}</p>
-              {doDia.length === 0 ? (
-                <p className="mt-1.5 text-xs text-muted-foreground">Sem atendimento.</p>
-              ) : (
-                <ul className="mt-2 space-y-2">
-                  {doDia.map((f) => (
-                    <li key={f.id} className="flex items-center gap-3">
+            <div key={dia} className="flex flex-wrap items-start gap-x-4 gap-y-2 p-4">
+              <p className="w-20 shrink-0 pt-1.5 text-sm font-medium">{nome}</p>
+              <div className="flex flex-1 flex-col gap-2">
+                {doDia.length === 0 ? (
+                  <p className="pt-1.5 text-xs text-muted-foreground">Indisponível.</p>
+                ) : (
+                  doDia.map((f) => (
+                    <div key={f.id} className="flex items-center gap-3">
                       <Input
                         type="time" defaultValue={f.hora_inicio.slice(0, 5)} className="h-8 w-28"
                         onChange={(e) => atualizar.mutate({ id: f.id, hora_inicio: e.target.value })}
@@ -134,52 +153,22 @@ function AbaDisponibilidade() {
                       >
                         <Trash2 className="size-3.5" />
                       </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                    </div>
+                  ))
+                )}
+              </div>
+              <Button
+                variant="outline" size="sm" className="shrink-0"
+                disabled={criar.isPending}
+                onClick={() => criar.mutate({ dia_semana: dia, ...faixaPadrao(doDia) })}
+                aria-label={`Adicionar faixa em ${nome}`}
+              >
+                <Plus className="size-4" />
+              </Button>
             </div>
           );
         })}
       </div>
-
-      <Dialog open={aberto} onOpenChange={setAberto}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adicionar faixa de horário</DialogTitle>
-            <DialogDescription>
-              Um dia pode ter mais de uma faixa — manhã e tarde separadas, por exemplo.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Dia da semana</Label>
-              <select
-                value={diaNovo} onChange={(e) => setDiaNovo(e.target.value)}
-                className="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-              >
-                {DIAS.map((nome, i) => <option key={i} value={i}>{nome}</option>)}
-              </select>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <Label>Início</Label>
-                <Input type="time" value={inicioNovo} onChange={(e) => setInicioNovo(e.target.value)} className="mt-1.5" />
-              </div>
-              <div className="flex-1">
-                <Label>Fim</Label>
-                <Input type="time" value={fimNovo} onChange={(e) => setFimNovo(e.target.value)} className="mt-1.5" />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setAberto(false)}>Cancelar</Button>
-            <Button onClick={() => criar.mutate()} disabled={criar.isPending || fimNovo <= inicioNovo}>
-              {criar.isPending ? "Adicionando…" : "Adicionar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
