@@ -117,22 +117,6 @@ export async function renovarAcesso(refresh: string): Promise<string> {
   return t.access_token;
 }
 
-export type CalendarioGoogle = { id: string; nome: string; principal: boolean };
-
-/**
- * Os calendários que esta conta do Google enxerga (Fatia 4b) — informativo,
- * para o professor ver o que existe e decidir se algum além do principal
- * também deveria bloquear horário.
- */
-export async function listarCalendarios(accessToken: string): Promise<CalendarioGoogle[]> {
-  const r = await fetch(`${CAL}/users/me/calendarList`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!r.ok) throw new Error(`Não consegui listar os calendários: ${await r.text()}`);
-  const j = (await r.json()) as { items?: Array<{ id: string; summary?: string; primary?: boolean }> };
-  return (j.items ?? []).map((c) => ({ id: c.id, nome: c.summary ?? c.id, principal: !!c.primary }));
-}
-
 export type IntervaloOcupado = { inicio: string; fim: string };
 
 /**
