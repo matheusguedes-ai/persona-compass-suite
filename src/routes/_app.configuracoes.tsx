@@ -818,6 +818,21 @@ function GoogleCalendar() {
               </p>
             </div>
           )}
+
+          {data.calendarios.length > 0 && (
+            <div className="rounded-lg bg-muted/40 p-4 text-sm">
+              <p className="font-medium">Calendários que esta conta do Google enxerga</p>
+              <ul className="mt-1.5 space-y-0.5 text-muted-foreground">
+                {data.calendarios.map((c) => (
+                  <li key={c.id}>{c.nome}{c.principal ? " — principal" : ""}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-muted-foreground">
+                O link de auto-agendamento, quando o bloqueio pela agenda pessoal estiver ligado,
+                confere o calendário principal.
+              </p>
+            </div>
+          )}
         </>
       ) : (
         <div className="space-y-3">

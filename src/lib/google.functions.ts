@@ -21,6 +21,26 @@ export const estadoDoGoogle = createServerFn({ method: "GET" })
       }> | null;
     }>)("minha_conexao_google");
     const linha = (data ?? [])[0];
+
+    // Informativo (Fatia 4b): quais calendários esta conta enxerga, para o
+    // professor decidir se algum além do principal também deveria bloquear
+    // horário. Não derruba a tela se falhar — o resto continua funcionando.
+    let calendarios: { id: string; nome: string; principal: boolean }[] = [];
+    if (linha) {
+      try {
+        const { renovarAcesso, listarCalendarios } = await import("@/lib/google.server");
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: conexao } = await supabaseAdmin
+          .from("google_conexoes").select("refresh_token").eq("user_id", context.userId).maybeSingle();
+        if (conexao?.refresh_token) {
+          const acesso = await renovarAcesso(conexao.refresh_token);
+          calendarios = await listarCalendarios(acesso);
+        }
+      } catch {
+        // Lista vazia — a tela mostra o resto normalmente.
+      }
+    }
+
     return {
       // Sem as chaves do app, conectar nem deve ser oferecido — o botão levaria
       // a uma tela de erro do Google.
@@ -32,6 +52,7 @@ export const estadoDoGoogle = createServerFn({ method: "GET" })
       // compromisso não aparecia no Google. Ele descobria no dia.
       ultimo_erro: linha?.ultimo_erro ?? null,
       ultimo_uso_em: linha?.ultimo_uso_em ?? null,
+      calendarios,
     };
   });
 

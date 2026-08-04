@@ -287,10 +287,14 @@ function instanteLocal(diaYMD: string, hhmm: string): number {
  * 3. o intervalo conta DEPOIS da sessão existente: o bloqueio de cada
  *    ocupada vai até (fim + intervalo_min), e ao bater nele o cursor pula
  *    DIRETO pro fim do bloqueio — não para o próximo passo da grade.
+ * 4. (Fatia 4b) o Google pessoal bloqueia do mesmo jeito — `bloqueiosGoogle`
+ *    entra na mesma lista de `bloqueios`, já com o intervalo_min aplicado
+ *    por quem montou (`bloqueiosGoogleDoLink`). O laço nem sabe a origem.
  */
 function horariosLivresDoLink(params: {
   faixas: FaixaCalc[];
   ocupadas: OcupadaCalc[];
+  bloqueiosGoogle: { inicio: number; fim: number }[];
   duracaoMin: number;
   intervaloMin: number;
   agora: Date;
@@ -302,11 +306,14 @@ function horariosLivresDoLink(params: {
   const { faixas, duracaoMin, intervaloMin, agora, antecedenciaMinHoras, antecedenciaMaxDias, tetoPorDia, linkId } = params;
   const duracaoMs = duracaoMin * 60_000;
 
-  const bloqueios = params.ocupadas.map((o) => {
-    const inicio = new Date(o.quando).getTime();
-    const fimBase = o.termina_em ? new Date(o.termina_em).getTime() : inicio + DURACAO_PADRAO_MIN * 60_000;
-    return { inicio, fim: fimBase + intervaloMin * 60_000 };
-  });
+  const bloqueios = [
+    ...params.ocupadas.map((o) => {
+      const inicio = new Date(o.quando).getTime();
+      const fimBase = o.termina_em ? new Date(o.termina_em).getTime() : inicio + DURACAO_PADRAO_MIN * 60_000;
+      return { inicio, fim: fimBase + intervaloMin * 60_000 };
+    }),
+    ...params.bloqueiosGoogle,
+  ];
 
   const contagemPorDia = new Map<string, number>();
   if (tetoPorDia != null) {
@@ -356,7 +363,55 @@ function horariosLivresDoLink(params: {
   return resultado;
 }
 
-/** Busca única (disponibilidade + sessões ocupadas) reaproveitada por listar e por confirmar. */
+/**
+ * Ocupado no Google PESSOAL do professor, dentro da janela — Fatia 4b.
+ *
+ * Cuidados combinados: se a conexão caiu ou a chamada falhar, o link NÃO
+ * pode parar — devolve vazio (mostra sem o bloqueio pessoal) e registra o
+ * erro em `google_conexoes.ultimo_erro`, mesmo padrão de sincronizar() em
+ * google.server.ts. Uma chamada só para a janela inteira, nunca uma por
+ * horário — freebusy tem custo.
+ *
+ * Calendário consultado: "primary" — o principal da conta, que é onde um
+ * compromisso pessoal (dentista, barbeiro) cai por padrão no Google. Se
+ * outro calendário também devesse bloquear, é decisão do professor, não
+ * escolhida aqui — ver a lista em Configurações → Agenda.
+ */
+async function bloqueiosGoogleDoLink(
+  supabaseAdmin: Cliente,
+  link: LinkRow,
+  janelaInicio: Date,
+  janelaFim: Date,
+): Promise<{ inicio: number; fim: number }[]> {
+  if (!link.usa_google_freebusy) return [];
+  try {
+    const { data: conexao } = await supabaseAdmin
+      .from("google_conexoes")
+      .select("refresh_token")
+      .eq("user_id", link.mentor_id)
+      .maybeSingle();
+    if (!conexao?.refresh_token) return [];
+
+    const { renovarAcesso, consultarOcupado } = await import("@/lib/google.server");
+    const acesso = await renovarAcesso(conexao.refresh_token);
+    const ocupados = await consultarOcupado(acesso, ["primary"], janelaInicio.toISOString(), janelaFim.toISOString());
+    return ocupados.map((o) => ({
+      inicio: new Date(o.inicio).getTime(),
+      fim: new Date(o.fim).getTime() + link.intervalo_min * 60_000,
+    }));
+  } catch (e) {
+    try {
+      await supabaseAdmin.from("google_conexoes")
+        .update({ ultimo_erro: (e as Error).message.slice(0, 500) })
+        .eq("user_id", link.mentor_id);
+    } catch {
+      // Nem o registro do erro pode derrubar o link.
+    }
+    return [];
+  }
+}
+
+/** Busca única (disponibilidade + sessões ocupadas + Google pessoal) reaproveitada por listar e por confirmar. */
 async function contextoDoLink(supabaseAdmin: Cliente, link: LinkRow, agora: Date) {
   const { data: faixas } = await supabaseAdmin
     .from("mentoria_disponibilidade")
@@ -374,13 +429,22 @@ async function contextoDoLink(supabaseAdmin: Cliente, link: LinkRow, agora: Date
     .gte("quando", janelaInicio.toISOString())
     .lte("quando", janelaFim.toISOString());
 
-  return { faixas: faixas ?? [], ocupadas: sessoes ?? [] };
+  const bloqueiosGoogle = await bloqueiosGoogleDoLink(supabaseAdmin, link, janelaInicio, janelaFim);
+
+  return { faixas: faixas ?? [], ocupadas: sessoes ?? [], bloqueiosGoogle };
 }
 
-function calcularDias(link: LinkRow, faixas: FaixaCalc[], ocupadas: OcupadaCalc[], agora: Date) {
+function calcularDias(
+  link: LinkRow,
+  faixas: FaixaCalc[],
+  ocupadas: OcupadaCalc[],
+  bloqueiosGoogle: { inicio: number; fim: number }[],
+  agora: Date,
+) {
   return horariosLivresDoLink({
     faixas,
     ocupadas,
+    bloqueiosGoogle,
     duracaoMin: link.duracao_min,
     intervaloMin: link.intervalo_min,
     agora,
@@ -490,8 +554,8 @@ export const horariosLivresAgendamento = createServerFn({ method: "POST" })
     if (r.status !== "ok") return { status: r.status, mensagem: mensagemDeRecusa(r.status) };
 
     const agora = new Date();
-    const { faixas, ocupadas } = await contextoDoLink(supabaseAdmin, r.link, agora);
-    const dias = calcularDias(r.link, faixas, ocupadas, agora);
+    const { faixas, ocupadas, bloqueiosGoogle } = await contextoDoLink(supabaseAdmin, r.link, agora);
+    const dias = calcularDias(r.link, faixas, ocupadas, bloqueiosGoogle, agora);
     return { status: "ok" as const, duracao_min: r.link.duracao_min, dias };
   });
 
@@ -513,8 +577,8 @@ export const confirmarAgendamento = createServerFn({ method: "POST" })
     // 5 da spec). A trava de corrida no banco (EXCLUDE constraint) é o
     // último backstop, capturado abaixo.
     const agora = new Date();
-    const { faixas, ocupadas } = await contextoDoLink(supabaseAdmin, r.link, agora);
-    const dias = calcularDias(r.link, faixas, ocupadas, agora);
+    const { faixas, ocupadas, bloqueiosGoogle } = await contextoDoLink(supabaseAdmin, r.link, agora);
+    const dias = calcularDias(r.link, faixas, ocupadas, bloqueiosGoogle, agora);
     const quandoNormalizado = new Date(data.quando).toISOString();
     const aindaLivre = dias.some((d) => d.horarios.includes(quandoNormalizado));
     if (!aindaLivre) throw new Error("Esse horário acabou de ser ocupado. Escolha outro, por favor.");

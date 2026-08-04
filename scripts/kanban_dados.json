@@ -2479,6 +2479,16 @@
       "prioridade": 248,
       "origem": "Matheus, 04/08: mapeou as funções da tela de agendamento do Google",
       "prova": "São os itens que dão cara de produto, mas nenhum deles faz a coisa existir — por isso ficam por último. ATENÇÃO na videoconferência: criar sala do Meet automaticamente exige OUTRO escopo do Google além do freebusy. Começar por um campo de link colado à mão resolve 90% e não pede permissão nova."
+    },
+    {
+      "titulo": "Reconectar o Google cria uma agenda nova em vez de reaproveitar a existente",
+      "descricao": "Ao reconectar em 04/08 (para ganhar o escopo freebusy da Fatia 4b), a plataforma criou um calendário NOVO no Google em vez de reaproveitar o que já existia. O calendar_id mudou de c_aaf7392... para c_1161d7f..., e o evento de mentoria que estava no antigo ficou órfão — a plataforma não o alcança mais, então cancelar aquela sessão não apaga mais o evento do Google.",
+      "area": "Agenda",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 249,
+      "origem": "Conferência do chat, 04/08, ao validar a reconexão da Fatia 4b",
+      "prova": "Não é bug do escopo: com calendar.app.created a plataforma só mexe no calendário que ela criou, e ao reconectar criou outro. Mas VAI SE REPETIR a cada reconexão — e já há uma prevista, quando a Fatia 4c pedir o escopo do Meet. A cada vez, mais uma agenda órfã no Google do Matheus. O conserto: ao conectar, procurar um calendário já criado pela plataforma antes de criar outro. DECISÃO DO MATHEUS em 04/08: deixar as duas agendas como estão por ora, sem apagar nem migrar o evento órfão."
     }
   ],
   "planilha": {

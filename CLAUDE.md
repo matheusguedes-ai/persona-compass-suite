@@ -83,6 +83,19 @@ alguma coisa que o código publicado ainda usa?* Se sim, publicar primeiro. Se
 não der para publicar antes, avisar o Matheus da janela de quebra **antes** de
 começar, não depois.
 
+### Quando o Matheus tiver de fazer algo, explicar passo a passo
+
+Regra dele, 04/08: **toda vez que a explicação for de algo que ELE precisa
+executar, escrever passo a passo e bem detalhado.** Numerar os passos, dizer o
+que ele vai VER em cada tela, e avisar qual é o passo que as pessoas esquecem.
+
+Não é preferência de estilo — ele é leigo em programação, e instrução vaga
+custa uma ida e volta que podia não existir. "Vá em Configurações e ative"
+não serve; serve "clique em X, vai abrir Y, role até Z".
+
+Vale também dizer o que NÃO é irreversível, para ele agir sem medo, e o que é,
+para ele parar e perguntar.
+
 ### Antes de pedir algo ao Matheus, tentar sozinho
 
 Já aconteceu duas vezes em 31/07: o agente pediu ao Matheus que fizesse à mão

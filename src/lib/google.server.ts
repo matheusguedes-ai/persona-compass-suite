@@ -5,9 +5,14 @@
  * Google. Nada volta. Isso simplifica o problema inteiro — não há conflito de
  * "editou nos dois lados, qual vale".
  *
- * O escopo é `calendar.app.created`: a plataforma cria uma agenda própria e só
- * mexe nos eventos DELA. Não lê, não edita e não apaga nada do calendário
- * pessoal de ninguém.
+ * `calendar.app.created`: a plataforma cria uma agenda própria e só mexe nos
+ * eventos DELA — não lê, não edita e não apaga nada do calendário pessoal.
+ *
+ * `calendar.freebusy` (Fatia 4b): a ÚNICA leitura do calendário pessoal, e é
+ * a mínima possível — ocupado/livre num intervalo, sem título, local ou
+ * participante. É o que faz o link de auto-agendamento bloquear pelos
+ * compromissos pessoais (dentista, barbeiro) sem a plataforma nunca saber o
+ * que são.
  */
 import { siteUrl } from "@/lib/site-url.server";
 
@@ -110,6 +115,51 @@ export async function renovarAcesso(refresh: string): Promise<string> {
   if (!r.ok) throw new Error(`Não consegui renovar o acesso ao Google: ${await r.text()}`);
   const t = (await r.json()) as Tokens;
   return t.access_token;
+}
+
+export type CalendarioGoogle = { id: string; nome: string; principal: boolean };
+
+/**
+ * Os calendários que esta conta do Google enxerga (Fatia 4b) — informativo,
+ * para o professor ver o que existe e decidir se algum além do principal
+ * também deveria bloquear horário.
+ */
+export async function listarCalendarios(accessToken: string): Promise<CalendarioGoogle[]> {
+  const r = await fetch(`${CAL}/users/me/calendarList`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!r.ok) throw new Error(`Não consegui listar os calendários: ${await r.text()}`);
+  const j = (await r.json()) as { items?: Array<{ id: string; summary?: string; primary?: boolean }> };
+  return (j.items ?? []).map((c) => ({ id: c.id, nome: c.summary ?? c.id, principal: !!c.primary }));
+}
+
+export type IntervaloOcupado = { inicio: string; fim: string };
+
+/**
+ * Ocupado/livre de um conjunto de calendários, num intervalo só — uma
+ * chamada para a janela inteira, nunca uma por horário (freebusy tem custo
+ * de chamada). Devolve os intervalos OCUPADOS já mesclados: quem chama não
+ * precisa saber de qual calendário veio cada um.
+ */
+export async function consultarOcupado(
+  accessToken: string,
+  calendarIds: string[],
+  timeMinIso: string,
+  timeMaxIso: string,
+): Promise<IntervaloOcupado[]> {
+  if (calendarIds.length === 0) return [];
+  const r = await fetch(`${CAL}/freeBusy`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ timeMin: timeMinIso, timeMax: timeMaxIso, items: calendarIds.map((id) => ({ id })) }),
+  });
+  if (!r.ok) throw new Error(`Consulta freebusy falhou: ${await r.text()}`);
+  const j = (await r.json()) as { calendars?: Record<string, { busy?: { start: string; end: string }[] }> };
+  const ocupados: IntervaloOcupado[] = [];
+  for (const cal of Object.values(j.calendars ?? {})) {
+    for (const b of cal.busy ?? []) ocupados.push({ inicio: b.start, fim: b.end });
+  }
+  return ocupados;
 }
 
 /**
