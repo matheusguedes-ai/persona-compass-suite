@@ -2291,14 +2291,14 @@
       "prova": "Só faz sentido com sessões reais na base — antes disso qualquer média mente. Depende da Fatia 2 para o NPS."
     },
     {
-      "titulo": "Mentorias Fatia 4: link de auto-agendamento",
-      "descricao": "O professor define disponibilidade por dia e turno (manhã/tarde/noite) e janela de vigência; gera um link que o aluno abre e escolhe sozinho o horário livre. Conversa com a agenda e com as notificações.",
+      "titulo": "Mentorias Fatia 4a: link de auto-agendamento (o que faz existir)",
+      "descricao": "Disponibilidade por dia com faixas, MÚLTIPLOS links (um de 1h, outro de 2h, cada um com regras próprias), página do aluno sem login mas com verificação de e-mail cadastrado, janela de programação, intervalo configurável entre compromissos e teto por dia. Bloqueia pelo que está na plataforma. Spec em docs/plano-mentorias-fatia4.md.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Em andamento",
       "depende_de": "Claude",
       "prioridade": 230,
       "origem": "Matheus, 31/07: detalhamento do menu Mentorias",
-      "prova": "⚠️ É a MAIOR de todas — é um Calendly: cálculo de horários livres contra a agenda, página pública sem login, confirmação e ida-e-volta com o Google Calendar. Sozinha é maior que a Fatia 1. Depende do Google Calendar estar conectado (Fase 2 do roadmap)."
+      "prova": "ESCOPO REVISTO pelo Matheus em 04/08, depois de ele mapear a tela do Google Calendar. Mudanças: só quem está CADASTRADO agenda (revertendo o link aberto ao público — e isso resolve de graça o problema de abuso, porque robô não conhece a lista de e-mails); múltiplos links por duração; intervalo configurável. COMO 'só cadastrado' funciona SEM login: o aluno informa o e-mail, a página confere se existe em people daquela conta. Sem senha, sem atrito — e a sessão já nasce ligada ao pacote da pessoa. Exigir conta travaria 5 dos 7 alunos, que não têm login."
     },
     {
       "titulo": "Mentorias Fatia 5: avaliar a aula no Classroom",
@@ -2459,6 +2459,26 @@
       "prioridade": 246,
       "origem": "Claude Code, 04/08 -- achado ao testar o login do Google pelo domínio novo (#64)",
       "prova": "FECHADO 04/08. Isolei a causa recriando o mesmo desenho em tabelas de teste descartáveis: o gatilho é ter, ao mesmo tempo, RLS com policy de DELETE dependente de auth.uid() e FOREIGN KEY na coluna filtrada -- as duas sozinhas não reproduzem. auth.uid() puro, (select auth.uid()) (a correção de performance que a própria documentação do Supabase recomenda) e uma função SECURITY DEFINER falham igual quando a coluna tem FK. google_conexoes.user_id tem FK para auth.users(id) on delete cascade -- e é essa combinação que aciona o bug. Não achei outro lugar do schema no mesmo risco: das 58 policies de DELETE/UPDATE, google_conexoes é a única sem uma policy de SELECT companheira na mesma tabela (de propósito -- o refresh_token não pode virar legível pelo cliente); testei diretamente academy_banners (desenho comum do resto do banco, policy FOR ALL + SELECT separada) e lá o Postgres monta plano normal, sem 'One-Time Filter'. Correção: tirar o DELETE de dentro de uma policy de RLS -- desconectar_minha_conexao_google() roda como dono da tabela (SECURITY DEFINER), e a checagem 'só pode apagar a própria linha' vira uma comparação explícita em PL/pgSQL. Migração 20260804010000. PROVADO com login real do Matheus em produção: cliquei Desconectar de verdade e confirmei com a service role que a linha realmente sumiu (não só que a chamada voltou 204) -- antes e depois do publish, para garantir que o código publicado usa o caminho novo. Reconectei ao final para não deixar a integração dele desligada; aviso: cada reconexão cria uma agenda 'Métrica Humana' nova no Google dele (o código sempre fez isso, não é regressão desta correção) -- ficaram 2 agendas órfãs no Google dele por causa dos testes desta demanda, sem risco (dados intactos), que ele pode apagar quando quiser em calendar.google.com."
+    },
+    {
+      "titulo": "Mentorias Fatia 4b: bloqueio pela agenda pessoal e cancelar/remarcar",
+      "descricao": "Consultar o Google freebusy do professor antes de mostrar horário livre, e as chaves opcionais de cancelar e remarcar pelo próprio aluno.",
+      "area": "Plataforma",
+      "status": "Planejado",
+      "depende_de": "Matheus",
+      "prioridade": 247,
+      "origem": "Matheus, 04/08: detalhamento do link de auto-agendamento",
+      "prova": "DEPENDE DE UMA AÇÃO DO MATHEUS: reconectar o Google com o escopo calendar.freebusy. O atual (calendar.app.created) só enxerga o que a plataforma criou. O freebusy devolve APENAS ocupado/livre — sem título, sem local, sem participante — que é exatamente o que ele descreveu querer: 'o dentista não precisa aparecer completo, mas constará como período bloqueado'. Não precisa de ida e volta: a leitura é de mão única. A agenda dele é cheia de compromisso que não é mentoria (BNI, barbeiro, café, preparar aula), então sem isto o aluno agenda em cima. Se ele não quiser reconectar, a 4a funciona sozinha — só não protege o que está fora da plataforma."
+    },
+    {
+      "titulo": "Mentorias Fatia 4c: acabamento da página de agendamento",
+      "descricao": "Foto e nome do professor na página, local ou link de videoconferência, formulário de reserva personalizável e lembretes por e-mail antes da sessão. Tudo mapeado da tela do Google Calendar.",
+      "area": "Plataforma",
+      "status": "Planejado",
+      "depende_de": "Claude",
+      "prioridade": 248,
+      "origem": "Matheus, 04/08: mapeou as funções da tela de agendamento do Google",
+      "prova": "São os itens que dão cara de produto, mas nenhum deles faz a coisa existir — por isso ficam por último. ATENÇÃO na videoconferência: criar sala do Meet automaticamente exige OUTRO escopo do Google além do freebusy. Começar por um campo de link colado à mão resolve 90% e não pede permissão nova."
     }
   ],
   "planilha": {

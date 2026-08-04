@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "Bash(git ls-remote *)",
+      "Bash(git fetch *)",
+      "mcp__60144778-f535-425b-8ad7-da661b6f8b35__get_me",
+      "mcp__60144778-f535-425b-8ad7-da661b6f8b35__get_project",
+      "mcp__60144778-f535-425b-8ad7-da661b6f8b35__list_projects",
+      "Bash(npx tsc *)",
+      "Bash(echo \"===TSC_EXIT:$?===\")",
+      "Bash(npx vite *)",
+      "Bash(echo \"===BUILD_EXIT:$?===\")",
+      "Bash(git --no-pager diff HEAD -- src/components/app-header.tsx)",
+      "Bash(git --no-pager diff HEAD -- src/routes/_app.index.tsx)",
+      "Bash(git --no-pager diff HEAD -- src/routes/_app.envios.index.tsx)",
+      "Bash(git --no-pager diff HEAD -- 'src/routes/bateria.$assessmentId.tsx')"
+    ]
+  }
+}
