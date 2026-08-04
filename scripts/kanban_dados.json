@@ -2464,11 +2464,11 @@
       "titulo": "Mentorias Fatia 4b: bloqueio pela agenda pessoal e cancelar/remarcar",
       "descricao": "Consultar o Google freebusy do professor antes de mostrar horário livre, e as chaves opcionais de cancelar e remarcar pelo próprio aluno.",
       "area": "Plataforma",
-      "status": "Planejado",
+      "status": "Em andamento",
       "depende_de": "Matheus",
       "prioridade": 247,
       "origem": "Matheus, 04/08: detalhamento do link de auto-agendamento",
-      "prova": "DEPENDE DE UMA AÇÃO DO MATHEUS: reconectar o Google com o escopo calendar.freebusy. O atual (calendar.app.created) só enxerga o que a plataforma criou. O freebusy devolve APENAS ocupado/livre — sem título, sem local, sem participante — que é exatamente o que ele descreveu querer: 'o dentista não precisa aparecer completo, mas constará como período bloqueado'. Não precisa de ida e volta: a leitura é de mão única. A agenda dele é cheia de compromisso que não é mentoria (BNI, barbeiro, café, preparar aula), então sem isto o aluno agenda em cima. Se ele não quiser reconectar, a 4a funciona sozinha — só não protege o que está fora da plataforma."
+      "prova": "CHECKLIST (Parte 1 — bloqueio pela agenda pessoal): (a) ESCOPO trocado para pedir calendar.freebusy junto do calendar.app.created ✅ (commit d962dd0, no ar); (b) publicado e confirmado pelo hash do bundle ✅; (c) ESPERANDO O MATHEUS: adicionar o escopo freebusy na Tela de consentimento OAuth do Google Cloud Console, depois Desconectar e Conectar de novo em Configurações → Agenda; (d) consultar freebusy no cálculo de horários livres, atrás da chave usa_google_freebusy do link — ainda não implementado, só faz sentido depois do Matheus reconectar. Depois: descobrir quais calendários existem na conta dele (viu 'Métrica Humana' separado do pessoal) e perguntar se ele quer escolher quais bloqueiam. Parte 2 (cancelar/remarcar pelo aluno) só começa depois da Parte 1 inteira testada e commitada — regra do Matheus, uma parte por vez."
     },
     {
       "titulo": "Mentorias Fatia 4c: acabamento da página de agendamento",
