@@ -106,6 +106,29 @@ sozinho. É o oposto do que a dor pede. Está registrado como #38.
 
 ---
 
+## Dor 11 — a página que o cliente vê é a fachada do coach
+
+Registrada em 05/08, quando o Matheus criou o primeiro link de agendamento real
+e a tela devolveu quarenta botões de dia empilhados.
+
+O link de agendamento é, muitas vezes, **o primeiro contato do cliente do coach
+com a operação dele**. Não é tela interna: é vitrine. Coach que manda um link
+feio manda o recado de que a operação é improvisada — e o Calendly e o Google
+já ensinaram ao mercado como isso deveria parecer.
+
+A dor não é estética, é de confiança: quem cobra caro por uma mentoria não pode
+ter a porta de entrada com cara de formulário de 2010.
+
+**Resposta planejada:** seletor de calendário no padrão que o mercado reconhece
+(#252), e na Fatia 4c a página com foto, nome e identidade do próprio coach.
+
+**Argumento de venda que isso destrava:** "seus clientes agendam numa página com
+a sua cara, não com a cara da ferramenta." Nenhuma plataforma de assessment do
+mercado tem agendamento embutido — quem quer isso hoje paga Calendly à parte e
+vive com dois sistemas que não se falam.
+
+---
+
 ## Onde isso vira venda
 
 Não agora. Quando virar, o argumento não é lista de features — são estas três
