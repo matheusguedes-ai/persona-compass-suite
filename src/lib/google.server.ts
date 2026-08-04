@@ -166,12 +166,19 @@ export async function criarAgenda(accessToken: string): Promise<string> {
 /**
  * A agenda lembrada (tabela `google_agendas_criadas`) ainda existe no Google?
  * Cobre o caso do professor ter apagado "Métrica Humana" manualmente por lá.
+ *
+ * 404 é "não existe mais" de verdade — vira `false`, cria outra. Qualquer
+ * outro erro (instabilidade do Google, por exemplo) é uma coisa DIFERENTE de
+ * "não existe", e não deve ser tratado em silêncio como se fosse — quem
+ * chama decide o que fazer, mas precisa saber a diferença.
  */
 export async function agendaExiste(accessToken: string, calendarId: string): Promise<boolean> {
   const r = await fetch(`${CAL}/calendars/${encodeURIComponent(calendarId)}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  return r.ok;
+  if (r.ok) return true;
+  if (r.status === 404) return false;
+  throw new Error(`Não consegui confirmar se a agenda ainda existe (${r.status}): ${await r.text()}`);
 }
 
 /** Quem autorizou — só para a tela dizer "conectado como fulano@". */

@@ -57,11 +57,25 @@ export const Route = createFileRoute("/api/google/callback")({
               .select("calendar_id")
               .eq("mentor_id", userId)
               .maybeSingle();
-            if (lembrada && (await agendaExiste(tokens.access_token, lembrada.calendar_id))) {
-              return lembrada.calendar_id;
+            if (lembrada) {
+              try {
+                if (await agendaExiste(tokens.access_token, lembrada.calendar_id)) return lembrada.calendar_id;
+              } catch (e) {
+                // Não deu para CONFIRMAR (diferente de "não existe mais") —
+                // registra o motivo real em vez de assumir e seguir criando
+                // outra, para a conexão não travar por causa disto.
+                try {
+                  await supabaseAdmin.from("google_conexoes")
+                    .update({ ultimo_erro: `Reaproveitar a agenda: ${(e as Error).message}`.slice(0, 500) })
+                    .eq("user_id", userId);
+                } catch { /* nem isso pode travar a conexão */ }
+              }
             }
             const nova = await criarAgenda(tokens.access_token);
-            await supabaseAdmin.from("google_agendas_criadas").upsert({ mentor_id: userId, calendar_id: nova });
+            const { error: erroMemoria } = await supabaseAdmin
+              .from("google_agendas_criadas")
+              .upsert({ mentor_id: userId, calendar_id: nova });
+            if (erroMemoria) throw new Error(`Não consegui lembrar a agenda nova: ${erroMemoria.message}`);
             return nova;
           })();
 
