@@ -50,10 +50,14 @@ export const desconectarGoogle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await exigirDono(context.supabase);
-    // A RLS só deixa apagar a própria conexão. Os eventos já criados ficam no
-    // Google: apagá-los sem avisar tiraria compromissos da agenda de alguém.
-    const { error } = await context.supabase
-      .from("google_conexoes").delete().eq("user_id", context.userId);
+    // Apaga via RPC (SECURITY DEFINER), não via .delete() direto: RLS de
+    // DELETE nesta tabela não funciona (planejador do Postgres descarta a
+    // linha antes de checar — ver a migração 20260804010000). Os eventos já
+    // criados ficam no Google: apagá-los sem avisar tiraria compromissos da
+    // agenda de alguém.
+    const { error } = await (context.supabase.rpc as never as (n: string) => Promise<{ error: Error | null }>)(
+      "desconectar_minha_conexao_google",
+    );
     if (error) throw new Error(error.message);
     return { ok: true };
   });
