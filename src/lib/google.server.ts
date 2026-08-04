@@ -15,7 +15,24 @@ const AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN = "https://oauth2.googleapis.com/token";
 const CAL = "https://www.googleapis.com/calendar/v3";
 
-export const ESCOPO = "https://www.googleapis.com/auth/calendar.app.created";
+/**
+ * Dois escopos, separados por espaço (padrão OAuth2 — Google aceita uma lista
+ * nesse formato num único parâmetro `scope`).
+ *
+ * `calendar.app.created`: continua necessário — é o que permite criar e
+ * apagar evento na agenda própria da plataforma.
+ *
+ * `calendar.freebusy`: novo, Fatia 4b. Só devolve ocupado/livre num
+ * intervalo — sem título, local ou participante. É o que permite o link de
+ * auto-agendamento bloquear pelos compromissos pessoais do Google sem
+ * revelar o que são.
+ *
+ * Quem já conectou com o escopo antigo continua funcionando exatamente como
+ * está: nada é revogado por esta troca. Só uma NOVA autorização (reconectar)
+ * passa a pedir os dois.
+ */
+export const ESCOPO =
+  "https://www.googleapis.com/auth/calendar.app.created https://www.googleapis.com/auth/calendar.freebusy";
 
 /**
  * As credenciais do app.
