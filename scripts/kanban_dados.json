@@ -2484,31 +2484,31 @@
       "titulo": "Reconectar o Google cria uma agenda nova em vez de reaproveitar a existente",
       "descricao": "Ao reconectar em 04/08 (para ganhar o escopo freebusy da Fatia 4b), a plataforma criou um calendário NOVO no Google em vez de reaproveitar o que já existia. O calendar_id mudou de c_aaf7392... para c_1161d7f..., e o evento de mentoria que estava no antigo ficou órfão — a plataforma não o alcança mais, então cancelar aquela sessão não apaga mais o evento do Google.",
       "area": "Agenda",
-      "status": "Planejado",
-      "depende_de": "Claude",
+      "status": "Concluído",
+      "depende_de": null,
       "prioridade": 249,
       "origem": "Conferência do chat, 04/08, ao validar a reconexão da Fatia 4b",
-      "prova": "Não é bug do escopo: com calendar.app.created a plataforma só mexe no calendário que ela criou, e ao reconectar criou outro. Mas VAI SE REPETIR a cada reconexão — e já há uma prevista, quando a Fatia 4c pedir o escopo do Meet. A cada vez, mais uma agenda órfã no Google do Matheus. O conserto: ao conectar, procurar um calendário já criado pela plataforma antes de criar outro. DECISÃO DO MATHEUS em 04/08: deixar as duas agendas como estão por ora, sem apagar nem migrar o evento órfão."
+      "prova": "Nova tabela google_agendas_criadas (mentor_id, calendar_id) guarda a agenda criada uma única vez, e SOBREVIVE a desconectar/reconectar (diferente de google_conexoes, apagada de propósito ao desconectar). No callback OAuth, antes de criar, confere se a agenda lembrada ainda existe no Google (GET /calendars/{id}); só cria outra se não existir mais (404) ou se não houver nenhuma registrada. calendar.app.created não permite listar as agendas que a própria plataforma criou (conferido na documentação oficial do Google), então a saída foi a plataforma lembrar sozinha, sem pedir escopo novo. TESTE DECISIVO em produção com login real: desconectei e reconectei o Google do Matheus — na 1ª tentativa achei um bug (erro do Google mal classificado como 'não existe mais' criou uma agenda a mais, a 4ª órfã); corrigi (distinguir 404 de outros erros + checar erro do upsert de memória, que estava silencioso) e testei de novo: o calendar_id ficou EXATAMENTE o mesmo antes e depois de reconectar. Nenhuma 5ª agenda órfã criada. As órfãs já existentes (decisão do Matheus) não foram tocadas."
     },
     {
       "titulo": "Disponibilidade: adicionar faixa direto no dia, como no Google",
       "descricao": "A função de ter mais de uma faixa por dia EXISTE e funciona — mas a tela esconde. Cada dia mostra só 'Sem atendimento', e o único jeito de criar a primeira faixa é o botão 'Adicionar faixa' no canto superior, longe dos dias. O Matheus olhou a lista, tentou clicar nos dias (como faria no Google) e não achou. Como deve ficar: cada dia com os campos de hora na própria linha e um '+' ao lado para adicionar outra faixa — igual à tela de 'Disponibilidade geral' do Google Calendar que ele mapeou.",
       "area": "Agenda",
-      "status": "Planejado",
-      "depende_de": "Claude",
+      "status": "Concluído",
+      "depende_de": null,
       "prioridade": 250,
       "origem": "Matheus, 04/08: 'aparece os dias mas eu não consigo alterar a disponibilidade de nenhum deles'",
-      "prova": "NÃO é bug de função: agendamento-page.tsx:103 tem o botão e o diálogo, e o comentário da linha 151 diz explicitamente 'Um dia pode ter mais de uma faixa'. É bug de DESCOBERTA — a função existe e o usuário não a encontra, que na prática é o mesmo que não existir. Lição: a Fatia 4a foi provada pelo caminho de quem escreveu o código, não pelo de quem abre a tela sem saber."
+      "prova": "Cada dia da semana agora tem um + na própria linha. Clicar cria a faixa na hora, com horário padrão sensato (9h-12h se o dia está vazio; 2h de intervalo + 4h de duração depois da última faixa existente). O botão 'Adicionar faixa' e o diálogo modal com seletor de dia foram removidos — não fazem mais falta. TESTE DECISIVO: testado localmente numa conta 100% nova (nunca viu a tela) E em produção na conta real do Matheus — segunda-feira 9h-12h e 14h-18h, exatamente o enunciado, em 2 cliques, sem sair da linha do dia, sem editar nada manualmente (o padrão da 2ª faixa já caiu certo). Editar hora e remover faixa testados e funcionando. Dados de teste removidos depois."
     },
     {
       "titulo": "Menu Agenda: botão 'Criar' com opção de evento ou link de agendamento",
       "descricao": "Hoje o botão do menu Agenda é 'Novo evento' e só cria evento. Passa a se chamar 'Criar' e abre um submenu com duas opções: criar um evento, ou criar um link de agendamento. O link hoje só é alcançável por Mentorias → Agendamento.",
       "area": "Agenda",
-      "status": "Planejado",
-      "depende_de": "Claude",
+      "status": "Concluído",
+      "depende_de": null,
       "prioridade": 251,
       "origem": "Matheus, 04/08",
-      "prova": "Pequena e de interface. O link de agendamento é uma função da agenda tanto quanto o evento — ficar só dentro de Mentorias esconde de quem pensa 'quero abrir um horário' e vai à Agenda. Reaproveitar a tela que já existe, não duplicar."
+      "prova": "Botão 'Novo evento' virou 'Criar', com submenu: 'Criar evento' (o mesmo diálogo de sempre, só que agora controlado de fora) e 'Criar link de agendamento' (leva para a aba Links de Mentorias → Agendamento — não duplica formulário nenhum). Testado local e em produção (conta real do Matheus): os dois itens aparecem e funcionam — 'Criar evento' abre o formulário de sempre, 'Criar link de agendamento' navega para a tela certa, já com o botão 'Criar link' visível."
     }
   ],
   "planilha": {
