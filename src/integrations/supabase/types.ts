@@ -216,14 +216,17 @@ export type Database = {
           avaliada_em: string | null
           checklist_titulo: string | null
           concluida_em: string | null
+          confirmado_em: string | null
           created_at: string
           duracao_real_min: number | null
           id: string
+          link_id: string | null
           link_url: string | null
           local: string | null
           mentor_id: string
           mentoria_id: string
           modalidade: string
+          origem: string
           quando: string
           resumo: string | null
           status: string
@@ -236,14 +239,17 @@ export type Database = {
           avaliada_em?: string | null
           checklist_titulo?: string | null
           concluida_em?: string | null
+          confirmado_em?: string | null
           created_at?: string
           duracao_real_min?: number | null
           id?: string
+          link_id?: string | null
           link_url?: string | null
           local?: string | null
           mentor_id: string
           mentoria_id: string
           modalidade: string
+          origem?: string
           quando: string
           resumo?: string | null
           status?: string
@@ -256,14 +262,17 @@ export type Database = {
           avaliada_em?: string | null
           checklist_titulo?: string | null
           concluida_em?: string | null
+          confirmado_em?: string | null
           created_at?: string
           duracao_real_min?: number | null
           id?: string
+          link_id?: string | null
           link_url?: string | null
           local?: string | null
           mentor_id?: string
           mentoria_id?: string
           modalidade?: string
+          origem?: string
           quando?: string
           resumo?: string | null
           status?: string
@@ -278,7 +287,104 @@ export type Database = {
             referencedRelation: "mentorias"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "mentoria_sessoes_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "mentoria_links"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      mentoria_disponibilidade: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          dia_semana: number
+          hora_fim: string
+          hora_inicio: string
+          id: string
+          mentor_id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          dia_semana: number
+          hora_fim: string
+          hora_inicio: string
+          id?: string
+          mentor_id: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          dia_semana?: number
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          mentor_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mentoria_links: {
+        Row: {
+          antecedencia_max_dias: number
+          antecedencia_min_horas: number
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          duracao_min: number
+          id: string
+          intervalo_min: number
+          mentor_id: string
+          permite_cancelar: boolean
+          permite_remarcar: boolean
+          slug: string
+          teto_por_dia: number | null
+          titulo: string
+          updated_at: string
+          usa_google_freebusy: boolean
+        }
+        Insert: {
+          antecedencia_max_dias?: number
+          antecedencia_min_horas?: number
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          duracao_min: number
+          id?: string
+          intervalo_min?: number
+          mentor_id: string
+          permite_cancelar?: boolean
+          permite_remarcar?: boolean
+          slug: string
+          teto_por_dia?: number | null
+          titulo: string
+          updated_at?: string
+          usa_google_freebusy?: boolean
+        }
+        Update: {
+          antecedencia_max_dias?: number
+          antecedencia_min_horas?: number
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          duracao_min?: number
+          id?: string
+          intervalo_min?: number
+          mentor_id?: string
+          permite_cancelar?: boolean
+          permite_remarcar?: boolean
+          slug?: string
+          teto_por_dia?: number | null
+          titulo?: string
+          updated_at?: string
+          usa_google_freebusy?: boolean
+        }
+        Relationships: []
       }
       mentoria_arquivos: {
         Row: {

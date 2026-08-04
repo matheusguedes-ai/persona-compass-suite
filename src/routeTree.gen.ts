@@ -27,6 +27,7 @@ import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppMentoriasRouteImport } from './routes/_app.mentorias'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
+import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
 import { Route as AlunoAgendaRouteImport } from './routes/aluno.agenda'
 import { Route as AlunoComunidadeRouteImport } from './routes/aluno.comunidade'
@@ -55,6 +56,7 @@ import { Route as AppGruposIndexRouteImport } from './routes/_app.grupos.index'
 import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
 import { Route as AppMentoriasIndexRouteImport } from './routes/_app.mentorias.index'
 import { Route as AppMentoriasIdRouteImport } from './routes/_app.mentorias.$id'
+import { Route as AppMentoriasAgendamentoRouteImport } from './routes/_app.mentorias.agendamento'
 import { Route as AppPessoasIndexRouteImport } from './routes/_app.pessoas.index'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
 import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
@@ -163,6 +165,11 @@ const AppTestesRoute = AppTestesRouteImport.update({
   id: '/testes',
   path: '/testes',
   getParentRoute: () => AppRoute,
+} as any)
+const AgendarSlugRoute = AgendarSlugRouteImport.update({
+  id: '/agendar/$slug',
+  path: '/agendar/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AlunoIndexRoute = AlunoIndexRouteImport.update({
   id: '/',
@@ -307,6 +314,11 @@ const AppMentoriasIdRoute = AppMentoriasIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppMentoriasRoute,
 } as any)
+const AppMentoriasAgendamentoRoute = AppMentoriasAgendamentoRouteImport.update({
+  id: '/agendamento',
+  path: '/agendamento',
+  getParentRoute: () => AppMentoriasRoute,
+} as any)
 const AppPessoasIndexRoute = AppPessoasIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -414,6 +426,7 @@ export interface FileRoutesByFullPath {
   '/mentorias': typeof AppMentoriasRouteWithChildren
   '/pessoas': typeof AppPessoasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
+  '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
@@ -437,6 +450,7 @@ export interface FileRoutesByFullPath {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/mentorias/$id': typeof AppMentoriasIdRoute
+  '/mentorias/agendamento': typeof AppMentoriasAgendamentoRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
@@ -471,6 +485,7 @@ export interface FileRoutesByTo {
   '/comunidades': typeof AppComunidadesRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/mentores': typeof AppMentoresRoute
+  '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
@@ -495,6 +510,7 @@ export interface FileRoutesByTo {
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/mentorias/$id': typeof AppMentoriasIdRoute
+  '/mentorias/agendamento': typeof AppMentoriasAgendamentoRoute
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
@@ -537,6 +553,7 @@ export interface FileRoutesById {
   '/_app/mentorias': typeof AppMentoriasRouteWithChildren
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
+  '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
@@ -561,6 +578,7 @@ export interface FileRoutesById {
   '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/mentorias/$id': typeof AppMentoriasIdRoute
+  '/_app/mentorias/agendamento': typeof AppMentoriasAgendamentoRoute
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
@@ -604,6 +622,7 @@ export interface FileRouteTypes {
     | '/mentorias'
     | '/pessoas'
     | '/testes'
+    | '/agendar/$slug'
     | '/aluno/agenda'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
@@ -627,6 +646,7 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/mentorias/$id'
+    | '/mentorias/agendamento'
     | '/pessoas/$id'
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
@@ -661,6 +681,7 @@ export interface FileRouteTypes {
     | '/comunidades'
     | '/configuracoes'
     | '/mentores'
+    | '/agendar/$slug'
     | '/aluno/agenda'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
@@ -685,6 +706,7 @@ export interface FileRouteTypes {
     | '/envios/novo'
     | '/grupos/$id'
     | '/mentorias/$id'
+    | '/mentorias/agendamento'
     | '/pessoas/$id'
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
@@ -726,6 +748,7 @@ export interface FileRouteTypes {
     | '/_app/mentorias'
     | '/_app/pessoas'
     | '/_app/testes'
+    | '/agendar/$slug'
     | '/aluno/agenda'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
@@ -750,6 +773,7 @@ export interface FileRouteTypes {
     | '/_app/envios/novo'
     | '/_app/grupos/$id'
     | '/_app/mentorias/$id'
+    | '/_app/mentorias/agendamento'
     | '/_app/pessoas/$id'
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
@@ -782,6 +806,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  AgendarSlugRoute: typeof AgendarSlugRoute
   ApiManifestRoute: typeof ApiManifestRoute
   BateriaAssessmentIdRoute: typeof BateriaAssessmentIdRoute
   CheckinAulaIdRoute: typeof CheckinAulaIdRoute
@@ -930,6 +955,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/testes'
       preLoaderRoute: typeof AppTestesRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/agendar/$slug': {
+      id: '/agendar/$slug'
+      path: '/agendar/$slug'
+      fullPath: '/agendar/$slug'
+      preLoaderRoute: typeof AgendarSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/aluno/': {
       id: '/aluno/'
@@ -1127,6 +1159,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMentoriasIdRouteImport
       parentRoute: typeof AppMentoriasRoute
     }
+    '/_app/mentorias/agendamento': {
+      id: '/_app/mentorias/agendamento'
+      path: '/agendamento'
+      fullPath: '/mentorias/agendamento'
+      preLoaderRoute: typeof AppMentoriasAgendamentoRouteImport
+      parentRoute: typeof AppMentoriasRoute
+    }
     '/_app/pessoas/': {
       id: '/_app/pessoas/'
       path: '/'
@@ -1279,11 +1318,13 @@ const AppGruposRouteWithChildren = AppGruposRoute._addFileChildren(
 
 interface AppMentoriasRouteChildren {
   AppMentoriasIdRoute: typeof AppMentoriasIdRoute
+  AppMentoriasAgendamentoRoute: typeof AppMentoriasAgendamentoRoute
   AppMentoriasIndexRoute: typeof AppMentoriasIndexRoute
 }
 
 const AppMentoriasRouteChildren: AppMentoriasRouteChildren = {
   AppMentoriasIdRoute: AppMentoriasIdRoute,
+  AppMentoriasAgendamentoRoute: AppMentoriasAgendamentoRoute,
   AppMentoriasIndexRoute: AppMentoriasIndexRoute,
 }
 
@@ -1398,6 +1439,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  AgendarSlugRoute: AgendarSlugRoute,
   ApiManifestRoute: ApiManifestRoute,
   BateriaAssessmentIdRoute: BateriaAssessmentIdRoute,
   CheckinAulaIdRoute: CheckinAulaIdRoute,

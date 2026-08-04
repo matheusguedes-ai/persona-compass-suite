@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, CalendarClock, ArrowRight } from "lucide-react";
+import { Plus, CalendarClock, ArrowRight, Link2 } from "lucide-react";
 import { toast } from "sonner";
 
 function dataBr(iso: string | null) {
@@ -72,9 +72,14 @@ export function MentoriasPage() {
           </p>
         </div>
         {!error && (
-          <Button onClick={() => setAberto(true)}>
-            <Plus className="size-4" /> Criar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/mentorias/agendamento"><Link2 className="size-4" /> Agendamento automático</Link>
+            </Button>
+            <Button onClick={() => setAberto(true)}>
+              <Plus className="size-4" /> Criar
+            </Button>
+          </div>
         )}
       </header>
 
