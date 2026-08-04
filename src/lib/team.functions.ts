@@ -14,6 +14,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { siteUrl } from "@/lib/site-url.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -179,7 +180,7 @@ async function mandarConvite(
       .maybeSingle();
 
     const { enviarEmail, montarHtml } = await import("@/lib/email.server");
-    const site = process.env.SITE_URL || "https://persona-compass-suite.lovable.app";
+    const site = siteUrl();
     const marca = perfil?.company_name?.trim() || "Métrica Humana";
     const papel = m.kind === "mentor" ? "mentor" : "colaborador";
     const primeiro = (m.name ?? "").split(" ")[0] || "Olá";

@@ -9,6 +9,8 @@
  * mexe nos eventos DELA. Não lê, não edita e não apaga nada do calendário
  * pessoal de ninguém.
  */
+import { siteUrl } from "@/lib/site-url.server";
+
 const AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN = "https://oauth2.googleapis.com/token";
 const CAL = "https://www.googleapis.com/calendar/v3";
@@ -29,8 +31,7 @@ export function credenciais(): { id: string; secret: string } | null {
 }
 
 export function urlDeRetorno(): string {
-  const base = process.env.APP_URL || process.env.APP_APP_URL || "https://persona-compass-suite.lovable.app";
-  return `${base.replace(/\/$/, "")}/api/google/callback`;
+  return `${siteUrl()}/api/google/callback`;
 }
 
 /**

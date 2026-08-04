@@ -22,6 +22,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { siteUrl } from "@/lib/site-url.server";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -59,8 +60,7 @@ export const solicitarAcessoAluno = createServerFn({ method: "POST" })
     // `generateLink` cria o usuário se ainda não existir e devolve o link de
     // acesso sem enviar e-mail — o envio é nosso, pelo Resend, com o domínio
     // verificado e a marca do mentor.
-    const site = process.env.SITE_URL || "https://persona-compass-suite.lovable.app";
-    const destino = `${site}/criar-senha`;
+    const destino = `${siteUrl()}/criar-senha`;
     const { data: gerado, error: erroLink } = await supabase.auth.admin.generateLink({
       type: "magiclink",
       email,
@@ -186,8 +186,7 @@ export const concluirCadastroPeloLink = createServerFn({ method: "POST" })
       await supabase.from("people").update(patch).eq("id", r.person_id);
     }
 
-    const site = process.env.SITE_URL || "https://persona-compass-suite.lovable.app";
-    const destino = `${site}/criar-senha`;
+    const destino = `${siteUrl()}/criar-senha`;
     const email = r.people.email;
     let link: string | undefined;
     const { data: g1, error: e1 } = await supabase.auth.admin.generateLink({
