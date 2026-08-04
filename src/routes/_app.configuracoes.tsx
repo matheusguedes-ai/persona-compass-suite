@@ -799,22 +799,25 @@ function GoogleCalendar() {
           {/* A última falha. Ela já era gravada e nenhuma tela lia: o mentor
               marcava a mentoria, a tela dizia "salvo", e o compromisso não
               chegava ao Google. Ele descobria no dia, quando o cliente não
-              entrava na chamada. */}
+              entrava na chamada. Desde a 4b este mesmo campo também guarda
+              falha da consulta de bloqueio pela agenda pessoal — por isso o
+              texto fala em "falar com o Google", não só em "sincronizar". */}
           {data.ultimo_erro && (
             <div className="rounded-lg bg-destructive/10 p-4 text-sm">
               <p className="font-medium text-destructive">
-                A última tentativa de sincronizar falhou.
+                A última tentativa de falar com o Google falhou.
               </p>
               <p className="mt-1 text-muted-foreground">
-                Os compromissos que você marcou depois disso <strong>não estão</strong> no seu
-                Google. O motivo relatado pelo Google foi:
+                Pode ser um compromisso que não chegou à sua agenda do Google, ou o bloqueio pela
+                agenda pessoal (nos links de auto-agendamento) que não considerou seus horários
+                ocupados. O motivo relatado pelo Google foi:
               </p>
               <code className="mt-2 block overflow-x-auto rounded bg-black/10 p-2 text-xs">
                 {data.ultimo_erro}
               </code>
               <p className="mt-2 text-muted-foreground">
                 Normalmente é acesso revogado ou permissão retirada. Desconecte e conecte de novo —
-                o próximo compromisso que você salvar refaz a sincronia.
+                a próxima ação que depender do Google refaz a partir daí.
               </p>
             </div>
           )}
