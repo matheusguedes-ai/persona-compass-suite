@@ -571,8 +571,16 @@ export const rebaixarMentor = createServerFn({ method: "POST" })
 export const idsDeMentores = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // status='ativo': achado no #264. Sem este filtro, uma linha inativa
+    // (ex.: incidente revertido à mão) continuava marcando a pessoa como
+    // mentora na tela — inclusive trocando o botão "Promover" por
+    // "Rebaixar" sem ela ter acesso nenhum de fato.
     const { data } = await context.supabase
-      .from("team_members").select("person_id").eq("kind", "mentor").not("person_id", "is", null);
+      .from("team_members")
+      .select("person_id")
+      .eq("kind", "mentor")
+      .eq("status", "ativo")
+      .not("person_id", "is", null);
     return { ids: (data ?? []).map((x) => x.person_id as string) };
   });
 
