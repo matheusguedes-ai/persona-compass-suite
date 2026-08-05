@@ -2643,11 +2643,11 @@
    "titulo": "URGENTE: o dono pode se convidar como mentor e derruba a própria conta",
    "descricao": "Em 05/08 às 12:16 nasceu uma linha em team_members com owner_id = user_id = o Matheus e kind='mentor' — ele se convidou como mentor convidado da própria conta, pela tela de Colaboradores (a pessoa 'Fulado de Tal' é o e-mail principal dele). Ao entrar, claim_team_membership associou o user_id, member_kind() passou a devolver 'mentor', e TODAS as policies com 'AND member_kind() <> mentor' passaram a barrá-lo: perdeu criar, editar e apagar em quase tudo, e visible_group_ids() devolveu só os grupos atribuídos a ele (nenhum). CONSERTO EMERGENCIAL DO CHAT: a linha foi posta em status 'inativo' (não apagada), e member_kind() voltou a 'owner' — confirmado por simulação SQL. Mas a tela continua permitindo refazer, e reativar a linha quebra tudo de novo. PRECISA DE DUAS DEFESAS: (1) a tela recusa convidar alguém cujo user_id é o dono da conta; (2) mais importante, acting_account() e member_kind() IGNORAM linha onde user_id = owner_id — o dono nunca é membro de si mesmo. A segunda vale mais que a primeira: mesmo que a linha exista por qualquer caminho, o sistema não se autodestrói. É o terceiro incidente de permissão em uma semana (30/07 imagens, 31/07 login).",
    "area": "Equipe / Permissões",
-   "status": "Planejado",
+   "status": "Concluído",
    "depende_de": null,
    "prioridade": 264,
    "origem": "Matheus, 05/08 — perdeu o acesso de dono ao entrar",
-   "prova": null
+   "prova": "Commit 02f8ced. Defesa 1 (promover_a_mentor recusa) + Defesa 2 (acting_account/member_kind/claim_team_membership ignoram user_id=owner_id) + accept_team_invite (mesmo buraco, achado na investigação) + idsDeMentores filtra status='ativo' (achado ao testar pela tela — a linha inativa do incidente fazia a ficha mostrar 'É mentor'). Provado por SQL (antes/depois com a linha real do incidente, colaborador intacto, mentor convidado de verdade intacto) e pela tela (recusa ao repromover Fulado de Tal; promoção de pessoa real funcionando e desfeita)."
   }
  ],
  "planilha": {
