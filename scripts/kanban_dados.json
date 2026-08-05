@@ -2478,11 +2478,11 @@
    "titulo": "Fatia 4c-A: quem e o professor e ONDE e a sessao",
    "descricao": "Foto e nome do professor na pagina de agendamento, e local ou link de chamada definidos POR LINK (decisao do Matheus, 05/08). ACHADO NA INVESTIGACAO: hoje toda sessao criada pelo link nasce com modalidade 'online' CRAVADA no codigo (agendamento.functions.ts:642 e :1222), sem local e sem link de chamada - o aluno agenda e nao sabe onde e, tem de perguntar por WhatsApp. Nao e acabamento: e buraco. Formulario personalizavel e lembretes por e-mail sairam desta fatia.",
    "area": "Agenda",
-   "status": "Planejado",
+   "status": "Concluído",
    "depende_de": "Claude",
    "prioridade": 248,
    "origem": "Matheus, 04/08: mapeou as funções da tela de agendamento do Google",
-   "prova": null
+   "prova": "Commit 4b874c5, publicado e confirmado no bundle em produção (o CDN do domínio próprio demorou uns 15min pra atualizar depois do publish — não confundir com falha). Checklist provado em assessment.metodointencao.com.br com o link teste-mentoria: (1) link Presencial com endereço -> sessão nasceu com o endereço, /sessao/$id mostrou certo; (2) link trocado pra Online com sala -> sessão d084556c nasceu com a sala, conferido no banco; (3) TESTE QUE DECIDE: remarcada a sessão 86b38dea pra outro dia -> modalidade/local/link_url continuaram intactos (remarcacoes:1, mesma sala), confirmado no banco e na tela; (4) foto+nome do professor aparecem em /agendar/teste-mentoria numa janela sem login; (5) conferido campo a campo a resposta de dadosDoLink e dadosDaSessao -- nenhum devolve mentor_id, CNPJ ou e-mail; (6) link novo sem nada preenchido continua funcionando, cai no texto \"Online\" de reserva. Ressalva: o e-mail de confirmação foi conferido pelo código (mesma função ondeTexto da tela) e por ter sido aceito sem erro no envio, mas não abri a caixa de entrada real. Dados de teste (3 sessões + 1 link descartável) apagados e conferidos no banco; os 2 eventos que foram parar no Google Agenda do Matheus foram removidos via cancelamento antes de apagar (não pela exclusão direta) -- sem fantasma."
   },
   {
    "titulo": "Reconectar o Google cria uma agenda nova em vez de reaproveitar a existente",
