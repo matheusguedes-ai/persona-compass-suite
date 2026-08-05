@@ -2534,6 +2534,16 @@
    "origem": "Matheus, 05/08 — tentou criar um grupo",
    "prova": null,
    "fase": "Fila de erros — voltar depois"
+  },
+  {
+   "titulo": "Fatia 4b Parte 2: aluno cancela e remarca sozinho",
+   "descricao": "O aluno recebe no e-mail de confirmação um link para gerenciar a sessão: cancelar ou escolher outro horário, sem login. Cada link de agendamento ganha dois campos novos: prazo mínimo em horas para desmarcar, e número máximo de remarcações permitidas. O professor é avisado por e-mail e por notificação na plataforma. A conta do pacote já devolve a vaga sozinha ao cancelar — não muda.",
+   "area": "Agenda",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 254,
+   "origem": "Matheus, 05/08 — decisões tomadas no chat",
+   "prova": null
   }
  ],
  "planilha": {
