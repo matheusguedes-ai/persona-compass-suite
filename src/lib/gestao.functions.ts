@@ -98,7 +98,7 @@ export const agendaDoMes = createServerFn({ method: "GET" })
 
     const { data: sess, error } = await context.supabase
       .from("mentoria_sessoes")
-      .select("id, quando, status, mentorias(person_id, people(full_name))")
+      .select("id, quando, termina_em, status, mentorias(person_id, people(full_name))")
       .neq("status", "cancelada")
       .gte("quando", de)
       .lt("quando", ate)
@@ -119,6 +119,9 @@ export const agendaDoMes = createServerFn({ method: "GET" })
         status: s.status === "concluida" ? ("realizada" as const) : ("agendada" as const),
         atrasada: s.status === "agendada" && new Date(s.quando).getTime() < agora,
         tipo: "mentoria" as const,
+        // #92: a grade de semana precisa da duração para a altura proporcional
+        // do compromisso — a visão de mês nunca precisou disso.
+        termina_em: s.termina_em,
       };
     });
 
