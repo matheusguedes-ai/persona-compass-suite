@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SeletorDeHorario, horaBr, type Dia } from "@/components/seletor-de-horario";
-import { AlertCircle, CalendarCheck, Clock, Mail } from "lucide-react";
+import { AlertCircle, CalendarCheck, Clock, Link2, Mail, MapPin } from "lucide-react";
 
 function Shell({ children, largo = false }: { children: React.ReactNode; largo?: boolean }) {
   return (
@@ -45,6 +45,7 @@ export function AgendarPage({ slug }: { slug: string }) {
     queryFn: () => dadosFn({ data: { slug } }),
   });
 
+  const [fotoErro, setFotoErro] = useState(false);
   const [email, setEmail] = useState("");
   const [emailConfirmado, setEmailConfirmado] = useState<string | null>(null);
   const [nome, setNome] = useState("");
@@ -116,10 +117,25 @@ export function AgendarPage({ slug }: { slug: string }) {
 
   return (
     <Shell largo={!!emailConfirmado && dias.length > 0}>
-      <h1 className="text-xl font-semibold tracking-tight">{link.titulo}</h1>
+      <div className="flex items-center gap-2.5">
+        {!fotoErro && (
+          <img
+            src={link.professor_foto_url}
+            onError={() => setFotoErro(true)}
+            alt={link.professor_nome}
+            className="size-9 shrink-0 rounded-full object-cover ring-1 ring-black/10"
+          />
+        )}
+        <p className="text-sm font-medium">{link.professor_nome}</p>
+      </div>
+      <h1 className="mt-3 text-xl font-semibold tracking-tight">{link.titulo}</h1>
       {link.descricao && <p className="mt-1 text-sm text-muted-foreground">{link.descricao}</p>}
       <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
         <Clock className="size-3.5" /> {link.duracao_min} minutos
+      </p>
+      <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+        {link.modalidade === "presencial" ? <MapPin className="size-3.5" /> : <Link2 className="size-3.5" />}
+        {link.modalidade === "presencial" ? (link.local || "Presencial") : (link.link_url || "Online")}
       </p>
 
       {!emailConfirmado ? (

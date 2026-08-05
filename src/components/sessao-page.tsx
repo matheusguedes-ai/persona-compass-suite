@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { SeletorDeHorario, type Dia } from "@/components/seletor-de-horario";
-import { AlertCircle, CalendarClock, CalendarX2, CheckCircle2, Clock, User, XCircle } from "lucide-react";
+import { AlertCircle, CalendarClock, CalendarX2, CheckCircle2, Clock, MapPinned, User, XCircle } from "lucide-react";
 
 function Shell({ children, largo = false }: { children: React.ReactNode; largo?: boolean }) {
   return (
@@ -120,6 +120,9 @@ export function SessaoPage({ id }: { id: string }) {
         </p>
         <p className="flex items-center gap-2">
           <User className="size-4 shrink-0 text-muted-foreground" /> Com {data.professor}
+        </p>
+        <p className="flex items-center gap-2">
+          <MapPinned className="size-4 shrink-0 text-muted-foreground" /> {data.onde}
         </p>
       </div>
 

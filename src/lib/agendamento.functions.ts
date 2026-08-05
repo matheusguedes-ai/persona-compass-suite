@@ -22,6 +22,8 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao, exigirPermissaoOuMentor } from "@/lib/permissao.server";
+import { MODALIDADES } from "@/lib/mentorias.functions";
+import { urlOpcional } from "@/lib/url-segura";
 import type { Database } from "@/integrations/supabase/types";
 
 type Cliente = SupabaseClient<Database>;
@@ -156,7 +158,7 @@ export const listarLinks = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("mentoria_links")
       .select(
-        "id, slug, titulo, descricao, duracao_min, intervalo_min, antecedencia_min_horas, antecedencia_max_dias, teto_por_dia, permite_cancelar, permite_remarcar, cancelamento_min_horas, max_remarcacoes, ativo, created_at",
+        "id, slug, titulo, descricao, duracao_min, intervalo_min, antecedencia_min_horas, antecedencia_max_dias, teto_por_dia, permite_cancelar, permite_remarcar, cancelamento_min_horas, max_remarcacoes, modalidade, local, link_url, ativo, created_at",
       )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -195,6 +197,11 @@ const linkSchema = z.object({
   permite_remarcar: z.boolean().default(false),
   cancelamento_min_horas: z.number().int().min(0).max(999).default(24),
   max_remarcacoes: z.number().int().min(0).max(50).default(2),
+  // #248: de onde a sessão nasce. Mesmo raciocínio de agendarSessao
+  // (mentorias.functions.ts) — "" é "sem link", não "URL inválida".
+  modalidade: z.enum(MODALIDADES).default("online"),
+  local: z.string().trim().max(500).optional().nullable(),
+  link_url: urlOpcional,
 });
 
 export const criarLink = createServerFn({ method: "POST" })
@@ -220,6 +227,9 @@ export const criarLink = createServerFn({ method: "POST" })
         permite_remarcar: data.permite_remarcar,
         cancelamento_min_horas: data.cancelamento_min_horas,
         max_remarcacoes: data.max_remarcacoes,
+        modalidade: data.modalidade,
+        local: data.modalidade === "presencial" ? (data.local?.trim() || null) : null,
+        link_url: data.modalidade === "online" ? (data.link_url?.trim() || null) : null,
       })
       .select("id, slug")
       .single();
@@ -240,6 +250,9 @@ const atualizarLinkSchema = z.object({
   permite_remarcar: z.boolean().optional(),
   cancelamento_min_horas: z.number().int().min(0).max(999).optional(),
   max_remarcacoes: z.number().int().min(0).max(50).optional(),
+  modalidade: z.enum(MODALIDADES).optional(),
+  local: z.string().trim().max(500).optional().nullable(),
+  link_url: urlOpcional,
   ativo: z.boolean().optional(),
 });
 
@@ -263,6 +276,14 @@ export const atualizarLink = createServerFn({ method: "POST" })
     if (campos.permite_remarcar !== undefined) patch.permite_remarcar = campos.permite_remarcar;
     if (campos.cancelamento_min_horas !== undefined) patch.cancelamento_min_horas = campos.cancelamento_min_horas;
     if (campos.max_remarcacoes !== undefined) patch.max_remarcacoes = campos.max_remarcacoes;
+    // Par dependente: só troca modalidade quando ela vem no mesmo salvar que
+    // local/link_url (o formulário sempre manda os três juntos) — limpa o
+    // campo que deixou de valer, mesma regra de criarLink.
+    if (campos.modalidade !== undefined) {
+      patch.modalidade = campos.modalidade;
+      patch.local = campos.modalidade === "presencial" ? (campos.local?.trim() || null) : null;
+      patch.link_url = campos.modalidade === "online" ? (campos.link_url?.trim() || null) : null;
+    }
     if (campos.ativo !== undefined) patch.ativo = campos.ativo;
     if (Object.keys(patch).length === 0) return { ok: true };
     const { error } = await context.supabase.from("mentoria_links").update(patch).eq("id", id);
@@ -504,19 +525,33 @@ function calcularDias(
 // Público — /agendar/$slug (sem login)
 // ============================================================
 
-/** O que a página mostra antes mesmo de pedir o e-mail. */
+/**
+ * O que a página mostra antes mesmo de pedir o e-mail.
+ *
+ * `professor_foto_url` é o endereço ESTÁVEL de `/api/mentor-foto/$slug`
+ * (nunca a URL assinada em si — mesmo padrão de `/api/icone/$tamanho`, ver o
+ * cabeçalho daquele arquivo) — funciona mesmo sem saber de antemão se o
+ * professor tem foto; sem foto, a rota devolve 404 e a tela esconde a
+ * imagem sozinha.
+ */
 export const dadosDoLink = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ slug: z.string().min(1).max(200) }).parse(d))
   .handler(async ({ data }) => {
     const supabaseAdmin = await admin();
     const { data: link } = await supabaseAdmin
       .from("mentoria_links")
-      .select("titulo, descricao, duracao_min")
+      .select("titulo, descricao, duracao_min, modalidade, local, link_url, mentor_id")
       .eq("slug", data.slug)
       .eq("ativo", true)
       .maybeSingle();
     if (!link) return { encontrado: false as const };
-    return { encontrado: true as const, ...link };
+    const { mentor_id, ...resto } = link;
+    return {
+      encontrado: true as const,
+      ...resto,
+      professor_nome: await nomeDoProfessor(supabaseAdmin, mentor_id),
+      professor_foto_url: `/api/mentor-foto/${data.slug}`,
+    };
   });
 
 type Resolucao =
@@ -637,9 +672,11 @@ export const confirmarAgendamento = createServerFn({ method: "POST" })
         mentor_id: r.link.mentor_id,
         quando: quandoNormalizado,
         termina_em: terminaEm,
-        // Local/videoconferência ainda não são coletados nesta fatia (4c) —
-        // "online" é o padrão mais flexível até o professor editar a sessão.
-        modalidade: "online",
+        // #248: o local/link vem do LINK — configurado uma vez, toda sessão
+        // criada por ele já nasce certa.
+        modalidade: r.link.modalidade,
+        local: r.link.local,
+        link_url: r.link.link_url,
         origem: "link",
         link_id: r.link.id,
         confirmado_em: new Date().toISOString(),
@@ -681,6 +718,12 @@ export const confirmarAgendamento = createServerFn({ method: "POST" })
     return { ok: true as const, quando: quandoNormalizado, termina_em: terminaEm };
   });
 
+/** #248: "Presencial: endereço." ou "Online: link." — usada no email e em /sessao/$id (via a mesma leitura da sessão). */
+function ondeTexto(modalidade: string, local: string | null, linkUrl: string | null): string {
+  if (modalidade === "presencial") return local ? `Presencial: ${local}.` : "Presencial — endereço a combinar com quem te enviou este link.";
+  return linkUrl ? `Online: ${linkUrl}` : "Online — link da chamada a combinar com quem te enviou este link.";
+}
+
 async function enviarConfirmacaoEmail(
   supabaseAdmin: Cliente,
   link: LinkRow,
@@ -701,6 +744,7 @@ async function enviarConfirmacaoEmail(
 
     const nome = (pessoa.full_name ?? "").split(" ")[0] || "Olá";
     const marca = perfil?.company_name?.trim() || "Métrica Humana";
+    const onde = ondeTexto(link.modalidade, link.local, link.link_url);
 
     // Só troca para o texto/link da página de gerenciar quando pelo menos uma
     // das duas chaves está ligada NESTE link (Fatia 4b Parte 2) — com as duas
@@ -709,8 +753,10 @@ async function enviarConfirmacaoEmail(
     const html = montarHtml({
       corpo: gerenciavel
         ? `${nome}, sua sessão "${link.titulo}" foi confirmada para ${quandoBr(quandoIso)} (horário de Brasília).\n\n` +
+          `${onde}\n\n` +
           "Se precisar cancelar ou remarcar, use o botão abaixo."
         : `${nome}, sua sessão "${link.titulo}" foi confirmada para ${quandoBr(quandoIso)} (horário de Brasília).\n\n` +
+          `${onde}\n\n` +
           "Se precisar remarcar ou tiver alguma dúvida, entre em contato com quem te enviou este link.",
       link: gerenciavel ? `${siteUrl()}/sessao/${sessaoId}` : siteUrl(),
       rotuloBotao: gerenciavel ? "Gerenciar sessão" : "Visitar o site",
@@ -807,7 +853,7 @@ export const dadosDaSessao = createServerFn({ method: "GET" })
     const supabaseAdmin = await admin();
     const { data: sessao } = await supabaseAdmin
       .from("mentoria_sessoes")
-      .select("id, quando, termina_em, status, remarcacoes, mentor_id, link_id")
+      .select("id, quando, termina_em, status, remarcacoes, mentor_id, link_id, modalidade, local, link_url")
       .eq("id", data.id)
       .maybeSingle();
     if (!sessao) return { encontrada: false as const };
@@ -827,6 +873,10 @@ export const dadosDaSessao = createServerFn({ method: "GET" })
       quando: sessao.quando,
       duracao_min: duracaoMin,
       professor: nomeProfessor,
+      // #248: onde é a sessão — o registro fica na SESSÃO (cópia feita na hora
+      // de agendar), não recalculado do link, para não mudar de baixo de quem
+      // já agendou se o professor editar o link depois.
+      onde: ondeTexto(sessao.modalidade, sessao.local, sessao.link_url),
     };
 
     // Já cancelada ou concluída: modo leitura, sem botão nenhum — a spec pede
@@ -1219,7 +1269,10 @@ export const agendarNoPainel = createServerFn({ method: "POST" })
         mentor_id: mentoria.mentor_id,
         quando: quandoNormalizado,
         termina_em: terminaEm,
-        modalidade: "online",
+        // #248: mesma herança de confirmarAgendamento — o local/link vem do LINK.
+        modalidade: link.modalidade,
+        local: link.local,
+        link_url: link.link_url,
         origem: "painel",
         link_id: link.id,
         confirmado_em: new Date().toISOString(),

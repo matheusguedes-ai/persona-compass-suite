@@ -368,8 +368,11 @@ export type Database = {
           duracao_min: number
           id: string
           intervalo_min: number
+          link_url: string | null
+          local: string | null
           max_remarcacoes: number
           mentor_id: string
+          modalidade: string
           permite_cancelar: boolean
           permite_remarcar: boolean
           slug: string
@@ -388,8 +391,11 @@ export type Database = {
           duracao_min: number
           id?: string
           intervalo_min?: number
+          link_url?: string | null
+          local?: string | null
           max_remarcacoes?: number
           mentor_id: string
+          modalidade?: string
           permite_cancelar?: boolean
           permite_remarcar?: boolean
           slug: string
@@ -408,8 +414,11 @@ export type Database = {
           duracao_min?: number
           id?: string
           intervalo_min?: number
+          link_url?: string | null
+          local?: string | null
           max_remarcacoes?: number
           mentor_id?: string
+          modalidade?: string
           permite_cancelar?: boolean
           permite_remarcar?: boolean
           slug?: string

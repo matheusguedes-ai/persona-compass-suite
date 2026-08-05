@@ -25,7 +25,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Copy, Link as LinkIcon, Clock } from "lucide-react";
+import { Plus, Trash2, Copy, Link as LinkIcon, Clock, Link2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -182,6 +182,7 @@ type FormLink = {
   antecedencia_min_horas: string; antecedencia_max_dias: string; teto_por_dia: string;
   permite_cancelar: boolean; permite_remarcar: boolean;
   cancelamento_min_horas: string; max_remarcacoes: string;
+  modalidade: "presencial" | "online"; local: string; link_url: string;
 };
 
 const FORM_VAZIO: FormLink = {
@@ -189,6 +190,7 @@ const FORM_VAZIO: FormLink = {
   antecedencia_min_horas: "0", antecedencia_max_dias: "60", teto_por_dia: "",
   permite_cancelar: false, permite_remarcar: false,
   cancelamento_min_horas: "24", max_remarcacoes: "2",
+  modalidade: "online", local: "", link_url: "",
 };
 
 function AbaLinks() {
@@ -227,6 +229,9 @@ function AbaLinks() {
       permite_remarcar: l.permite_remarcar,
       cancelamento_min_horas: String(l.cancelamento_min_horas),
       max_remarcacoes: String(l.max_remarcacoes),
+      modalidade: l.modalidade as "presencial" | "online",
+      local: l.local ?? "",
+      link_url: l.link_url ?? "",
     });
     setAberto(true);
   }
@@ -245,6 +250,9 @@ function AbaLinks() {
         permite_remarcar: form.permite_remarcar,
         cancelamento_min_horas: Number(form.cancelamento_min_horas),
         max_remarcacoes: Number(form.max_remarcacoes),
+        modalidade: form.modalidade,
+        local: form.modalidade === "presencial" ? form.local.trim() || undefined : undefined,
+        link_url: form.modalidade === "online" ? form.link_url.trim() || undefined : undefined,
       };
       return editandoId
         ? atualizarFn({ data: { id: editandoId, ...payload } }).then(() => undefined)
@@ -399,6 +407,38 @@ function AbaLinks() {
                   onChange={(e) => setForm({ ...form, antecedencia_max_dias: e.target.value })} className="mt-1.5"
                 />
               </div>
+            </div>
+            <div>
+              <Label>Onde é a sessão</Label>
+              <div className="mt-1.5 flex gap-2">
+                <Button
+                  type="button" variant={form.modalidade === "online" ? "default" : "outline"} size="sm"
+                  onClick={() => setForm({ ...form, modalidade: "online" })}
+                >
+                  <Link2 className="size-3.5" /> Online
+                </Button>
+                <Button
+                  type="button" variant={form.modalidade === "presencial" ? "default" : "outline"} size="sm"
+                  onClick={() => setForm({ ...form, modalidade: "presencial" })}
+                >
+                  <MapPin className="size-3.5" /> Presencial
+                </Button>
+              </div>
+              {form.modalidade === "online" ? (
+                <Input
+                  value={form.link_url} onChange={(e) => setForm({ ...form, link_url: e.target.value })}
+                  className="mt-2" placeholder="https://… (sala da chamada)"
+                />
+              ) : (
+                <Input
+                  value={form.local} onChange={(e) => setForm({ ...form, local: e.target.value })}
+                  className="mt-2" placeholder="Endereço"
+                />
+              )}
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Toda sessão marcada por este link nasce com este local. Trocar aqui não muda sessões já marcadas —
+                só as próximas.
+              </p>
             </div>
             <div>
               <Label>Máximo de agendamentos por dia (opcional)</Label>

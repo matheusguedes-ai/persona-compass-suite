@@ -67,6 +67,7 @@ import { Route as AlunoEducacaoIndexRouteImport } from './routes/aluno.educacao.
 import { Route as AlunoEducacaoTrackIdRouteImport } from './routes/aluno.educacao.$trackId'
 import { Route as ApiGoogleCallbackRouteImport } from './routes/api.google.callback'
 import { Route as ApiIconeTamanhoRouteImport } from './routes/api.icone.$tamanho'
+import { Route as ApiMentorFotoSlugRouteImport } from './routes/api.mentor-foto.$slug'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
 import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
@@ -371,6 +372,11 @@ const ApiIconeTamanhoRoute = ApiIconeTamanhoRouteImport.update({
   path: '/api/icone/$tamanho',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMentorFotoSlugRoute = ApiMentorFotoSlugRouteImport.update({
+  id: '/api/mentor-foto/$slug',
+  path: '/api/mentor-foto/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppTestesVersionIdEditarRoute =
   AppTestesVersionIdEditarRouteImport.update({
     id: '/$versionId/editar',
@@ -463,6 +469,7 @@ export interface FileRoutesByFullPath {
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
+  '/api/mentor-foto/$slug': typeof ApiMentorFotoSlugRoute
   '/classroom/': typeof AppClassroomIndexRoute
   '/educacao/': typeof AppEducacaoIndexRoute
   '/envios/': typeof AppEnviosIndexRoute
@@ -524,6 +531,7 @@ export interface FileRoutesByTo {
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
+  '/api/mentor-foto/$slug': typeof ApiMentorFotoSlugRoute
   '/classroom': typeof AppClassroomIndexRoute
   '/educacao': typeof AppEducacaoIndexRoute
   '/envios': typeof AppEnviosIndexRoute
@@ -593,6 +601,7 @@ export interface FileRoutesById {
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
+  '/api/mentor-foto/$slug': typeof ApiMentorFotoSlugRoute
   '/_app/classroom/': typeof AppClassroomIndexRoute
   '/_app/educacao/': typeof AppEducacaoIndexRoute
   '/_app/envios/': typeof AppEnviosIndexRoute
@@ -662,6 +671,7 @@ export interface FileRouteTypes {
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
     | '/api/icone/$tamanho'
+    | '/api/mentor-foto/$slug'
     | '/classroom/'
     | '/educacao/'
     | '/envios/'
@@ -723,6 +733,7 @@ export interface FileRouteTypes {
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
     | '/api/icone/$tamanho'
+    | '/api/mentor-foto/$slug'
     | '/classroom'
     | '/educacao'
     | '/envios'
@@ -791,6 +802,7 @@ export interface FileRouteTypes {
     | '/aluno/educacao/$trackId'
     | '/api/google/callback'
     | '/api/icone/$tamanho'
+    | '/api/mentor-foto/$slug'
     | '/_app/classroom/'
     | '/_app/educacao/'
     | '/_app/envios/'
@@ -832,6 +844,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
   ApiIconeTamanhoRoute: typeof ApiIconeTamanhoRoute
+  ApiMentorFotoSlugRoute: typeof ApiMentorFotoSlugRoute
   ApiPublicActionPlanIdRoute: typeof ApiPublicActionPlanIdRoute
   ApiPublicAssessmentIdRoute: typeof ApiPublicAssessmentIdRoute
   ApiPublicCheckinAulaIdRoute: typeof ApiPublicCheckinAulaIdRoute
@@ -1249,6 +1262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiIconeTamanhoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mentor-foto/$slug': {
+      id: '/api/mentor-foto/$slug'
+      path: '/api/mentor-foto/$slug'
+      fullPath: '/api/mentor-foto/$slug'
+      preLoaderRoute: typeof ApiMentorFotoSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/testes/$versionId/editar': {
       id: '/_app/testes/$versionId/editar'
       path: '/$versionId/editar'
@@ -1473,6 +1493,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,
   ApiIconeTamanhoRoute: ApiIconeTamanhoRoute,
+  ApiMentorFotoSlugRoute: ApiMentorFotoSlugRoute,
   ApiPublicActionPlanIdRoute: ApiPublicActionPlanIdRoute,
   ApiPublicAssessmentIdRoute: ApiPublicAssessmentIdRoute,
   ApiPublicCheckinAulaIdRoute: ApiPublicCheckinAulaIdRoute,
