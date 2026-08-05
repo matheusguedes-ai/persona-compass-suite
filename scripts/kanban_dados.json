@@ -2607,6 +2607,26 @@
    "origem": "Claude Code, 05/08 — varredura pedida na #253",
    "prova": null,
    "fase": "Fila de erros — voltar depois"
+  },
+  {
+   "titulo": "Marca do mentor na tela de login: o mecanismo, provado numa tela",
+   "descricao": "Hoje logo, nome, frase, rodapé e cor de fundo da tela de login estão CRAVADOS em auth.tsx:130-141. Passam a vir das Configurações de marca. Decisão do Matheus (05/08): a tela pública descobre de quem é a marca PELO ENDEREÇO do site — tabela dominios_conta, hoje com uma linha, para o segundo cliente não virar cirurgia. Campos novos em profiles: login_imagem_url, login_frase, login_rodape (todos opcionais; sem imagem o painel volta ao fundo sólido na cor da marca). O ENDPOINT É PÚBLICO: devolver lista fechada de campos, nunca profiles inteiro — ele guarda CNPJ e e-mails internos. Bucket 'marca' é privado: seguir o padrão de api.icone.$tamanho.ts, não inventar outro. Fallback obrigatório para host desconhecido (preview do Lovable). Ver docs/plano-marca-publica.md.",
+   "area": "Plataforma",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 261,
+   "origem": "Matheus, 05/08",
+   "prova": null
+  },
+  {
+   "titulo": "Espalhar a marca para as demais telas públicas",
+   "descricao": "Aplicar o mecanismo da #261 em /criar-senha, /aluno/criar-senha, /convite-equipe, /checkin, /agendar/$slug e /sessao/$id — o que o Matheus pediu: alterar em Configurações e refletir em tudo. Trabalho pequeno DEPOIS da #261, e só pequeno por causa dela. Encosta na #108 (selo no rodapé das públicas), que lista quase as mesmas telas: resolver as duas juntas em vez de passar duas vezes pelos mesmos arquivos. Encosta também na #248 (Fatia 4c), que prevê foto e nome na página de agendamento — se esta vier antes, a 4c herda pronto.",
+   "area": "Plataforma",
+   "status": "Planejado",
+   "depende_de": 261,
+   "prioridade": 262,
+   "origem": "Matheus, 05/08",
+   "prova": null
   }
  ],
  "planilha": {
