@@ -152,7 +152,11 @@ export function Agenda({
   previewPersonId?: string | null;
 }) {
   const hoje = new Date();
-  const [ref, setRef] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  // #269: o dia inicial é HOJE, não o dia 1 do mês — a visão de mês nunca lê
+  // ref.getDate() (só ano/mês), mas a de semana calcula o domingo a partir
+  // dele; com dia 1, um mês que comece no meio da semana abria em "semana"
+  // já mostrando a semana passada para quem tinha essa visão salva.
+  const [ref, setRef] = useState(() => new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()));
   // Padrão estável (igual no servidor e no primeiro render do navegador) —
   // ler localStorage direto aqui causaria os dois discordarem e um aviso de
   // hydration mismatch. A escolha salva só chega depois, no efeito abaixo.
