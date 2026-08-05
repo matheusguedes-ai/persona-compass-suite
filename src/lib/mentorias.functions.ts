@@ -97,7 +97,7 @@ export const getMentoria = createServerFn({ method: "GET" })
     const { data: sessoes, error: eS } = await context.supabase
       .from("mentoria_sessoes")
       .select(
-        "id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, avaliacao_estrelas, avaliacao_comentario, avaliada_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em), mentoria_arquivos(id, nome, caminho, tamanho_bytes, tipo)",
+        "id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, cancelada_em, cancelada_por, avaliacao_estrelas, avaliacao_comentario, avaliada_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em), mentoria_arquivos(id, nome, caminho, tamanho_bytes, tipo)",
       )
       .eq("mentoria_id", data.id)
       .order("quando", { ascending: false });

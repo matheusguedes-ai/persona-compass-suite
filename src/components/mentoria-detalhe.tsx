@@ -22,7 +22,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft, CalendarClock, CheckCircle2, MapPin, Link2, Plus, X, Pencil, Star, Paperclip, FileText,
+  ArrowLeft, CalendarClock, CheckCircle2, MapPin, Link2, Plus, X, Pencil, Star, Paperclip, FileText, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -230,16 +230,26 @@ export function MentoriaDetalhe({ id }: { id: string }) {
 
       <ul className="space-y-3">
         {sessoes.map((s) => (
-          <li key={s.id} className="rounded-xl border border-black/5 bg-card p-4">
+          <li
+            key={s.id}
+            className={`rounded-xl border border-black/5 bg-card p-4 ${s.status === "cancelada" ? "opacity-60" : ""}`}
+          >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="flex items-center gap-2 text-sm font-medium">
                   {s.status === "concluida" ? (
                     <CheckCircle2 className="size-4 text-emerald-600" />
+                  ) : s.status === "cancelada" ? (
+                    <XCircle className="size-4 text-muted-foreground" />
                   ) : (
                     <CalendarClock className="size-4" />
                   )}
-                  {dataHoraBr(s.quando)}
+                  <span className={s.status === "cancelada" ? "line-through" : ""}>{dataHoraBr(s.quando)}</span>
+                  {s.status === "cancelada" && (
+                    <span className="font-normal text-muted-foreground">
+                      — Cancelada{s.cancelada_por === "aluno" ? " pelo aluno" : s.cancelada_por === "mentor" ? " por você" : ""}
+                    </span>
+                  )}
                 </p>
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                   {s.modalidade === "presencial" ? <MapPin className="size-3" /> : <Link2 className="size-3" />}
