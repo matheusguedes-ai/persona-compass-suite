@@ -17,6 +17,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissaoOuMentor } from "@/lib/permissao.server";
 import { notificar, nomeDoUsuario, quandoBr } from "@/lib/notificacoes.functions";
 import { assinarArquivosMentoria } from "@/lib/storage-assinado.server";
+import { urlOpcional } from "@/lib/url-segura";
 import type { Database } from "@/integrations/supabase/types";
 
 export const MODALIDADES = ["presencial", "online"] as const;
@@ -215,7 +216,11 @@ const agendarSessaoSchema = z.object({
   termina_em: z.string().datetime({ offset: true }).nullable().optional(),
   modalidade: z.enum(MODALIDADES),
   local: z.string().trim().max(500).optional().nullable(),
-  link_url: z.string().trim().url().max(1000).optional().nullable(),
+  // "" é "sem link", não "URL inválida" — mesmo raciocínio de urlOpcional
+  // (url-segura.ts). Com .url() puro, o campo opcional falhava toda vez que
+  // a modalidade era online e o campo ficava em branco, e o erro cru do Zod
+  // (JSON de {code, path, message}) chegava direto no toast — ilegível.
+  link_url: urlOpcional,
 });
 
 export const agendarSessao = createServerFn({ method: "POST" })
