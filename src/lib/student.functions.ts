@@ -10,6 +10,7 @@ import { z } from "zod";
 import { urlOpcional } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assinarArquivosMentoria } from "@/lib/storage-assinado.server";
+import { calcularElegibilidade, type Elegibilidade } from "@/lib/agendamento.functions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -168,9 +169,12 @@ export const updateMyStudentProfile = createServerFn({ method: "POST" })
 /**
  * As mentorias do próprio avaliado.
  *
- * Ele não executa nada além do checklist — nunca agenda, nunca conclui,
- * nunca edita o resumo. Vê as sessões agendadas (data, modalidade, link ou
- * endereço), vê o resumo das concluídas, e marca os itens do checklist.
+ * Ele não executa nada de conteúdo além do checklist — nunca conclui, nunca
+ * edita o resumo. Desde o #255, ele PODE agendar (se o pacote apontar um
+ * link), cancelar e remarcar — pelas MESMAS regras e as MESMAS funções do
+ * link por e-mail (#254): `calcularElegibilidade`, importada de
+ * agendamento.functions.ts, nunca reimplementada aqui. Se a regra de
+ * prazo/teto mudar um dia, muda num lugar só.
  */
 export const getMinhasMentorias = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -185,7 +189,7 @@ export const getMinhasMentorias = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("mentorias")
       .select(
-        "id, titulo, status, mentoria_sessoes(id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, avaliacao_estrelas, avaliacao_comentario, avaliada_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em), mentoria_arquivos(id, nome, caminho, tamanho_bytes, tipo))",
+        "id, titulo, status, sessoes_contratadas, link_id, mentor_id, mentoria_sessoes(id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, avaliacao_estrelas, avaliacao_comentario, avaliada_em, link_id, remarcacoes, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em), mentoria_arquivos(id, nome, caminho, tamanho_bytes, tipo))",
       )
       .order("created_at", { ascending: false });
     if (input.preview_person_id) q = q.eq("person_id", input.preview_person_id);
@@ -198,38 +202,110 @@ export const getMinhasMentorias = createServerFn({ method: "GET" })
       duracao_real_min: number | null; resumo: string | null; checklist_titulo: string | null;
       concluida_em: string | null;
       avaliacao_estrelas: number | null; avaliacao_comentario: string | null; avaliada_em: string | null;
+      link_id: string | null; remarcacoes: number;
       mentoria_tarefas: Array<{ id: string; titulo: string; ordem: number; concluida: boolean; concluida_em: string | null }> | null;
       mentoria_arquivos: Array<{ id: string; nome: string; caminho: string; tamanho_bytes: number; tipo: string }> | null;
     };
+    type MentoriaRow = {
+      id: string; titulo: string | null; status: string; sessoes_contratadas: number;
+      link_id: string | null; mentor_id: string;
+      mentoria_sessoes: SessaoRow[] | null;
+    };
+    const mentorias = (data ?? []) as unknown as MentoriaRow[];
 
+    // Um lote só: o aluno não tem RLS sobre mentoria_links nem profiles de
+    // outra conta (não é dono), então isto só sai por admin — mesmo motivo
+    // de dadosDaSessao em agendamento.functions.ts.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const linkIds = new Set<string>();
+    const mentorIds = new Set<string>();
+    for (const m of mentorias) {
+      mentorIds.add(m.mentor_id);
+      if (m.link_id) linkIds.add(m.link_id);
+      for (const s of m.mentoria_sessoes ?? []) if (s.link_id) linkIds.add(s.link_id);
+    }
+    const [{ data: links }, { data: profissionais }] = await Promise.all([
+      linkIds.size > 0
+        ? supabaseAdmin.from("mentoria_links").select("*").in("id", Array.from(linkIds))
+        : Promise.resolve({ data: [] as Database["public"]["Tables"]["mentoria_links"]["Row"][] }),
+      mentorIds.size > 0
+        ? supabaseAdmin.from("profiles").select("user_id, full_name").in("user_id", Array.from(mentorIds))
+        : Promise.resolve({ data: [] as Array<{ user_id: string; full_name: string | null }> }),
+    ]);
+    const linkPorId = new Map((links ?? []).map((l) => [l.id, l]));
+    const nomePorMentor = new Map(
+      (profissionais ?? []).map((p) => [p.user_id, p.full_name?.trim() || "quem te enviou este link"]),
+    );
+
+    const agora = Date.now();
+
     const sessoes = await Promise.all(
-      (data ?? []).flatMap((m) =>
-        ((m.mentoria_sessoes ?? []) as SessaoRow[])
+      mentorias.flatMap((m) =>
+        (m.mentoria_sessoes ?? [])
           .filter((s) => s.status !== "cancelada")
-          .map(async (s) => ({
-            id: s.id,
-            mentoria_titulo: m.titulo,
-            quando: s.quando,
-            termina_em: s.termina_em,
-            modalidade: s.modalidade,
-            local: s.local,
-            link_url: s.link_url,
-            status: s.status,
-            duracao_real_min: s.duracao_real_min,
-            resumo: s.resumo,
-            checklist_titulo: s.checklist_titulo,
-            concluida_em: s.concluida_em,
-            avaliacao_estrelas: s.avaliacao_estrelas,
-            avaliacao_comentario: s.avaliacao_comentario,
-            avaliada_em: s.avaliada_em,
-            tarefas: (s.mentoria_tarefas ?? []).slice().sort((a, b) => a.ordem - b.ordem),
-            arquivos: await assinarArquivosMentoria(supabaseAdmin, s.mentoria_arquivos ?? []),
-          })),
+          .map(async (s) => {
+            const nomeProfessor = nomePorMentor.get(m.mentor_id) ?? "quem te enviou este link";
+            const link = s.link_id ? linkPorId.get(s.link_id) ?? null : null;
+            const naoAgendada: Elegibilidade = { sim: false, motivo: "" };
+            const semLink: Elegibilidade = { sim: false, motivo: `Fale com ${nomeProfessor} para remarcar esta sessão.` };
+            const podeCancelar: Elegibilidade = s.status !== "agendada"
+              ? naoAgendada
+              : !link ? semLink : calcularElegibilidade(s, link, "cancelar", nomeProfessor);
+            const podeRemarcar: Elegibilidade = s.status !== "agendada"
+              ? naoAgendada
+              : !link ? semLink : calcularElegibilidade(s, link, "remarcar", nomeProfessor);
+            return {
+              id: s.id,
+              mentoria_titulo: m.titulo,
+              quando: s.quando,
+              termina_em: s.termina_em,
+              modalidade: s.modalidade,
+              local: s.local,
+              link_url: s.link_url,
+              status: s.status,
+              duracao_real_min: s.duracao_real_min,
+              resumo: s.resumo,
+              checklist_titulo: s.checklist_titulo,
+              concluida_em: s.concluida_em,
+              avaliacao_estrelas: s.avaliacao_estrelas,
+              avaliacao_comentario: s.avaliacao_comentario,
+              avaliada_em: s.avaliada_em,
+              tarefas: (s.mentoria_tarefas ?? []).slice().sort((a, b) => a.ordem - b.ordem),
+              arquivos: await assinarArquivosMentoria(supabaseAdmin, s.mentoria_arquivos ?? []),
+              podeCancelar,
+              podeRemarcar,
+            };
+          }),
       ),
     );
 
-    return { sessoes };
+    // O botão "Agendar mentoria" — um por pacote ativo, nunca somado. As
+    // quatro respostas da spec #255: sem saldo, sem link, link desativado (
+    // mesma frase de "sem link"), ou tudo certo. "Sem pacote ativo" é só o
+    // array vir vazio — a tela decide não mostrar nada.
+    const pacotes = mentorias
+      .filter((m) => m.status === "ativa")
+      .map((m) => {
+        const sessoesDoM = m.mentoria_sessoes ?? [];
+        const realizadas = sessoesDoM.filter((s) => s.status === "concluida").length;
+        const agendadas = sessoesDoM.filter((s) => s.status === "agendada" && new Date(s.quando).getTime() >= agora).length;
+        const faltam = Math.max(0, m.sessoes_contratadas - realizadas - agendadas);
+        const nomeProfessor = nomePorMentor.get(m.mentor_id) ?? "quem te enviou este link";
+        const link = m.link_id ? linkPorId.get(m.link_id) ?? null : null;
+
+        let podeAgendar: Elegibilidade;
+        if (faltam <= 0) {
+          podeAgendar = { sim: false, motivo: `Suas ${m.sessoes_contratadas} sessões já estão marcadas ou realizadas.` };
+        } else if (!link || !link.ativo) {
+          podeAgendar = { sim: false, motivo: `Ainda não dá para agendar sozinho por aqui. Fale com ${nomeProfessor} para marcar.` };
+        } else {
+          podeAgendar = { sim: true };
+        }
+
+        return { id: m.id, titulo: m.titulo, faltam, podeAgendar };
+      });
+
+    return { sessoes, pacotes };
   });
 
 /**

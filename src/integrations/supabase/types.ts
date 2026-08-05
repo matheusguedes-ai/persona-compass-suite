@@ -175,6 +175,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          link_id: string | null
           mentor_id: string
           observacoes: string | null
           person_id: string
@@ -186,6 +187,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          link_id?: string | null
           mentor_id: string
           observacoes?: string | null
           person_id: string
@@ -197,6 +199,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          link_id?: string | null
           mentor_id?: string
           observacoes?: string | null
           person_id?: string
@@ -211,6 +214,13 @@ export type Database = {
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentorias_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "mentoria_links"
             referencedColumns: ["id"]
           },
         ]

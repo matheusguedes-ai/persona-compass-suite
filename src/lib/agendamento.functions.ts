@@ -21,7 +21,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { exigirPermissao } from "@/lib/permissao.server";
+import { exigirPermissao, exigirPermissaoOuMentor } from "@/lib/permissao.server";
 import type { Database } from "@/integrations/supabase/types";
 
 type Cliente = SupabaseClient<Database>;
@@ -159,6 +159,26 @@ export const listarLinks = createServerFn({ method: "GET" })
         "id, slug, titulo, descricao, duracao_min, intervalo_min, antecedencia_min_horas, antecedencia_max_dias, teto_por_dia, permite_cancelar, permite_remarcar, cancelamento_min_horas, max_remarcacoes, ativo, created_at",
       )
       .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { links: data ?? [] };
+  });
+
+/**
+ * Só o essencial para o seletor do formulário de pacote (#255) — não a
+ * config completa do link. Gate mais largo que `listarLinks`
+ * (`exigirPermissaoOuMentor`, não `exigirPermissao`): quem cria pacote como
+ * mentor de grupo, sem a permissão inteira de administrar links, ainda
+ * precisa poder ESCOLHER entre os links que já existem.
+ */
+export const listarLinksAtivos = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "mentorias");
+    const { data, error } = await context.supabase
+      .from("mentoria_links")
+      .select("id, titulo, duracao_min")
+      .eq("ativo", true)
+      .order("titulo", { ascending: true });
     if (error) throw new Error(error.message);
     return { links: data ?? [] };
   });
@@ -719,15 +739,17 @@ async function enviarConfirmacaoEmail(
 
 const idSchema = z.object({ id: z.string().uuid() });
 
-type Elegibilidade = { sim: true } | { sim: false; motivo: string };
+export type Elegibilidade = { sim: true } | { sim: false; motivo: string };
 
 /**
  * A MESMA regra usada para decidir o que a tela mostra (aqui) e para barrar
  * de verdade no servidor (`exigirElegibilidade`, logo abaixo) — uma calcula,
  * a outra só decide se lança. Sem isto, era fácil os dois lados divergirem
- * com o tempo.
+ * com o tempo. Exportada porque o #255 reaproveita esta MESMA função para
+ * decidir cancelar/remarcar dentro do painel logado do aluno — nunca uma
+ * segunda cópia da regra (student.functions.ts:getMinhasMentorias).
  */
-function calcularElegibilidade(
+export function calcularElegibilidade(
   sessao: { quando: string; remarcacoes: number },
   link: LinkRow,
   acao: "cancelar" | "remarcar",
@@ -773,7 +795,7 @@ function exigirElegibilidade(
 }
 
 /** Nome do professor para as mensagens ("fale com fulano") — nunca o e-mail dele. */
-async function nomeDoProfessor(supabaseAdmin: Cliente, mentorId: string): Promise<string> {
+export async function nomeDoProfessor(supabaseAdmin: Cliente, mentorId: string): Promise<string> {
   const { data } = await supabaseAdmin.from("profiles").select("full_name").eq("user_id", mentorId).maybeSingle();
   return data?.full_name?.trim() || "quem te enviou este link";
 }
@@ -1051,6 +1073,182 @@ export const remarcarSessaoAluno = createServerFn({ method: "POST" })
       quandoOriginal,
       quandoNovo: quandoNormalizado,
       tipo: "remarcada",
+    });
+
+    return { ok: true as const, quando: quandoNormalizado, termina_em: terminaEm };
+  });
+
+// ============================================================
+// Autenticado — o aluno agenda pelo próprio painel (#255)
+//
+// Mesmo cálculo de horários livres (contextoDoLink/calcularDias) que o link
+// público usa — só muda a porta de entrada: aqui o aluno já está logado,
+// identificado pela sessão, nunca por e-mail solto. O pacote (mentorias)
+// aponta o link a usar; o professor escolhe isso ao criar/editar o pacote.
+//
+// A armadilha do #243: em "Ver como aluno" quem está autenticado de verdade
+// é o DONO, e a RLS dele libera tudo. `pessoaIdsDoAluno` resolve a pessoa (ou
+// as pessoas) alcançável pela sessão atual — o alvo do preview, ou as
+// pessoas do próprio aluno — e `mentoriaDoAlunoParaAgendar` confere que a
+// mentoria pedida é de UMA DESSAS pessoas antes de fazer qualquer coisa.
+// Nunca confia no preview_person_id sozinho.
+// ============================================================
+
+/** Pessoa(s) alcançável(is) pela sessão atual — o alvo do preview, ou as pessoas do próprio aluno logado. */
+async function pessoaIdsDoAluno(supabase: Cliente, previewPersonId?: string | null): Promise<string[]> {
+  if (previewPersonId) {
+    const { data, error } = await supabase.from("people").select("id").eq("id", previewPersonId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Avaliado não encontrado ou fora do seu acesso.");
+    return [data.id];
+  }
+  const { error: claimErr } = await supabase.rpc("claim_student_profile");
+  if (claimErr) throw new Error(claimErr.message);
+  await supabase.rpc("claim_team_membership");
+  const { data, error } = await supabase.from("people").select("id").not("user_id", "is", null);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((p) => p.id);
+}
+
+type MentoriaParaAgendar = {
+  id: string; mentor_id: string; person_id: string; status: string; sessoes_contratadas: number; link_id: string | null;
+};
+
+/** Busca por admin (o aluno não tem RLS sobre o pacote de outra pessoa) e confere dono contra pessoaIds — nunca confia no preview sozinho. */
+async function mentoriaDoAlunoParaAgendar(
+  supabaseAdmin: Cliente,
+  mentoriaId: string,
+  pessoaIds: string[],
+): Promise<MentoriaParaAgendar> {
+  const { data: mentoria, error } = await supabaseAdmin
+    .from("mentorias")
+    .select("id, mentor_id, person_id, status, sessoes_contratadas, link_id")
+    .eq("id", mentoriaId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!mentoria || !pessoaIds.includes(mentoria.person_id)) {
+    throw new Error("Mentoria não encontrada ou fora do seu acesso.");
+  }
+  if (mentoria.status !== "ativa") throw new Error("Este pacote não está mais ativo.");
+  return mentoria;
+}
+
+/** Mesma frase nos dois casos (sem link / link desativado) — spec #255. */
+async function linkAtivoDoPacote(supabaseAdmin: Cliente, mentoria: MentoriaParaAgendar, nomeProfessor: string): Promise<LinkRow> {
+  const semLink = `Ainda não dá para agendar sozinho por aqui. Fale com ${nomeProfessor} para marcar.`;
+  if (!mentoria.link_id) throw new Error(semLink);
+  const { data: link } = await supabaseAdmin.from("mentoria_links").select("*").eq("id", mentoria.link_id).maybeSingle();
+  if (!link || !link.ativo) throw new Error(semLink);
+  return link;
+}
+
+/** Mesma fórmula de mentorias.functions.ts (listMentorias/getMentoria): contratadas − realizadas − agendadas futuras. Nunca recalculada com outra lógica. */
+async function faltamDoPacote(supabaseAdmin: Cliente, mentoria: MentoriaParaAgendar): Promise<number> {
+  const { data: sessoes } = await supabaseAdmin
+    .from("mentoria_sessoes").select("status, quando").eq("mentoria_id", mentoria.id);
+  const agora = Date.now();
+  const lista = sessoes ?? [];
+  const realizadas = lista.filter((s) => s.status === "concluida").length;
+  const agendadas = lista.filter((s) => s.status === "agendada" && new Date(s.quando).getTime() >= agora).length;
+  return Math.max(0, mentoria.sessoes_contratadas - realizadas - agendadas);
+}
+
+const mentoriaParaAgendarSchema = z.object({
+  mentoria_id: z.string().uuid(),
+  preview_person_id: z.string().uuid().nullable().optional(),
+});
+
+export const horariosParaAgendarNoPainel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => mentoriaParaAgendarSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const supabaseAdmin = await admin();
+    const pessoaIds = await pessoaIdsDoAluno(context.supabase, data.preview_person_id);
+    const mentoria = await mentoriaDoAlunoParaAgendar(supabaseAdmin, data.mentoria_id, pessoaIds);
+    const nomeProfessor = await nomeDoProfessor(supabaseAdmin, mentoria.mentor_id);
+    const link = await linkAtivoDoPacote(supabaseAdmin, mentoria, nomeProfessor);
+    const faltam = await faltamDoPacote(supabaseAdmin, mentoria);
+    if (faltam <= 0) throw new Error(`Suas ${mentoria.sessoes_contratadas} sessões já estão marcadas ou realizadas.`);
+
+    const agora = new Date();
+    const { faixas, ocupadas, bloqueiosGoogle } = await contextoDoLink(supabaseAdmin, link, agora);
+    const dias = calcularDias(link, faixas, ocupadas, bloqueiosGoogle, agora);
+    return { status: "ok" as const, duracao_min: link.duracao_min, dias };
+  });
+
+const agendarNoPainelSchema = z.object({
+  mentoria_id: z.string().uuid(),
+  quando: z.string().datetime({ offset: true }),
+  preview_person_id: z.string().uuid().nullable().optional(),
+});
+
+export const agendarNoPainel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => agendarNoPainelSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const supabaseAdmin = await admin();
+    const pessoaIds = await pessoaIdsDoAluno(context.supabase, data.preview_person_id);
+    const mentoria = await mentoriaDoAlunoParaAgendar(supabaseAdmin, data.mentoria_id, pessoaIds);
+    const nomeProfessor = await nomeDoProfessor(supabaseAdmin, mentoria.mentor_id);
+    const link = await linkAtivoDoPacote(supabaseAdmin, mentoria, nomeProfessor);
+    const faltam = await faltamDoPacote(supabaseAdmin, mentoria);
+    if (faltam <= 0) throw new Error(`Suas ${mentoria.sessoes_contratadas} sessões já estão marcadas ou realizadas.`);
+
+    // Revalida contra um cálculo FRESCO — mesma armadilha de confirmarAgendamento:
+    // o horário pode ter sido ocupado entre a tela mostrar a lista e este clique.
+    const agora = new Date();
+    const { faixas, ocupadas, bloqueiosGoogle } = await contextoDoLink(supabaseAdmin, link, agora);
+    const dias = calcularDias(link, faixas, ocupadas, bloqueiosGoogle, agora);
+    const quandoNormalizado = new Date(data.quando).toISOString();
+    const aindaLivre = dias.some((d) => d.horarios.includes(quandoNormalizado));
+    if (!aindaLivre) throw new Error("Esse horário acabou de ser ocupado. Escolha outro, por favor.");
+
+    const terminaEm = new Date(new Date(quandoNormalizado).getTime() + link.duracao_min * 60_000).toISOString();
+    const { data: pessoa } = await supabaseAdmin
+      .from("people").select("full_name, user_id").eq("id", mentoria.person_id).maybeSingle();
+
+    const { data: row, error } = await supabaseAdmin
+      .from("mentoria_sessoes")
+      .insert({
+        mentoria_id: mentoria.id,
+        mentor_id: mentoria.mentor_id,
+        quando: quandoNormalizado,
+        termina_em: terminaEm,
+        modalidade: "online",
+        origem: "painel",
+        link_id: link.id,
+        confirmado_em: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    if (error) {
+      if (error.message.includes("mentoria_sessoes_sem_sobreposicao")) {
+        throw new Error("Esse horário acabou de ser ocupado. Escolha outro, por favor.");
+      }
+      throw new Error(error.message);
+    }
+
+    const { data: gruposDele } = await supabaseAdmin
+      .from("group_members").select("group_id").eq("person_id", mentoria.person_id);
+    const { notificar, quandoBr } = await import("@/lib/notificacoes.functions");
+    await notificar(supabaseAdmin, {
+      conta: mentoria.mentor_id,
+      tipo: "mentoria_agendada",
+      titulo: `${pessoa?.full_name ?? "Alguém"} agendou pelo painel`,
+      corpo: quandoBr(quandoNormalizado),
+      link: "/mentorias",
+      ator: null,
+      atorNome: pessoa?.full_name ?? null,
+      grupos: (gruposDele ?? []).map((g) => g.group_id),
+      pessoaUser: pessoa?.user_id ?? null,
+    });
+
+    // Mão única, silenciosa — mesmo princípio de confirmarAgendamento.
+    const { sincronizar } = await import("@/lib/google.server");
+    await sincronizar(mentoria.mentor_id, "mentoria", row.id, {
+      titulo: `Mentoria · ${pessoa?.full_name ?? "avaliado"}`,
+      quando: quandoNormalizado,
+      terminaEm,
     });
 
     return { ok: true as const, quando: quandoNormalizado, termina_em: terminaEm };

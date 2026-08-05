@@ -10,6 +10,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listMentorias, criarMentoria } from "@/lib/mentorias.functions";
+import { listarLinksAtivos } from "@/lib/agendamento.functions";
 import { listarPessoasParaEscolher } from "@/lib/data.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ export function MentoriasPage() {
   const listaFn = useServerFn(listMentorias);
   const criarFn = useServerFn(criarMentoria);
   const pessoasFn = useServerFn(listarPessoasParaEscolher);
+  const linksFn = useServerFn(listarLinksAtivos);
 
   const { data, isLoading, error } = useQuery({ queryKey: ["mentorias"], queryFn: () => listaFn() });
 
@@ -38,8 +40,12 @@ export function MentoriasPage() {
   const [titulo, setTitulo] = useState("");
   const [sessoes, setSessoes] = useState("4");
   const [observacoes, setObservacoes] = useState("");
+  const [linkId, setLinkId] = useState("");
   const { data: pessoasData } = useQuery({
     queryKey: ["pessoas-para-escolher"], queryFn: () => pessoasFn(), enabled: aberto,
+  });
+  const { data: linksData } = useQuery({
+    queryKey: ["links-ativos"], queryFn: () => linksFn(), enabled: aberto,
   });
 
   const criar = useMutation({
@@ -50,11 +56,12 @@ export function MentoriasPage() {
           titulo: titulo.trim() || undefined,
           sessoes_contratadas: Number(sessoes),
           observacoes: observacoes.trim() || undefined,
+          link_id: linkId || undefined,
         },
       }),
     onSuccess: () => {
       toast.success("Mentoria criada.");
-      setAberto(false); setPersonId(""); setTitulo(""); setSessoes("4"); setObservacoes("");
+      setAberto(false); setPersonId(""); setTitulo(""); setSessoes("4"); setObservacoes(""); setLinkId("");
       qc.invalidateQueries({ queryKey: ["mentorias"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -168,6 +175,22 @@ export function MentoriasPage() {
             <div>
               <label className="text-sm font-medium">Observações (opcional)</label>
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={3} className="mt-1.5" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Link de agendamento (opcional)</label>
+              <select
+                value={linkId}
+                onChange={(e) => setLinkId(e.target.value)}
+                className="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">Sem link — só você agenda</option>
+                {(linksData?.links ?? []).map((l) => (
+                  <option key={l.id} value={l.id}>{l.titulo} ({l.duracao_min} min)</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Com um link escolhido, o aluno pode agendar sozinho pelo próprio painel.
+              </p>
             </div>
           </div>
           <DialogFooter>

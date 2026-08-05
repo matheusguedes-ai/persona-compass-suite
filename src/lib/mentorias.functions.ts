@@ -34,6 +34,11 @@ const criarMentoriaSchema = z.object({
   titulo: z.string().trim().max(200).optional().nullable(),
   sessoes_contratadas: z.number().int().min(1).max(999),
   observacoes: z.string().trim().max(2000).optional().nullable(),
+  // O link de auto-agendamento que este pacote usa (#255) — opcional; sem
+  // ele, o aluno não vê o botão "Agendar mentoria" no próprio painel, só o
+  // professor agenda. ON DELETE SET NULL na migração: apagar um link não
+  // apaga pacote de ninguém.
+  link_id: z.string().uuid().optional(),
 });
 
 /**
@@ -88,7 +93,7 @@ export const getMentoria = createServerFn({ method: "GET" })
     await exigirPermissaoOuMentor(context.supabase, context.userId, "mentorias");
     const { data: m, error } = await context.supabase
       .from("mentorias")
-      .select("id, titulo, sessoes_contratadas, observacoes, status, person_id, people(id, full_name, email)")
+      .select("id, titulo, sessoes_contratadas, observacoes, status, person_id, link_id, people(id, full_name, email)")
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -155,6 +160,7 @@ export const criarMentoria = createServerFn({ method: "POST" })
         titulo: data.titulo?.trim() || null,
         sessoes_contratadas: data.sessoes_contratadas,
         observacoes: data.observacoes?.trim() || null,
+        link_id: data.link_id ?? null,
       })
       .select("id")
       .single();
@@ -175,6 +181,7 @@ export const atualizarMentoria = createServerFn({ method: "POST" })
       sessoes_contratadas: z.number().int().min(1).max(999).optional(),
       observacoes: z.string().trim().max(2000).optional().nullable(),
       status: z.enum(["ativa", "encerrada"]).optional(),
+      link_id: z.string().uuid().nullable().optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -185,6 +192,7 @@ export const atualizarMentoria = createServerFn({ method: "POST" })
     if (campos.sessoes_contratadas !== undefined) patch.sessoes_contratadas = campos.sessoes_contratadas;
     if ("observacoes" in campos) patch.observacoes = campos.observacoes?.trim() || null;
     if (campos.status) patch.status = campos.status;
+    if ("link_id" in campos) patch.link_id = campos.link_id ?? null;
     if (Object.keys(patch).length === 0) return { ok: true };
 
     const { error } = await context.supabase.from("mentorias").update(patch).eq("id", id);

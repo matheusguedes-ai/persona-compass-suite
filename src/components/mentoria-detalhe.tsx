@@ -13,6 +13,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   getMentoria, agendarSessao, salvarResumoSessao, atualizarMentoria, anexarArquivoMentoria,
 } from "@/lib/mentorias.functions";
+import { listarLinksAtivos } from "@/lib/agendamento.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { ACCEPT, erroDeUpload } from "@/lib/erro-de-upload";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ export function MentoriaDetalhe({ id }: { id: string }) {
   const salvarResumoFn = useServerFn(salvarResumoSessao);
   const atualizarFn = useServerFn(atualizarMentoria);
   const anexarFn = useServerFn(anexarArquivoMentoria);
+  const linksFn = useServerFn(listarLinksAtivos);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["mentoria", id], queryFn: () => getFn({ data: { id } }),
@@ -96,11 +98,15 @@ export function MentoriaDetalhe({ id }: { id: string }) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // --- Aumentar o pacote --------------------------------------------------
+  // --- Aumentar o pacote / escolher o link --------------------------------
   const [editandoPacote, setEditandoPacote] = useState(false);
   const [novaQtd, setNovaQtd] = useState("");
+  const [novoLinkId, setNovoLinkId] = useState("");
+  const { data: linksData } = useQuery({
+    queryKey: ["links-ativos"], queryFn: () => linksFn(), enabled: editandoPacote,
+  });
   const salvarPacote = useMutation({
-    mutationFn: () => atualizarFn({ data: { id, sessoes_contratadas: Number(novaQtd) } }),
+    mutationFn: () => atualizarFn({ data: { id, sessoes_contratadas: Number(novaQtd), link_id: novoLinkId || null } }),
     onSuccess: () => { toast.success("Pacote atualizado."); setEditandoPacote(false); recarregar(); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -195,7 +201,14 @@ export function MentoriaDetalhe({ id }: { id: string }) {
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{mentoria.observacoes}</p>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={() => { setNovaQtd(String(mentoria.sessoes_contratadas)); setEditandoPacote(true); }}>
+          <Button
+            variant="outline" size="sm"
+            onClick={() => {
+              setNovaQtd(String(mentoria.sessoes_contratadas));
+              setNovoLinkId(mentoria.link_id ?? "");
+              setEditandoPacote(true);
+            }}
+          >
             <Pencil className="size-3.5" /> {mentoria.sessoes_contratadas} contratadas
           </Button>
         </div>
@@ -378,7 +391,25 @@ export function MentoriaDetalhe({ id }: { id: string }) {
             <DialogTitle>Sessões contratadas</DialogTitle>
             <DialogDescription>Fechou mais sessões? Edite o total — não crie um pacote novo.</DialogDescription>
           </DialogHeader>
-          <Input type="number" min={1} max={999} value={novaQtd} onChange={(e) => setNovaQtd(e.target.value)} />
+          <div className="space-y-4">
+            <Input type="number" min={1} max={999} value={novaQtd} onChange={(e) => setNovaQtd(e.target.value)} />
+            <div>
+              <label className="text-sm font-medium">Link de agendamento (opcional)</label>
+              <select
+                value={novoLinkId}
+                onChange={(e) => setNovoLinkId(e.target.value)}
+                className="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+              >
+                <option value="">Sem link — só você agenda</option>
+                {(linksData?.links ?? []).map((l) => (
+                  <option key={l.id} value={l.id}>{l.titulo} ({l.duracao_min} min)</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Com um link escolhido, {mentoria.people?.full_name ?? "o aluno"} pode agendar sozinho pelo próprio painel.
+              </p>
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditandoPacote(false)}>Cancelar</Button>
             <Button onClick={() => salvarPacote.mutate()} disabled={!novaQtd || salvarPacote.isPending}>
