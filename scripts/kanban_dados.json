@@ -2564,6 +2564,16 @@
    "prioridade": 256,
    "origem": "Matheus, 05/08",
    "prova": null
+  },
+  {
+   "titulo": "Professor não consegue cancelar nem remarcar sessão pela tela dele",
+   "descricao": "Em Mentorias → aluno, a sessão agendada só oferece 'Marcar como concluída'. Não há como cancelar nem remarcar. ACHADO: cancelarSessaoMentoria JÁ EXISTE no servidor, completa e com sincronização do Google (mentorias.functions.ts:278) — falta só o botão. Remarcar não existe em lugar nenhum. As regras de prazo e teto da #254 valem para o ALUNO, não para o professor: ele é o dono da agenda e desmarca a qualquer momento. Ao cancelar, campo de motivo opcional que vai no e-mail ao aluno. Ao remarcar, o professor escolhe qualquer horário livre, sem ficar preso à grade de disponibilidade — a grade existe para conter o aluno, não ele.",
+   "area": "Plataforma",
+   "status": "Planejado",
+   "depende_de": 254,
+   "prioridade": 257,
+   "origem": "Matheus, 05/08 — foi usar e não achou o botão",
+   "prova": null
   }
  ],
  "planilha": {
