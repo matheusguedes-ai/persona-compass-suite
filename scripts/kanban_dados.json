@@ -2573,7 +2573,7 @@
    "depende_de": 254,
    "prioridade": 257,
    "origem": "Matheus, 05/08 — foi usar e não achou o botão",
-   "prova": "Entregue pelo Code em 05/08, commit a20e1d0, provado em produção na conta e sessões reais do Matheus. TESTE DECISIVO: sessão a menos de 24h ligada a um link com prazo de 24h — o cancelamento pelo professor passou, confirmando que exigirElegibilidade (regra do aluno) nunca é chamada no caminho do professor. Cancelar com motivo e sem motivo: e-mail sai com/sem a frase do motivo, sessão risca como 'Cancelada por você', evento do Google some, 'faltam agendar' sobe. Remarcar 3 vezes seguidas: remarcacoes ficou em 0 nas 3 vezes (o contador é só do aluno); depois o aluno remarcou pelo próprio link e aí sim remarcacoes subiu para 1, confirmando que os dois caminhos não se misturam. Evento do Google: mesma linha (mesmo id e google_event_id) nas 3 remarcações do professor — moveu, não duplicou. Sessão já concluída: sem os botões. Achado de passagem, não corrigido aqui: agendarSessao rejeita 'Link da chamada' vazio (Zod só libera undefined, não string vazia) — sessão presencial sem link falha ao salvar. Achado de passagem #2: o campo 'Link de agendamento' da #255 grava certo tanto ao criar quanto ao editar o pacote, sem ressalva. Dados de teste apagados; link 'teste-mentoria' voltou ao estado original (permite_remarcar=false)."
+   "prova": "Entregue pelo Code em 05/08, commit a20e1d0, provado em produção na conta e sessões reais do Matheus. TESTE DECISIVO: sessão a menos de 24h ligada a um link com prazo de 24h — o cancelamento pelo professor passou, confirmando que exigirElegibilidade (regra do aluno) nunca é chamada no caminho do professor. Cancelar com motivo e sem motivo: e-mail sai com/sem a frase do motivo, sessão risca como 'Cancelada por você', evento do Google some, 'faltam agendar' sobe. Remarcar 3 vezes seguidas: remarcacoes ficou em 0 nas 3 vezes (o contador é só do aluno); depois o aluno remarcou pelo próprio link e aí sim remarcacoes subiu para 1, confirmando que os dois caminhos não se misturam. Evento do Google: mesma linha (mesmo id e google_event_id) nas 3 remarcações do professor — moveu, não duplicou. Sessão já concluída: sem os botões. Achado de passagem, não corrigido aqui: agendarSessao rejeita 'Link da chamada' vazio (Zod só libera undefined, não string vazia) — sessão presencial sem link falha ao salvar. Achado de passagem #2: o campo 'Link de agendamento' da #255 grava certo tanto ao criar quanto ao editar o pacote, sem ressalva. Dados de teste apagados; link 'teste-mentoria' voltou ao estado original (permite_remarcar=false). CONFERÊNCIA DO CHAT: exigirElegibilidade NÃO vaza para o professor (só nas 3 funções do aluno, linhas 950/995/1022, com comentário documentando a decisão em :1265). remarcacoes só é incrementado em remarcarSessaoAluno (:1043) — o professor não mexe no contador do aluno. cancelamento_motivo e avisarAluno existem. Banco de sessões limpo e link restaurado. RESSALVA NÃO DECLARADA no relato: 'qualquer horário livre' virou, no código, uma janela FIXA de 07:00 às 21:00 por 90 dias (JANELA_PROFESSOR_*). É razoável ter limite, mas não é o que foi pedido — sessão às 22h ou 06h fica inalcançável. Decidir se fica ou vira configurável. SEGUNDA RESSALVA: o relato diz que os avisos de teste foram apagados; duas notificações 'Fulado de Tal remarcou a sessão TESTE MENTORIA' (02:31 e 02:32) continuam no sino."
   },
   {
    "titulo": "Endurecer pessoaIdsDoAluno: filtrar por auth.uid(), não só por ter login",
@@ -2583,6 +2583,17 @@
    "depende_de": null,
    "prioridade": 258,
    "origem": "Conferência do chat sobre a #255, 05/08",
+   "prova": null,
+   "fase": "Fila de erros — voltar depois"
+  },
+  {
+   "titulo": "Agendar sessão manual falha em silêncio quando 'Link da chamada' fica em branco",
+   "descricao": "Na tela do pacote de mentoria, botão 'Agendar sessão': deixando o campo 'Link da chamada' vazio, o salvamento falha sem mostrar erro nenhum — o professor clica, nada acontece, e ele não sabe por quê. Campo opcional que trava a tela é pior que campo obrigatório, porque ninguém adivinha o que fazer. Achado pelo Code durante a #257, fora do escopo dela. Ele avisou que registraria e não registrou — quem registrou foi o chat, na conferência.",
+   "area": "Plataforma",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 259,
+   "origem": "Claude Code, 05/08 — achado de passagem na #257",
    "prova": null,
    "fase": "Fila de erros — voltar depois"
   }
