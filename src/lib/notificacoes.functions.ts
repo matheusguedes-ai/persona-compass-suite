@@ -107,6 +107,8 @@ const AREA_DA_NOTIFICACAO: Record<string, string> = {
   mentoria_concluida: "mentorias",
   sessao_cancelada: "mentorias",
   sessao_remarcada: "mentorias",
+  sessao_cancelada_professor: "mentorias",
+  sessao_remarcada_professor: "mentorias",
   evento: "agenda",
   evento_novo: "agenda",
   vespera_aula: "classroom",

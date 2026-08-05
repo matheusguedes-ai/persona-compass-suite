@@ -232,6 +232,7 @@ export type Database = {
           avaliada_em: string | null
           cancelada_em: string | null
           cancelada_por: string | null
+          cancelamento_motivo: string | null
           checklist_titulo: string | null
           concluida_em: string | null
           confirmado_em: string | null
@@ -258,6 +259,7 @@ export type Database = {
           avaliada_em?: string | null
           cancelada_em?: string | null
           cancelada_por?: string | null
+          cancelamento_motivo?: string | null
           checklist_titulo?: string | null
           concluida_em?: string | null
           confirmado_em?: string | null
@@ -284,6 +286,7 @@ export type Database = {
           avaliada_em?: string | null
           cancelada_em?: string | null
           cancelada_por?: string | null
+          cancelamento_motivo?: string | null
           checklist_titulo?: string | null
           concluida_em?: string | null
           confirmado_em?: string | null

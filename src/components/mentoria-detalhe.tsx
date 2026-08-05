@@ -11,9 +11,12 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  getMentoria, agendarSessao, salvarResumoSessao, atualizarMentoria, anexarArquivoMentoria,
+  getMentoria, agendarSessao, salvarResumoSessao, atualizarMentoria, anexarArquivoMentoria, cancelarSessaoMentoria,
 } from "@/lib/mentorias.functions";
-import { listarLinksAtivos } from "@/lib/agendamento.functions";
+import {
+  listarLinksAtivos, horariosParaRemarcarProfessor, remarcarSessaoMentoria,
+} from "@/lib/agendamento.functions";
+import { SeletorDeHorario, type Dia } from "@/components/seletor-de-horario";
 import { supabase } from "@/integrations/supabase/client";
 import { ACCEPT, erroDeUpload } from "@/lib/erro-de-upload";
 import { Button } from "@/components/ui/button";
@@ -23,7 +26,11 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft, CalendarClock, CheckCircle2, MapPin, Link2, Plus, X, Pencil, Star, Paperclip, FileText, XCircle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  ArrowLeft, CalendarClock, CalendarX2, CheckCircle2, MapPin, Link2, Plus, X, Pencil, Star, Paperclip, FileText, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -108,6 +115,47 @@ export function MentoriaDetalhe({ id }: { id: string }) {
   const salvarPacote = useMutation({
     mutationFn: () => atualizarFn({ data: { id, sessoes_contratadas: Number(novaQtd), link_id: novoLinkId || null } }),
     onSuccess: () => { toast.success("Pacote atualizado."); setEditandoPacote(false); recarregar(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // --- Cancelar / remarcar pelo professor (#257) --------------------------
+  // As regras do aluno (prazo, teto de remarcações) não valem aqui — o
+  // professor é o dono da agenda. Ver o comentário no topo de
+  // agendamento.functions.ts, seção "#257".
+  const cancelarFn = useServerFn(cancelarSessaoMentoria);
+  const horariosRemarcarFn = useServerFn(horariosParaRemarcarProfessor);
+  const remarcarProfFn = useServerFn(remarcarSessaoMentoria);
+
+  const [motivoCancelar, setMotivoCancelar] = useState("");
+  const cancelar = useMutation({
+    mutationFn: (sessaoId: string) => cancelarFn({ data: { id: sessaoId, motivo: motivoCancelar.trim() || undefined } }),
+    onSuccess: () => { toast.success("Sessão cancelada."); setMotivoCancelar(""); recarregar(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const [remarcandoId, setRemarcandoId] = useState<string | null>(null);
+  const [diaRemarcar, setDiaRemarcar] = useState<string | null>(null);
+  const [horarioRemarcar, setHorarioRemarcar] = useState<string | null>(null);
+
+  const { data: horariosRemarcarData, isLoading: carregandoHorariosRemarcar } = useQuery({
+    queryKey: ["sessao-horarios-remarcar-professor", remarcandoId],
+    queryFn: () => horariosRemarcarFn({ data: { id: remarcandoId! } }),
+    enabled: !!remarcandoId,
+  });
+  const diasRemarcar: Dia[] = horariosRemarcarData?.status === "ok" ? horariosRemarcarData.dias : [];
+  const diaRemarcarAtivo = diaRemarcar ?? diasRemarcar[0]?.data ?? null;
+
+  function comecarRemarcar(sessaoId: string) {
+    setDiaRemarcar(null); setHorarioRemarcar(null); setRemarcandoId(sessaoId);
+  }
+
+  const remarcar = useMutation({
+    mutationFn: () => remarcarProfFn({ data: { id: remarcandoId!, quando: horarioRemarcar! } }),
+    onSuccess: () => {
+      toast.success("Sessão remarcada.");
+      setRemarcandoId(null); setDiaRemarcar(null); setHorarioRemarcar(null);
+      recarregar();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -264,15 +312,60 @@ export function MentoriaDetalhe({ id }: { id: string }) {
                     </span>
                   )}
                 </p>
+                {s.status === "cancelada" && s.cancelamento_motivo && (
+                  <p className="mt-1 text-xs text-muted-foreground">Motivo: {s.cancelamento_motivo}</p>
+                )}
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                   {s.modalidade === "presencial" ? <MapPin className="size-3" /> : <Link2 className="size-3" />}
                   {s.modalidade === "presencial" ? (s.local || "presencial") : (s.link_url || "online")}
                 </p>
               </div>
-              {s.status === "agendada" && (
-                <Button size="sm" onClick={() => abrirResumo(s)}>
-                  <CheckCircle2 className="size-3.5" /> Marcar como concluída
-                </Button>
+              {s.status === "agendada" && remarcandoId !== s.id && (
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => abrirResumo(s)}>
+                    <CheckCircle2 className="size-3.5" /> Marcar como concluída
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => comecarRemarcar(s.id)}>
+                    <CalendarClock className="size-3.5" /> Remarcar
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm" variant="outline" className="text-destructive hover:text-destructive"
+                        onClick={() => setMotivoCancelar("")}
+                      >
+                        <CalendarX2 className="size-3.5" /> Cancelar
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Cancelar esta sessão?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {dataHoraBr(s.quando)}. Essa ação não pode ser desfeita. {mentoria.people?.full_name ?? "O aluno"} é avisado por e-mail.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div>
+                        <label className="text-sm font-medium">Motivo (opcional)</label>
+                        <Textarea
+                          value={motivoCancelar}
+                          onChange={(e) => setMotivoCancelar(e.target.value)}
+                          rows={2}
+                          className="mt-1.5"
+                          placeholder="Só se quiser explicar ao aluno"
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Voltar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => cancelar.mutate(s.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {cancelar.isPending ? "Cancelando…" : "Cancelar sessão"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
               {s.status === "concluida" && (
                 <Button size="sm" variant="outline" onClick={() => abrirResumo(s)}>
@@ -280,6 +373,36 @@ export function MentoriaDetalhe({ id }: { id: string }) {
                 </Button>
               )}
             </div>
+
+            {s.status === "agendada" && remarcandoId === s.id && (
+              <div className="mt-3 space-y-3 border-t border-black/5 pt-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Escolha o novo horário:</p>
+                  <Button variant="ghost" size="sm" onClick={() => setRemarcandoId(null)} disabled={remarcar.isPending}>
+                    Voltar
+                  </Button>
+                </div>
+                {carregandoHorariosRemarcar && <p className="text-sm text-muted-foreground">Buscando horários livres…</p>}
+                {!carregandoHorariosRemarcar && diasRemarcar.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Não há horários disponíveis no momento.</p>
+                )}
+                {diasRemarcar.length > 0 && diaRemarcarAtivo && (
+                  <SeletorDeHorario
+                    dias={diasRemarcar}
+                    diaSelecionado={diaRemarcarAtivo}
+                    horarioSelecionado={horarioRemarcar}
+                    onSelecionarDia={setDiaRemarcar}
+                    onSelecionarHorario={setHorarioRemarcar}
+                  />
+                )}
+                <Button
+                  className="w-full" disabled={!horarioRemarcar || remarcar.isPending}
+                  onClick={() => remarcar.mutate()}
+                >
+                  {remarcar.isPending ? "Confirmando…" : "Confirmar novo horário"}
+                </Button>
+              </div>
+            )}
 
             {s.status === "concluida" && (
               <div className="mt-3 space-y-3 border-t border-black/5 pt-3">

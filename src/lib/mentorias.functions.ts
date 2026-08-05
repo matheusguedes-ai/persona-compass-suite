@@ -102,7 +102,7 @@ export const getMentoria = createServerFn({ method: "GET" })
     const { data: sessoes, error: eS } = await context.supabase
       .from("mentoria_sessoes")
       .select(
-        "id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, cancelada_em, cancelada_por, avaliacao_estrelas, avaliacao_comentario, avaliada_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em), mentoria_arquivos(id, nome, caminho, tamanho_bytes, tipo)",
+        "id, quando, termina_em, modalidade, local, link_url, status, duracao_real_min, resumo, checklist_titulo, concluida_em, cancelada_em, cancelada_por, cancelamento_motivo, avaliacao_estrelas, avaliacao_comentario, avaliada_em, mentoria_tarefas(id, titulo, ordem, concluida, concluida_em), mentoria_arquivos(id, nome, caminho, tamanho_bytes, tipo)",
       )
       .eq("mentoria_id", data.id)
       .order("quando", { ascending: false });
@@ -281,7 +281,13 @@ export const agendarSessao = createServerFn({ method: "POST" })
  * Só cabe numa sessão ainda `agendada` — cancelar uma já concluída não faz
  * sentido (o resumo já foi publicado para o aluno).
  */
-const cancelarSessaoSchema = z.object({ id: z.string().uuid() });
+const cancelarSessaoSchema = z.object({
+  id: z.string().uuid(),
+  // Rotulado como opcional DE VERDADE na tela (#257) — sessão que some sem
+  // explicação vira uma pergunta que volta pro Matheus por WhatsApp, mas o
+  // botão nunca fica travado por falta de motivo.
+  motivo: z.string().trim().max(500).optional().nullable(),
+});
 
 export const cancelarSessaoMentoria = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -290,22 +296,44 @@ export const cancelarSessaoMentoria = createServerFn({ method: "POST" })
     await exigirPermissaoOuMentor(context.supabase, context.userId, "mentorias");
     const { data: sessao, error: eS } = await context.supabase
       .from("mentoria_sessoes")
-      .select("id, mentor_id, status")
+      .select("id, mentor_id, mentoria_id, quando, status")
       .eq("id", data.id)
       .maybeSingle();
     if (eS) throw new Error(eS.message);
     if (!sessao) throw new Error("Sessão não encontrada.");
     if (sessao.status !== "agendada") throw new Error("Só dá para cancelar uma sessão ainda agendada.");
 
+    const motivo = data.motivo?.trim() || null;
     const { error } = await context.supabase
       .from("mentoria_sessoes")
-      .update({ status: "cancelada", cancelada_em: new Date().toISOString(), cancelada_por: "mentor" })
+      .update({
+        status: "cancelada",
+        cancelada_em: new Date().toISOString(),
+        cancelada_por: "mentor",
+        cancelamento_motivo: motivo,
+      })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
 
     // Mão única, silenciosa: se o Google falhar, o cancelamento aqui já valeu.
     const { sincronizar } = await import("@/lib/google.server");
     await sincronizar(sessao.mentor_id, "mentoria", sessao.id, null);
+
+    // Mão única, silenciosa — o inverso da #254: aqui é o professor que
+    // desmarca, e o ALUNO é avisado (nunca derruba o cancelamento).
+    const { data: mentoriaDaSessao } = await context.supabase
+      .from("mentorias").select("person_id").eq("id", sessao.mentoria_id).maybeSingle();
+    if (mentoriaDaSessao?.person_id) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { avisarAluno } = await import("@/lib/agendamento.functions");
+      await avisarAluno(supabaseAdmin, {
+        mentorId: sessao.mentor_id,
+        personId: mentoriaDaSessao.person_id,
+        quandoOriginal: sessao.quando,
+        motivo,
+        tipo: "cancelada",
+      });
+    }
 
     return { ok: true };
   });

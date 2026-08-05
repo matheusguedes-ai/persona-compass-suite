@@ -1253,3 +1253,259 @@ export const agendarNoPainel = createServerFn({ method: "POST" })
 
     return { ok: true as const, quando: quandoNormalizado, termina_em: terminaEm };
   });
+
+// ============================================================
+// Autenticado — o professor cancela e remarca pela própria tela (#257)
+//
+// As regras do aluno (prazo mínimo, teto de remarcações, grade de
+// disponibilidade) existem para conter o ALUNO. O professor é o dono da
+// agenda: desmarca a qualquer momento, remarca quantas vezes precisar, e
+// escolhe QUALQUER horário livre — não fica preso à própria
+// mentoria_disponibilidade, que é o que ele aceita pelo link público, não o
+// que ele pode atender. Por isso `exigirElegibilidade` NUNCA entra aqui, e
+// `remarcacoes` (o contador do teto do aluno) nunca é incrementado por uma
+// remarcação do professor.
+//
+// `cancelarSessaoMentoria` (o cancelamento em si) mora em mentorias.functions.ts,
+// junto do resto do CRUD de sessão do professor — só o aviso ao aluno
+// (avisarAluno, abaixo) mora aqui, perto do seu espelho avisarProfessor.
+// ============================================================
+
+/** Janela ampla e fixa — não há link nem disponibilidade para definir o "horário de funcionamento" do professor remarcando por conta própria. */
+const JANELA_PROFESSOR_INICIO = "07:00";
+const JANELA_PROFESSOR_FIM = "21:00";
+const JANELA_PROFESSOR_DIAS = 90;
+
+/**
+ * Horários livres do PROFESSOR remarcando — só evita bater em outra sessão
+ * já agendada (o EXCLUDE constraint do banco é o backstop de verdade).
+ * `excluirSessaoId` exclui a própria sessão sendo remarcada, mesma solução
+ * que a #254 já resolveu para o aluno.
+ */
+async function horariosAmplosDoProfessor(
+  supabaseAdmin: Cliente,
+  mentorId: string,
+  duracaoMin: number,
+  agora: Date,
+  excluirSessaoId: string,
+): Promise<{ data: string; horarios: string[] }[]> {
+  const janelaInicio = new Date(agora.getTime() - 86_400_000);
+  const janelaFim = new Date(agora.getTime() + (JANELA_PROFESSOR_DIAS + 1) * 86_400_000);
+  const { data: sessoes } = await supabaseAdmin
+    .from("mentoria_sessoes")
+    .select("quando, termina_em, link_id")
+    .eq("mentor_id", mentorId)
+    .eq("status", "agendada")
+    .neq("id", excluirSessaoId)
+    .gte("quando", janelaInicio.toISOString())
+    .lte("quando", janelaFim.toISOString());
+
+  const faixas: FaixaCalc[] = [0, 1, 2, 3, 4, 5, 6].map((dia) => ({
+    dia_semana: dia, hora_inicio: JANELA_PROFESSOR_INICIO, hora_fim: JANELA_PROFESSOR_FIM,
+  }));
+
+  return horariosLivresDoLink({
+    faixas,
+    ocupadas: (sessoes ?? []) as OcupadaCalc[],
+    bloqueiosGoogle: [],
+    duracaoMin,
+    intervaloMin: 0,
+    agora,
+    antecedenciaMinHoras: 0,
+    antecedenciaMaxDias: JANELA_PROFESSOR_DIAS,
+    tetoPorDia: null,
+    linkId: excluirSessaoId, // não lido: tetoPorDia null desativa o único ramo que usaria isto
+  });
+}
+
+async function sessaoDoProfessor(context: { supabase: Cliente }, id: string) {
+  const { data: sessao, error } = await context.supabase
+    .from("mentoria_sessoes")
+    .select("id, mentor_id, mentoria_id, quando, termina_em, status")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!sessao) throw new Error("Sessão não encontrada.");
+  if (sessao.status !== "agendada") throw new Error("Só dá para remarcar uma sessão ainda agendada.");
+  return sessao;
+}
+
+function duracaoDaSessao(sessao: { quando: string; termina_em: string | null }): number {
+  return sessao.termina_em
+    ? Math.max(5, Math.round((new Date(sessao.termina_em).getTime() - new Date(sessao.quando).getTime()) / 60_000))
+    : DURACAO_PADRAO_MIN;
+}
+
+const sessaoMentorSchema = z.object({ id: z.string().uuid() });
+
+export const horariosParaRemarcarProfessor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => sessaoMentorSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "mentorias");
+    const sessao = await sessaoDoProfessor(context, data.id);
+    const duracaoMin = duracaoDaSessao(sessao);
+
+    const supabaseAdmin = await admin();
+    const agora = new Date();
+    const dias = await horariosAmplosDoProfessor(supabaseAdmin, sessao.mentor_id, duracaoMin, agora, sessao.id);
+    return { status: "ok" as const, duracao_min: duracaoMin, dias };
+  });
+
+const remarcarProfessorSchema = z.object({ id: z.string().uuid(), quando: z.string().datetime({ offset: true }) });
+
+export const remarcarSessaoMentoria = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => remarcarProfessorSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissaoOuMentor(context.supabase, context.userId, "mentorias");
+    const sessao = await sessaoDoProfessor(context, data.id);
+    const duracaoMin = duracaoDaSessao(sessao);
+
+    const supabaseAdmin = await admin();
+    const agora = new Date();
+    // Revalida contra um cálculo FRESCO — mesma armadilha de sempre: o
+    // horário pode ter sido ocupado entre a tela mostrar a lista e este clique.
+    const dias = await horariosAmplosDoProfessor(supabaseAdmin, sessao.mentor_id, duracaoMin, agora, sessao.id);
+    const quandoNormalizado = new Date(data.quando).toISOString();
+    const aindaLivre = dias.some((d) => d.horarios.includes(quandoNormalizado));
+    if (!aindaLivre) throw new Error("Esse horário acabou de ser ocupado. Escolha outro, por favor.");
+
+    const terminaEm = new Date(new Date(quandoNormalizado).getTime() + duracaoMin * 60_000).toISOString();
+    const quandoOriginal = sessao.quando;
+
+    // Um UPDATE só, na MESMA linha — nunca cancelar-e-recriar, que quebraria
+    // o vínculo com o pacote e faria "faltam agendar" oscilar. NÃO incrementa
+    // `remarcacoes`: esse contador é o teto do ALUNO (#254); o professor
+    // remarcando não pode consumir as remarcações que sobram pra ele.
+    const { data: atualizado, error } = await context.supabase
+      .from("mentoria_sessoes")
+      .update({ quando: quandoNormalizado, termina_em: terminaEm })
+      .eq("id", data.id)
+      .eq("status", "agendada")
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      if (error.message.includes("mentoria_sessoes_sem_sobreposicao")) {
+        throw new Error("Esse horário acabou de ser ocupado. Escolha outro, por favor.");
+      }
+      throw new Error(error.message);
+    }
+    if (!atualizado) throw new Error("Esta sessão já não está mais agendada.");
+
+    // Mão única, silenciosa — sincronizar() faz PATCH no evento existente:
+    // move, não apaga-e-recria, então o aluno não recebe dois avisos do Google.
+    const { sincronizar } = await import("@/lib/google.server");
+    const { data: mentoriaComPessoa } = await supabaseAdmin
+      .from("mentorias").select("person_id, people(full_name)").eq("id", sessao.mentoria_id).maybeSingle();
+    const nomePessoa = (mentoriaComPessoa?.people as unknown as { full_name: string | null } | null)?.full_name;
+    await sincronizar(sessao.mentor_id, "mentoria", sessao.id, {
+      titulo: `Mentoria · ${nomePessoa ?? "avaliado"}`,
+      quando: quandoNormalizado,
+      terminaEm,
+    });
+
+    if (mentoriaComPessoa?.person_id) {
+      await avisarAluno(supabaseAdmin, {
+        mentorId: sessao.mentor_id,
+        personId: mentoriaComPessoa.person_id,
+        quandoOriginal,
+        quandoNovo: quandoNormalizado,
+        tipo: "remarcada",
+      });
+    }
+
+    return { ok: true as const, quando: quandoNormalizado, termina_em: terminaEm };
+  });
+
+/**
+ * Avisa o ALUNO de um cancelamento ou remarcação feito pelo PROFESSOR — o
+ * inverso de `avisarProfessor` (acima). E-mail é o canal que não pode
+ * faltar: cinco dos sete alunos não têm login, e para eles a notificação na
+ * plataforma não existe — por isso lê `people.email` (existe sempre que há
+ * cadastro) em vez de `auth.admin`, que só existe pra quem tem conta. Sem
+ * e-mail cadastrado, segue sem avisar. Silenciosa do início ao fim: o
+ * professor já cancelou/remarcou, o aviso é consequência, nunca condição.
+ */
+export async function avisarAluno(
+  supabaseAdmin: Cliente,
+  args: {
+    mentorId: string;
+    personId: string;
+    quandoOriginal: string;
+    quandoNovo?: string;
+    motivo?: string | null;
+    tipo: "cancelada" | "remarcada";
+  },
+): Promise<void> {
+  try {
+    const { data: pessoa } = await supabaseAdmin
+      .from("people").select("full_name, email, user_id").eq("id", args.personId).maybeSingle();
+    if (!pessoa) return;
+
+    const { data: gruposDele } = await supabaseAdmin
+      .from("group_members").select("group_id").eq("person_id", args.personId);
+
+    const { notificar, quandoBr } = await import("@/lib/notificacoes.functions");
+    const nomeProfessor = await nomeDoProfessor(supabaseAdmin, args.mentorId);
+    const nome = (pessoa.full_name ?? "").split(" ")[0] || "Olá";
+
+    const titulo = args.tipo === "cancelada"
+      ? `${nomeProfessor} cancelou sua sessão`
+      : `${nomeProfessor} remarcou sua sessão`;
+    const corpo = args.tipo === "cancelada"
+      ? (args.motivo
+          ? `Era ${quandoBr(args.quandoOriginal)}. Motivo: ${args.motivo}`
+          : `Era ${quandoBr(args.quandoOriginal)}.`)
+      : `Era ${quandoBr(args.quandoOriginal)}, agora é ${quandoBr(args.quandoNovo!)}.`;
+
+    await notificar(supabaseAdmin, {
+      conta: args.mentorId,
+      tipo: args.tipo === "cancelada" ? "sessao_cancelada_professor" : "sessao_remarcada_professor",
+      titulo,
+      corpo,
+      link: "/aluno/mentorias",
+      // ator: null, como avisarProfessor — nunca o mentorId. notificar()
+      // exclui p_ator dos destinos (`u IS DISTINCT FROM p_ator`); se o aluno
+      // e o professor compartilhassem o mesmo user_id (um mentor testando com
+      // o próprio cadastro de aluno, por exemplo), ator: mentorId excluiria o
+      // ÚNICO destinatário (pessoaUser = ator = conta), e o aviso desapareceria
+      // por inteiro. atorNome (texto solto) já identifica quem agiu.
+      ator: null,
+      atorNome: nomeProfessor,
+      grupos: (gruposDele ?? []).map((g) => g.group_id),
+      pessoaUser: pessoa.user_id,
+    });
+
+    if (!pessoa.email) return;
+    const { enviarEmail, montarHtml } = await import("@/lib/email.server");
+    const { siteUrl } = await import("@/lib/site-url.server");
+    const { data: perfil } = await supabaseAdmin
+      .from("profiles")
+      .select("company_name, brand_color, site_url, support_email, email_from")
+      .eq("user_id", args.mentorId)
+      .maybeSingle();
+
+    const corpoEmail = args.tipo === "cancelada"
+      ? (args.motivo
+          ? `${nome}, sua sessão com ${nomeProfessor} agendada para ${quandoBr(args.quandoOriginal)} foi cancelada.\n\nMotivo: ${args.motivo}`
+          : `${nome}, sua sessão com ${nomeProfessor} agendada para ${quandoBr(args.quandoOriginal)} foi cancelada.\n\nSe tiver dúvidas, fale com ${nomeProfessor}.`)
+      : `${nome}, sua sessão com ${nomeProfessor} foi remarcada.\n\nEra ${quandoBr(args.quandoOriginal)}, agora é ${quandoBr(args.quandoNovo!)}.`;
+
+    const html = montarHtml({
+      corpo: corpoEmail,
+      link: siteUrl(),
+      rotuloBotao: "Visitar o site",
+      marca: perfil ?? null,
+    });
+    await enviarEmail({
+      to: pessoa.email,
+      subject: args.tipo === "cancelada" ? "Sessão cancelada" : "Sessão remarcada",
+      html,
+      from: perfil?.email_from ?? null,
+      replyTo: perfil?.support_email ?? null,
+    });
+  } catch {
+    // Ver o comentário acima: o aviso nunca derruba a ação do professor.
+  }
+}
