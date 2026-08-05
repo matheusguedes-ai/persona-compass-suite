@@ -65,6 +65,7 @@ import { Route as AlunoClassroomIndexRouteImport } from './routes/aluno.classroo
 import { Route as AlunoClassroomTreinamentoIdRouteImport } from './routes/aluno.classroom.$treinamentoId'
 import { Route as AlunoEducacaoIndexRouteImport } from './routes/aluno.educacao.index'
 import { Route as AlunoEducacaoTrackIdRouteImport } from './routes/aluno.educacao.$trackId'
+import { Route as ApiCronLembretesRouteImport } from './routes/api.cron.lembretes'
 import { Route as ApiGoogleCallbackRouteImport } from './routes/api.google.callback'
 import { Route as ApiIconeTamanhoRouteImport } from './routes/api.icone.$tamanho'
 import { Route as ApiMentorFotoSlugRouteImport } from './routes/api.mentor-foto.$slug'
@@ -362,6 +363,11 @@ const AlunoEducacaoTrackIdRoute = AlunoEducacaoTrackIdRouteImport.update({
   path: '/educacao/$trackId',
   getParentRoute: () => AlunoRoute,
 } as any)
+const ApiCronLembretesRoute = ApiCronLembretesRouteImport.update({
+  id: '/api/cron/lembretes',
+  path: '/api/cron/lembretes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGoogleCallbackRoute = ApiGoogleCallbackRouteImport.update({
   id: '/api/google/callback',
   path: '/api/google/callback',
@@ -467,6 +473,7 @@ export interface FileRoutesByFullPath {
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/api/cron/lembretes': typeof ApiCronLembretesRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
   '/api/mentor-foto/$slug': typeof ApiMentorFotoSlugRoute
@@ -529,6 +536,7 @@ export interface FileRoutesByTo {
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/api/cron/lembretes': typeof ApiCronLembretesRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
   '/api/mentor-foto/$slug': typeof ApiMentorFotoSlugRoute
@@ -599,6 +607,7 @@ export interface FileRoutesById {
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/api/cron/lembretes': typeof ApiCronLembretesRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
   '/api/mentor-foto/$slug': typeof ApiMentorFotoSlugRoute
@@ -669,6 +678,7 @@ export interface FileRouteTypes {
     | '/pessoas/$id'
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
+    | '/api/cron/lembretes'
     | '/api/google/callback'
     | '/api/icone/$tamanho'
     | '/api/mentor-foto/$slug'
@@ -731,6 +741,7 @@ export interface FileRouteTypes {
     | '/pessoas/$id'
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
+    | '/api/cron/lembretes'
     | '/api/google/callback'
     | '/api/icone/$tamanho'
     | '/api/mentor-foto/$slug'
@@ -800,6 +811,7 @@ export interface FileRouteTypes {
     | '/_app/pessoas/$id'
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
+    | '/api/cron/lembretes'
     | '/api/google/callback'
     | '/api/icone/$tamanho'
     | '/api/mentor-foto/$slug'
@@ -842,6 +854,7 @@ export interface RootRouteChildren {
   SessaoIdRoute: typeof SessaoIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiCronLembretesRoute: typeof ApiCronLembretesRoute
   ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
   ApiIconeTamanhoRoute: typeof ApiIconeTamanhoRoute
   ApiMentorFotoSlugRoute: typeof ApiMentorFotoSlugRoute
@@ -1248,6 +1261,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlunoEducacaoTrackIdRouteImport
       parentRoute: typeof AlunoRoute
     }
+    '/api/cron/lembretes': {
+      id: '/api/cron/lembretes'
+      path: '/api/cron/lembretes'
+      fullPath: '/api/cron/lembretes'
+      preLoaderRoute: typeof ApiCronLembretesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/google/callback': {
       id: '/api/google/callback'
       path: '/api/google/callback'
@@ -1491,6 +1511,7 @@ const rootRouteChildren: RootRouteChildren = {
   SessaoIdRoute: SessaoIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiCronLembretesRoute: ApiCronLembretesRoute,
   ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,
   ApiIconeTamanhoRoute: ApiIconeTamanhoRoute,
   ApiMentorFotoSlugRoute: ApiMentorFotoSlugRoute,

@@ -368,6 +368,7 @@ export type Database = {
           duracao_min: number
           id: string
           intervalo_min: number
+          lembrete_horas: number[]
           link_url: string | null
           local: string | null
           max_remarcacoes: number
@@ -391,6 +392,7 @@ export type Database = {
           duracao_min: number
           id?: string
           intervalo_min?: number
+          lembrete_horas?: number[]
           link_url?: string | null
           local?: string | null
           max_remarcacoes?: number
@@ -414,6 +416,7 @@ export type Database = {
           duracao_min?: number
           id?: string
           intervalo_min?: number
+          lembrete_horas?: number[]
           link_url?: string | null
           local?: string | null
           max_remarcacoes?: number
@@ -504,6 +507,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "mentoria_tarefas_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "mentoria_sessoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lembretes_enviados: {
+        Row: {
+          destinatario: string
+          enviado_em: string
+          horas: number
+          id: string
+          sessao_id: string
+        }
+        Insert: {
+          destinatario: string
+          enviado_em?: string
+          horas: number
+          id?: string
+          sessao_id: string
+        }
+        Update: {
+          destinatario?: string
+          enviado_em?: string
+          horas?: number
+          id?: string
+          sessao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lembretes_enviados_sessao_id_fkey"
             columns: ["sessao_id"]
             isOneToOne: false
             referencedRelation: "mentoria_sessoes"

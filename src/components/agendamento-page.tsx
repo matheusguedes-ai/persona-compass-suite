@@ -183,6 +183,10 @@ type FormLink = {
   permite_cancelar: boolean; permite_remarcar: boolean;
   cancelamento_min_horas: string; max_remarcacoes: string;
   modalidade: "presencial" | "online"; local: string; link_url: string;
+  // #266: a UI expõe UM horário de aviso (o comum é só um) — o banco guarda
+  // array porque o dado pode crescer para vários avisos por sessão amanhã,
+  // sem migração nova. lembrete_ativo desligado grava [] (nenhum lembrete).
+  lembrete_ativo: boolean; lembrete_horas: string;
 };
 
 const FORM_VAZIO: FormLink = {
@@ -191,6 +195,7 @@ const FORM_VAZIO: FormLink = {
   permite_cancelar: false, permite_remarcar: false,
   cancelamento_min_horas: "24", max_remarcacoes: "2",
   modalidade: "online", local: "", link_url: "",
+  lembrete_ativo: true, lembrete_horas: "24",
 };
 
 function AbaLinks() {
@@ -232,6 +237,8 @@ function AbaLinks() {
       modalidade: l.modalidade as "presencial" | "online",
       local: l.local ?? "",
       link_url: l.link_url ?? "",
+      lembrete_ativo: l.lembrete_horas.length > 0,
+      lembrete_horas: String(l.lembrete_horas[0] ?? 24),
     });
     setAberto(true);
   }
@@ -253,6 +260,7 @@ function AbaLinks() {
         modalidade: form.modalidade,
         local: form.modalidade === "presencial" ? form.local.trim() || undefined : undefined,
         link_url: form.modalidade === "online" ? form.link_url.trim() || undefined : undefined,
+        lembrete_horas: form.lembrete_ativo ? [Number(form.lembrete_horas)] : [],
       };
       return editandoId
         ? atualizarFn({ data: { id: editandoId, ...payload } }).then(() => undefined)
@@ -489,6 +497,29 @@ function AbaLinks() {
                       />
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-black/10 p-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="link-lembrete-ativo" className="font-normal">Enviar lembrete por e-mail</Label>
+                <Switch
+                  id="link-lembrete-ativo"
+                  checked={form.lembrete_ativo}
+                  onCheckedChange={(v) => setForm({ ...form, lembrete_ativo: v })}
+                />
+              </div>
+              {form.lembrete_ativo && (
+                <div className="pl-1">
+                  <Label>Quantas horas antes da sessão</Label>
+                  <Input
+                    type="number" min={1} max={999} value={form.lembrete_horas}
+                    onChange={(e) => setForm({ ...form, lembrete_horas: e.target.value })} className="mt-1.5"
+                  />
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Vai por e-mail para quem agendou e para você, com o horário e o local da sessão.
+                  </p>
                 </div>
               )}
             </div>

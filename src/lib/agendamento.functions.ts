@@ -158,7 +158,7 @@ export const listarLinks = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("mentoria_links")
       .select(
-        "id, slug, titulo, descricao, duracao_min, intervalo_min, antecedencia_min_horas, antecedencia_max_dias, teto_por_dia, permite_cancelar, permite_remarcar, cancelamento_min_horas, max_remarcacoes, modalidade, local, link_url, ativo, created_at",
+        "id, slug, titulo, descricao, duracao_min, intervalo_min, antecedencia_min_horas, antecedencia_max_dias, teto_por_dia, permite_cancelar, permite_remarcar, cancelamento_min_horas, max_remarcacoes, modalidade, local, link_url, lembrete_horas, ativo, created_at",
       )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -202,6 +202,9 @@ const linkSchema = z.object({
   modalidade: z.enum(MODALIDADES).default("online"),
   local: z.string().trim().max(500).optional().nullable(),
   link_url: urlOpcional,
+  // #266: quantas horas antes avisar por e-mail, por link — não fixo no
+  // código (decisão do Matheus). [] é válido: nenhum lembrete neste link.
+  lembrete_horas: z.array(z.number().int().min(1).max(999)).max(5).default([24]),
 });
 
 export const criarLink = createServerFn({ method: "POST" })
@@ -230,6 +233,7 @@ export const criarLink = createServerFn({ method: "POST" })
         modalidade: data.modalidade,
         local: data.modalidade === "presencial" ? (data.local?.trim() || null) : null,
         link_url: data.modalidade === "online" ? (data.link_url?.trim() || null) : null,
+        lembrete_horas: data.lembrete_horas,
       })
       .select("id, slug")
       .single();
@@ -253,6 +257,7 @@ const atualizarLinkSchema = z.object({
   modalidade: z.enum(MODALIDADES).optional(),
   local: z.string().trim().max(500).optional().nullable(),
   link_url: urlOpcional,
+  lembrete_horas: z.array(z.number().int().min(1).max(999)).max(5).optional(),
   ativo: z.boolean().optional(),
 });
 
@@ -284,6 +289,7 @@ export const atualizarLink = createServerFn({ method: "POST" })
       patch.local = campos.modalidade === "presencial" ? (campos.local?.trim() || null) : null;
       patch.link_url = campos.modalidade === "online" ? (campos.link_url?.trim() || null) : null;
     }
+    if (campos.lembrete_horas !== undefined) patch.lembrete_horas = campos.lembrete_horas;
     if (campos.ativo !== undefined) patch.ativo = campos.ativo;
     if (Object.keys(patch).length === 0) return { ok: true };
     const { error } = await context.supabase.from("mentoria_links").update(patch).eq("id", id);
@@ -718,8 +724,11 @@ export const confirmarAgendamento = createServerFn({ method: "POST" })
     return { ok: true as const, quando: quandoNormalizado, termina_em: terminaEm };
   });
 
-/** #248: "Presencial: endereço." ou "Online: link." — usada no email e em /sessao/$id (via a mesma leitura da sessão). */
-function ondeTexto(modalidade: string, local: string | null, linkUrl: string | null): string {
+/**
+ * #248: "Presencial: endereço." ou "Online: link." — usada no email e em
+ * /sessao/$id (via a mesma leitura da sessão), e no lembrete (#266).
+ */
+export function ondeTexto(modalidade: string, local: string | null, linkUrl: string | null): string {
   if (modalidade === "presencial") return local ? `Presencial: ${local}.` : "Presencial — endereço a combinar com quem te enviou este link.";
   return linkUrl ? `Online: ${linkUrl}` : "Online — link da chamada a combinar com quem te enviou este link.";
 }
@@ -1565,5 +1574,172 @@ export async function avisarAluno(
     });
   } catch {
     // Ver o comentário acima: o aviso nunca derruba a ação do professor.
+  }
+}
+
+// ============================================================
+// Lembrete por e-mail antes da sessão (#266) — chamado só pela rota protegida
+// /api/cron/lembretes, nunca pelo cliente. Ver o cabeçalho da migração
+// 20260805070000_lembrete_por_email.sql para o porquê do cron e da ponte.
+// ============================================================
+
+/** Mesmo teto de `lembrete_horas` no schema do link — não há por que olhar mais longe que isso no futuro. */
+const JANELA_MAX_LEMBRETE_HORAS = 999;
+
+/**
+ * Varre as sessões agendadas nas próximas ~41 dias (o teto de
+ * `lembrete_horas`) e envia os lembretes cuja hora já chegou.
+ *
+ * A trava contra duplicidade é o UNIQUE de `lembretes_enviados`: para cada
+ * (sessão, horas, destinatário) devido, tenta o INSERT primeiro; só manda o
+ * e-mail se o INSERT realmente gravou. Se o e-mail falhar depois de gravado,
+ * o lembrete se perde — pior um perdido que dois enviados (mesma escolha da
+ * migração). 23505 (chave duplicada) é a trava funcionando, esperado e
+ * silencioso; qualquer OUTRO erro de insert é logado — mesma disciplina de
+ * pontos.functions.ts, depois de uma falha que passou meses sem ninguém notar
+ * porque o erro era engolido junto com o 23505.
+ */
+export async function enviarLembretesDevidos(supabaseAdmin: Cliente): Promise<{ enviados: number; avaliados: number }> {
+  const agora = new Date();
+  const limite = new Date(agora.getTime() + JANELA_MAX_LEMBRETE_HORAS * 3_600_000);
+
+  const { data: sessoes, error } = await supabaseAdmin
+    .from("mentoria_sessoes")
+    .select("id, mentor_id, mentoria_id, quando, termina_em, link_id, modalidade, local, link_url")
+    .eq("status", "agendada")
+    .gte("quando", agora.toISOString())
+    .lte("quando", limite.toISOString());
+  if (error) throw new Error(error.message);
+  if (!sessoes || sessoes.length === 0) return { enviados: 0, avaliados: 0 };
+
+  const linkIds = [...new Set(sessoes.map((s) => s.link_id).filter((id): id is string => !!id))];
+  if (linkIds.length === 0) return { enviados: 0, avaliados: 0 };
+  const { data: links } = await supabaseAdmin
+    .from("mentoria_links")
+    .select("id, titulo, duracao_min, lembrete_horas, permite_cancelar, permite_remarcar")
+    .in("id", linkIds);
+  const linkPorId = new Map((links ?? []).map((l) => [l.id, l]));
+
+  let enviados = 0;
+  let avaliados = 0;
+
+  for (const sessao of sessoes) {
+    if (!sessao.link_id) continue; // sessão criada fora do link não tem lembrete_horas configurado
+    const link = linkPorId.get(sessao.link_id);
+    if (!link || link.lembrete_horas.length === 0) continue;
+
+    for (const horas of link.lembrete_horas) {
+      const devidoEm = new Date(new Date(sessao.quando).getTime() - horas * 3_600_000);
+      if (agora < devidoEm) continue; // ainda não chegou a hora deste aviso
+      avaliados++;
+
+      for (const destinatario of ["aluno", "mentor"] as const) {
+        const { error: insertError } = await supabaseAdmin
+          .from("lembretes_enviados")
+          .insert({ sessao_id: sessao.id, horas, destinatario });
+        if (insertError) {
+          if (insertError.code !== "23505") {
+            console.error(`[lembretes] insert falhou para sessão ${sessao.id} (${destinatario}, ${horas}h): ${insertError.message}`);
+          }
+          continue;
+        }
+        if (await enviarLembreteEmail(supabaseAdmin, sessao, link, destinatario)) enviados++;
+      }
+    }
+  }
+
+  return { enviados, avaliados };
+}
+
+async function enviarLembreteEmail(
+  supabaseAdmin: Cliente,
+  sessao: {
+    id: string;
+    mentor_id: string;
+    mentoria_id: string;
+    quando: string;
+    termina_em: string | null;
+    modalidade: string;
+    local: string | null;
+    link_url: string | null;
+  },
+  link: { titulo: string; duracao_min: number; permite_cancelar: boolean; permite_remarcar: boolean },
+  destinatario: "aluno" | "mentor",
+): Promise<boolean> {
+  try {
+    const { data: mentoriaComPessoa } = await supabaseAdmin
+      .from("mentorias")
+      .select("people(full_name, email)")
+      .eq("id", sessao.mentoria_id)
+      .maybeSingle();
+    const pessoa = mentoriaComPessoa?.people as unknown as { full_name: string | null; email: string | null } | null;
+
+    const { enviarEmail, montarHtml } = await import("@/lib/email.server");
+    const { quandoBr } = await import("@/lib/notificacoes.functions");
+    const { siteUrl } = await import("@/lib/site-url.server");
+    const { data: perfil } = await supabaseAdmin
+      .from("profiles")
+      .select("company_name, brand_color, site_url, support_email, email_from")
+      .eq("user_id", sessao.mentor_id)
+      .maybeSingle();
+
+    const onde = ondeTexto(sessao.modalidade, sessao.local, sessao.link_url);
+    const quandoTexto = quandoBr(sessao.quando);
+    const duracaoMin = link.duracao_min
+      ?? (sessao.termina_em
+        ? Math.round((new Date(sessao.termina_em).getTime() - new Date(sessao.quando).getTime()) / 60_000)
+        : 60);
+
+    if (destinatario === "aluno") {
+      // Mesmo princípio de toda a Fatia 4: sem e-mail cadastrado, pula em
+      // silêncio — a linha em lembretes_enviados já foi gravada, então não
+      // tenta de novo no próximo ciclo (não teria por quê: continuaria sem e-mail).
+      if (!pessoa?.email) return false;
+      const nomeProfessor = await nomeDoProfessor(supabaseAdmin, sessao.mentor_id);
+      const nome = (pessoa.full_name ?? "").split(" ")[0] || "Olá";
+      const gerenciavel = link.permite_cancelar || link.permite_remarcar;
+      const html = montarHtml({
+        corpo: `${nome}, sua sessão com ${nomeProfessor} é ${quandoTexto} (horário de Brasília, duração de ${duracaoMin} min).\n\n${onde}` +
+          (gerenciavel ? "\n\nSe precisar cancelar ou remarcar, use o botão abaixo." : ""),
+        link: gerenciavel ? `${siteUrl()}/sessao/${sessao.id}` : siteUrl(),
+        rotuloBotao: gerenciavel ? "Gerenciar sessão" : "Visitar o site",
+        marca: perfil ?? null,
+      });
+      await enviarEmail({
+        to: pessoa.email,
+        subject: `Lembrete: sua sessão "${link.titulo}" é em breve`,
+        html,
+        from: perfil?.email_from ?? null,
+        replyTo: perfil?.support_email ?? null,
+      });
+      return true;
+    }
+
+    // destinatario === "mentor" — sempre tem login, mesmo padrão de avisarProfessor.
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(sessao.mentor_id);
+    const emailProfessor = userData?.user?.email;
+    if (!emailProfessor) return false;
+    const nomeAluno = pessoa?.full_name ?? "Alguém";
+    const html = montarHtml({
+      corpo: `Você tem sessão com ${nomeAluno} ${quandoTexto} (horário de Brasília, duração de ${duracaoMin} min).\n\n${onde}`,
+      link: `${siteUrl()}/mentorias`,
+      rotuloBotao: "Ver em Mentorias",
+      marca: perfil ?? null,
+    });
+    await enviarEmail({
+      to: emailProfessor,
+      subject: `Lembrete: sessão com ${nomeAluno} em breve`,
+      html,
+      from: perfil?.email_from ?? null,
+      replyTo: perfil?.support_email ?? null,
+    });
+    return true;
+  } catch (e) {
+    // Igual avisarProfessor/avisarAluno: o lembrete nunca pode derrubar o
+    // ciclo do cron inteiro por causa de UMA sessão com dado estranho. Mas
+    // aqui vale logar — diferente de um aviso de ação do usuário, ninguém
+    // está olhando a tela quando isso falha às 3h da manhã.
+    console.error(`[lembretes] envio falhou para sessão ${sessao.id} (${destinatario}):`, e);
+    return false;
   }
 }
