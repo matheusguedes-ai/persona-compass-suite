@@ -1095,7 +1095,7 @@ export const remarcarSessaoAluno = createServerFn({ method: "POST" })
 // ============================================================
 
 /** Pessoa(s) alcançável(is) pela sessão atual — o alvo do preview, ou as pessoas do próprio aluno logado. */
-async function pessoaIdsDoAluno(supabase: Cliente, previewPersonId?: string | null): Promise<string[]> {
+async function pessoaIdsDoAluno(supabase: Cliente, userId: string, previewPersonId?: string | null): Promise<string[]> {
   if (previewPersonId) {
     const { data, error } = await supabase.from("people").select("id").eq("id", previewPersonId).maybeSingle();
     if (error) throw new Error(error.message);
@@ -1105,7 +1105,12 @@ async function pessoaIdsDoAluno(supabase: Cliente, previewPersonId?: string | nu
   const { error: claimErr } = await supabase.rpc("claim_student_profile");
   if (claimErr) throw new Error(claimErr.message);
   await supabase.rpc("claim_team_membership");
-  const { data, error } = await supabase.from("people").select("id").not("user_id", "is", null);
+  // Filtra por user_id = auth.uid() em vez de confiar só na RLS de people: para
+  // o aluno o resultado já era 1 linha (a policy limita a isso), mas para o
+  // dono/colaborador abrindo o próprio painel de aluno sem preview, a RLS
+  // enxerga TODAS as pessoas com login da conta — sem este filtro, agendaria
+  // no pacote de qualquer uma delas sem passar pelo "Ver como aluno".
+  const { data, error } = await supabase.from("people").select("id").eq("user_id", userId);
   if (error) throw new Error(error.message);
   return (data ?? []).map((p) => p.id);
 }
@@ -1163,7 +1168,7 @@ export const horariosParaAgendarNoPainel = createServerFn({ method: "POST" })
   .inputValidator((d) => mentoriaParaAgendarSchema.parse(d))
   .handler(async ({ data, context }) => {
     const supabaseAdmin = await admin();
-    const pessoaIds = await pessoaIdsDoAluno(context.supabase, data.preview_person_id);
+    const pessoaIds = await pessoaIdsDoAluno(context.supabase, context.userId, data.preview_person_id);
     const mentoria = await mentoriaDoAlunoParaAgendar(supabaseAdmin, data.mentoria_id, pessoaIds);
     const nomeProfessor = await nomeDoProfessor(supabaseAdmin, mentoria.mentor_id);
     const link = await linkAtivoDoPacote(supabaseAdmin, mentoria, nomeProfessor);
@@ -1187,7 +1192,7 @@ export const agendarNoPainel = createServerFn({ method: "POST" })
   .inputValidator((d) => agendarNoPainelSchema.parse(d))
   .handler(async ({ data, context }) => {
     const supabaseAdmin = await admin();
-    const pessoaIds = await pessoaIdsDoAluno(context.supabase, data.preview_person_id);
+    const pessoaIds = await pessoaIdsDoAluno(context.supabase, context.userId, data.preview_person_id);
     const mentoria = await mentoriaDoAlunoParaAgendar(supabaseAdmin, data.mentoria_id, pessoaIds);
     const nomeProfessor = await nomeDoProfessor(supabaseAdmin, mentoria.mentor_id);
     const link = await linkAtivoDoPacote(supabaseAdmin, mentoria, nomeProfessor);

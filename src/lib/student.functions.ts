@@ -55,10 +55,15 @@ export const getStudentArea = createServerFn({ method: "GET" })
     // caminho no primeiro acesso — ver migração 20260731070000.
     await supabase.rpc("claim_team_membership");
 
+    // Filtra por user_id = auth.uid() em vez de confiar só na RLS de people:
+    // para o aluno o resultado já era 1 linha (a policy limita a isso), mas
+    // para o dono/colaborador abrindo /aluno sem preview, a RLS enxerga TODAS
+    // as pessoas com login da conta — sem este filtro, a área do aluno
+    // misturaria respostas e baterias de gente diferente. Mesmo risco do #258.
     const { data: pessoas, error: pErr } = await supabase
       .from("people")
       .select("id, full_name, email")
-      .not("user_id", "is", null);
+      .eq("user_id", context.userId);
     if (pErr) throw new Error(pErr.message);
 
     if (!pessoas || pessoas.length === 0) {
