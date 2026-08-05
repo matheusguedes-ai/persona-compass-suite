@@ -156,7 +156,7 @@ export const listarLinks = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("mentoria_links")
       .select(
-        "id, slug, titulo, descricao, duracao_min, intervalo_min, antecedencia_min_horas, antecedencia_max_dias, teto_por_dia, ativo, created_at",
+        "id, slug, titulo, descricao, duracao_min, intervalo_min, antecedencia_min_horas, antecedencia_max_dias, teto_por_dia, permite_cancelar, permite_remarcar, cancelamento_min_horas, max_remarcacoes, ativo, created_at",
       )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -171,6 +171,10 @@ const linkSchema = z.object({
   antecedencia_min_horas: z.number().int().min(0).max(999).default(0),
   antecedencia_max_dias: z.number().int().min(1).max(365).default(60),
   teto_por_dia: z.number().int().min(1).max(50).optional().nullable(),
+  permite_cancelar: z.boolean().default(false),
+  permite_remarcar: z.boolean().default(false),
+  cancelamento_min_horas: z.number().int().min(0).max(999).default(24),
+  max_remarcacoes: z.number().int().min(0).max(50).default(2),
 });
 
 export const criarLink = createServerFn({ method: "POST" })
@@ -192,6 +196,10 @@ export const criarLink = createServerFn({ method: "POST" })
         antecedencia_min_horas: data.antecedencia_min_horas,
         antecedencia_max_dias: data.antecedencia_max_dias,
         teto_por_dia: data.teto_por_dia ?? null,
+        permite_cancelar: data.permite_cancelar,
+        permite_remarcar: data.permite_remarcar,
+        cancelamento_min_horas: data.cancelamento_min_horas,
+        max_remarcacoes: data.max_remarcacoes,
       })
       .select("id, slug")
       .single();
@@ -208,6 +216,10 @@ const atualizarLinkSchema = z.object({
   antecedencia_min_horas: z.number().int().min(0).max(999).optional(),
   antecedencia_max_dias: z.number().int().min(1).max(365).optional(),
   teto_por_dia: z.number().int().min(1).max(50).optional().nullable(),
+  permite_cancelar: z.boolean().optional(),
+  permite_remarcar: z.boolean().optional(),
+  cancelamento_min_horas: z.number().int().min(0).max(999).optional(),
+  max_remarcacoes: z.number().int().min(0).max(50).optional(),
   ativo: z.boolean().optional(),
 });
 
@@ -227,6 +239,10 @@ export const atualizarLink = createServerFn({ method: "POST" })
     if (campos.antecedencia_min_horas !== undefined) patch.antecedencia_min_horas = campos.antecedencia_min_horas;
     if (campos.antecedencia_max_dias !== undefined) patch.antecedencia_max_dias = campos.antecedencia_max_dias;
     if ("teto_por_dia" in campos) patch.teto_por_dia = campos.teto_por_dia ?? null;
+    if (campos.permite_cancelar !== undefined) patch.permite_cancelar = campos.permite_cancelar;
+    if (campos.permite_remarcar !== undefined) patch.permite_remarcar = campos.permite_remarcar;
+    if (campos.cancelamento_min_horas !== undefined) patch.cancelamento_min_horas = campos.cancelamento_min_horas;
+    if (campos.max_remarcacoes !== undefined) patch.max_remarcacoes = campos.max_remarcacoes;
     if (campos.ativo !== undefined) patch.ativo = campos.ativo;
     if (Object.keys(patch).length === 0) return { ok: true };
     const { error } = await context.supabase.from("mentoria_links").update(patch).eq("id", id);
@@ -411,8 +427,15 @@ async function bloqueiosGoogleDoLink(
   }
 }
 
-/** Busca única (disponibilidade + sessões ocupadas + Google pessoal) reaproveitada por listar e por confirmar. */
-async function contextoDoLink(supabaseAdmin: Cliente, link: LinkRow, agora: Date) {
+/**
+ * Busca única (disponibilidade + sessões ocupadas + Google pessoal) reaproveitada
+ * por listar, confirmar e remarcar.
+ *
+ * `excluirSessaoId` existe só para a remarcação (Fatia 4b Parte 2): o horário
+ * ATUAL da sessão sendo remarcada não pode aparecer como ocupado por si mesma —
+ * senão o próprio horário que a pessoa já tem sumiria da lista de opções.
+ */
+async function contextoDoLink(supabaseAdmin: Cliente, link: LinkRow, agora: Date, excluirSessaoId?: string) {
   const { data: faixas } = await supabaseAdmin
     .from("mentoria_disponibilidade")
     .select("dia_semana, hora_inicio, hora_fim")
@@ -421,13 +444,15 @@ async function contextoDoLink(supabaseAdmin: Cliente, link: LinkRow, agora: Date
 
   const janelaInicio = new Date(agora.getTime() - 86_400_000);
   const janelaFim = new Date(agora.getTime() + (link.antecedencia_max_dias + 1) * 86_400_000);
-  const { data: sessoes } = await supabaseAdmin
+  let consultaSessoes = supabaseAdmin
     .from("mentoria_sessoes")
     .select("quando, termina_em, link_id")
     .eq("mentor_id", link.mentor_id)
     .eq("status", "agendada")
     .gte("quando", janelaInicio.toISOString())
     .lte("quando", janelaFim.toISOString());
+  if (excluirSessaoId) consultaSessoes = consultaSessoes.neq("id", excluirSessaoId);
+  const { data: sessoes } = await consultaSessoes;
 
   const bloqueiosGoogle = await bloqueiosGoogleDoLink(supabaseAdmin, link, janelaInicio, janelaFim);
 
@@ -631,7 +656,7 @@ export const confirmarAgendamento = createServerFn({ method: "POST" })
       terminaEm,
     });
 
-    await enviarConfirmacaoEmail(supabaseAdmin, r.link, r.pessoa, quandoNormalizado);
+    await enviarConfirmacaoEmail(supabaseAdmin, r.link, r.pessoa, quandoNormalizado, row.id);
 
     return { ok: true as const, quando: quandoNormalizado, termina_em: terminaEm };
   });
@@ -641,6 +666,7 @@ async function enviarConfirmacaoEmail(
   link: LinkRow,
   pessoa: { full_name: string | null; email: string | null },
   quandoIso: string,
+  sessaoId: string,
 ): Promise<void> {
   if (!pessoa.email) return;
   try {
@@ -655,12 +681,19 @@ async function enviarConfirmacaoEmail(
 
     const nome = (pessoa.full_name ?? "").split(" ")[0] || "Olá";
     const marca = perfil?.company_name?.trim() || "Métrica Humana";
+
+    // Só troca para o texto/link da página de gerenciar quando pelo menos uma
+    // das duas chaves está ligada NESTE link (Fatia 4b Parte 2) — com as duas
+    // desligadas, o texto de sempre continua sendo o certo.
+    const gerenciavel = link.permite_cancelar || link.permite_remarcar;
     const html = montarHtml({
-      corpo:
-        `${nome}, sua sessão "${link.titulo}" foi confirmada para ${quandoBr(quandoIso)} (horário de Brasília).\n\n` +
-        "Se precisar remarcar ou tiver alguma dúvida, entre em contato com quem te enviou este link.",
-      link: siteUrl(),
-      rotuloBotao: "Visitar o site",
+      corpo: gerenciavel
+        ? `${nome}, sua sessão "${link.titulo}" foi confirmada para ${quandoBr(quandoIso)} (horário de Brasília).\n\n` +
+          "Se precisar cancelar ou remarcar, use o botão abaixo."
+        : `${nome}, sua sessão "${link.titulo}" foi confirmada para ${quandoBr(quandoIso)} (horário de Brasília).\n\n` +
+          "Se precisar remarcar ou tiver alguma dúvida, entre em contato com quem te enviou este link.",
+      link: gerenciavel ? `${siteUrl()}/sessao/${sessaoId}` : siteUrl(),
+      rotuloBotao: gerenciavel ? "Gerenciar sessão" : "Visitar o site",
       marca: perfil ?? null,
     });
     await enviarEmail({
@@ -674,3 +707,351 @@ async function enviarConfirmacaoEmail(
     // Nunca derruba o agendamento — mesmo princípio de sincronizar()/notificar().
   }
 }
+
+// ============================================================
+// Público — gerenciar sessão já marcada (/sessao/$id, sem login)
+//
+// Fatia 4b Parte 2. O `id` é o uuid da própria mentoria_sessoes, usado como
+// token — mesmo padrão do slug do link: segredo o bastante por ser um uuid,
+// sem exigir login. O endpoint devolve o MÍNIMO (título, quando, duração,
+// nome do professor) — nunca e-mail, mentor_id ou id de pacote.
+// ============================================================
+
+const idSchema = z.object({ id: z.string().uuid() });
+
+type Elegibilidade = { sim: true } | { sim: false; motivo: string };
+
+/**
+ * A MESMA regra usada para decidir o que a tela mostra (aqui) e para barrar
+ * de verdade no servidor (`exigirElegibilidade`, logo abaixo) — uma calcula,
+ * a outra só decide se lança. Sem isto, era fácil os dois lados divergirem
+ * com o tempo.
+ */
+function calcularElegibilidade(
+  sessao: { quando: string; remarcacoes: number },
+  link: LinkRow,
+  acao: "cancelar" | "remarcar",
+  nomeProfessor: string,
+): Elegibilidade {
+  const habilitado = acao === "cancelar" ? link.permite_cancelar : link.permite_remarcar;
+  if (!habilitado) {
+    return {
+      sim: false,
+      motivo: acao === "cancelar"
+        ? `Cancelamentos não estão habilitados para esta sessão. Fale com ${nomeProfessor}.`
+        : `Remarcações não estão habilitadas para esta sessão. Fale com ${nomeProfessor}.`,
+    };
+  }
+  if (acao === "remarcar" && sessao.remarcacoes >= link.max_remarcacoes) {
+    return {
+      sim: false,
+      motivo: `Você já remarcou esta sessão ${link.max_remarcacoes === 1 ? "1 vez" : `${link.max_remarcacoes} vezes`}. Fale com ${nomeProfessor} para trocar.`,
+    };
+  }
+  const horasAteSessao = (new Date(sessao.quando).getTime() - Date.now()) / 3_600_000;
+  if (horasAteSessao < link.cancelamento_min_horas) {
+    const prazo = link.cancelamento_min_horas === 1 ? "1 hora" : `${link.cancelamento_min_horas} horas`;
+    return {
+      sim: false,
+      motivo: acao === "cancelar"
+        ? `Sessões só podem ser desmarcadas até ${prazo} antes.`
+        : `Sessões só podem ser remarcadas até ${prazo} antes.`,
+    };
+  }
+  return { sim: true };
+}
+
+/** Mesma checagem de `calcularElegibilidade`, mas lançando — para os endpoints que AGEM, não só mostram. */
+function exigirElegibilidade(
+  sessao: { quando: string; remarcacoes: number },
+  link: LinkRow,
+  acao: "cancelar" | "remarcar",
+  nomeProfessor: string,
+): void {
+  const r = calcularElegibilidade(sessao, link, acao, nomeProfessor);
+  if (!r.sim) throw new Error(r.motivo);
+}
+
+/** Nome do professor para as mensagens ("fale com fulano") — nunca o e-mail dele. */
+async function nomeDoProfessor(supabaseAdmin: Cliente, mentorId: string): Promise<string> {
+  const { data } = await supabaseAdmin.from("profiles").select("full_name").eq("user_id", mentorId).maybeSingle();
+  return data?.full_name?.trim() || "quem te enviou este link";
+}
+
+/** O que a página /sessao/$id mostra — nunca e-mail, mentor_id ou id de pacote. */
+export const dadosDaSessao = createServerFn({ method: "GET" })
+  .inputValidator((d) => idSchema.parse(d))
+  .handler(async ({ data }) => {
+    const supabaseAdmin = await admin();
+    const { data: sessao } = await supabaseAdmin
+      .from("mentoria_sessoes")
+      .select("id, quando, termina_em, status, remarcacoes, mentor_id, link_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!sessao) return { encontrada: false as const };
+
+    const link = sessao.link_id
+      ? (await supabaseAdmin.from("mentoria_links").select("*").eq("id", sessao.link_id).maybeSingle()).data
+      : null;
+    const nomeProfessor = await nomeDoProfessor(supabaseAdmin, sessao.mentor_id);
+    const duracaoMin = link?.duracao_min
+      ?? (sessao.termina_em
+        ? Math.round((new Date(sessao.termina_em).getTime() - new Date(sessao.quando).getTime()) / 60_000)
+        : 60);
+
+    const base = {
+      encontrada: true as const,
+      titulo: link?.titulo ?? "Sessão de mentoria",
+      quando: sessao.quando,
+      duracao_min: duracaoMin,
+      professor: nomeProfessor,
+    };
+
+    // Já cancelada ou concluída: modo leitura, sem botão nenhum — a spec pede
+    // isto explicitamente, e faz sentido: não há mais o que desmarcar ou trocar.
+    if (sessao.status !== "agendada") {
+      return { ...base, status: sessao.status as "cancelada" | "concluida", podeCancelar: { sim: false as const }, podeRemarcar: { sim: false as const } };
+    }
+
+    if (!link) {
+      const semLink: Elegibilidade = { sim: false, motivo: `Esta sessão não pode ser gerenciada por aqui. Fale com ${nomeProfessor}.` };
+      return { ...base, status: "agendada" as const, podeCancelar: semLink, podeRemarcar: semLink };
+    }
+
+    return {
+      ...base,
+      status: "agendada" as const,
+      podeCancelar: calcularElegibilidade(sessao, link, "cancelar", nomeProfessor),
+      podeRemarcar: calcularElegibilidade(sessao, link, "remarcar", nomeProfessor),
+    };
+  });
+
+/**
+ * Avisa o professor de um cancelamento ou remarcação feito pelo ALUNO — os
+ * dois canais que o Matheus decidiu: notificação no sino + e-mail. Silenciosa
+ * de propósito, do início ao fim: o aluno já cancelou/remarcou, o aviso é
+ * consequência, nunca condição (mesmo princípio de sincronizar()/notificar()).
+ */
+async function avisarProfessor(
+  supabaseAdmin: Cliente,
+  args: {
+    mentorId: string;
+    mentoriaId: string;
+    linkTitulo: string;
+    quandoOriginal: string;
+    quandoNovo?: string;
+    tipo: "cancelada" | "remarcada";
+  },
+): Promise<void> {
+  try {
+    const { data: mentoria } = await supabaseAdmin
+      .from("mentorias").select("person_id").eq("id", args.mentoriaId).maybeSingle();
+    const personId = mentoria?.person_id ?? null;
+    const [{ data: pessoa }, { data: gruposDele }] = await Promise.all([
+      personId
+        ? supabaseAdmin.from("people").select("full_name, user_id").eq("id", personId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      personId
+        ? supabaseAdmin.from("group_members").select("group_id").eq("person_id", personId)
+        : Promise.resolve({ data: [] as Array<{ group_id: string }> }),
+    ]);
+
+    const { notificar, quandoBr } = await import("@/lib/notificacoes.functions");
+    const nome = pessoa?.full_name ?? "Alguém";
+    const titulo = args.tipo === "cancelada"
+      ? `${nome} cancelou a sessão "${args.linkTitulo}"`
+      : `${nome} remarcou a sessão "${args.linkTitulo}"`;
+    const corpo = args.tipo === "cancelada"
+      ? `Era ${quandoBr(args.quandoOriginal)}.`
+      : `Era ${quandoBr(args.quandoOriginal)}, agora é ${quandoBr(args.quandoNovo!)}.`;
+
+    await notificar(supabaseAdmin, {
+      conta: args.mentorId,
+      tipo: args.tipo === "cancelada" ? "sessao_cancelada" : "sessao_remarcada",
+      titulo,
+      corpo,
+      link: "/mentorias",
+      ator: null,
+      atorNome: nome,
+      grupos: (gruposDele ?? []).map((g) => g.group_id),
+      pessoaUser: pessoa?.user_id ?? null,
+    });
+
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(args.mentorId);
+    const emailProfessor = userData?.user?.email;
+    if (emailProfessor) {
+      const { enviarEmail, montarHtml } = await import("@/lib/email.server");
+      const { siteUrl } = await import("@/lib/site-url.server");
+      const { data: perfil } = await supabaseAdmin
+        .from("profiles")
+        .select("company_name, brand_color, site_url, support_email, email_from")
+        .eq("user_id", args.mentorId)
+        .maybeSingle();
+      const html = montarHtml({
+        corpo: `${titulo}. ${corpo}`,
+        link: `${siteUrl()}/mentorias`,
+        rotuloBotao: "Ver em Mentorias",
+        marca: perfil ?? null,
+      });
+      await enviarEmail({
+        to: emailProfessor,
+        subject: args.tipo === "cancelada" ? `Sessão cancelada: ${args.linkTitulo}` : `Sessão remarcada: ${args.linkTitulo}`,
+        html,
+        from: perfil?.email_from ?? null,
+        replyTo: perfil?.support_email ?? null,
+      });
+    }
+  } catch {
+    // Ver o comentário acima: o aviso nunca derruba a ação do aluno.
+  }
+}
+
+export const cancelarSessaoAluno = createServerFn({ method: "POST" })
+  .inputValidator((d) => idSchema.parse(d))
+  .handler(async ({ data }) => {
+    const supabaseAdmin = await admin();
+    const { data: sessao, error: eS } = await supabaseAdmin
+      .from("mentoria_sessoes")
+      .select("id, mentor_id, mentoria_id, status, quando, link_id, remarcacoes")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (eS) throw new Error(eS.message);
+    if (!sessao) throw new Error("Sessão não encontrada.");
+    if (sessao.status !== "agendada") throw new Error("Esta sessão já não está mais agendada.");
+    if (!sessao.link_id) throw new Error("Esta sessão não pode ser gerenciada por aqui.");
+
+    const { data: link } = await supabaseAdmin.from("mentoria_links").select("*").eq("id", sessao.link_id).maybeSingle();
+    if (!link) throw new Error("Esta sessão não pode ser gerenciada por aqui.");
+    const nomeProfessor = await nomeDoProfessor(supabaseAdmin, sessao.mentor_id);
+    // Revalida TUDO no servidor — a tela pode estar aberta há um tempo, e
+    // quem guarda o endereço poderia tentar depois do prazo mudar sozinho.
+    exigirElegibilidade(sessao, link, "cancelar", nomeProfessor);
+
+    const { data: atualizado, error } = await supabaseAdmin
+      .from("mentoria_sessoes")
+      .update({ status: "cancelada", cancelada_em: new Date().toISOString(), cancelada_por: "aluno" })
+      .eq("id", data.id)
+      .eq("status", "agendada")
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!atualizado) throw new Error("Esta sessão já não está mais agendada.");
+
+    // Mão única, silenciosa — mesmo princípio de agendarSessao/confirmarAgendamento.
+    const { sincronizar } = await import("@/lib/google.server");
+    await sincronizar(sessao.mentor_id, "mentoria", sessao.id, null);
+
+    await avisarProfessor(supabaseAdmin, {
+      mentorId: sessao.mentor_id,
+      mentoriaId: sessao.mentoria_id,
+      linkTitulo: link.titulo,
+      quandoOriginal: sessao.quando,
+      tipo: "cancelada",
+    });
+
+    return { ok: true as const };
+  });
+
+/** Horários livres para REMARCAR — igual ao de /agendar/$slug, mas com o
+ * horário atual da própria sessão excluído da lista de ocupados. */
+export const horariosParaRemarcar = createServerFn({ method: "POST" })
+  .inputValidator((d) => idSchema.parse(d))
+  .handler(async ({ data }) => {
+    const supabaseAdmin = await admin();
+    const { data: sessao } = await supabaseAdmin
+      .from("mentoria_sessoes")
+      .select("id, mentor_id, status, quando, link_id, remarcacoes")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!sessao) throw new Error("Sessão não encontrada.");
+    if (sessao.status !== "agendada") throw new Error("Esta sessão já não está mais agendada.");
+    if (!sessao.link_id) throw new Error("Esta sessão não pode ser gerenciada por aqui.");
+
+    const { data: link } = await supabaseAdmin.from("mentoria_links").select("*").eq("id", sessao.link_id).maybeSingle();
+    if (!link) throw new Error("Esta sessão não pode ser gerenciada por aqui.");
+    const nomeProfessor = await nomeDoProfessor(supabaseAdmin, sessao.mentor_id);
+    exigirElegibilidade(sessao, link, "remarcar", nomeProfessor);
+
+    const agora = new Date();
+    const { faixas, ocupadas, bloqueiosGoogle } = await contextoDoLink(supabaseAdmin, link, agora, sessao.id);
+    const dias = calcularDias(link, faixas, ocupadas, bloqueiosGoogle, agora);
+    return { status: "ok" as const, duracao_min: link.duracao_min, dias };
+  });
+
+const remarcarSchema = z.object({ id: z.string().uuid(), quando: z.string().datetime({ offset: true }) });
+
+export const remarcarSessaoAluno = createServerFn({ method: "POST" })
+  .inputValidator((d) => remarcarSchema.parse(d))
+  .handler(async ({ data }) => {
+    const supabaseAdmin = await admin();
+    const { data: sessao, error: eS } = await supabaseAdmin
+      .from("mentoria_sessoes")
+      .select("id, mentor_id, mentoria_id, status, quando, link_id, remarcacoes")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (eS) throw new Error(eS.message);
+    if (!sessao) throw new Error("Sessão não encontrada.");
+    if (sessao.status !== "agendada") throw new Error("Esta sessão já não está mais agendada.");
+    if (!sessao.link_id) throw new Error("Esta sessão não pode ser gerenciada por aqui.");
+
+    const { data: link } = await supabaseAdmin.from("mentoria_links").select("*").eq("id", sessao.link_id).maybeSingle();
+    if (!link) throw new Error("Esta sessão não pode ser gerenciada por aqui.");
+    const nomeProfessor = await nomeDoProfessor(supabaseAdmin, sessao.mentor_id);
+    exigirElegibilidade(sessao, link, "remarcar", nomeProfessor);
+
+    // Revalida contra um cálculo FRESCO, excluindo a própria sessão — mesma
+    // armadilha (e mesma solução) de confirmarAgendamento: o horário pode ter
+    // sido ocupado por outra sessão entre a tela mostrar a lista e este clique.
+    const agora = new Date();
+    const { faixas, ocupadas, bloqueiosGoogle } = await contextoDoLink(supabaseAdmin, link, agora, sessao.id);
+    const dias = calcularDias(link, faixas, ocupadas, bloqueiosGoogle, agora);
+    const quandoNormalizado = new Date(data.quando).toISOString();
+    const aindaLivre = dias.some((d) => d.horarios.includes(quandoNormalizado));
+    if (!aindaLivre) throw new Error("Esse horário acabou de ser ocupado. Escolha outro, por favor.");
+
+    const terminaEm = new Date(new Date(quandoNormalizado).getTime() + link.duracao_min * 60_000).toISOString();
+    const quandoOriginal = sessao.quando;
+
+    // Um UPDATE só: grava o horário novo NA MESMA LINHA e incrementa o
+    // contador junto — nunca dois passos separados, que deixariam a sessão
+    // sem horário nenhum por um instante. A trava de corrida de verdade é a
+    // EXCLUDE constraint do banco, capturada abaixo (mesmo padrão de confirmarAgendamento).
+    const { data: atualizado, error } = await supabaseAdmin
+      .from("mentoria_sessoes")
+      .update({ quando: quandoNormalizado, termina_em: terminaEm, remarcacoes: sessao.remarcacoes + 1 })
+      .eq("id", data.id)
+      .eq("status", "agendada")
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      if (error.message.includes("mentoria_sessoes_sem_sobreposicao")) {
+        throw new Error("Esse horário acabou de ser ocupado. Escolha outro, por favor.");
+      }
+      throw new Error(error.message);
+    }
+    if (!atualizado) throw new Error("Esta sessão já não está mais agendada.");
+
+    // Mão única, silenciosa — sincronizar() já faz PATCH no evento existente
+    // (não cria duplicata), então o compromisso no Google do professor
+    // simplesmente muda de horário junto.
+    const { sincronizar } = await import("@/lib/google.server");
+    const { data: mentoriaComPessoa } = await supabaseAdmin
+      .from("mentorias").select("people(full_name)").eq("id", sessao.mentoria_id).maybeSingle();
+    const nomePessoa = (mentoriaComPessoa?.people as unknown as { full_name: string | null } | null)?.full_name;
+    await sincronizar(sessao.mentor_id, "mentoria", sessao.id, {
+      titulo: `Mentoria · ${nomePessoa ?? "avaliado"}`,
+      quando: quandoNormalizado,
+      terminaEm,
+    });
+
+    await avisarProfessor(supabaseAdmin, {
+      mentorId: sessao.mentor_id,
+      mentoriaId: sessao.mentoria_id,
+      linkTitulo: link.titulo,
+      quandoOriginal,
+      quandoNovo: quandoNormalizado,
+      tipo: "remarcada",
+    });
+
+    return { ok: true as const, quando: quandoNormalizado, termina_em: terminaEm };
+  });

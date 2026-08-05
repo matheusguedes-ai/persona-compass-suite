@@ -154,6 +154,11 @@ Combinado com ele em 30/07:
   **Ao fechar qualquer demanda, o chat atualiza o Notion na mesma hora** —
   status, prova e fase. Não deixar para depois: kanban desatualizado é pior que
   kanban nenhum, e a cópia velha no Google Drive já provou isso.
+- **Quem registra no Notion é o chat; o Code ATUALIZA, não cria.** Em 05/08 a
+  `#252` nasceu duas vezes no quadro: o chat registrou ao escrever o prompt, e o
+  Code registrou de novo ao concluir, porque o prompt não avisou que a página já
+  existia. Todo prompt que sai daqui precisa dizer qual demanda já está no
+  Notion e pedir que o Code atualize aquela página — nunca crie outra.
 - **Demanda grande ganha checklist de etapas no corpo da página do Notion**, e o
   chat vai marcando conforme os commits aparecem. Assim o Matheus acompanha sem
   precisar perguntar ao Code em que pé está — e sem interromper no meio.

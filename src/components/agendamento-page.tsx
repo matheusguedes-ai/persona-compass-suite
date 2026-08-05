@@ -180,11 +180,15 @@ function AbaDisponibilidade() {
 type FormLink = {
   titulo: string; descricao: string; duracao_min: string; intervalo_min: string;
   antecedencia_min_horas: string; antecedencia_max_dias: string; teto_por_dia: string;
+  permite_cancelar: boolean; permite_remarcar: boolean;
+  cancelamento_min_horas: string; max_remarcacoes: string;
 };
 
 const FORM_VAZIO: FormLink = {
   titulo: "", descricao: "", duracao_min: "60", intervalo_min: "0",
   antecedencia_min_horas: "0", antecedencia_max_dias: "60", teto_por_dia: "",
+  permite_cancelar: false, permite_remarcar: false,
+  cancelamento_min_horas: "24", max_remarcacoes: "2",
 };
 
 function AbaLinks() {
@@ -219,6 +223,10 @@ function AbaLinks() {
       antecedencia_min_horas: String(l.antecedencia_min_horas),
       antecedencia_max_dias: String(l.antecedencia_max_dias),
       teto_por_dia: l.teto_por_dia != null ? String(l.teto_por_dia) : "",
+      permite_cancelar: l.permite_cancelar,
+      permite_remarcar: l.permite_remarcar,
+      cancelamento_min_horas: String(l.cancelamento_min_horas),
+      max_remarcacoes: String(l.max_remarcacoes),
     });
     setAberto(true);
   }
@@ -233,6 +241,10 @@ function AbaLinks() {
         antecedencia_min_horas: Number(form.antecedencia_min_horas),
         antecedencia_max_dias: Number(form.antecedencia_max_dias),
         teto_por_dia: form.teto_por_dia.trim() ? Number(form.teto_por_dia) : null,
+        permite_cancelar: form.permite_cancelar,
+        permite_remarcar: form.permite_remarcar,
+        cancelamento_min_horas: Number(form.cancelamento_min_horas),
+        max_remarcacoes: Number(form.max_remarcacoes),
       };
       return editandoId
         ? atualizarFn({ data: { id: editandoId, ...payload } }).then(() => undefined)
@@ -394,6 +406,51 @@ function AbaLinks() {
                 type="number" min={1} max={50} value={form.teto_por_dia} placeholder="Sem limite"
                 onChange={(e) => setForm({ ...form, teto_por_dia: e.target.value })} className="mt-1.5"
               />
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-black/10 p-3">
+              <p className="text-xs font-medium text-muted-foreground">O que o aluno pode fazer depois</p>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="link-permite-cancelar" className="font-normal">Permitir cancelar</Label>
+                <Switch
+                  id="link-permite-cancelar"
+                  checked={form.permite_cancelar}
+                  onCheckedChange={(v) => setForm({ ...form, permite_cancelar: v })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="link-permite-remarcar" className="font-normal">Permitir remarcar</Label>
+                <Switch
+                  id="link-permite-remarcar"
+                  checked={form.permite_remarcar}
+                  onCheckedChange={(v) => setForm({ ...form, permite_remarcar: v })}
+                />
+              </div>
+
+              {/* Prazo é UM campo só, usado por cancelar E remarcar — não duplicar
+                  quando as duas chaves estiverem ligadas ao mesmo tempo. */}
+              {(form.permite_cancelar || form.permite_remarcar) && (
+                <div className={form.permite_remarcar ? "grid grid-cols-2 gap-3 pl-1" : "pl-1"}>
+                  <div>
+                    <Label>Até quantas horas antes</Label>
+                    <Input
+                      type="number" min={0} value={form.cancelamento_min_horas}
+                      onChange={(e) => setForm({ ...form, cancelamento_min_horas: e.target.value })} className="mt-1.5"
+                    />
+                  </div>
+                  {form.permite_remarcar && (
+                    <div>
+                      <Label>Quantas remarcações no máximo</Label>
+                      <Input
+                        type="number" min={0} max={50} value={form.max_remarcacoes}
+                        onChange={(e) => setForm({ ...form, max_remarcacoes: e.target.value })} className="mt-1.5"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

@@ -290,7 +290,9 @@ export const cancelarSessaoMentoria = createServerFn({ method: "POST" })
     if (sessao.status !== "agendada") throw new Error("Só dá para cancelar uma sessão ainda agendada.");
 
     const { error } = await context.supabase
-      .from("mentoria_sessoes").update({ status: "cancelada" }).eq("id", data.id);
+      .from("mentoria_sessoes")
+      .update({ status: "cancelada", cancelada_em: new Date().toISOString(), cancelada_por: "mentor" })
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
 
     // Mão única, silenciosa: se o Google falhar, o cancelamento aqui já valeu.

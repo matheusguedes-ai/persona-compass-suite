@@ -124,6 +124,48 @@ formulário personalizável, lembretes.
 
 ---
 
+## O que a 4b virou, na prática (05/08)
+
+A 4b acabou fatiada em duas, e ganhou uma vizinha.
+
+**4b Parte 1 — o Google pessoal.** Já no ar. `freebusy` consultado, compromisso
+particular vira buraco na grade sem revelar o que é.
+
+**4b Parte 2 — o desfazer (`#254`).** Decidido com o Matheus em 05/08:
+
+- **prazo de cancelamento por link, não global.** O link de 1h pode aceitar até
+  4h antes; o de 2h, até 24h. Um campo por link;
+- **teto de remarcações configurável por link.** Também escolhido ao criar;
+- **aviso duplo ao professor:** e-mail e notificação na plataforma;
+- **acesso sem login**, pelo endereço da própria sessão no e-mail de
+  confirmação. Cinco dos sete alunos não têm conta — exigir login travaria a
+  maioria justo na hora de desmarcar;
+- **remarcar escolhe o novo antes de soltar o velho**, para o aluno não ficar
+  alguns segundos sem horário nenhum e perder o dele para outra pessoa.
+
+O que **não** precisou mudar: a conta do pacote. `faltam = contratadas −
+realizadas − agendadas` já ignora sessão cancelada, então a vaga volta sozinha.
+
+**4b-bis — agendar por dentro (`#255`).** Pedido do Matheus no mesmo dia: um
+botão **Agendar mentoria** no painel do aluno, que abre a mesma escolha de dia e
+hora, sem pedir e-mail, porque quem está logado já foi identificado.
+
+- **o pacote aponta o link.** O professor escolhe, ao criar o pacote da pessoa,
+  qual link ela usa. Assim o pacote de 2h não abre a grade de 1h, e o aluno não
+  escolhe formato nenhum;
+- **o botão só funciona com saldo** (`faltam > 0`), e **sem saldo fica
+  desabilitado explicando** — não some. Vale o mesmo para pacote sem link
+  apontado e para link desativado: três recusas, três frases;
+- **o aluno logado também cancela e remarca por ali**, com as regras da `#254`.
+
+**Por que a 4b-bis vem depois da Parte 2, e não antes:** as regras de prazo e
+teto nascem na Parte 2. Construir o caminho de dentro primeiro significaria
+escrever a mesma regra em dois lugares — e no dia em que uma mudar, a outra
+passa a mentir sem avisar. É o mesmo motivo pelo qual o Dashboard espera a
+Fatia 3.
+
+---
+
 ## Como saber que a 4a ficou pronta
 
 - professor define segunda das 9h às 12h e cria dois links: um de 1h e um de 2h;

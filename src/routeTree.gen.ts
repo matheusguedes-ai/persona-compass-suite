@@ -44,6 +44,7 @@ import { Route as ConviteLinkIdRouteImport } from './routes/convite.$linkId'
 import { Route as RelatorioBateriaAssessmentIdRouteImport } from './routes/relatorio-bateria.$assessmentId'
 import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$responseId'
 import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
+import { Route as SessaoIdRouteImport } from './routes/sessao.$id'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AppClassroomIndexRouteImport } from './routes/_app.classroom.index'
@@ -252,6 +253,11 @@ const ResponderResponseIdRoute = ResponderResponseIdRouteImport.update({
   path: '/responder/$responseId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SessaoIdRoute = SessaoIdRouteImport.update({
+  id: '/sessao/$id',
+  path: '/sessao/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -442,6 +448,7 @@ export interface FileRoutesByFullPath {
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
+  '/sessao/$id': typeof SessaoIdRoute
   '/aluno/': typeof AlunoIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -501,6 +508,7 @@ export interface FileRoutesByTo {
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
+  '/sessao/$id': typeof SessaoIdRoute
   '/': typeof AppIndexRoute
   '/aluno': typeof AlunoIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -569,6 +577,7 @@ export interface FileRoutesById {
   '/relatorio-bateria/$assessmentId': typeof RelatorioBateriaAssessmentIdRoute
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
+  '/sessao/$id': typeof SessaoIdRoute
   '/_app/': typeof AppIndexRoute
   '/aluno/': typeof AlunoIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -638,6 +647,7 @@ export interface FileRouteTypes {
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
+    | '/sessao/$id'
     | '/aluno/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -697,6 +707,7 @@ export interface FileRouteTypes {
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
+    | '/sessao/$id'
     | '/'
     | '/aluno'
     | '/.lovable/oauth/consent'
@@ -764,6 +775,7 @@ export interface FileRouteTypes {
     | '/relatorio-bateria/$assessmentId'
     | '/relatorio/$responseId'
     | '/responder/$responseId'
+    | '/sessao/$id'
     | '/_app/'
     | '/aluno/'
     | '/.lovable/oauth/consent'
@@ -815,6 +827,7 @@ export interface RootRouteChildren {
   RelatorioBateriaAssessmentIdRoute: typeof RelatorioBateriaAssessmentIdRoute
   RelatorioResponseIdRoute: typeof RelatorioResponseIdRoute
   ResponderResponseIdRoute: typeof ResponderResponseIdRoute
+  SessaoIdRoute: typeof SessaoIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
@@ -1073,6 +1086,13 @@ declare module '@tanstack/react-router' {
       path: '/responder/$responseId'
       fullPath: '/responder/$responseId'
       preLoaderRoute: typeof ResponderResponseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sessao/$id': {
+      id: '/sessao/$id'
+      path: '/sessao/$id'
+      fullPath: '/sessao/$id'
+      preLoaderRoute: typeof SessaoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.lovable/oauth/consent': {
@@ -1448,6 +1468,7 @@ const rootRouteChildren: RootRouteChildren = {
   RelatorioBateriaAssessmentIdRoute: RelatorioBateriaAssessmentIdRoute,
   RelatorioResponseIdRoute: RelatorioResponseIdRoute,
   ResponderResponseIdRoute: ResponderResponseIdRoute,
+  SessaoIdRoute: SessaoIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,

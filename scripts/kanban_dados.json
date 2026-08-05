@@ -2305,14 +2305,14 @@
    "prova": "NO AR e provado com login real em produção (matheusguedes@metodointencao.com.br, commit 08cc904). Migração aditiva: mentoria_disponibilidade e mentoria_links novas, mentoria_sessoes ganha origem/link_id/confirmado_em, mais uma trava de corrida no banco (EXCLUDE USING gist) para duas pessoas nunca ocuparem o mesmo horário do mesmo professor ao mesmo tempo. Núcleo (cálculo de horários livres): faixa Segunda 9h-12h + link de 1h com 30 min de intervalo — SEM reserva, oferece 9h/10h/11h; RESERVANDO 9h, o próximo vira exatamente 10h30 (o exemplo da spec, batido). O link de 2h no MESMO dia perde o dia inteiro da lista (nenhum encaixe de 2h sobra) — prova ao mesmo tempo o corte por tamanho e a limpeza entre links. Teto por dia (1) tira o dia da lista quando já bateu. Desativar um link derruba a página (link indisponível) sem apagar a sessão já marcada. TESTE DECISIVO: e-mail não cadastrado é recusado com 'Este e-mail não está cadastrado. Fale com quem te enviou este link.' — sem mensagem genérica. E-mail cadastrado mostra o nome da pessoa, agenda, e a sessão aparece na hora no pacote dela (contagem 'a agendar' desce sozinha), na agenda/painel do professor (com notificação) e no painel do aluno (calendário e lista 'Marcadas'). Tudo repetido em produção com o mesmo e-mail de teste, dados apagados ao final (pessoa, pacote, sessões, os 2 links e a faixa de disponibilidade de teste). RESSALVA: um evento de teste chegou a ser criado na agenda real do Google do Matheus (Mentoria · Aluno Teste Agendamento, 10/08 10:30) — o app não expõe hoje um botão de cancelar sessão que também apague do Google, então esse evento específico precisa ser apagado à mão por ele no Google Calendar (achado registrado para uma futura demanda). FORA DESTA FATIA, de propósito: bloqueio pela agenda pessoal do Google e cancelar/remarcar pelo aluno (4b, depende do Matheus reconectar o Google); foto, local/videoconferência, formulário personalizável e lembretes (4c)."
   },
   {
-   "titulo": "Mentorias Fatia 5: avaliar a aula no Classroom",
-   "descricao": "O aluno avalia a aula com estrelas, liberado só para quem fez check-in e esteve presente.",
-   "area": "Plataforma",
+   "titulo": "Classroom: aluno avalia a aula com estrelas depois que ela termina",
+   "descricao": "Passado o horário de fim da aula (termina_em, que já existe), quem teve presença marcada pode dar 1 a 5 estrelas e escrever um comentário. Mesmas regras da avaliação de mentoria: identificada, comentário opcional, uma vez só garantido no banco. Diferença importante: a aula é 1 para muitos, então precisa de tabela própria com um registro por pessoa por aula — não dá para pendurar colunas na aula como foi feito em mentoria_sessoes. Média sempre com a contagem ao lado. Presença por QR e presença marcada à mão valem igual.",
+   "area": "Classroom",
    "status": "Planejado",
    "depende_de": "Claude",
    "prioridade": 231,
    "origem": "Matheus, 31/07: detalhamento do menu Mentorias",
-   "prova": "Reaproveita a avaliação construída na Fatia 2. O vínculo com check-in já existe em treinamento_presencas."
+   "prova": "Reaproveita a avaliação da Fatia 2. termina_em já existe em treinamento_aulas e o vínculo de presença em treinamento_presencas. Decisões confirmadas com o Matheus em 05/08."
   },
   {
    "titulo": "Quatro telas mostram lista vazia em vez de avisar que falta permissão",
@@ -2522,7 +2522,7 @@
    "depende_de": null,
    "prioridade": 252,
    "origem": "Matheus, 05/08 — criou o primeiro link real e viu a tela",
-   "prova": "Lista de até 42 pastilhas virou calendário mensal (D S T Q Q S S) + faixa de 7 dias + horários, no padrão Google Agenda/Calendly. Testado local: navegação de mês travada corretamente entre o mês atual e o último com disponibilidade (subiu até outubro/2026 e voltou até agosto/2026, sem passar dos limites); dia sem disponibilidade não clica no calendário mensal; clicar num dia sem horário na faixa mostra 'Sem disponibilidade nesses dias' com o atalho 'Pular para a próxima data disponível', que leva ao dia certo; mobile (375px) mostra calendário + horários em 2 colunas, faixa semanal escondida, sem scroll lateral. Publicado (commit f4e0152) e reprovado em produção com o link real do Matheus (teste-mentoria): calendário no ar, e uma sessão real foi agendada de ponta a ponta pela interface nova (05/08 20:00, com Fulado de Tal) e apareceu certinho na tela de Mentorias e no Google Agenda dele — prova de que o fluxo antigo não regrediu. Sessão de teste e evento no Google apagados depois de confirmado."
+   "prova": "Entregue pelo Code em 05/08, commit f4e0152. Calendário mensal com navegação travada nas duas pontas, dia sem disponibilidade não clicável, faixa de 7 dias sincronizada, fuso declarado e atalho para a próxima data livre. Mobile em 2 colunas sem scroll lateral. Provado em produção com o link real: uma sessão foi agendada de ponta a ponta pela interface nova e apareceu certo em Mentorias e no Google Agenda — o fluxo antigo não regrediu. Sessão de teste apagada depois."
   },
   {
    "titulo": "BUG BLOQUEANTE: não é possível criar grupo (RLS barra o RETURNING do INSERT)",
@@ -2543,6 +2543,26 @@
    "depende_de": null,
    "prioridade": 254,
    "origem": "Matheus, 05/08 — decisões tomadas no chat",
+   "prova": null
+  },
+  {
+   "titulo": "Painel do aluno: botão 'Agendar mentoria' com o mesmo fluxo do link",
+   "descricao": "No menu Mentorias do aluno, um botão 'Agendar mentoria'. Só funciona se ele tiver sessões a realizar no pacote (faltam > 0); sem saldo, fica desabilitado explicando o motivo. Ao clicar, abre a mesma escolha de dia e hora do link público — mas por dentro, sem pedir e-mail, porque ele já está logado. O link usado é o que o professor apontou ao criar o pacote (campo novo em mentorias). O aluno logado também cancela e remarca por ali, com as mesmas regras de prazo e teto da #254.",
+   "area": "Agenda",
+   "status": "Planejado",
+   "depende_de": 254,
+   "prioridade": 255,
+   "origem": "Matheus, 05/08",
+   "prova": null
+  },
+  {
+   "titulo": "Classroom: marcar aula gravada como concluída (e aí avaliar)",
+   "descricao": "Aula sem horário marcado não tem 'acabou' pelo relógio. O Matheus escolheu liberar a avaliação por conclusão — mas 'concluir aula' NÃO EXISTE no Classroom hoje, só na Academy (learning_progress). São duas coisas: criar a marcação de conclusão, e usar isso para liberar a avaliação. Antes de virar prompt, decidir se a conclusão do Classroom reaproveita learning_progress ou nasce própria — é escolha de arquitetura, não de tela.",
+   "area": "Classroom",
+   "status": "Planejado",
+   "depende_de": 231,
+   "prioridade": 256,
+   "origem": "Matheus, 05/08",
    "prova": null
   }
  ],

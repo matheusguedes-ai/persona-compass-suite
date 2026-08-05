@@ -220,6 +220,8 @@ export type Database = {
           avaliacao_comentario: string | null
           avaliacao_estrelas: number | null
           avaliada_em: string | null
+          cancelada_em: string | null
+          cancelada_por: string | null
           checklist_titulo: string | null
           concluida_em: string | null
           confirmado_em: string | null
@@ -234,6 +236,7 @@ export type Database = {
           modalidade: string
           origem: string
           quando: string
+          remarcacoes: number
           resumo: string | null
           status: string
           termina_em: string | null
@@ -243,6 +246,8 @@ export type Database = {
           avaliacao_comentario?: string | null
           avaliacao_estrelas?: number | null
           avaliada_em?: string | null
+          cancelada_em?: string | null
+          cancelada_por?: string | null
           checklist_titulo?: string | null
           concluida_em?: string | null
           confirmado_em?: string | null
@@ -257,6 +262,7 @@ export type Database = {
           modalidade: string
           origem?: string
           quando: string
+          remarcacoes?: number
           resumo?: string | null
           status?: string
           termina_em?: string | null
@@ -266,6 +272,8 @@ export type Database = {
           avaliacao_comentario?: string | null
           avaliacao_estrelas?: number | null
           avaliada_em?: string | null
+          cancelada_em?: string | null
+          cancelada_por?: string | null
           checklist_titulo?: string | null
           concluida_em?: string | null
           confirmado_em?: string | null
@@ -280,6 +288,7 @@ export type Database = {
           modalidade?: string
           origem?: string
           quando?: string
+          remarcacoes?: number
           resumo?: string | null
           status?: string
           termina_em?: string | null
@@ -340,11 +349,13 @@ export type Database = {
           antecedencia_max_dias: number
           antecedencia_min_horas: number
           ativo: boolean
+          cancelamento_min_horas: number
           created_at: string
           descricao: string | null
           duracao_min: number
           id: string
           intervalo_min: number
+          max_remarcacoes: number
           mentor_id: string
           permite_cancelar: boolean
           permite_remarcar: boolean
@@ -358,11 +369,13 @@ export type Database = {
           antecedencia_max_dias?: number
           antecedencia_min_horas?: number
           ativo?: boolean
+          cancelamento_min_horas?: number
           created_at?: string
           descricao?: string | null
           duracao_min: number
           id?: string
           intervalo_min?: number
+          max_remarcacoes?: number
           mentor_id: string
           permite_cancelar?: boolean
           permite_remarcar?: boolean
@@ -376,11 +389,13 @@ export type Database = {
           antecedencia_max_dias?: number
           antecedencia_min_horas?: number
           ativo?: boolean
+          cancelamento_min_horas?: number
           created_at?: string
           descricao?: string | null
           duracao_min?: number
           id?: string
           intervalo_min?: number
+          max_remarcacoes?: number
           mentor_id?: string
           permite_cancelar?: boolean
           permite_remarcar?: boolean
