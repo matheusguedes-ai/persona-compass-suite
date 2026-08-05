@@ -2528,11 +2528,11 @@
    "titulo": "BUG BLOQUEANTE: não é possível criar grupo (RLS barra o RETURNING do INSERT)",
    "descricao": "Criar grupo devolve 'new row violates row-level security policy for table groups'. A policy de INSERT está correta e as duas condições dela dão true. O que barra é o RETURNING: `createGroup` faz .insert().select().single(), e o Postgres aplica a policy de SELECT (grupos_read) na linha devolvida. grupos_read chama posso_ver_grupo(id), que é STABLE e lê a PRÓPRIA tabela groups — com o snapshot congelado do início do comando, a linha recém-criada ainda não existe para ela. É o irmão do bug já corrigido em 20260729010000_corrige_policy_autoreferente.sql. Provado nos dois caminhos: pela tela (produção, conta do Matheus) e por INSERT simulado no SQL com role authenticated — sem RETURNING passa, com RETURNING falha.",
    "area": "Grupos",
-   "status": "Planejado",
+   "status": "Concluído",
    "depende_de": null,
    "prioridade": 253,
    "origem": "Matheus, 05/08 — tentou criar um grupo",
-   "prova": null,
+   "prova": "Corrigido no commit 243e808, só banco (supabase/migrations/20260805040000_corrige_grupos_read_autoreferente.sql), sem código de aplicação. Reproduzido o bug antes (insert sem RETURNING passa, com RETURNING falha) e o depois (os dois passam) via SQL simulado com o JWT do Matheus. Provado em produção com login real: criei 'Turma Teste' pela tela de verdade (assistente de 4 passos, Fulado de Tal + Laila Ferreira, teste DISC liberado) — apareceu na lista e abriu com membros/instrumento certos. TESTE DECISIVO: logado como o colaborador matheusgc321@gmail.com, ele vê a Turma Teste. Confirmado que Gabriela (aluna com login real, fora do grupo) não vê nenhum grupo com o próprio token — RLS barrando quem não deve ver. 'Turma Teste' ficou criada de propósito para as #118/#120/#121. Varredura das outras policies STABLE achou o mesmo padrão autorreferente em biblioteca_materiais, eventos, evento_destinos, treinamentos e treinamento_grupos — testei os 3 caminhos de criar-com-RETURNING que existem hoje e nenhum falhou, diferente de groups; fica registrado como risco preventivo, sem urgência.",
    "fase": "Fila de erros — voltar depois"
   },
   {
