@@ -159,6 +159,10 @@ Combinado com ele em 30/07:
   Code registrou de novo ao concluir, porque o prompt não avisou que a página já
   existia. Todo prompt que sai daqui precisa dizer qual demanda já está no
   Notion e pedir que o Code atualize aquela página — nunca crie outra.
+- **Número de demanda não é issue do GitHub.** Em 05/08 o Code escreveu duas
+  vezes links como `github.com/.../issues/254` para demandas nossas. Não existe
+  issue nenhuma — o kanban é o Notion. Link que não leva a lugar nenhum faz o
+  Matheus clicar, esperar e não achar nada. Citar como `#254`, sem link.
 - **Demanda grande ganha checklist de etapas no corpo da página do Notion**, e o
   chat vai marcando conforme os commits aparecem. Assim o Matheus acompanha sem
   precisar perguntar ao Code em que pé está — e sem interromper no meio.

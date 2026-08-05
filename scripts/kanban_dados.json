@@ -2553,7 +2553,7 @@
    "depende_de": 254,
    "prioridade": 255,
    "origem": "Matheus, 05/08",
-   "prova": "Commit 3789e8d, publicado e provado em produção com o pacote real 'Mentoria Start' de Fulado de Tal e o link real 'teste-mentoria' (24h de prazo, 2 remarcações). Agendar pelo painel: sessão criada (origem='painel'), aparece na agenda do aluno, na tela do professor (contador 'a agendar' desce um) e cria o evento real no Google Agenda do professor. TESTE QUE DECIDE (escopo do preview): com 'Ver como aluno' mirando especificamente Fulado de Tal, o painel mostra só os pacotes dela — o pacote 'start', de outra pessoa ligada à mesma conta, não aparece. Remarcar: 1ª e 2ª funcionam; a 3ª é recusada com 'Você já remarcou esta sessão 2 vezes' — isolado do prazo (sessão a 11 dias de distância). Cancelar: recusado a menos de 24h; dentro do prazo cancela, some da agenda ativa do professor, o contador sobe um, apaga o evento do Google e avisa por notificação. Os 4 estados do botão e a sessão manual sem botões provados com dados reais. Ao final, as duas chaves do link voltaram para desligado e o vínculo de teste foi tirado do pacote."
+   "prova": "Entregue pelo Code em 05/08, commit 3789e8d. CONFERÊNCIA DO CHAT: a defesa contra um aluno alcançar o pacote de outro é SÓLIDA, mas mora na RLS, não no código novo — a policy people_self_read é 'user_id = auth.uid()', então um aluno enxerga exatamente uma linha em people: a dele. Confirmado no banco. RESSALVA NA PROVA: o Code diz ter testado 'com aluno logado de verdade' usando a 'Fulado de Tal', que é o PRÓPRIO MATHEUS (matheusguedes@metodointencao.com.br, papel DONO). O outro pacote ('start') é de uma pessoa SEM login. O único aluno real com login (Gabriela) tem 0 pacotes. Ou seja: o cenário que decide — aluno real tentando alcançar pacote alheio — não foi exercitado, por falta de dado, não por descuido. Mesmo padrão da auditoria de 03/08. Achado adicional: pessoaIdsDoAluno usa .not('user_id','is',null) sem filtrar por auth.uid(); para aluno a RLS já limita a 1, mas para dono/colaborador devolve todos os com login — vira #258."
   },
   {
    "titulo": "Classroom: marcar aula gravada como concluída (e aí avaliar)",
@@ -2574,6 +2574,17 @@
    "prioridade": 257,
    "origem": "Matheus, 05/08 — foi usar e não achou o botão",
    "prova": null
+  },
+  {
+   "titulo": "Endurecer pessoaIdsDoAluno: filtrar por auth.uid(), não só por ter login",
+   "descricao": "Em agendamento.functions.ts, pessoaIdsDoAluno sem preview faz people.select('id').not('user_id','is',null) e devolve TODAS as pessoas com login que o solicitante enxerga. Para um aluno a RLS (people_self_read: user_id = auth.uid()) já limita a 1, então não há vazamento entre alunos — confirmado no banco. Mas para o DONO ou um COLABORADOR abrindo o próprio painel de aluno, a lista traz todas as pessoas com login da conta, o que permite agendar no pacote de outra pessoa sem passar pelo 'Ver como aluno'. O correto é filtrar por user_id = auth.uid(). Não é buraco de segurança hoje: é frouxidão que depende da RLS para não virar um. Se alguma policy de people mudar amanhã, esta função vira a porta.",
+   "area": "Segurança / RLS",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 258,
+   "origem": "Conferência do chat sobre a #255, 05/08",
+   "prova": null,
+   "fase": "Fila de erros — voltar depois"
   }
  ],
  "planilha": {
