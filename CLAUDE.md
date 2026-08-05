@@ -96,6 +96,38 @@ não serve; serve "clique em X, vai abrir Y, role até Z".
 Vale também dizer o que NÃO é irreversível, para ele agir sem medo, e o que é,
 para ele parar e perguntar.
 
+### Provar o caminho do meio, não os dois extremos
+
+Erro do chat três vezes: `#245` (buckets), `#254` (elegibilidade), `#265`
+(login por e-mail). O padrão é sempre o mesmo — testar o caso totalmente
+liberado e o totalmente negado, ver os dois responderem como esperado, e
+concluir que o meio está certo. **O meio é onde as pessoas vivem.**
+
+Em 03/08 ficou registrado aqui que "a criação de conta dentro da plataforma
+está intacta", com base em dois testes: o cadastro público recusava e o
+`admin/generate_link` funcionava. Nenhum dos dois é o caminho que um
+colaborador usa. O login por e-mail e senha estava desligado para **todo
+mundo** havia dias, e só apareceu quando alguém tentou entrar.
+
+Antes de dar uma verificação por concluída, responder: *qual é o caminho que a
+pessoa real percorre, e eu passei por ele?*
+
+**A assinatura do erro é útil:** a mensagem `email_provider_disabled` significa
+que o e-mail inteiro está desligado (login e cadastro); `signup_disabled`
+significa que só o cadastro fechou, que é o estado desejado. Confundir os dois
+foi o que custou o dia.
+
+### Prova que a limpeza apaga não é prova
+
+Em 05/08 o prompt da varredura pediu duas coisas que se anulam: limpeza
+rigorosa do que foi criado no teste, **e** prova conferível depois. O Code
+cumpriu as duas na ordem errada — apagou tudo, e com isso apagou a evidência.
+Restou o relato dele, que é justamente o que não bastava.
+
+Quando o teste cria dado, o relato tem de **citar os identificadores das linhas
+antes de apagá-las**, ou deixar uma de cada tipo para conferência. Limpar é
+certo; limpar sem registrar o que existiu transforma verificação em confiança.
+
 ### Antes de pedir algo ao Matheus, tentar sozinho
 
 Já aconteceu duas vezes em 31/07: o agente pediu ao Matheus que fizesse à mão

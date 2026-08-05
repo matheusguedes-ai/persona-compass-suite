@@ -2475,14 +2475,14 @@
    "prova": "PARTE 1 (bloqueio pela agenda pessoal) CONCLUÍDA E PROVADA em produção 04/08. Resumo: (a)(b) escopo calendar.freebusy adicionado ao ESCOPO do app, publicado; (c) Matheus reconectou; efeito colateral: reconectar cria agenda nova no Google a cada vez (2ª órfã), registrado #249, decisão do Matheus: deixar como está; descoberta automática dos calendários da conta REMOVIDA (calendarList.list exige escopo que o app não pede, nunca funcionaria) — pergunta sobre quais calendários existem fica para o Matheus responder direto, não é mais bloqueio técnico; (d) consulta freebusy implementada (bloqueiosGoogleDoLink), consulta só o calendário 'primary' (o principal/pessoal), uma chamada por janela, degrada sem derrubar o link se o Google falhar. TESTE DECISIVO #1 falhou: Google devolvia 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT — causa raiz: calendar.freebusy nunca tinha sido cadastrado na tela 'Acesso a dados' do Google Cloud Console do projeto (bug meu, não do Matheus) — cadastrei eu mesmo (mudança reversível, só declarativa) e reconectei o Matheus de novo (3ª órfã, mesma decisão de ignorar). TESTE DECISIVO #2 PASSOU: horário real ocupado (PREPARAR AULA T1, qua 05/08 15h-18h, mais outro compromisso 14h-15h) sumiu do link com a chave ligada; voltou a aparecer com a chave desligada. Dados de teste limpos, nenhuma sessão real criada. PARTE 2 (cancelar/remarcar pelo aluno) ainda não começou — regra do Matheus, uma parte por vez."
   },
   {
-   "titulo": "Mentorias Fatia 4c: acabamento da página de agendamento",
-   "descricao": "Foto e nome do professor na página, local ou link de videoconferência, formulário de reserva personalizável e lembretes por e-mail antes da sessão. Tudo mapeado da tela do Google Calendar.",
-   "area": "Plataforma",
+   "titulo": "Fatia 4c-A: quem e o professor e ONDE e a sessao",
+   "descricao": "Foto e nome do professor na pagina de agendamento, e local ou link de chamada definidos POR LINK (decisao do Matheus, 05/08). ACHADO NA INVESTIGACAO: hoje toda sessao criada pelo link nasce com modalidade 'online' CRAVADA no codigo (agendamento.functions.ts:642 e :1222), sem local e sem link de chamada - o aluno agenda e nao sabe onde e, tem de perguntar por WhatsApp. Nao e acabamento: e buraco. Formulario personalizavel e lembretes por e-mail sairam desta fatia.",
+   "area": "Agenda",
    "status": "Planejado",
    "depende_de": "Claude",
    "prioridade": 248,
    "origem": "Matheus, 04/08: mapeou as funções da tela de agendamento do Google",
-   "prova": "São os itens que dão cara de produto, mas nenhum deles faz a coisa existir — por isso ficam por último. ATENÇÃO na videoconferência: criar sala do Meet automaticamente exige OUTRO escopo do Google além do freebusy. Começar por um campo de link colado à mão resolve 90% e não pede permissão nova."
+   "prova": null
   },
   {
    "titulo": "Reconectar o Google cria uma agenda nova em vez de reaproveitar a existente",
@@ -2648,6 +2648,36 @@
    "prioridade": 264,
    "origem": "Matheus, 05/08 — perdeu o acesso de dono ao entrar",
    "prova": "Entregue pelo Code em 05/08. CONFERÊNCIA DO CHAT — os dois lados provados por simulação SQL, em transação com rollback: (1) COM A LINHA DO INCIDENTE REATIVADA, o Matheus continua 'owner', com 1 grupo e 7 pessoas visíveis — o piso funciona, o estado inválido é ignorado mesmo quando existe e está ativo; (2) um mentor convidado DE VERDADE (owner_id <> user_id, testado com o user real do colaborador) continua 'mentor', apontando para a conta certa e limitado a 0 grupos — a condição NÃO ficou larga demais, que era o risco de escrever a defesa errada. Migração 20260805050000, com a condição exatamente 'tm.user_id <> tm.owner_id' em acting_account() e member_kind(). O Code ainda achou e fechou dois irmãos do mesmo bug: aceitar convite endereçado à própria conta, e o selo 'É mentor' na ficha considerando linha inativa. Linha do incidente segue guardada e inativa."
+  },
+  {
+   "titulo": "Login por e-mail estava desligado no Supabase - so Google entrava",
+   "descricao": "A chave 'Enable email provider' estava DESLIGADA no painel. A descricao dela e literal: 'Allow email-based sign up AND log in' - fechava cadastro E login. Ninguem entrava com e-mail e senha: nem colaborador, nem aluno. So quem usava Google. O Matheus entra pelo Google, por isso ninguem tinha notado. CAUSA: ao fechar o cadastro publico (decisao certa), foi desligada a chave errada. A correta e 'Allow new users to sign up', que continuava LIGADA - o cadastro publico nunca esteve fechado de fato. RESPONSABILIDADE DO CHAT: em 03/08 registrei no CLAUDE.md que 'a criacao de conta dentro da plataforma esta intacta', tendo testado so o signup publico e o admin/generate_link - nenhum dos dois e o caminho que um colaborador percorre. Terceira vez testando os extremos e nao o meio (#245, #254). Virou regra no CLAUDE.md.",
+   "area": "Infra",
+   "status": "Concluído",
+   "depende_de": "Matheus",
+   "prioridade": 265,
+   "origem": "Matheus, 05/08 - colaborador novo nao conseguiu entrar",
+   "prova": "Matheus aplicou no painel em 05/08. CONFERIDO PELO CHAT por fora, com a chave anonima - e a prova esta na TROCA da mensagem de erro: (1) criar conta como estranho devolve agora 'signup_disabled - Signups not allowed for this instance'; antes devolvia 'email_provider_disabled'. A troca do codigo prova que quem fecha agora e o CADASTRO, nao o e-mail. (2) login com senha errada devolve 'invalid_credentials', ou seja, o servidor FOI CONFERIR a senha - se o provedor ainda estivesse desligado, teria recusado antes de olhar. NAO CONFERIDO daqui: cadastro via Google; a chave e global e vale para todos os provedores, mas testar OAuth por fora exigiria navegador com conta Google de terceiro."
+  },
+  {
+   "titulo": "Fatia 4c-B: lembrete por e-mail antes da sessao",
+   "descricao": "Aviso por e-mail antes da sessao, para reduzir falta. NAO E RETOQUE - exige agendador que a plataforma nao tem. O aviso de vespera atual (20260730330000) e so do SINO, calculado na leitura, e cobre apenas aula e devolutiva; nao cobre mentoria vinda de link. O proprio comentario da migracao diz: 'Para e-mail seria o certo [usar cron]'. Precisa de pg_cron ou equivalente - peca de infraestrutura nova, com risco proprio. Decidir antes: quantos lembretes (24h? 1h? os dois?) e se o e-mail carrega o local, que depende da 4c-A estar pronta.",
+   "area": "Agenda",
+   "status": "Planejado",
+   "depende_de": 248,
+   "prioridade": 266,
+   "origem": "Matheus, 05/08 - fatiado da 4c",
+   "prova": null
+  },
+  {
+   "titulo": "Fatia 4c-C: formulario de reserva personalizavel",
+   "descricao": "Perguntas proprias no momento do agendamento ('o que voce quer tratar nesta sessao?'). Adiado por decisao do Matheus em 05/08: com sete alunos, e o unico item da 4c que nao destrava nada - nem o encontro acontecer, nem a falta diminuir. Volta quando houver volume que justifique.",
+   "area": "Agenda",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 267,
+   "origem": "Matheus, 05/08 - fatiado da 4c",
+   "prova": null
   }
  ],
  "planilha": {
