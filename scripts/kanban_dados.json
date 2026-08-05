@@ -2579,22 +2579,22 @@
    "titulo": "Endurecer pessoaIdsDoAluno: filtrar por auth.uid(), não só por ter login",
    "descricao": "Em agendamento.functions.ts, pessoaIdsDoAluno sem preview faz people.select('id').not('user_id','is',null) e devolve TODAS as pessoas com login que o solicitante enxerga. Para um aluno a RLS (people_self_read: user_id = auth.uid()) já limita a 1, então não há vazamento entre alunos — confirmado no banco. Mas para o DONO ou um COLABORADOR abrindo o próprio painel de aluno, a lista traz todas as pessoas com login da conta, o que permite agendar no pacote de outra pessoa sem passar pelo 'Ver como aluno'. O correto é filtrar por user_id = auth.uid(). Não é buraco de segurança hoje: é frouxidão que depende da RLS para não virar um. Se alguma policy de people mudar amanhã, esta função vira a porta.",
    "area": "Segurança / RLS",
-   "status": "Planejado",
+   "status": "Concluído",
    "depende_de": null,
    "prioridade": 258,
    "origem": "Conferência do chat sobre a #255, 05/08",
-   "prova": null,
+   "prova": "Commit b535f68. Trocado o filtro por user_id = context.userId (= auth.uid()) em pessoaIdsDoAluno (agendamento.functions.ts). Mesma correção aplicada em getStudentArea (student.functions.ts) — a tela principal do painel do aluno tinha o mesmo padrão, achado ao ler o arquivo completo antes de mexer. Caminho de preview não foi tocado. Provado em produção: dono no próprio /aluno/mentorias sem preview passou a ver só o pacote de Fulado de Tal (a única pessoa cujo user_id é o uid dele); antes trazia todo mundo com login da conta. Agendar pelo painel e 'Ver como aluno' testados e intactos, local e produção.",
    "fase": "Fila de erros — voltar depois"
   },
   {
    "titulo": "Agendar sessão manual falha em silêncio quando 'Link da chamada' fica em branco",
    "descricao": "Na tela do pacote de mentoria, botão 'Agendar sessão': deixando o campo 'Link da chamada' vazio, o salvamento falha sem mostrar erro nenhum — o professor clica, nada acontece, e ele não sabe por quê. Campo opcional que trava a tela é pior que campo obrigatório, porque ninguém adivinha o que fazer. Achado pelo Code durante a #257, fora do escopo dela. Ele avisou que registraria e não registrou — quem registrou foi o chat, na conferência.",
    "area": "Plataforma",
-   "status": "Planejado",
+   "status": "Concluído",
    "depende_de": null,
    "prioridade": 259,
    "origem": "Claude Code, 05/08 — achado de passagem na #257",
-   "prova": null,
+   "prova": "Commit 95dafbf. link_url trocou de z.string().trim().url().max(1000) para urlOpcional (url-segura.ts) — mesma validação já usada em avatar_url/capa_url/cover_url/video_url: \"\" vale como \"sem link\". Provado em produção: agendar online com link vazio salva certo (link_url null) e a sessão aparece na lista; com link preenchido continua funcionando; URL mal formada de verdade ainda mostra algo na tela (não fica mudo), só que em formato de JSON cru do Zod — padrão repetido em todo inputValidator da plataforma, fora do escopo desta demanda pontual. Varredura da mesma tela achou link_id (editar pacote) com o mesmo formato de schema, mas o frontend já manda null antes de enviar — sem bug ativo, só a mesma fragilidade latente; registrado, não corrigido.",
    "fase": "Fila de erros — voltar depois"
   },
   {
