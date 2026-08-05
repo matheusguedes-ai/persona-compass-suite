@@ -2549,11 +2549,11 @@
    "titulo": "Painel do aluno: botão 'Agendar mentoria' com o mesmo fluxo do link",
    "descricao": "No menu Mentorias do aluno, um botão 'Agendar mentoria'. Só funciona se ele tiver sessões a realizar no pacote (faltam > 0); sem saldo, fica desabilitado explicando o motivo. Ao clicar, abre a mesma escolha de dia e hora do link público — mas por dentro, sem pedir e-mail, porque ele já está logado. O link usado é o que o professor apontou ao criar o pacote (campo novo em mentorias). O aluno logado também cancela e remarca por ali, com as mesmas regras de prazo e teto da #254.",
    "area": "Agenda",
-   "status": "Planejado",
+   "status": "Concluído",
    "depende_de": 254,
    "prioridade": 255,
    "origem": "Matheus, 05/08",
-   "prova": null
+   "prova": "Commit 3789e8d, publicado e provado em produção com o pacote real 'Mentoria Start' de Fulado de Tal e o link real 'teste-mentoria' (24h de prazo, 2 remarcações). Agendar pelo painel: sessão criada (origem='painel'), aparece na agenda do aluno, na tela do professor (contador 'a agendar' desce um) e cria o evento real no Google Agenda do professor. TESTE QUE DECIDE (escopo do preview): com 'Ver como aluno' mirando especificamente Fulado de Tal, o painel mostra só os pacotes dela — o pacote 'start', de outra pessoa ligada à mesma conta, não aparece. Remarcar: 1ª e 2ª funcionam; a 3ª é recusada com 'Você já remarcou esta sessão 2 vezes' — isolado do prazo (sessão a 11 dias de distância). Cancelar: recusado a menos de 24h; dentro do prazo cancela, some da agenda ativa do professor, o contador sobe um, apaga o evento do Google e avisa por notificação. Os 4 estados do botão e a sessão manual sem botões provados com dados reais. Ao final, as duas chaves do link voltaram para desligado e o vínculo de teste foi tirado do pacote."
   },
   {
    "titulo": "Classroom: marcar aula gravada como concluída (e aí avaliar)",
