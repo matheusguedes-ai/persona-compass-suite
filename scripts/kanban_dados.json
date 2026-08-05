@@ -2539,11 +2539,11 @@
    "titulo": "Fatia 4b Parte 2: aluno cancela e remarca sozinho",
    "descricao": "O aluno recebe no e-mail de confirmação um link para gerenciar a sessão: cancelar ou escolher outro horário, sem login. Cada link de agendamento ganha dois campos novos: prazo mínimo em horas para desmarcar, e número máximo de remarcações permitidas. O professor é avisado por e-mail e por notificação na plataforma. A conta do pacote já devolve a vaga sozinha ao cancelar — não muda.",
    "area": "Agenda",
-   "status": "Planejado",
+   "status": "Concluído",
    "depende_de": null,
    "prioridade": 254,
    "origem": "Matheus, 05/08 — decisões tomadas no chat",
-   "prova": null
+   "prova": "Passo A (commit 635f9d3) e Passo B (commit ddcafb4), publicados e provados em produção com o link real do Matheus (teste-mentoria, 24h de prazo, 2 remarcações no máximo). /sessao/$id abre sem login. Cancelar: recusado a menos de 24h da sessão (testado com sessão real a 21h de distância); dentro do prazo, cancela, libera a vaga no pacote, apaga o evento do Google e avisa o professor (e-mail + notificação). Remarcar: 1ª e 2ª funcionam (horário muda, evento do Google atualiza sem duplicar); a 3ª é recusada com 'Você já remarcou esta sessão 2 vezes' — o teste decisivo, batido especificamente pelo TETO e não pelo prazo (sessão a mais de 7 dias de distância). Desligando as duas chaves do link, a página volta a recusar os dois botões. Achado e corrigido no caminho: a tela do professor não indicava visualmente uma sessão cancelada (commit 297f85b). Dados de teste e evento de teste no Google apagados depois de confirmado."
   },
   {
    "titulo": "Painel do aluno: botão 'Agendar mentoria' com o mesmo fluxo do link",
