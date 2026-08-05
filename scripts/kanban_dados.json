@@ -2647,7 +2647,7 @@
    "depende_de": null,
    "prioridade": 264,
    "origem": "Matheus, 05/08 — perdeu o acesso de dono ao entrar",
-   "prova": "Commit 02f8ced. Defesa 1 (promover_a_mentor recusa) + Defesa 2 (acting_account/member_kind/claim_team_membership ignoram user_id=owner_id) + accept_team_invite (mesmo buraco, achado na investigação) + idsDeMentores filtra status='ativo' (achado ao testar pela tela — a linha inativa do incidente fazia a ficha mostrar 'É mentor'). Provado por SQL (antes/depois com a linha real do incidente, colaborador intacto, mentor convidado de verdade intacto) e pela tela (recusa ao repromover Fulado de Tal; promoção de pessoa real funcionando e desfeita)."
+   "prova": "Entregue pelo Code em 05/08. CONFERÊNCIA DO CHAT — os dois lados provados por simulação SQL, em transação com rollback: (1) COM A LINHA DO INCIDENTE REATIVADA, o Matheus continua 'owner', com 1 grupo e 7 pessoas visíveis — o piso funciona, o estado inválido é ignorado mesmo quando existe e está ativo; (2) um mentor convidado DE VERDADE (owner_id <> user_id, testado com o user real do colaborador) continua 'mentor', apontando para a conta certa e limitado a 0 grupos — a condição NÃO ficou larga demais, que era o risco de escrever a defesa errada. Migração 20260805050000, com a condição exatamente 'tm.user_id <> tm.owner_id' em acting_account() e member_kind(). O Code ainda achou e fechou dois irmãos do mesmo bug: aceitar convite endereçado à própria conta, e o selo 'É mentor' na ficha considerando linha inativa. Linha do incidente segue guardada e inativa."
   }
  ],
  "planilha": {
