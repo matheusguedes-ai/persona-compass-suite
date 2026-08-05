@@ -2365,8 +2365,8 @@
    "origem": "Matheus, 01/08: a interface ainda é de plataforma de testes, o produto virou hub"
   },
   {
-   "titulo": "Dashboard vira resumo de toda a plataforma, não só dos testes",
-   "descricao": "O Dashboard responde hoje só sobre testes. Virou hub e a primeira tela não sabe. Passa a mostrar Mentorias, Classroom, Academy, Testes, Comunidade e o bloco de engajamento. Spec em docs/plano-dashboard.md.",
+   "titulo": "Dashboard vira resumo da plataforma (sem o card de Mentorias)",
+   "descricao": "O Dashboard responde hoje só sobre testes: 4 números e 2 gráficos. A plataforma virou hub e a primeira tela não sabe. Passa a mostrar Classroom, Academy, Testes, Comunidade e o bloco de engajamento (quem está sumindo — a #220, absorvida). DECISÃO DO MATHEUS 05/08: o card de MENTORIAS FICA DE FORA desta entrega. A spec dizia que o Dashboard vem depois da Fatia 3 (#229), porque é ela que constrói satisfação média, duração média e quantas faltam agendar — calcular em dois lugares faria um dos dois mentir no dia em que a conta mudasse. Como a #229 não tem massa de dado ainda (1 sessão, 1 avaliação), o Dashboard sai agora SEM mentoria e o card entra depois, na #270. O bloco de engajamento entra COM a ressalva escrita na própria tela: com sete alunos ele aponta quase todo mundo ou ninguém. Spec em docs/plano-dashboard.md.",
    "area": "Plataforma",
    "status": "Planejado",
    "depende_de": "Claude",
@@ -2687,6 +2687,26 @@
    "depende_de": "Matheus",
    "prioridade": 268,
    "origem": "Fatiado da #102 em 05/08",
+   "prova": null
+  },
+  {
+   "titulo": "Agenda abre na semana ERRADA quando a visão salva é 'semana'",
+   "descricao": "Achado pelo chat ao conferir a #92, abrindo a tela. Hoje é quarta 05/08 e a agenda abre mostrando 26/07 a 01/08 — a semana PASSADA. CAUSA: o estado inicial de `ref` é sempre o dia 1º do mês (agenda.tsx:155, `new Date(hoje.getFullYear(), hoje.getMonth(), 1)`), herdado da lógica da visão de mês, onde faz sentido. Mas a semana é calculada como o domingo de `ref` (:186): com ref = sábado 01/08, o domingo é 26/07. Em qualquer mês que comece no meio da semana, quem tem 'semana' salvo no navegador abre no passado. O botão 'Hoje' corrige (irParaHoje já trata os dois modos, :328), mas o estado INICIAL não. CONSERTO: `ref` inicial passa a ser o dia de hoje, não o dia 1. A visão de mês não se importa — ela só usa ref.getFullYear() e ref.getMonth() (:208, :224, :229), nunca ref.getDate(). Uma linha. ATENÇÃO: o modo vem do localStorage num efeito que roda DEPOIS do estado inicial (:159-162), então conferir que a primeira renderização em modo semana já nasce certa, sem piscar a semana errada.",
+   "area": "Agenda",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 269,
+   "origem": "Chat, 05/08 — conferência da #92, abrindo a tela",
+   "prova": null
+  },
+  {
+   "titulo": "Card de Mentorias no Dashboard",
+   "descricao": "O pedaço que saiu da #237 por decisão do Matheus em 05/08. Sessões desta semana, quantas faltam agendar e satisfação média com a contagem. DEPENDE DA #229 (Fatia 3), que é quem constrói essas contas — o Dashboard só consome. Fazer antes significaria calcular as mesmas médias em dois lugares, e no dia em que uma conta mudasse um dos dois passaria a mentir sem avisar. Toda média sai COM a contagem: '4,5 (2 avaliações)', nunca o número sozinho.",
+   "area": "Plataforma",
+   "status": "Planejado",
+   "depende_de": 229,
+   "prioridade": 270,
+   "origem": "Fatiado da #237 em 05/08",
    "prova": null
   }
  ],
