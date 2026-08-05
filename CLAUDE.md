@@ -181,11 +181,20 @@ Combinado com ele em 30/07:
 
 ### Onde ficam as decisões e a fila
 
+- **Trello — [Thrive Profiler — Demandas](https://trello.com/b/3pY49jsH/thrive-profiler-demandas)**
+  é o quadro que **o Matheus olha**. Quatro listas: Planejado, Em andamento,
+  Precisa de melhorias, Concluído. Regra dele, 05/08.
 - **Notion — [Thrive Profiler — Kanban de demandas](https://app.notion.com/p/bd5f0a8df66e47c6a6ec6c0afff46393)**
-  é o quadro que o Matheus olha. Data source `c9814506-a2ca-408e-ac82-0bf42de6d2fb`.
-  **Ao fechar qualquer demanda, o chat atualiza o Notion na mesma hora** —
-  status, prova e fase. Não deixar para depois: kanban desatualizado é pior que
-  kanban nenhum, e a cópia velha no Google Drive já provou isso.
+  é onde mora o detalhe: prova, ressalva, checklist de etapas.
+  Data source `c9814506-a2ca-408e-ac82-0bf42de6d2fb`.
+- **ESCREVER: sempre nos dois. LER: no que for mais fácil.** Combinado com ele
+  em 05/08. Ao fechar uma demanda, ao registrar uma nova, ao mudar status —
+  Notion **e** Trello, na mesma hora, sem exceção. Para consultar, o chat usa a
+  conexão que for mais prática (em geral o arquivo versionado, que é a fonte).
+  Dois quadros só não divergem se as duas escritas forem uma coisa só; foi
+  assim que a cópia velha no Google Drive apodreceu.
+- `scripts/kanban_dados.json` continua sendo **a fonte de verdade** — os dois
+  quadros são vistas dele. Em caso de conflito, o arquivo manda.
 - **Quem registra no Notion é o chat; o Code ATUALIZA, não cria.** Em 05/08 a
   `#252` nasceu duas vezes no quadro: o chat registrou ao escrever o prompt, e o
   Code registrou de novo ao concluir, porque o prompt não avisou que a página já

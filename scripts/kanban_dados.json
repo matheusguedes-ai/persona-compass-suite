@@ -912,13 +912,13 @@
    "prioridade": 91
   },
   {
-   "titulo": "Agenda visual na plataforma (mês e semana)",
-   "descricao": "Calendário alimentado por devolutivas.scheduled_at; clicar no compromisso abre a devolutiva.",
+   "titulo": "Agenda: visão de semana com grade de horas",
+   "descricao": "A agenda tem só a visão de MÊS. Falta a de SEMANA, que fazia parte do pedido original. DECISÃO DO MATHEUS (05/08): grade com horas, no formato do Google Calendar — sete colunas, horas na lateral, compromisso posicionado na altura do horário e com a altura da duração. É o que mostra os BURACOS entre atendimentos, que é o valor da visão de semana. TEXTO ANTIGO CORRIGIDO: a demanda falava em 'devolutivas.scheduled_at' e 'clicar abre a devolutiva' — as Devolutivas foram aposentadas em 31/07. Hoje a agenda mostra sessões de mentoria e eventos (inclusive os que nascem de aulas do Classroom), e clicar abre um diálogo com os detalhes. O SERVIDOR NÃO MUDA: agendaDoMes já recebe intervalo (de, ate) livre — quem fixa o mês é a tela.",
    "area": "Agenda",
    "status": "Precisa de melhorias",
    "depende_de": "Claude",
    "origem": "docs/plano-menu-gestao.md § Etapa 2 · backlog-menu-gestao.md § 1 · git log 562907c",
-   "prova": "Só existe a visão de mês; a visão de semana, que fazia parte do pedido, não foi construída.",
+   "prova": null,
    "prioridade": 92
   },
   {
@@ -962,13 +962,13 @@
    "prioridade": 96
   },
   {
-   "titulo": "Correção de ~31 bugs",
+   "titulo": "APOSENTADA: 'Correção de ~31 bugs' — sem lista, sem como provar",
    "descricao": "Rodada de correção de aproximadamente 31 bugs na plataforma.",
    "area": "Plataforma",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "CLAUDE.md § Estado atual e próximos passos",
-   "prova": "Não existe lista nenhuma do que foi corrigido: ninguém consegue dizer quais eram os bugs, se todos saíram ou se algum voltou — o melhor caminho é anotar hoje o que ainda incomoda na plataforma.",
+   "prova": "APOSENTADA em 05/08, decisão do Matheus. Não descrevia um trabalho: descrevia a AUSÊNCIA de registro de um trabalho antigo. Ninguém sabe quais eram os 31 bugs, se todos saíram ou se algum voltou — logo, não havia como concluir nem provar. O que ela pedia (anotar o que ainda incomoda) virou o processo normal: em 05/08 o Matheus achou três problemas usando a plataforma (link de agendamento sem faixa de disponibilidade, grupo que não criava, colaborador que não entrava) e os três viraram demanda numerada na hora, com prova. O cartão morre porque a prática o substituiu.",
    "prioridade": 97
   },
   {
@@ -1015,10 +1015,10 @@
    "titulo": "Mentor afiliado: convite por e-mail e conta no link",
    "descricao": "Criar e reenviar convite passam a mandar e-mail de verdade, e o link do convite abre a criação de senha e entra direto. Antes o token era gerado e ninguém era avisado.",
    "area": "Infra",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § Anexo 1 plano A · fila-area-do-aluno.md § Mentor afiliado · seguranca-primeiro-a",
-   "prova": "A tela /mentores foi APOSENTADA (virou redirect para /pessoas): era o fluxo velho, que criava team_members sem person_id. O convite hoje é 'promover a mentor' na ficha da pessoa. FALTA: promover um parceiro de verdade e acompanhar até ele entrar — é o único jeito de provar que o e-mail de convite chega e o primeiro acesso funciona.",
+   "prova": "A tela /mentores foi APOSENTADA (virou redirect para /pessoas): era o fluxo velho, que criava team_members sem person_id. O convite hoje é 'promover a mentor' na ficha da pessoa. FALTA: promover um parceiro de verdade e acompanhar até ele entrar — é o único jeito de provar que o e-mail de convite chega e o primeiro acesso funciona. FECHADA EM 05/08: a parte que faltava era 'provar que o e-mail de convite chega e o primeiro acesso funciona'. Aconteceu — o Matheus criou a colaboradora Gabi (sucessodoaluno@metodointencao.com.br), ela recebeu o convite, criou a conta às 14:56 e entrou às 14:59, com team_members.status='ativo' e as 7 permissões. De quebra revelou a #265 (login por e-mail desligado). O que sobrou — promover um MENTOR afiliado de verdade, com terceiro real — virou a #268.",
    "prioridade": 102
   },
   {
@@ -1075,10 +1075,10 @@
    "titulo": "Selo da empresa no rodapé de todas as páginas",
    "descricao": "Item K: nome e CNPJ identificando quem opera a plataforma, em telas internas e públicas, sem chave de ligar/desligar.",
    "area": "Plataforma",
-   "status": "Precisa de melhorias",
+   "status": "Concluído",
    "depende_de": "Claude",
    "origem": "docs/plano-demandas-30-07.md § item K · git log 238e88a",
-   "prova": "Feito na tela que mais importa: /responder aplicava a marca padrão porque ResponseForm ignorava o `brand` que o endpoint sempre devolveu — não era só o selo, era cor e logo também. Selo nos quatro finais da tela. /convite já tinha. FALTA: /convite-equipe (dá para fazer: o token identifica a conta e dadosDoConvite existe, mas a tela nem chama). /auth NÃO dá: é o login da plataforma inteira e a conta só se conhece depois de entrar.",
+   "prova": "Feito na tela que mais importa: /responder aplicava a marca padrão porque ResponseForm ignorava o `brand` que o endpoint sempre devolveu — não era só o selo, era cor e logo também. Selo nos quatro finais da tela. /convite já tinha. FALTA: /convite-equipe (dá para fazer: o token identifica a conta e dadosDoConvite existe, mas a tela nem chama). /auth NÃO dá: é o login da plataforma inteira e a conta só se conhece depois de entrar. ABSORVIDA PELA #262 em 05/08. A ressalva dizia que '/auth NÃO dá: a conta só se conhece depois de entrar' — isso DEIXOU DE SER VERDADE hoje: a #261 resolve exatamente isso, fazendo a marca vir do endereço do site, então a tela de login sabe de quem é antes de qualquer login. E a #262 já lista /convite-equipe, o outro item que faltava. Fazer separado seria passar duas vezes pelos mesmos arquivos.",
    "prioridade": 108
   },
   {
@@ -2348,11 +2348,11 @@
    "titulo": "Ícone da conta e app instalável no celular (manifest)",
    "descricao": "Quando o dono sobe um ícone, ele deve ser a imagem que aparece na tela do celular de quem instalar a plataforma como aplicativo — dele e do aluno. HOJE NADA DISSO EXISTE: não há campo de ícone nas Configurações (o profile só tem logo_url), não há manifest, e a plataforma NÃO é instalável. Só existe um favicon.ico fixo da plataforma. Precisa de: campo de ícone, manifest gerado por conta (nome + ícone + cor da marca) e as meta tags de app.",
    "area": "Plataforma",
-   "status": "Em andamento",
+   "status": "Concluído",
    "depende_de": "Claude",
    "prioridade": 235,
    "origem": "Matheus, 01/08: 'o ícone deve ser a imagem na tela do celular em modo aplicativo'",
-   "prova": "CÓDIGO PRONTO, publicado e parcialmente provado — falta só o upload de verdade, travado por um bug de infraestrutura sem relação com esta demanda (ver #245). Campo de ícone em Configurações (separado da logo, recorte quadrado, bucket 'marca'); rota /api/icone/$tamanho que assina por dentro a cada pedido (nunca expira, ao contrário de uma URL assinada de validade longa — decisão escrita no código); /api/manifest por conta; ressalva de multiconta escrita em resolveContaUnica(). Provado em produção: manifest reflete nome/cor reais da conta; ícone cai no favicon padrão quando não configurado (302); bundle confirmado no ar. Bloqueado: subir um ícone de teste falha com RLS negada no Storage — mesmo bug do #245, testado também no logo e no avatar (sem mexer em nenhum dos dois) e falha igual — não é bug desta demanda."
+   "prova": "CÓDIGO PRONTO, publicado e parcialmente provado — falta só o upload de verdade, travado por um bug de infraestrutura sem relação com esta demanda (ver #245). Campo de ícone em Configurações (separado da logo, recorte quadrado, bucket 'marca'); rota /api/icone/$tamanho que assina por dentro a cada pedido (nunca expira, ao contrário de uma URL assinada de validade longa — decisão escrita no código); /api/manifest por conta; ressalva de multiconta escrita em resolveContaUnica(). Provado em produção: manifest reflete nome/cor reais da conta; ícone cai no favicon padrão quando não configurado (302); bundle confirmado no ar. Bloqueado: subir um ícone de teste falha com RLS negada no Storage — mesmo bug do #245, testado também no logo e no avatar (sem mexer em nenhum dos dois) e falha igual — não é bug desta demanda. FECHADA EM 05/08: o bloqueio era a #245 (upload quebrado), resolvida em 03/08. O Matheus confirmou o envio na conversa, e o chat conferiu no banco: profiles.icon_url está preenchido (icone-1785789345640.jpg). Não há trabalho pendente."
   },
   {
    "titulo": "Tirar 'Novo Envio' da barra superior — vai para dentro de Testes",
@@ -2468,11 +2468,11 @@
    "titulo": "Mentorias Fatia 4b: bloqueio pela agenda pessoal e cancelar/remarcar",
    "descricao": "Consultar o Google freebusy do professor antes de mostrar horário livre, e as chaves opcionais de cancelar e remarcar pelo próprio aluno.",
    "area": "Plataforma",
-   "status": "Em andamento",
+   "status": "Concluído",
    "depende_de": null,
    "prioridade": 247,
    "origem": "Matheus, 04/08: detalhamento do link de auto-agendamento",
-   "prova": "PARTE 1 (bloqueio pela agenda pessoal) CONCLUÍDA E PROVADA em produção 04/08. Resumo: (a)(b) escopo calendar.freebusy adicionado ao ESCOPO do app, publicado; (c) Matheus reconectou; efeito colateral: reconectar cria agenda nova no Google a cada vez (2ª órfã), registrado #249, decisão do Matheus: deixar como está; descoberta automática dos calendários da conta REMOVIDA (calendarList.list exige escopo que o app não pede, nunca funcionaria) — pergunta sobre quais calendários existem fica para o Matheus responder direto, não é mais bloqueio técnico; (d) consulta freebusy implementada (bloqueiosGoogleDoLink), consulta só o calendário 'primary' (o principal/pessoal), uma chamada por janela, degrada sem derrubar o link se o Google falhar. TESTE DECISIVO #1 falhou: Google devolvia 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT — causa raiz: calendar.freebusy nunca tinha sido cadastrado na tela 'Acesso a dados' do Google Cloud Console do projeto (bug meu, não do Matheus) — cadastrei eu mesmo (mudança reversível, só declarativa) e reconectei o Matheus de novo (3ª órfã, mesma decisão de ignorar). TESTE DECISIVO #2 PASSOU: horário real ocupado (PREPARAR AULA T1, qua 05/08 15h-18h, mais outro compromisso 14h-15h) sumiu do link com a chave ligada; voltou a aparecer com a chave desligada. Dados de teste limpos, nenhuma sessão real criada. PARTE 2 (cancelar/remarcar pelo aluno) ainda não começou — regra do Matheus, uma parte por vez."
+   "prova": "PARTE 1 (bloqueio pela agenda pessoal) CONCLUÍDA E PROVADA em produção 04/08. Resumo: (a)(b) escopo calendar.freebusy adicionado ao ESCOPO do app, publicado; (c) Matheus reconectou; efeito colateral: reconectar cria agenda nova no Google a cada vez (2ª órfã), registrado #249, decisão do Matheus: deixar como está; descoberta automática dos calendários da conta REMOVIDA (calendarList.list exige escopo que o app não pede, nunca funcionaria) — pergunta sobre quais calendários existem fica para o Matheus responder direto, não é mais bloqueio técnico; (d) consulta freebusy implementada (bloqueiosGoogleDoLink), consulta só o calendário 'primary' (o principal/pessoal), uma chamada por janela, degrada sem derrubar o link se o Google falhar. TESTE DECISIVO #1 falhou: Google devolvia 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT — causa raiz: calendar.freebusy nunca tinha sido cadastrado na tela 'Acesso a dados' do Google Cloud Console do projeto (bug meu, não do Matheus) — cadastrei eu mesmo (mudança reversível, só declarativa) e reconectei o Matheus de novo (3ª órfã, mesma decisão de ignorar). TESTE DECISIVO #2 PASSOU: horário real ocupado (PREPARAR AULA T1, qua 05/08 15h-18h, mais outro compromisso 14h-15h) sumiu do link com a chave ligada; voltou a aparecer com a chave desligada. Dados de teste limpos, nenhuma sessão real criada. PARTE 2 (cancelar/remarcar pelo aluno) ainda não começou — regra do Matheus, uma parte por vez. FECHADA EM 05/08: a Parte 1 (bloqueio pela agenda pessoal) já estava provada em 04/08. A Parte 2 (cancelar e remarcar pelo aluno) virou a #254, concluída e conferida pelo chat em 05/08 — inclusive com teste de chamada crua provando que a trava é do servidor. A 4b está inteira."
   },
   {
    "titulo": "Fatia 4c-A: quem e o professor e ONDE e a sessao",
@@ -2677,6 +2677,16 @@
    "depende_de": null,
    "prioridade": 267,
    "origem": "Matheus, 05/08 - fatiado da 4c",
+   "prova": null
+  },
+  {
+   "titulo": "Promover um mentor afiliado de verdade e acompanhar até ele entrar",
+   "descricao": "O que sobrou da #102. O fluxo de convite por e-mail foi provado em 05/08 com a colaboradora Gabi, mas o caso do MENTOR AFILIADO com um terceiro real nunca aconteceu — o único promovido a mentor foi o próprio Matheus, e o resultado foi a #264 (ele virou mentor de si mesmo e perdeu o acesso de dono). Depois da #264, promover a si mesmo passou a ser recusado; falta exercitar com outra pessoa. Precisa de um parceiro de verdade para convidar — depende do Matheus, não de construção. Ao fazer, conferir: o e-mail chega, ele cria a senha, entra, e enxerga SÓ os grupos atribuídos a ele (member_kind='mentor').",
+   "area": "Infra",
+   "status": "Planejado",
+   "depende_de": "Matheus",
+   "prioridade": 268,
+   "origem": "Fatiado da #102 em 05/08",
    "prova": null
   }
  ],
