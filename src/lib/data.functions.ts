@@ -787,6 +787,15 @@ export const getDashboardStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
+    // #237: Testes e Envios são o mesmo assunto em dois momentos (mesma regra
+    // de app-sidebar.tsx) — colaborador com QUALQUER uma das duas já pode
+    // abrir o card do Dashboard. Sem isto, qualquer colaborador autenticado
+    // via este painel via o catálogo de testes inteiro, mesmo só com acesso a
+    // Grupos.
+    const m = await membershipDoUsuario(supabase, userId);
+    if (m.kind === "colaborador" && !m.permissions.includes("testes") && !m.permissions.includes("envios")) {
+      throw new Error("Você não tem acesso a esta área.");
+    }
     // ⚠️ Mesma correção de getPerson: `mentor_id` é a CONTA
     // (`acting_account()`), não o uid de quem está logado — um colaborador
     // com Envios via este painel sempre zerado, porque as respostas são do

@@ -5,10 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/data.functions";
 import { getMyMembership } from "@/lib/team.functions";
-import { getPanoramaGeral } from "@/lib/painel.functions";
+import {
+  getPanoramaGeral, getResumoClassroom, getResumoAcademy, getResumoComunidade, getResumoEngajamento,
+} from "@/lib/painel.functions";
 import { Avatar } from "@/components/avatar-upload";
 import {
-  FolderKanban, Users, MessagesSquare, BookOpen, UsersRound, Trophy, ArrowRight,
+  FolderKanban, Users, MessagesSquare, BookOpen, UsersRound, Trophy, ArrowRight, Presentation, UserX,
 } from "lucide-react";
 
 /**
@@ -31,9 +33,9 @@ export const Route = createFileRoute("/_app/")({
   head: () => ({
     meta: [
       { title: "Dashboard — Métrica Humana" },
-      { name: "description", content: "Visão geral dos testes enviados, respondidos e pendentes na plataforma de assessments." },
+      { name: "description", content: "Resumo da plataforma: testes, Classroom, Academy, comunidade e quem está sumindo." },
       { property: "og:title", content: "Dashboard — Métrica Humana" },
-      { property: "og:description", content: "Visão geral dos testes enviados, respondidos e pendentes na plataforma de assessments." },
+      { property: "og:description", content: "Resumo da plataforma: testes, Classroom, Academy, comunidade e quem está sumindo." },
     ],
   }),
   component: () => (
@@ -44,10 +46,24 @@ export const Route = createFileRoute("/_app/")({
 });
 
 function Dashboard() {
+  const membershipFn = useServerFn(getMyMembership);
+  const { data: membership } = useQuery({
+    queryKey: ["my-membership"], queryFn: () => membershipFn(), staleTime: 300_000,
+  });
+  const souDono = (membership?.kind ?? "owner") === "owner";
+  const minhasPermissoes = membership?.permissions ?? [];
+  // Testes e Envios são o mesmo assunto em dois momentos (mesma regra do menu
+  // lateral) — qualquer uma das duas já libera o bloco.
+  const podeTestes = souDono || minhasPermissoes.includes("testes") || minhasPermissoes.includes("envios");
+
   const statsFn = useServerFn(getDashboardStats);
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => statsFn(),
+    // Sem a permissão, nem chama — a função recusaria mesmo assim, mas não há
+    // por que gastar a chamada nem arriscar um erro visível na tela de quem
+    // não tem nada a ver com Testes/Envios.
+    enabled: podeTestes,
   });
 
   const total = data?.total ?? 0;
@@ -66,135 +82,245 @@ function Dashboard() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Acompanhe seus disparos e respostas em tempo real.
+          O resumo da plataforma — cada área que você pode abrir, num lugar só.
         </p>
       </div>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Testes enviados" value={isLoading ? "…" : String(total)} hint="Inclui os testes de cada bateria" />
-        <KpiCard
-          label="Respondidos"
-          value={isLoading ? "…" : String(submitted)}
-          hint={total > 0 ? `${conversion}% de conversão` : "Nenhum envio ainda"}
-        />
-        <KpiCard label="Pendentes" value={isLoading ? "…" : String(pending)} hintTone={pending > 0 ? "warn" : undefined} />
-        <KpiCard label="Pessoas cadastradas" value={isLoading ? "…" : String(data?.people ?? 0)} />
-      </section>
+      {podeTestes && (
+        <>
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <KpiCard label="Testes enviados" value={isLoading ? "…" : String(total)} hint="Inclui os testes de cada bateria" />
+            <KpiCard
+              label="Respondidos"
+              value={isLoading ? "…" : String(submitted)}
+              hint={total > 0 ? `${conversion}% de conversão` : "Nenhum envio ainda"}
+            />
+            <KpiCard label="Pendentes" value={isLoading ? "…" : String(pending)} hintTone={pending > 0 ? "warn" : undefined} />
+            <KpiCard label="Pessoas cadastradas" value={isLoading ? "…" : String(data?.people ?? 0)} />
+          </section>
 
-      <Panorama />
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        {/* Ritmo: mostra se o movimento está crescendo ou parou. */}
-        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
-          <h2 className="text-sm font-medium tracking-tight">Testes respondidos por mês</h2>
-          <p className="text-xs text-muted-foreground">Últimos 6 meses</p>
-          {submitted === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              {isLoading ? "Carregando…" : "Aparece aqui quando o primeiro teste for concluído."}
-            </p>
-          ) : (
-            <div className="mt-5 flex h-36 items-end gap-2">
-              {byMonth.map((m) => (
-                <div key={m.chave} className="flex flex-1 flex-col items-center gap-1.5">
-                  <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                    {m.respondidos > 0 ? m.respondidos : ""}
-                  </span>
-                  <div
-                    className="w-full rounded-t bg-primary/80"
-                    style={{ height: `${Math.max(m.respondidos > 0 ? 4 : 2, (m.respondidos / mesPico) * 100)}%` }}
-                    title={`${m.respondidos} em ${m.mes}`}
-                  />
-                  <span className="text-xs capitalize text-muted-foreground">{m.mes}</span>
+          <section className="grid gap-4 lg:grid-cols-2">
+            {/* Ritmo: mostra se o movimento está crescendo ou parou. */}
+            <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+              <h2 className="text-sm font-medium tracking-tight">Testes respondidos por mês</h2>
+              <p className="text-xs text-muted-foreground">Últimos 6 meses</p>
+              {submitted === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  {isLoading ? "Carregando…" : "Aparece aqui quando o primeiro teste for concluído."}
+                </p>
+              ) : (
+                <div className="mt-5 flex h-36 items-end gap-2">
+                  {byMonth.map((m) => (
+                    <div key={m.chave} className="flex flex-1 flex-col items-center gap-1.5">
+                      <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                        {m.respondidos > 0 ? m.respondidos : ""}
+                      </span>
+                      <div
+                        className="w-full rounded-t bg-primary/80"
+                        style={{ height: `${Math.max(m.respondidos > 0 ? 4 : 2, (m.respondidos / mesPico) * 100)}%` }}
+                        title={`${m.respondidos} em ${m.mes}`}
+                      />
+                      <span className="text-xs capitalize text-muted-foreground">{m.mes}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Quais inventários estão de fato sendo usados. */}
-        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
-          <h2 className="text-sm font-medium tracking-tight">Inventários aplicados</h2>
-          <p className="text-xs text-muted-foreground">Respondidos e pendentes por teste</p>
-          {byInstrument.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              {isLoading ? "Carregando…" : "Nenhum teste enviado ainda."}
-            </p>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {byInstrument.map((inst) => (
-                <div key={inst.name}>
-                  <div className="flex items-baseline justify-between text-sm">
-                    <span className="font-medium">{inst.name}</span>
-                    <span className="text-xs tabular-nums text-muted-foreground">
-                      {inst.respondidos} respondido{inst.respondidos === 1 ? "" : "s"}
-                      {inst.pendentes > 0 && ` · ${inst.pendentes} pendente${inst.pendentes === 1 ? "" : "s"}`}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-muted">
-                    <div className="bg-primary" style={{ width: `${(inst.respondidos / instrPico) * 100}%` }} />
-                    <div className="bg-amber-400/70" style={{ width: `${(inst.pendentes / instrPico) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-xl bg-card p-6 ring-1 ring-black/5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-medium tracking-tight">Disparo rápido</h2>
-            <p className="text-xs text-muted-foreground">Crie um novo envio para um avaliado.</p>
-          </div>
-          <Link to="/envios/novo" search={{ personId: undefined, groupId: undefined }} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
-            Novo envio
-          </Link>
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-medium tracking-tight">Atividade recente</h2>
-          <Link to="/envios" className="text-xs font-medium text-accent hover:underline">Ver todos</Link>
-        </div>
-        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
-          {recent.length === 0 ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">
-              {isLoading ? "Carregando…" : "Nenhum envio ainda. Crie o primeiro em Envios."}
-            </p>
-          ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-black/5 bg-muted/50">
-                <tr>
-                  <th className="px-6 py-3 font-medium text-muted-foreground">Avaliado</th>
-                  <th className="px-6 py-3 font-medium text-muted-foreground">Teste</th>
-                  <th className="px-6 py-3 font-medium text-muted-foreground">Status</th>
-                  <th className="px-6 py-3 font-medium text-muted-foreground">Data</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/5">
-                {recent.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-6 py-4 font-medium">{s.nome}</td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {s.teste}
-                      {s.emBateria && (
-                        <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                          bateria
+            {/* Quais inventários estão de fato sendo usados. */}
+            <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+              <h2 className="text-sm font-medium tracking-tight">Inventários aplicados</h2>
+              <p className="text-xs text-muted-foreground">Respondidos e pendentes por teste</p>
+              {byInstrument.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  {isLoading ? "Carregando…" : "Nenhum teste enviado ainda."}
+                </p>
+              ) : (
+                <div className="mt-5 space-y-3">
+                  {byInstrument.map((inst) => (
+                    <div key={inst.name}>
+                      <div className="flex items-baseline justify-between text-sm">
+                        <span className="font-medium">{inst.name}</span>
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {inst.respondidos} respondido{inst.respondidos === 1 ? "" : "s"}
+                          {inst.pendentes > 0 && ` · ${inst.pendentes} pendente${inst.pendentes === 1 ? "" : "s"}`}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4"><StatusBadge status={s.concluido ? "concluido" : "pendente"} /></td>
-                    <td className="px-6 py-4 text-muted-foreground">{new Date(s.quando).toLocaleDateString("pt-BR")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </section>
+                      </div>
+                      <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-muted">
+                        <div className="bg-primary" style={{ width: `${(inst.respondidos / instrPico) * 100}%` }} />
+                        <div className="bg-amber-400/70" style={{ width: `${(inst.pendentes / instrPico) * 100}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-medium tracking-tight">Disparo rápido</h2>
+                <p className="text-xs text-muted-foreground">Crie um novo envio para um avaliado.</p>
+              </div>
+              <Link to="/envios/novo" search={{ personId: undefined, groupId: undefined }} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
+                Novo envio
+              </Link>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-medium tracking-tight">Atividade recente</h2>
+              <Link to="/envios" className="text-xs font-medium text-accent hover:underline">Ver todos</Link>
+            </div>
+            <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
+              {recent.length === 0 ? (
+                <p className="p-8 text-center text-sm text-muted-foreground">
+                  {isLoading ? "Carregando…" : "Nenhum envio ainda. Crie o primeiro em Envios."}
+                </p>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-black/5 bg-muted/50">
+                    <tr>
+                      <th className="px-6 py-3 font-medium text-muted-foreground">Avaliado</th>
+                      <th className="px-6 py-3 font-medium text-muted-foreground">Teste</th>
+                      <th className="px-6 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="px-6 py-3 font-medium text-muted-foreground">Data</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-black/5">
+                    {recent.map((s) => (
+                      <tr key={s.id}>
+                        <td className="px-6 py-4 font-medium">{s.nome}</td>
+                        <td className="px-6 py-4 text-muted-foreground">
+                          {s.teste}
+                          {s.emBateria && (
+                            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                              bateria
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4"><StatusBadge status={s.concluido ? "concluido" : "pendente"} /></td>
+                        <td className="px-6 py-4 text-muted-foreground">{new Date(s.quando).toLocaleDateString("pt-BR")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+      <Panorama souDono={souDono} minhasPermissoes={minhasPermissoes} />
     </div>
+  );
+}
+
+function horaBr(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+/** "8 de 10 (80%)" — número que precisa de contexto vem com o contexto, nunca sozinho. */
+function fracaoComPct(presentes: number, total: number): string {
+  if (total === 0) return "sem registro";
+  const pct = Math.round((presentes / total) * 100);
+  return `${presentes} de ${total} (${pct}%)`;
+}
+
+/**
+ * Classroom no Dashboard — só o dono, mesma regra de app-sidebar.tsx
+ * (`soDono: true`): Classroom é "menu do master", independente de qualquer
+ * permissão de colaborador, `educacao` incluída (essa é de Academy).
+ */
+function CardClassroom({ souDono }: { souDono: boolean }) {
+  const fn = useServerFn(getResumoClassroom);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["resumo-classroom"], queryFn: () => fn(), enabled: souDono,
+  });
+  if (!souDono || isError) return null;
+
+  return (
+    <section className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+      <div className="flex items-center gap-2">
+        <Presentation className="size-4 text-muted-foreground" />
+        <h2 className="text-sm font-medium tracking-tight">Classroom</h2>
+      </div>
+      {isLoading ? (
+        <p className="mt-3 text-sm text-muted-foreground">Carregando…</p>
+      ) : (
+        <ul className="mt-3 space-y-1.5 text-sm">
+          <li>
+            {data?.proxima
+              ? <>Próxima aula: <strong>{data.proxima.titulo}</strong>, {horaBr(data.proxima.comeca_em!)}.</>
+              : <span className="text-muted-foreground">Nenhuma aula marcada.</span>}
+          </li>
+          <li className="text-muted-foreground">
+            Presença da última aula fechada: {data?.presencaUltima
+              ? fracaoComPct(data.presencaUltima.presentes, data.presencaUltima.total)
+              : "nenhuma aula com lista fechada ainda"}.
+          </li>
+          <li className="text-muted-foreground">
+            Frequência do mês: {data?.frequenciaMes
+              ? fracaoComPct(data.frequenciaMes.presentes, data.frequenciaMes.total)
+              : "sem aula fechada este mês"}.
+          </li>
+        </ul>
+      )}
+      <Link to="/classroom" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline">
+        Abrir Classroom <ArrowRight className="size-3" />
+      </Link>
+    </section>
+  );
+}
+
+/**
+ * O bloco de engajamento (#220): quem está sumindo, antes de virar perda.
+ * Só o dono — a lista cruza dado de toda área da plataforma.
+ */
+function BlocoEngajamento({ souDono }: { souDono: boolean }) {
+  const fn = useServerFn(getResumoEngajamento);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["resumo-engajamento"], queryFn: () => fn(), enabled: souDono,
+  });
+  if (!souDono || isError) return null;
+
+  return (
+    <section className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+      <div className="flex items-center gap-2">
+        <UserX className="size-4 text-muted-foreground" />
+        <h2 className="text-sm font-medium tracking-tight">Quem está sumindo</h2>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Sem nenhuma atividade — login, teste, aula, trilha ou mentoria — há mais de 14 dias.
+        Com poucos alunos na base, este bloco tende a apontar quase todos ou ninguém.
+      </p>
+
+      {isLoading ? (
+        <p className="mt-3 text-sm text-muted-foreground">Carregando…</p>
+      ) : !data || data.pessoas.length === 0 ? (
+        <p className="mt-4 py-4 text-center text-sm text-muted-foreground">
+          Ninguém se encaixa hoje — ou porque todo mundo está ativo, ou porque ainda não há dado suficiente.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-1.5">
+          {data.pessoas.map((p) => (
+            <li key={p.person_id} className="flex items-center justify-between gap-3 text-sm">
+              <Link to="/pessoas/$id" params={{ id: p.person_id }} className="truncate hover:underline">
+                {p.nome}
+              </Link>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {p.diasSemAtividade === null ? "sem nenhum registro de atividade" : `sumida há ${p.diasSemAtividade} dias`}
+                {p.temTestePendente && " · teste pendente"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -202,22 +328,32 @@ function Dashboard() {
  * Um indicador de cada menu, e o ranking geral.
  *
  * Duas partes, de propósito. Em cima, FRASES: o Matheus abre o Dashboard para
- * saber o que fazer hoje, e "3 mentorias agendadas pela frente" diz isso — o
- * número 3 sozinho, não. Embaixo, os cartões, para quem quer o número
- * e o caminho para o menu.
+ * saber o que fazer hoje, e "3 grupos vazios" diz isso — o número sozinho,
+ * não. Embaixo, os cartões, para quem quer o número e o caminho para o menu.
  *
  * As frases são ordenadas por urgência e só aparecem quando têm o que dizer.
  * Painel que repete "0" em tudo ensina a pessoa a ignorar o painel.
+ *
+ * Academy e Comunidade vêm de funções PRÓPRIAS (getResumoAcademy/
+ * getResumoComunidade), cada uma com sua checagem de permissão — sem a
+ * permissão, a consulta falha e o card correspondente nem aparece. Mentorias
+ * não existe mais aqui: virou a #270, que depende da #229.
  */
-function Panorama() {
+function Panorama({ souDono, minhasPermissoes }: { souDono: boolean; minhasPermissoes: string[] }) {
   const fn = useServerFn(getPanoramaGeral);
   const { data, isLoading } = useQuery({ queryKey: ["panorama"], queryFn: () => fn() });
-  const membershipFn = useServerFn(getMyMembership);
-  const { data: membership } = useQuery({
-    queryKey: ["my-membership"], queryFn: () => membershipFn(), staleTime: 300_000,
+
+  const podeAcademy = souDono || minhasPermissoes.includes("educacao");
+  const podeComunidade = souDono || minhasPermissoes.includes("grupos");
+
+  const academyFn = useServerFn(getResumoAcademy);
+  const { data: academy, isError: academyErro } = useQuery({
+    queryKey: ["resumo-academy"], queryFn: () => academyFn(), enabled: podeAcademy,
   });
-  const souDono = (membership?.kind ?? "owner") === "owner";
-  const minhasPermissoes = membership?.permissions ?? [];
+  const comunidadeFn = useServerFn(getResumoComunidade);
+  const { data: comunidade, isError: comunidadeErro } = useQuery({
+    queryKey: ["resumo-comunidade"], queryFn: () => comunidadeFn(), enabled: podeComunidade,
+  });
 
   if (isLoading || !data) {
     return (
@@ -227,7 +363,7 @@ function Panorama() {
     );
   }
 
-  const { pessoas, grupos, equipe, mentorias, educacao, comunidade, ranking } = data;
+  const { pessoas, grupos, equipe, ranking } = data;
 
   const plural = (n: number, um: string, muitos: string) => `${n} ${n === 1 ? um : muitos}`;
 
@@ -254,52 +390,26 @@ function Panorama() {
       texto: "Ninguém criou login ainda — sem isso não há painel do aluno, comunidade nem pontos.",
     });
   }
-  if (mentorias.agendadas > 0) {
-    recados.push({
-      tom: "neutro",
-      texto: `${plural(mentorias.agendadas, "mentoria agendada", "mentorias agendadas")} pela frente.`,
-    });
-  }
-  if (comunidade.posts7 > 0 || comunidade.comentarios7 > 0) {
-    recados.push({
-      tom: "neutro",
-      texto: `A comunidade teve ${plural(comunidade.posts7, "publicação", "publicações")} e ${plural(
-        comunidade.comentarios7, "comentário", "comentários",
-      )} nos últimos 7 dias.`,
-    });
-  } else if (comunidade.posts > 0) {
-    recados.push({ tom: "neutro", texto: "A comunidade está parada há mais de uma semana." });
-  }
-  if (educacao.alunosEstudando > 0) {
-    recados.push({
-      tom: "neutro",
-      texto: `${plural(educacao.alunosEstudando, "aluno está", "alunos estão")} estudando, com ${plural(
-        educacao.conclusoes, "aula concluída", "aulas concluídas",
-      )}.`,
-    });
-  }
 
-  // Mesma regra do menu lateral (app-sidebar.tsx): cada cartão só aparece se
-  // a permissão correspondente existir. Sem isso, um colaborador só de Envios
-  // via aqui um atalho clicável para telas que ele não deveria nem saber que
-  // existem — o cartão de "Pessoas" já seria, sozinho, o convite a testar.
+  // Mesma regra do menu lateral (app-sidebar.tsx): cada cartão só aparece se a
+  // permissão correspondente existir E a consulta daquela área tiver
+  // respondido com sucesso — um colaborador sem a permissão nunca chega a ter
+  // o dado para mostrar, então o card nem entra na lista.
   const cartoesTodos = [
-    { to: "/grupos" as const, icone: FolderKanban, rotulo: "Grupos", perm: "grupos" as const,
+    { to: "/grupos" as const, icone: FolderKanban, rotulo: "Grupos", ok: souDono || minhasPermissoes.includes("grupos"),
       n: grupos.total, det: `${grupos.pessoasEmGrupo} em grupo` },
-    { to: "/pessoas" as const, icone: Users, rotulo: "Pessoas", perm: "pessoas" as const,
+    { to: "/pessoas" as const, icone: Users, rotulo: "Pessoas", ok: souDono || minhasPermissoes.includes("pessoas"),
       n: pessoas.total, det: `${pessoas.comLogin} com login` },
-    { to: "/colaboradores" as const, icone: UsersRound, rotulo: "Equipe", perm: null,
+    { to: "/colaboradores" as const, icone: UsersRound, rotulo: "Equipe", ok: souDono,
       n: equipe.ativos, det: `${equipe.mentores} mentor${equipe.mentores === 1 ? "" : "es"}` },
-    { to: "/mentorias" as const, icone: MessagesSquare, rotulo: "Mentorias", perm: "mentorias" as const,
-      n: mentorias.agendadas, det: `${mentorias.realizadas} já feitas` },
-    { to: "/educacao" as const, icone: BookOpen, rotulo: "Academy", perm: "educacao" as const,
-      n: educacao.aulas, det: `${educacao.trilhas} trilha${educacao.trilhas === 1 ? "" : "s"}` },
-    { to: "/comunidades" as const, icone: MessagesSquare, rotulo: "Comunidade", perm: "grupos" as const,
-      n: comunidade.posts, det: `${comunidade.comentarios} comentário${comunidade.comentarios === 1 ? "" : "s"}` },
+    { to: "/educacao" as const, icone: BookOpen, rotulo: "Academy", ok: podeAcademy && !academyErro && !!academy,
+      n: academy?.pessoasEmTrilha ?? 0,
+      det: academy ? `${plural(academy.conclusoesNoMes, "conclusão", "conclusões")} no mês` : "" },
+    { to: "/comunidades" as const, icone: MessagesSquare, rotulo: "Comunidade", ok: podeComunidade && !comunidadeErro && !!comunidade,
+      n: comunidade?.postsNaSemana ?? 0,
+      det: comunidade ? `${plural(comunidade.participantes, "participante", "participantes")} na semana` : "" },
   ];
-  const cartoes = cartoesTodos.filter(
-    (c) => souDono || (c.perm === null ? false : minhasPermissoes.includes(c.perm)),
-  );
+  const cartoes = cartoesTodos.filter((c) => c.ok);
 
   return (
     <>
@@ -321,23 +431,27 @@ function Panorama() {
         </section>
       )}
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        {cartoes.map((c) => (
-          <Link
-            key={c.rotulo}
-            to={c.to}
-            className="group rounded-xl bg-card p-4 ring-1 ring-black/5 transition hover:ring-black/15"
-          >
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <c.icone className="size-4" />
-              <span className="text-xs font-medium">{c.rotulo}</span>
-              <ArrowRight className="ml-auto size-3.5 opacity-0 transition group-hover:opacity-60" />
-            </div>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{c.n}</p>
-            <p className="text-xs text-muted-foreground">{c.det}</p>
-          </Link>
-        ))}
-      </section>
+      <CardClassroom souDono={souDono} />
+
+      {cartoes.length > 0 && (
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          {cartoes.map((c) => (
+            <Link
+              key={c.rotulo}
+              to={c.to}
+              className="group rounded-xl bg-card p-4 ring-1 ring-black/5 transition hover:ring-black/15"
+            >
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <c.icone className="size-4" />
+                <span className="text-xs font-medium">{c.rotulo}</span>
+                <ArrowRight className="ml-auto size-3.5 opacity-0 transition group-hover:opacity-60" />
+              </div>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">{c.n}</p>
+              <p className="text-xs text-muted-foreground">{c.det}</p>
+            </Link>
+          ))}
+        </section>
+      )}
 
       <section className="rounded-xl bg-card p-5 ring-1 ring-black/5">
         <div className="flex items-center gap-2">
@@ -375,6 +489,8 @@ function Panorama() {
           </ol>
         )}
       </section>
+
+      <BlocoEngajamento souDono={souDono} />
     </>
   );
 }
