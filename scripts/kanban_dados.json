@@ -178,7 +178,8 @@
    "depende_de": "Matheus",
    "origem": "estado-atual-e-fila.md § Classroom, bullet final",
    "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ⚠️ A prova cita um commit que NÃO TOCA no Classroom — a própria mensagem do commit lista as áreas cobertas, e Classroom não está entre elas. O papel de colaborador no Classroom continua sem prova real.",
-   "prioridade": 18
+   "prioridade": 18,
+   "fase": "Fila de erros — voltar depois"
   },
   {
    "titulo": "Abas de Testes nunca conferidas com login de colaborador de permissão única",
@@ -1178,7 +1179,8 @@
    "depende_de": "Claude",
    "origem": "estado-atual-e-fila.md, aviso após a lista do ranking",
    "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ⚠️ A alegação de teste com aluno logado não se sustenta: zero dado de aluno em cinco tabelas diferentes, e a memória do projeto escrita no mesmo dia admite por escrito que 'o caso do aluno não pude exercitar'. O CÓDIGO do conserto está correto — o que não bate é a afirmação de que foi provado.",
-   "prioridade": 118
+   "prioridade": 118,
+   "fase": "Fila de erros — voltar depois"
   },
   {
    "titulo": "Cadeado da Academy: trilha liberada por pessoa e grupo",
@@ -1198,7 +1200,8 @@
    "depende_de": "Claude",
    "origem": "docs/plano-area-do-aluno.md § 4 e Tabela de pontos · fila-area-do-aluno.md tabela linha 20 · git log 5cd972d",
    "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ⚠️ Mesma raiz da #118: a alegação de teste real com aluno não se sustenta. O código está certo; a prova, não.",
-   "prioridade": 120
+   "prioridade": 120,
+   "fase": "Fila de erros — voltar depois"
   },
   {
    "titulo": "Três defeitos do ranking corrigidos",
@@ -1208,7 +1211,8 @@
    "depende_de": "Claude",
    "origem": "estado-atual-e-fila.md lista numerada 1-3",
    "prova": "Varredura completa do Claude Code, 03/08 (11 áreas, 237 demandas), cruzada com a varredura independente do chat. ⚠️ Mesma raiz da #118: a alegação de teste real com aluno não se sustenta. O código está certo; a prova, não.",
-   "prioridade": 121
+   "prioridade": 121,
+   "fase": "Fila de erros — voltar depois"
   },
   {
    "titulo": "Área do aluno com login do avaliado",
@@ -2514,11 +2518,11 @@
    "titulo": "Página de agendamento do aluno: calendário no lugar da lista de dias",
    "descricao": "Hoje a página /agendar/$slug lista TODOS os dias da janela como pastilhas empilhadas — com antecedência de 60 dias são mais de 40 botões antes de o aluno chegar aos horários. Trocar por um seletor de calendário no formato do Google Agenda: calendário mensal com os dias sem disponibilidade apagados, faixa de dias navegável, horários ao lado, fuso declarado e atalho para a próxima data livre. Só layout — o servidor já devolve todos os dias e horários.",
    "area": "Agenda",
-   "status": "Planejado",
+   "status": "Concluído",
    "depende_de": null,
    "prioridade": 252,
    "origem": "Matheus, 05/08 — criou o primeiro link real e viu a tela",
-   "prova": null
+   "prova": "Lista de até 42 pastilhas virou calendário mensal (D S T Q Q S S) + faixa de 7 dias + horários, no padrão Google Agenda/Calendly. Testado local: navegação de mês travada corretamente entre o mês atual e o último com disponibilidade (subiu até outubro/2026 e voltou até agosto/2026, sem passar dos limites); dia sem disponibilidade não clica no calendário mensal; clicar num dia sem horário na faixa mostra 'Sem disponibilidade nesses dias' com o atalho 'Pular para a próxima data disponível', que leva ao dia certo; mobile (375px) mostra calendário + horários em 2 colunas, faixa semanal escondida, sem scroll lateral. Publicado (commit f4e0152) e reprovado em produção com o link real do Matheus (teste-mentoria): calendário no ar, e uma sessão real foi agendada de ponta a ponta pela interface nova (05/08 20:00, com Fulado de Tal) e apareceu certinho na tela de Mentorias e no Google Agenda dele — prova de que o fluxo antigo não regrediu. Sessão de teste e evento no Google apagados depois de confirmado."
   },
   {
    "titulo": "BUG BLOQUEANTE: não é possível criar grupo (RLS barra o RETURNING do INSERT)",
@@ -2528,7 +2532,8 @@
    "depende_de": null,
    "prioridade": 253,
    "origem": "Matheus, 05/08 — tentou criar um grupo",
-   "prova": null
+   "prova": null,
+   "fase": "Fila de erros — voltar depois"
   }
  ],
  "planilha": {

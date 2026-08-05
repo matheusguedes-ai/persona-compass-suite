@@ -245,6 +245,54 @@ construção). Fazer ao vivo, com um design real na mão, não teorizar antes.
 
 ---
 
+## Fila de erros — voltar depois
+
+Criada em 05/08 a pedido do Matheus, quando a criação de grupos apareceu
+quebrada no meio da Fase 2.
+
+**O que é:** o lugar onde bug encontrado fora de hora espera a vez. Não é
+"Fase 7" — não tem posição na fila e não vem depois da 6. É uma gaveta paralela,
+esvaziada quando ele disser.
+
+**Por que existe:** bug que aparece no meio de uma fase tem um poder que demanda
+planejada não tem — ele parece urgente. Parar tudo para consertá-lo é como as
+fases se dissolvem, e a regra 3 existe justamente para impedir isso. Registrar
+na hora e seguir preserva as duas coisas: o foco de agora e a memória do defeito.
+
+**A regra de saída:** um item só sai da gaveta quando o Matheus disser. O chat
+não puxa item daqui por conta própria, nem transforma em prompt sem pedido.
+
+**A exceção, única:** bug que impede alguém de **usar** a plataforma — login
+quebrado, teste que não abre, dado de um cliente exposto — não entra na gaveta.
+Esse para tudo. A régua é se a plataforma continua servindo a quem já depende
+dela; não é o tamanho do incômodo.
+
+**O que já está lá:**
+
+- `#253` — não é possível criar grupo. A regra de leitura barra o retorno do
+  INSERT. Não impede ninguém de usar o que existe, porque nenhum grupo existe.
+  Cabe na gaveta.
+- `#18` — Classroom nunca exercitado com login de colaborador.
+- `#118` · `#120` · `#121` — ranking e pontuação do grupo, as três dadas como
+  provadas com aluno logado quando o teste nunca aconteceu (auditoria de 03/08).
+
+As três últimas dependem de grupo existir, então estavam travadas pela `#253` de
+qualquer jeito. Ficam juntas por isso, não por acaso: **o conserto da `#253` é o
+que destrava as três**, e faz sentido esvaziar a gaveta de uma vez.
+
+Repare no que elas têm em comum com a `#253` — todas nasceram de entrega dada
+como pronta sem alguém exercitar de verdade. É o mesmo defeito de processo, e é
+por isso que a gaveta tem valor: junta os casos e deixa o padrão visível.
+
+**Ressalva honesta:** grupo é pré-requisito de comunidade, ranking, presença do
+Classroom e envio em lote. Enquanto `#253` estiver aberta, qualquer demanda
+dessas quatro áreas não tem como ser provada de verdade — ela vai ser dada como
+pronta com teste de código, que é exatamente o que a auditoria de 03/08 mostrou
+não valer nada. Isso não muda a decisão de adiar; muda o que se pode chamar de
+concluído até lá.
+
+---
+
 ## O caminho, em uma linha
 
 ```
