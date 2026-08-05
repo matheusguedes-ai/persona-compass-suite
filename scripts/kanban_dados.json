@@ -2627,6 +2627,27 @@
    "prioridade": 262,
    "origem": "Matheus, 05/08",
    "prova": null
+  },
+  {
+   "titulo": "Erro de validação aparece como código bruto em toda a plataforma",
+   "descricao": "Quando um campo com validação Zod recusa o valor (ex.: link mal formado em 'Link da chamada'), a mensagem chega à tela em formato de código, não em português legível. Não é de um campo: repete em qualquer formulário da plataforma que use o mesmo caminho de erro. Achado pelo Code durante a #259, fora do escopo. Ele avisou que anotaria no Notion — não anotou; quem registrou foi o chat, na conferência (quarta vez que isso acontece). O conserto é um tradutor de erro no ponto onde a mensagem vira toast, não campo a campo — senão vira 40 consertos iguais.",
+   "area": "Plataforma",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 263,
+   "origem": "Claude Code, 05/08 — achado de passagem na #259",
+   "prova": null,
+   "fase": "Fila de erros — voltar depois"
+  },
+  {
+   "titulo": "URGENTE: o dono pode se convidar como mentor e derruba a própria conta",
+   "descricao": "Em 05/08 às 12:16 nasceu uma linha em team_members com owner_id = user_id = o Matheus e kind='mentor' — ele se convidou como mentor convidado da própria conta, pela tela de Colaboradores (a pessoa 'Fulado de Tal' é o e-mail principal dele). Ao entrar, claim_team_membership associou o user_id, member_kind() passou a devolver 'mentor', e TODAS as policies com 'AND member_kind() <> mentor' passaram a barrá-lo: perdeu criar, editar e apagar em quase tudo, e visible_group_ids() devolveu só os grupos atribuídos a ele (nenhum). CONSERTO EMERGENCIAL DO CHAT: a linha foi posta em status 'inativo' (não apagada), e member_kind() voltou a 'owner' — confirmado por simulação SQL. Mas a tela continua permitindo refazer, e reativar a linha quebra tudo de novo. PRECISA DE DUAS DEFESAS: (1) a tela recusa convidar alguém cujo user_id é o dono da conta; (2) mais importante, acting_account() e member_kind() IGNORAM linha onde user_id = owner_id — o dono nunca é membro de si mesmo. A segunda vale mais que a primeira: mesmo que a linha exista por qualquer caminho, o sistema não se autodestrói. É o terceiro incidente de permissão em uma semana (30/07 imagens, 31/07 login).",
+   "area": "Equipe / Permissões",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 264,
+   "origem": "Matheus, 05/08 — perdeu o acesso de dono ao entrar",
+   "prova": null
   }
  ],
  "planilha": {
