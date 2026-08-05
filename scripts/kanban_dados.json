@@ -2519,6 +2519,16 @@
    "prioridade": 252,
    "origem": "Matheus, 05/08 — criou o primeiro link real e viu a tela",
    "prova": null
+  },
+  {
+   "titulo": "BUG BLOQUEANTE: não é possível criar grupo (RLS barra o RETURNING do INSERT)",
+   "descricao": "Criar grupo devolve 'new row violates row-level security policy for table groups'. A policy de INSERT está correta e as duas condições dela dão true. O que barra é o RETURNING: `createGroup` faz .insert().select().single(), e o Postgres aplica a policy de SELECT (grupos_read) na linha devolvida. grupos_read chama posso_ver_grupo(id), que é STABLE e lê a PRÓPRIA tabela groups — com o snapshot congelado do início do comando, a linha recém-criada ainda não existe para ela. É o irmão do bug já corrigido em 20260729010000_corrige_policy_autoreferente.sql. Provado nos dois caminhos: pela tela (produção, conta do Matheus) e por INSERT simulado no SQL com role authenticated — sem RETURNING passa, com RETURNING falha.",
+   "area": "Grupos",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 253,
+   "origem": "Matheus, 05/08 — tentou criar um grupo",
+   "prova": null
   }
  ],
  "planilha": {
