@@ -2569,11 +2569,11 @@
    "titulo": "Professor não consegue cancelar nem remarcar sessão pela tela dele",
    "descricao": "Em Mentorias → aluno, a sessão agendada só oferece 'Marcar como concluída'. Não há como cancelar nem remarcar. ACHADO: cancelarSessaoMentoria JÁ EXISTE no servidor, completa e com sincronização do Google (mentorias.functions.ts:278) — falta só o botão. Remarcar não existe em lugar nenhum. As regras de prazo e teto da #254 valem para o ALUNO, não para o professor: ele é o dono da agenda e desmarca a qualquer momento. Ao cancelar, campo de motivo opcional que vai no e-mail ao aluno. Ao remarcar, o professor escolhe qualquer horário livre, sem ficar preso à grade de disponibilidade — a grade existe para conter o aluno, não ele.",
    "area": "Plataforma",
-   "status": "Planejado",
+   "status": "Concluído",
    "depende_de": 254,
    "prioridade": 257,
    "origem": "Matheus, 05/08 — foi usar e não achou o botão",
-   "prova": null
+   "prova": "Entregue pelo Code em 05/08, commit a20e1d0, provado em produção na conta e sessões reais do Matheus. TESTE DECISIVO: sessão a menos de 24h ligada a um link com prazo de 24h — o cancelamento pelo professor passou, confirmando que exigirElegibilidade (regra do aluno) nunca é chamada no caminho do professor. Cancelar com motivo e sem motivo: e-mail sai com/sem a frase do motivo, sessão risca como 'Cancelada por você', evento do Google some, 'faltam agendar' sobe. Remarcar 3 vezes seguidas: remarcacoes ficou em 0 nas 3 vezes (o contador é só do aluno); depois o aluno remarcou pelo próprio link e aí sim remarcacoes subiu para 1, confirmando que os dois caminhos não se misturam. Evento do Google: mesma linha (mesmo id e google_event_id) nas 3 remarcações do professor — moveu, não duplicou. Sessão já concluída: sem os botões. Achado de passagem, não corrigido aqui: agendarSessao rejeita 'Link da chamada' vazio (Zod só libera undefined, não string vazia) — sessão presencial sem link falha ao salvar. Achado de passagem #2: o campo 'Link de agendamento' da #255 grava certo tanto ao criar quanto ao editar o pacote, sem ressalva. Dados de teste apagados; link 'teste-mentoria' voltou ao estado original (permite_remarcar=false)."
   },
   {
    "titulo": "Endurecer pessoaIdsDoAluno: filtrar por auth.uid(), não só por ter login",
