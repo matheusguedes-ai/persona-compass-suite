@@ -2661,7 +2661,7 @@
   },
   {
    "titulo": "Fatia 4c-B: lembrete por e-mail antes da sessao",
-   "descricao": "Aviso por e-mail antes da sessao, para reduzir falta. NAO E RETOQUE - exige agendador que a plataforma nao tem. O aviso de vespera atual (20260730330000) e so do SINO, calculado na leitura, e cobre apenas aula e devolutiva; nao cobre mentoria vinda de link. O proprio comentario da migracao diz: 'Para e-mail seria o certo [usar cron]'. Precisa de pg_cron ou equivalente - peca de infraestrutura nova, com risco proprio. Decidir antes: quantos lembretes (24h? 1h? os dois?) e se o e-mail carrega o local, que depende da 4c-A estar pronta.",
+   "descricao": "Lembrete por e-mail antes da sessao. DECISOES DO MATHEUS (05/08): quantas horas antes e CONFIGURAVEL POR LINK (nao fixo no codigo), e o aviso vai para o ALUNO E PARA O PROFESSOR. NAO E RETOQUE - exige agendador. Conferido no banco: pg_cron, pg_net e http estao DISPONIVEIS no projeto mas NAO INSTALADAS. O aviso de vespera atual (20260730330000) e so do SINO, calculado na leitura, e cobre apenas aula e devolutiva. O e-mail sai pelo Resend, chamado pelo codigo da aplicacao (email.server.ts) - o cron mora no banco, entao precisa de ponte: uma rota nova protegida por segredo que o cron chama. Riscos proprios: e-mail duplicado se a trava falhar (pior que sino duplicado), e rota aberta disparando a fila para qualquer um.",
    "area": "Agenda",
    "status": "Planejado",
    "depende_de": 248,
@@ -2671,7 +2671,7 @@
   },
   {
    "titulo": "Fatia 4c-C: formulario de reserva personalizavel",
-   "descricao": "Perguntas proprias no momento do agendamento ('o que voce quer tratar nesta sessao?'). Adiado por decisao do Matheus em 05/08: com sete alunos, e o unico item da 4c que nao destrava nada - nem o encontro acontecer, nem a falta diminuir. Volta quando houver volume que justifique.",
+   "descricao": "Perguntas proprias no momento do agendamento, definidas por link. TIPOS ESCOLHIDOS PELO MATHEUS (05/08): texto livre, escolha entre opcoes, escala de 1 a 10, sim/nao, caixa de selecao (multipla escolha) e data. Lista FECHADA - outros tipos viram demanda propria, para nao virar construtor de formulario infinito. REAPROVEITAR o que ja existe: test_questions.type ja tem multiple_choice, checkboxes e linear_scale, com config jsonb. Nao inventar um segundo sistema de pergunta na mesma plataforma.",
    "area": "Agenda",
    "status": "Planejado",
    "depende_de": null,
