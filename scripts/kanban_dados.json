@@ -2532,7 +2532,7 @@
    "depende_de": null,
    "prioridade": 253,
    "origem": "Matheus, 05/08 — tentou criar um grupo",
-   "prova": "Corrigido no commit 243e808, só banco (supabase/migrations/20260805040000_corrige_grupos_read_autoreferente.sql), sem código de aplicação. Reproduzido o bug antes (insert sem RETURNING passa, com RETURNING falha) e o depois (os dois passam) via SQL simulado com o JWT do Matheus. Provado em produção com login real: criei 'Turma Teste' pela tela de verdade (assistente de 4 passos, Fulado de Tal + Laila Ferreira, teste DISC liberado) — apareceu na lista e abriu com membros/instrumento certos. TESTE DECISIVO: logado como o colaborador matheusgc321@gmail.com, ele vê a Turma Teste. Confirmado que Gabriela (aluna com login real, fora do grupo) não vê nenhum grupo com o próprio token — RLS barrando quem não deve ver. 'Turma Teste' ficou criada de propósito para as #118/#120/#121. Varredura das outras policies STABLE achou o mesmo padrão autorreferente em biblioteca_materiais, eventos, evento_destinos, treinamentos e treinamento_grupos — testei os 3 caminhos de criar-com-RETURNING que existem hoje e nenhum falhou, diferente de groups; fica registrado como risco preventivo, sem urgência.",
+   "prova": "Corrigido no commit 243e808, só banco (supabase/migrations/20260805040000_corrige_grupos_read_autoreferente.sql), sem código de aplicação. Reproduzido o bug antes (insert sem RETURNING passa, com RETURNING falha) e o depois (os dois passam) via SQL simulado com o JWT do Matheus. Provado em produção com login real: criei 'Turma Teste' pela tela de verdade (assistente de 4 passos, Fulado de Tal + Laila Ferreira, teste DISC liberado) — apareceu na lista e abriu com membros/instrumento certos. TESTE DECISIVO: logado como o colaborador matheusgc321@gmail.com, ele vê a Turma Teste. Confirmado que Gabriela (aluna com login real, fora do grupo) não vê nenhum grupo com o próprio token — RLS barrando quem não deve ver. 'Turma Teste' ficou criada de propósito para as #118/#120/#121. Varredura das outras policies STABLE achou o mesmo padrão autorreferente em biblioteca_materiais, eventos, evento_destinos, treinamentos e treinamento_grupos — testei os 3 caminhos de criar-com-RETURNING que existem hoje e nenhum falhou, diferente de groups; fica registrado como risco preventivo, sem urgência. CONFERÊNCIA DO CHAT: rodei o bloco de prova por conta própria — INSERT com RETURNING, que falhava, agora PASSA (id devolvido). E a policy nova NÃO ficou mais frouxa: um usuário autenticado sem nenhum vínculo com a conta vê 0 grupos. Turma Teste existe com 2 pessoas e 1 instrumento. Migração só de banco, publicada.",
    "fase": "Fila de erros — voltar depois"
   },
   {
@@ -2594,6 +2594,17 @@
    "depende_de": null,
    "prioridade": 259,
    "origem": "Claude Code, 05/08 — achado de passagem na #257",
+   "prova": null,
+   "fase": "Fila de erros — voltar depois"
+  },
+  {
+   "titulo": "Mais 5 tabelas com o mesmo padrão autorreferente da #253",
+   "descricao": "A varredura feita durante a #253 achou a mesma estrutura arriscada — policy de SELECT que chama função STABLE lendo a PRÓPRIA tabela — em biblioteca_materiais, eventos, evento_destinos, treinamentos e treinamento_grupos. O Code testou os três caminhos que hoje rodam esse tipo de operação (criar evento, criar treinamento, enviar material) e nenhum falhou. Ou seja: a bomba existe mas não está armada nessas cinco. O que NÃO foi respondido, e é a pergunta que importa: POR QUE groups falhava e essas não? Sem essa resposta não dá para saber se estão seguras ou apenas sortudas — e a diferença é o dia em que alguém acrescentar um RETURNING numa delas.",
+   "area": "Segurança / RLS",
+   "status": "Planejado",
+   "depende_de": null,
+   "prioridade": 260,
+   "origem": "Claude Code, 05/08 — varredura pedida na #253",
    "prova": null,
    "fase": "Fila de erros — voltar depois"
   }
