@@ -2138,10 +2138,10 @@
       "titulo": "Auditar o dono do dado em tudo que ja existe",
       "descricao": "Mapear as tabelas ja construidas e identificar onde falta o campo de proprietario. Cirurgia planejada, um pedaco por vez, sem parar o resto. Nao e urgente enquanto so o Matheus usa (nao ha segundo cliente, logo nao ha risco de vazamento entre clientes) — e preparacao para virar SaaS.",
       "area": "Infra",
-      "status": "Planejado",
+      "status": "Concluído",
       "depende_de": "Claude",
       "origem": "Lembretes do iPhone, 30/07 21:54 (chat C1)",
-      "prova": "Fase 6 do docs/roadmap-fases.md. A regra para dados NOVOS ja esta gravada na Constituicao do CLAUDE.md; esta demanda e so o passivo do que ja existe.",
+      "prova": "Fechado em a45fc79 (ponto de retorno em bae568e). Só leitura de estrutura — list_tables do Supabase (colunas + chaves estrangeiras), nenhuma linha lida, nenhuma tabela/coluna/política alterada no banco. As 60 tabelas de public foram classificadas: 29 têm dono direto (mentor_id/owner_id/conta_id, ou a própria chave primária nos casos de profiles/google_conexoes); 30 herdam o dono por relacionamento — 8 por um salto só, 18 por uma cadeia mais longa (a maior, option_scores, 3 saltos até test_versions.mentor_id); 1 (instruments) é catálogo global sem dono por desenho, junto com test_versions.mentor_id e report_content.version_id quando nulos (conteúdo compartilhado de propósito). Nenhuma tabela ficou sem caminho nenhum (0 ❌). ACHADO QUE MERECE ATENÇÃO: o cluster de Comunidade (community_posts e as 3 que herdam dela) tem caminho FRÁGIL — author_id aponta para auth.users, não para a conta, e resolver a conta de verdade exige escolher entre dois caminhos (team_members ou people) que nenhum JOIN único resolve; é o único ponto das 60 tabelas com risco real de um mentor ver dado de outro. Recomendação registrada: acrescentar owner_id/conta_id direto em community_posts, mesmo padrão já usado em eventos/notificacoes. ACHADO SECUNDÁRIO: 9 colunas de dono existem mas sem FOREIGN KEY aplicada (academy_banners, assessment_responses, biblioteca_materiais, biblioteca_pastas, eventos, export_logs, invite_links, notificacoes, treinamentos) — não vaza nada hoje, mas um valor errado não seria pego pelo banco. Nada disso foi corrigido agora — fica registrado em docs/auditoria-dono-do-dado.md para virar demanda própria, uma de cada vez, quando for a hora.",
       "prioridade": 214
     },
     {
