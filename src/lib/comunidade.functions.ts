@@ -181,6 +181,11 @@ export const publicarPost = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
 
+    // Resolvida antes do INSERT porque agora também é o dono do post
+    // (conta_id) — além de continuar servindo pontuação e notificação, como
+    // já fazia. Mesma função, mesmo resultado; só passa a valer mais cedo.
+    const conta = await contaDaPessoa(supabase, context.userId);
+
     // O id vem daqui, e o INSERT não pede a linha de volta.
     //
     // Com `.select()`, o PostgREST relê a linha recém-criada, e essa releitura
@@ -198,6 +203,10 @@ export const publicarPost = createServerFn({ method: "POST" })
       file_url: data.file_url ?? null,
       file_kind: data.file_kind ?? null,
       link_url: data.link_url ?? null,
+      // Sem conta resolvida (não deveria acontecer — acting_account() sempre
+      // cai no próprio usuário), omite e deixa o valor-padrão do banco
+      // preencher sozinho.
+      ...(conta ? { conta_id: conta } : {}),
     });
     if (error) throw new Error(error.message);
 
@@ -210,7 +219,6 @@ export const publicarPost = createServerFn({ method: "POST" })
       await supabase.from("community_posts").delete().eq("id", postId);
       throw new Error("Não consegui publicar nestes grupos.");
     }
-    const conta = await contaDaPessoa(supabase, context.userId);
     if (conta) {
       await darPonto(supabase, context.userId, conta, "publicar", postId);
       const autor = await meuNome(supabase, context.userId);
