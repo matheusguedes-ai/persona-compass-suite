@@ -2708,6 +2708,16 @@
       "prioridade": 270,
       "origem": "Fatiado da #237 em 05/08",
       "prova": null
+    },
+    {
+      "titulo": "Dono direto na Comunidade (community_posts.conta_id)",
+      "descricao": "Achado da auditoria #214, Prioridade 1: community_posts sabia quem escreveu (author_id) mas não a qual conta o post pertence — dois caminhos possíveis até a conta (colaborador via team_members, aluno via people) que nenhum JOIN único resolvia. Acrescenta conta_id, preenchida automaticamente na criação. community_comments/reactions/post_groups continuam herdando por post_id, sem coluna própria. RLS não tocada nesta demanda.",
+      "area": "Infra",
+      "status": "Concluído",
+      "depende_de": "Claude",
+      "prioridade": 271,
+      "origem": "Achado da auditoria #214 (docs/auditoria-dono-do-dado.md)",
+      "prova": "Fechado em f06f76e (ponto de retorno em 2ae3089). Migração 20260812160000_comunidade_dono_do_post.sql: coluna conta_id (uuid, NOT NULL, sem FK — mesmo padrão de eventos.conta_id/notificacoes.conta_id), função conta_do_autor(uuid) espelhando a lógica de contaDaPessoa() (people.mentor_id primeiro, senão acting_account()), backfill dos posts existentes (0 na hora) e DEFAULT conta_do_autor(auth.uid()) na coluna, para o código antigo (que não menciona a coluna) não quebrar na janela entre aplicar o banco e publicar o código novo. publicarPost em comunidade.functions.ts preenche conta_id reaproveitando a MESMA chamada a contaDaPessoa() que já existia (só antecipada para antes do INSERT). TESTE QUE DECIDE, local e em produção: post do dono (author_id=conta_id=b676892d) e post da aluna Gabriela Inácio Botelho (author_id=7af1180b da Gabriela, conta_id=b676892d do MENTOR) — prova que o caso ambíguo da auditoria está resolvido pelo caminho certo. RLS não tocada (cp_insert só checa author_id=auth.uid()). Tela da Comunidade sem nenhuma mudança visível, local e em produção. Limpeza com prova: 4 posts de teste apagados (locais 4ed60465.../37837626..., produção 46799b4e.../7b09e490...), 0 restantes."
     }
   ],
   "planilha": {
