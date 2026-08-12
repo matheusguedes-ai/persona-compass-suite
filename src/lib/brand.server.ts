@@ -12,6 +12,16 @@ async function getAdmin() {
   return supabaseAdmin;
 }
 
+/**
+ * O host que o navegador pediu, para resolveContaPorHost/loadPublicLoginBrand
+ * (#261). Prefere `x-forwarded-host` — é o que o proxy (Cloudflare, na
+ * hospedagem do Lovable) preenche com o host ORIGINAL quando repassa o
+ * pedido; o header `host` cru pode virar o do proxy no meio do caminho.
+ */
+export function hostDaRequisicao(request: Request): string {
+  return request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+}
+
 export type PublicBrand = {
   company_name: string | null;
   logo_url: string | null;
@@ -81,34 +91,106 @@ export async function loadBrandAndSettings(
 }
 
 /**
- * Resolve "a conta" para pedidos SEM SESSÃO — o manifest.json e os ícones do
- * app (#235) são buscados pelo navegador/celular às vezes sem cookie nenhum,
- * na hora de instalar, então não há `userId` para saber de quem é a marca.
+ * Resolve o OWNER pelo HOST da requisição (#261) — substitui a antiga
+ * `resolveContaUnica`, que só funcionava com um cliente só na plataforma (o
+ * próprio comentário dela já avisava: "antes de vender para o segundo
+ * cliente, troque por resolução real").
  *
- * ⚠️ Funciona HOJE só porque existe UM único cliente na plataforma: pega
- * sempre o `profiles` mais antigo (`created_at` menor), configurado ou não —
- * não depende de qual campo está preenchido, então não muda de dono se um dia
- * outra conta configurar a marca dela primeiro.
- *
- * QUANDO HOUVER O SEGUNDO CLIENTE, isto passa a devolver a marca ERRADA para
- * metade das contas — não há, hoje, nenhuma informação na requisição (domínio
- * próprio, subdomínio, path com id) que diga qual conta o navegador quer.
- * Antes de vender a plataforma para o segundo cliente, troque esta função por
- * resolução real (subdomínio por conta, domínio próprio, ou id explícito na
- * própria URL do manifest/ícone).
+ * `dominios_conta` nasce com uma linha (o domínio de produção → o Matheus,
+ * `padrao=true`). Host que não bate com nenhuma linha — preview do Lovable,
+ * `localhost` em desenvolvimento, domínio novo ainda sem cadastro — cai na
+ * linha `padrao`. Sem esse fallback, a tela de login (e o manifest/ícone do
+ * app, que reaproveitam isto) ficaria sem marca nenhuma no dia em que o
+ * Lovable mudar a URL de preview.
  */
-export async function resolveContaUnica(): Promise<{
+async function resolverOwnerPorHost(host: string): Promise<string | null> {
+  const supabase = await getAdmin();
+  const limpo = host.split(":")[0]?.trim().toLowerCase();
+
+  if (limpo) {
+    const { data } = await supabase
+      .from("dominios_conta")
+      .select("owner_id")
+      .eq("dominio", limpo)
+      .maybeSingle();
+    if (data?.owner_id) return data.owner_id;
+  }
+
+  const { data: padrao } = await supabase
+    .from("dominios_conta")
+    .select("owner_id")
+    .eq("padrao", true)
+    .maybeSingle();
+  return padrao?.owner_id ?? null;
+}
+
+/**
+ * A conta (ícone + nome + cor) para pedidos SEM SESSÃO — usada pelo manifest
+ * e pelos ícones do app (#235), que o navegador/celular busca às vezes sem
+ * cookie nenhum, na hora de instalar.
+ */
+export async function resolveContaPorHost(host: string): Promise<{
   user_id: string;
   icon_url: string | null;
   company_name: string | null;
   brand_color: string | null;
 } | null> {
+  const ownerId = await resolverOwnerPorHost(host);
+  if (!ownerId) return null;
   const supabase = await getAdmin();
   const { data } = await supabase
     .from("profiles")
     .select("user_id, icon_url, company_name, brand_color")
-    .order("created_at", { ascending: true })
-    .limit(1)
+    .eq("user_id", ownerId)
     .maybeSingle();
   return data ?? null;
+}
+
+export type PublicLoginBrand = {
+  company_name: string | null;
+  logo_url: string | null;
+  brand_color: string | null;
+  brand_accent_color: string | null;
+  login_imagem_url: string | null;
+  login_frase: string | null;
+  login_rodape: string | null;
+};
+
+/**
+ * A marca da tela de login e das demais telas sem sessão (#261) — pedido
+ * PÚBLICO, sem autenticação nenhuma, então lista FECHADA de campos.
+ *
+ * ⚠️ `profiles` guarda `company_cnpj`, `support_email`, `email_from`,
+ * `site_url`, `report_hidden_blocks`. Nunca `select("*")` aqui: um endpoint
+ * aberto que devolvesse a linha inteira entregaria o CNPJ e os e-mails
+ * internos para qualquer um que abrisse a tela de login. Ver
+ * docs/plano-marca-publica.md.
+ */
+export async function loadPublicLoginBrand(host: string): Promise<PublicLoginBrand | null> {
+  const ownerId = await resolverOwnerPorHost(host);
+  if (!ownerId) return null;
+
+  const supabase = await getAdmin();
+  const { data } = await supabase
+    .from("profiles")
+    .select("company_name, logo_url, brand_color, brand_accent_color, login_imagem_url, login_frase, login_rodape")
+    .eq("user_id", ownerId)
+    .maybeSingle();
+  if (!data) return null;
+
+  const { assinarUrl, TTL_MARCA_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+  const [logo, imagemLateral] = await Promise.all([
+    assinarUrl(supabase, data.logo_url, TTL_MARCA_SEGUNDOS),
+    assinarUrl(supabase, data.login_imagem_url, TTL_MARCA_SEGUNDOS),
+  ]);
+
+  return {
+    company_name: data.company_name,
+    logo_url: logo,
+    brand_color: data.brand_color,
+    brand_accent_color: data.brand_accent_color,
+    login_imagem_url: imagemLateral,
+    login_frase: data.login_frase,
+    login_rodape: data.login_rodape,
+  };
 }

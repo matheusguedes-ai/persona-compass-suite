@@ -37,6 +37,7 @@ import { Route as AlunoMentoriasRouteImport } from './routes/aluno.mentorias'
 import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
 import { Route as AlunoRankingRouteImport } from './routes/aluno.ranking'
 import { Route as ApiManifestRouteImport } from './routes/api.manifest'
+import { Route as ApiMarcaRouteImport } from './routes/api.marca'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
 import { Route as CheckinAulaIdRouteImport } from './routes/checkin.$aulaId'
 import { Route as ConviteEquipeTokenRouteImport } from './routes/convite-equipe.$token'
@@ -217,6 +218,11 @@ const AlunoRankingRoute = AlunoRankingRouteImport.update({
 const ApiManifestRoute = ApiManifestRouteImport.update({
   id: '/api/manifest',
   path: '/api/manifest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMarcaRoute = ApiMarcaRouteImport.update({
+  id: '/api/marca',
+  path: '/api/marca',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
@@ -453,6 +459,7 @@ export interface FileRoutesByFullPath {
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
   '/api/manifest': typeof ApiManifestRoute
+  '/api/marca': typeof ApiMarcaRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
@@ -515,6 +522,7 @@ export interface FileRoutesByTo {
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
   '/api/manifest': typeof ApiManifestRoute
+  '/api/marca': typeof ApiMarcaRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
@@ -586,6 +594,7 @@ export interface FileRoutesById {
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
   '/api/manifest': typeof ApiManifestRoute
+  '/api/marca': typeof ApiMarcaRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
@@ -658,6 +667,7 @@ export interface FileRouteTypes {
     | '/aluno/perfil'
     | '/aluno/ranking'
     | '/api/manifest'
+    | '/api/marca'
     | '/bateria/$assessmentId'
     | '/checkin/$aulaId'
     | '/convite-equipe/$token'
@@ -720,6 +730,7 @@ export interface FileRouteTypes {
     | '/aluno/perfil'
     | '/aluno/ranking'
     | '/api/manifest'
+    | '/api/marca'
     | '/bateria/$assessmentId'
     | '/checkin/$aulaId'
     | '/convite-equipe/$token'
@@ -790,6 +801,7 @@ export interface FileRouteTypes {
     | '/aluno/perfil'
     | '/aluno/ranking'
     | '/api/manifest'
+    | '/api/marca'
     | '/bateria/$assessmentId'
     | '/checkin/$aulaId'
     | '/convite-equipe/$token'
@@ -844,6 +856,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AgendarSlugRoute: typeof AgendarSlugRoute
   ApiManifestRoute: typeof ApiManifestRoute
+  ApiMarcaRoute: typeof ApiMarcaRoute
   BateriaAssessmentIdRoute: typeof BateriaAssessmentIdRoute
   CheckinAulaIdRoute: typeof CheckinAulaIdRoute
   ConviteEquipeTokenRoute: typeof ConviteEquipeTokenRoute
@@ -1063,6 +1076,13 @@ declare module '@tanstack/react-router' {
       path: '/api/manifest'
       fullPath: '/api/manifest'
       preLoaderRoute: typeof ApiManifestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/marca': {
+      id: '/api/marca'
+      path: '/api/marca'
+      fullPath: '/api/marca'
+      preLoaderRoute: typeof ApiMarcaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bateria/$assessmentId': {
@@ -1501,6 +1521,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   AgendarSlugRoute: AgendarSlugRoute,
   ApiManifestRoute: ApiManifestRoute,
+  ApiMarcaRoute: ApiMarcaRoute,
   BateriaAssessmentIdRoute: BateriaAssessmentIdRoute,
   CheckinAulaIdRoute: CheckinAulaIdRoute,
   ConviteEquipeTokenRoute: ConviteEquipeTokenRoute,

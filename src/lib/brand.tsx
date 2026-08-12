@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getAccountBrand } from "@/lib/data.functions";
@@ -112,6 +112,44 @@ export function BrandProvider({ children }: { children: ReactNode }) {
 
 export function useBrand(): Brand | null {
   return useContext(BrandContext);
+}
+
+// ============================================================
+// Marca para telas SEM sessão (#261) — login hoje, #262 espalha
+// ============================================================
+export type PublicLoginBrand = {
+  company_name: string | null;
+  logo_url: string | null;
+  brand_color: string | null;
+  brand_accent_color: string | null;
+  login_imagem_url: string | null;
+  login_frase: string | null;
+  login_rodape: string | null;
+};
+
+/**
+ * Busca `/api/marca` (resolvida pelo HOST, não por login — ver
+ * loadPublicLoginBrand em brand.server.ts). `undefined` enquanto carrega,
+ * distinto de `null` (resolvido, mas sem nada configurado) — quem chama usa
+ * essa distinção para não piscar a marca padrão antes da real: melhor um
+ * instante de vazio (ver docs/plano-marca-publica.md).
+ *
+ * `fetch` simples, não `useServerFn`/react-query — mesmo padrão já usado nas
+ * outras telas sem sessão (`ResponseForm`, a página de convite).
+ */
+export function usePublicBrand(): PublicLoginBrand | null | undefined {
+  const [brand, setBrand] = useState<PublicLoginBrand | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelado = false;
+    fetch("/api/marca")
+      .then((r) => r.json())
+      .then((j) => { if (!cancelado) setBrand((j?.brand ?? null) as PublicLoginBrand | null); })
+      .catch(() => { if (!cancelado) setBrand(null); });
+    return () => { cancelado = true; };
+  }, []);
+
+  return brand;
 }
 
 /**

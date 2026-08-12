@@ -2,18 +2,18 @@
  * Manifest do app (#235) — nome, ícone e cor da conta, para o navegador
  * oferecer "Instalar aplicativo" e o celular usar o ícone certo.
  *
- * Sem sessão (ver `resolveContaUnica` em brand.server.ts para o porquê e o
- * que muda com o segundo cliente). Os ícones apontam para `/api/icone/*`,
- * que também nunca expira — ver o comentário daquela rota.
+ * Sem sessão — resolvido pelo HOST do pedido (`resolveContaPorHost` em
+ * brand.server.ts, #261). Os ícones apontam para `/api/icone/*`, que também
+ * nunca expira — ver o comentário daquela rota.
  */
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/api/manifest")({
   server: {
     handlers: {
-      GET: async () => {
-        const { resolveContaUnica } = await import("@/lib/brand.server");
-        const conta = await resolveContaUnica();
+      GET: async ({ request }) => {
+        const { resolveContaPorHost, hostDaRequisicao } = await import("@/lib/brand.server");
+        const conta = await resolveContaPorHost(hostDaRequisicao(request));
         const nome = conta?.company_name?.trim() || "Métrica Humana";
         const cor = conta?.brand_color?.trim() || "#164e63";
 

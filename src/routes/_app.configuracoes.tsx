@@ -98,6 +98,14 @@ function ConfiguracoesPage() {
   const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [paraRecortarIcone, setParaRecortarIcone] = useState<File | null>(null);
   const [enviandoIcone, setEnviandoIcone] = useState(false);
+  // Painel lateral da tela de login (#261) — vertical, não quadrado como o
+  // ícone. Mesmo esquema identificador/preview dos dois de cima.
+  const [loginImagemUrl, setLoginImagemUrl] = useState("");
+  const [loginImagemPreview, setLoginImagemPreview] = useState<string | null>(null);
+  const [paraRecortarLoginImagem, setParaRecortarLoginImagem] = useState<File | null>(null);
+  const [enviandoLoginImagem, setEnviandoLoginImagem] = useState(false);
+  const [loginFrase, setLoginFrase] = useState("");
+  const [loginRodape, setLoginRodape] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [siteUrl, setSiteUrl] = useState("");
   const [supportEmail, setSupportEmail] = useState("");
@@ -110,6 +118,7 @@ function ConfiguracoesPage() {
   const [enviando, setEnviando] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const iconFileRef = useRef<HTMLInputElement>(null);
+  const loginImagemFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const p = data?.profile;
@@ -122,6 +131,10 @@ function ConfiguracoesPage() {
     setLogoPreview(null);
     setIconUrl(p.icon_url ?? "");
     setIconPreview(null);
+    setLoginImagemUrl(p.login_imagem_url ?? "");
+    setLoginImagemPreview(null);
+    setLoginFrase(p.login_frase ?? "");
+    setLoginRodape(p.login_rodape ?? "");
     setAvatarUrl(p.avatar_url ?? null);
     setSiteUrl(p.site_url ?? "");
     setSupportEmail(p.support_email ?? "");
@@ -225,6 +238,35 @@ function ConfiguracoesPage() {
     }
   }
 
+  /**
+   * Imagem lateral da tela de login (#261) — mesmo esquema do ícone (chega já
+   * RECORTADA, aqui só sobe), num caminho próprio (`login-`) e formato
+   * vertical em vez de quadrado.
+   */
+  async function enviarLoginImagem(file: File) {
+    const userId = data?.user_id;
+    if (!userId) return;
+    setEnviandoLoginImagem(true);
+    try {
+      const caminho = `${userId}/login-${Date.now()}.jpg`;
+      const { error } = await supabase.storage.from("marca").upload(caminho, file, {
+        cacheControl: "3600",
+        upsert: true,
+      });
+      if (error) throw new Error(error.message);
+      const { data: pub } = supabase.storage.from("marca").getPublicUrl(caminho);
+      try {
+        setLoginImagemPreview((await previaLogoFn({ data: { url: pub.publicUrl } })).url);
+      } catch { /* sem preview agora — não impede salvar */ }
+      setLoginImagemUrl(pub.publicUrl);
+      saveConta.mutate({ login_imagem_url: pub.publicUrl });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
+    } finally {
+      setEnviandoLoginImagem(false);
+    }
+  }
+
   const previewBrand = {
     company_name: companyName || null,
     logo_url: logoPreview ?? (logoUrl || null),
@@ -306,6 +348,8 @@ function ConfiguracoesPage() {
                 logo_url: logoUrl.trim() || null,
                 site_url: siteUrl.trim() || null,
                 support_email: supportEmail.trim() || null,
+                login_frase: loginFrase.trim() || null,
+                login_rodape: loginRodape.trim() || null,
               });
             }}
             className="max-w-xl space-y-6 rounded-xl bg-card p-6 ring-1 ring-black/5"
@@ -387,6 +431,54 @@ function ConfiguracoesPage() {
                 na aba do navegador e na tela do celular de quem instalar a plataforma como aplicativo.
               </p>
             </div>
+
+            <div className="space-y-2">
+              <Label>Imagem da tela de entrada</Label>
+              <div className="flex flex-wrap items-center gap-3">
+                {loginImagemUrl && (
+                  <img
+                    src={loginImagemPreview ?? loginImagemUrl} alt="Imagem da tela de entrada"
+                    className="h-16 w-12 rounded object-cover ring-1 ring-black/5"
+                  />
+                )}
+                <input
+                  ref={loginImagemFileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setParaRecortarLoginImagem(f);
+                    e.target.value = "";
+                  }}
+                />
+                <Button type="button" variant="outline" disabled={enviandoLoginImagem || isLoading} onClick={() => loginImagemFileRef.current?.click()}>
+                  {enviandoLoginImagem ? <><Loader2 className="size-4 animate-spin" /> Enviando…</> : <><ImageUp className="size-4" /> {loginImagemUrl ? "Trocar imagem" : "Escolher imagem"}</>}
+                </Button>
+                {loginImagemUrl && (
+                  <Button type="button" variant="ghost" onClick={() => { setLoginImagemUrl(""); setLoginImagemPreview(null); saveConta.mutate({ login_imagem_url: null }); }}>
+                    <Trash2 className="size-4" /> Remover
+                  </Button>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                O painel ao lado do formulário de entrada. Sem imagem, fica sólido na cor principal.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Frase da tela de entrada</Label>
+                <Textarea value={loginFrase} onChange={(e) => setLoginFrase(e.target.value)} rows={2} placeholder='"Ferramentas de assessment que revelam..."' />
+              </div>
+              <div className="space-y-2">
+                <Label>Linha pequena embaixo</Label>
+                <Input value={loginRodape} onChange={(e) => setLoginRodape(e.target.value)} placeholder="Analytical Workspace" />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Aparecem por cima da imagem, no canto inferior da tela de entrada. Em branco, a linha some — sem espaço vazio.
+            </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -551,6 +643,14 @@ function ConfiguracoesPage() {
         ladoMaior={1024}
         onCancelar={() => setParaRecortarIcone(null)}
         onConcluir={(recortado) => { setParaRecortarIcone(null); enviarIcone(recortado); }}
+      />
+
+      <RecortarImagem
+        arquivo={paraRecortarLoginImagem}
+        aspecto={3 / 4}
+        ladoMaior={1600}
+        onCancelar={() => setParaRecortarLoginImagem(null)}
+        onConcluir={(recortado) => { setParaRecortarLoginImagem(null); enviarLoginImagem(recortado); }}
       />
     </div>
   );

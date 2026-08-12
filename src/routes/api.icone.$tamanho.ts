@@ -22,10 +22,10 @@ const REDIRECT_PADRAO = { status: 302, headers: { Location: "/favicon.ico" } };
 export const Route = createFileRoute("/api/icone/$tamanho")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
         try {
-          const { resolveContaUnica } = await import("@/lib/brand.server");
-          const conta = await resolveContaUnica();
+          const { resolveContaPorHost, hostDaRequisicao } = await import("@/lib/brand.server");
+          const conta = await resolveContaPorHost(hostDaRequisicao(request));
           if (!conta?.icon_url) return new Response(null, REDIRECT_PADRAO);
 
           const { assinarUrl, TTL_MARCA_SEGUNDOS } = await import("@/lib/storage-assinado.server");

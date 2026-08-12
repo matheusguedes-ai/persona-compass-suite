@@ -1347,6 +1347,9 @@ export type Database = {
           full_name: string | null
           logo_url: string | null
           icon_url: string | null
+          login_imagem_url: string | null
+          login_frase: string | null
+          login_rodape: string | null
           updated_at: string
           user_id: string
         }
@@ -1368,6 +1371,9 @@ export type Database = {
           full_name?: string | null
           logo_url?: string | null
           icon_url?: string | null
+          login_imagem_url?: string | null
+          login_frase?: string | null
+          login_rodape?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1389,8 +1395,35 @@ export type Database = {
           full_name?: string | null
           logo_url?: string | null
           icon_url?: string | null
+          login_imagem_url?: string | null
+          login_frase?: string | null
+          login_rodape?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      dominios_conta: {
+        Row: {
+          id: string
+          dominio: string
+          owner_id: string
+          padrao: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          dominio: string
+          owner_id: string
+          padrao?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          dominio?: string
+          owner_id?: string
+          padrao?: boolean
+          created_at?: string
         }
         Relationships: []
       }

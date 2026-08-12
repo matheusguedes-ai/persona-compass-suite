@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { BrandMark, useApplyBrand, usePublicBrand } from "@/lib/brand";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -42,6 +43,11 @@ function safeNext(next: string): string {
 function AuthPage() {
   const nav = useNavigate();
   const { next } = Route.useSearch();
+  // #261: a marca vem do domínio, resolvida sem sessão. `undefined` enquanto
+  // carrega — o painel some o conteúdo até resolver, para nunca piscar a
+  // marca padrão antes da real (ver o cabeçalho de usePublicBrand).
+  const brand = usePublicBrand();
+  useApplyBrand(brand ?? null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup" | "acesso">("signin");
@@ -128,17 +134,35 @@ function AuthPage() {
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2" style={{ fontFamily: 'Geist, ui-sans-serif, system-ui, sans-serif' }}>
-      <div className="hidden flex-col justify-between bg-zinc-900 p-12 text-zinc-100 lg:flex">
-        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest">
-          <span className="grid size-6 place-items-center rounded bg-accent text-accent-foreground">M</span>
-          Métrica Humana
-        </div>
-        <div>
-          <p className="max-w-[38ch] text-2xl font-light leading-snug tracking-tight text-zinc-100">
-            "Ferramentas de assessment que revelam o comportamento por trás de cada decisão."
-          </p>
-          <p className="mt-4 text-xs font-mono uppercase tracking-wider text-zinc-500">Analytical Workspace</p>
-        </div>
+      <div
+        className="hidden flex-col justify-between bg-zinc-900 bg-cover bg-center p-12 text-zinc-100 lg:flex"
+        style={
+          brand
+            ? {
+                backgroundColor: brand.brand_color || undefined,
+                backgroundImage: brand.login_imagem_url ? `url(${brand.login_imagem_url})` : undefined,
+              }
+            : undefined
+        }
+      >
+        {/* Nada aqui até a marca resolver — melhor um instante vazio do que
+            mostrar "Métrica Humana" e trocar pela marca real um instante
+            depois (ver docs/plano-marca-publica.md). */}
+        {brand && (
+          <>
+            <BrandMark brand={brand} size={24} textClass="font-mono text-xs uppercase tracking-widest" />
+            <div>
+              {brand.login_frase && (
+                <p className="max-w-[38ch] text-2xl font-light leading-snug tracking-tight text-zinc-100">
+                  "{brand.login_frase}"
+                </p>
+              )}
+              {brand.login_rodape && (
+                <p className="mt-4 text-xs font-mono uppercase tracking-wider text-zinc-500">{brand.login_rodape}</p>
+              )}
+            </div>
+          </>
+        )}
       </div>
       <div className="flex items-center justify-center p-8">
         <form className="w-full max-w-sm space-y-5" onSubmit={submit}>

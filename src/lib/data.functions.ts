@@ -501,6 +501,10 @@ const profileSchema = z.object({
   brand_accent_color: z.string().trim().max(32).optional().nullable(),
   logo_url: z.string().trim().max(500).optional().nullable(),
   icon_url: z.string().trim().max(500).optional().nullable(),
+  // Painel lateral da tela de login (#261).
+  login_imagem_url: z.string().trim().max(500).optional().nullable(),
+  login_frase: z.string().trim().max(240).optional().nullable(),
+  login_rodape: z.string().trim().max(80).optional().nullable(),
   avatar_url: urlOpcional,
   email_from: z.string().trim().max(200).optional().nullable(),
   support_email: z.string().trim().email().max(200).optional().nullable().or(z.literal("")),
@@ -536,10 +540,11 @@ export const getMyProfile = createServerFn({ method: "GET" })
     if (data) {
       const { assinarUrl, TTL_AVATAR_SEGUNDOS, TTL_MARCA_SEGUNDOS } = await import("@/lib/storage-assinado.server");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      [data.avatar_url, data.logo_url, data.icon_url] = await Promise.all([
+      [data.avatar_url, data.logo_url, data.icon_url, data.login_imagem_url] = await Promise.all([
         assinarUrl(supabaseAdmin, data.avatar_url, TTL_AVATAR_SEGUNDOS),
         assinarUrl(supabaseAdmin, data.logo_url, TTL_MARCA_SEGUNDOS),
         assinarUrl(supabaseAdmin, data.icon_url, TTL_MARCA_SEGUNDOS),
+        assinarUrl(supabaseAdmin, data.login_imagem_url, TTL_MARCA_SEGUNDOS),
       ]);
     }
     return { profile: data, email, user_id: context.userId };
@@ -661,6 +666,15 @@ export const upsertConfiguracoesConta = createServerFn({ method: "POST" })
         const { data: atual } = await context.supabase
           .from("profiles").select("icon_url").eq("user_id", context.userId).maybeSingle();
         limpo.icon_url = atual?.icon_url ?? null;
+      }
+    }
+    // Mesma situação, para a imagem lateral do login (#261).
+    if (typeof limpo.login_imagem_url === "string") {
+      const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+      if (ehUrlAssinadaNossa(limpo.login_imagem_url)) {
+        const { data: atual } = await context.supabase
+          .from("profiles").select("login_imagem_url").eq("user_id", context.userId).maybeSingle();
+        limpo.login_imagem_url = atual?.login_imagem_url ?? null;
       }
     }
     const { data: row, error } = await context.supabase
