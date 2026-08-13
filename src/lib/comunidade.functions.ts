@@ -21,6 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { darPonto, contaDaPessoa } from "@/lib/pontos.functions";
 import { notificar } from "@/lib/notificacoes.functions";
+import { extrairMencoes, textoSemMarcacao } from "@/lib/mencoes";
 
 /**
  * Grupos do lado da EQUIPE — os grupos da conta. Usado pelo menu Comunidades
@@ -130,6 +131,9 @@ export const listarFeed = createServerFn({ method: "GET" })
         // Em qual grupo aparece — só faz diferença para quem enxerga vários.
         grupos: (vinculos ?? []).filter((v) => v.post_id === p.id)
           .map((v) => v.groups?.name).filter((n): n is string => !!n),
+        // Os ids dos mesmos grupos — de onde a menção com @ no comentário
+        // busca quem pode ser marcado (#55).
+        group_ids: (vinculos ?? []).filter((v) => v.post_id === p.id).map((v) => v.group_id),
         comentarios: (comentarios ?? []).filter((c) => c.post_id === p.id)
           .map((c) => ({ ...c, meu: c.author_id === eu })),
         curtidas: (reacoes ?? []).filter((r) => r.post_id === p.id).length,
@@ -165,6 +169,71 @@ async function meuNome(
   //    com o nome do cadastro de teste em vez do nome dele.
   const { data: pessoa } = await supabase.from("people").select("full_name").eq("user_id", userId).limit(1).maybeSingle();
   return pessoa?.full_name?.trim() || "Participante";
+}
+
+/**
+ * Avisa quem foi marcado com @ num post ou comentário — uma notificação por
+ * pessoa, mesmo que ela apareça duas vezes no texto (Set) e nunca para quem
+ * se marcou (auto-menção não notifica, por pedido da #55).
+ *
+ * Não confia na marcação do texto por si só: confere no banco que a pessoa
+ * marcada REALMENTE está num dos grupos do post/comentário antes de avisar.
+ * Sem isto, um texto malicioso poderia forjar `@[Nome](id-de-qualquer-um)` e
+ * usar a notificação como sonda — "essa pessoa existe? recebeu algo?" — para
+ * gente de fora do grupo. A listinha (cliente) já só mostra quem é do grupo;
+ * isto é o mesmo corte, mas no servidor, que é o que vale de verdade.
+ */
+async function notificarMencoes(
+  supabase: SupabaseClient<Database>,
+  args: {
+    conta: string;
+    autorUserId: string;
+    autorNome: string;
+    texto: string;
+    groupIds: string[];
+    postId: string;
+    origem: "post" | "comentario";
+  },
+): Promise<void> {
+  const mencoes = extrairMencoes(args.texto);
+  if (mencoes.length === 0 || args.groupIds.length === 0) return;
+  const idsMencionados = [...new Set(mencoes.map((m) => m.personId))];
+
+  const { data: validos } = await supabase
+    .from("group_members")
+    .select("person_id, people(user_id)")
+    .in("group_id", args.groupIds)
+    .in("person_id", idsMencionados);
+
+  const alvos = new Set<string>();
+  for (const v of validos ?? []) {
+    const uid = v.people?.user_id;
+    if (uid && uid !== args.autorUserId) alvos.add(uid);
+  }
+  if (alvos.size === 0) return;
+
+  const corpo = textoSemMarcacao(args.texto).trim().slice(0, 140);
+  const titulo = args.origem === "post"
+    ? `${args.autorNome} marcou você numa publicação`
+    : `${args.autorNome} marcou você num comentário`;
+
+  await Promise.all([...alvos].map((uid) =>
+    notificar(supabase, {
+      conta: args.conta,
+      tipo: "comunidade_mencao",
+      titulo,
+      corpo,
+      // Aponta para o post específico — /comunidades já sabe abrir nele (#55).
+      link: `/comunidades?post=${args.postId}`,
+      ator: args.autorUserId,
+      atorNome: args.autorNome,
+      grupos: args.groupIds,
+      pessoaUser: uid,
+      // false de propósito: só quem foi marcado recebe, não o grupo inteiro
+      // (isso já é o que a notificação de "fulano publicou" faz).
+      paraAlunos: false,
+    }),
+  ));
 }
 
 export const publicarPost = createServerFn({ method: "POST" })
@@ -226,13 +295,19 @@ export const publicarPost = createServerFn({ method: "POST" })
         conta,
         tipo: "comunidade_post",
         titulo: `${autor} publicou na comunidade`,
-        corpo: data.body.trim().slice(0, 140),
+        // Sem a marcação crua: quem tem @ no texto não pode aparecer como
+        // "@[Nome](uuid-enorme)" na pré-visualização da notificação.
+        corpo: textoSemMarcacao(data.body.trim()).slice(0, 140),
         link: "/comunidades",
         ator: context.userId,
         atorNome: autor,
         grupos: data.group_ids,
         // Comunidade é o caso em que o aluno TAMBÉM é avisado: é o feed dele.
         paraAlunos: true,
+      });
+      await notificarMencoes(supabase, {
+        conta, autorUserId: context.userId, autorNome: autor, texto: data.body,
+        groupIds: data.group_ids, postId, origem: "post",
       });
     }
     return { ok: true };
@@ -258,16 +333,21 @@ export const comentar = createServerFn({ method: "POST" })
       // O comentário vale para os mesmos grupos do post — é lá que ele aparece.
       const { data: vinc } = await supabase
         .from("community_post_groups").select("group_id").eq("post_id", data.post_id);
+      const groupIds = (vinc ?? []).map((v) => v.group_id);
       await notificar(supabase, {
         conta,
         tipo: "comunidade_comentario",
         titulo: `${autor} comentou numa publicação`,
-        corpo: data.body.trim().slice(0, 140),
+        corpo: textoSemMarcacao(data.body.trim()).slice(0, 140),
         link: "/comunidades",
         ator: context.userId,
         atorNome: autor,
-        grupos: (vinc ?? []).map((v) => v.group_id),
+        grupos: groupIds,
         paraAlunos: true,
+      });
+      await notificarMencoes(supabase, {
+        conta, autorUserId: context.userId, autorNome: autor, texto: data.body,
+        groupIds, postId: data.post_id, origem: "comentario",
       });
     }
     return { ok: true };

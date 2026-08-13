@@ -70,7 +70,7 @@ function Pagina() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" asChild>
-                  <Link to="/aluno/comunidade" search={{ ver: undefined }}>
+                  <Link to="/aluno/comunidade" search={{ ver: undefined, post: undefined }}>
                     <Users className="size-3.5" /> Comunidade
                   </Link>
                 </Button>

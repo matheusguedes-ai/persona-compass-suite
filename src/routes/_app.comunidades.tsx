@@ -13,6 +13,7 @@ import { Comunidade } from "@/components/comunidade";
 import { Users } from "lucide-react";
 
 function Pagina() {
+  const { post } = Route.useSearch();
   const fn = useServerFn(meusGrupos);
   const { data, isLoading, error } = useQuery({ queryKey: ["meus-grupos"], queryFn: () => fn() });
   const grupos = data?.grupos ?? [];
@@ -44,12 +45,17 @@ function Pagina() {
         </div>
       )}
 
-      {!error && grupos.length > 0 && <Comunidade grupos={grupos} escolherDestino />}
+      {!error && grupos.length > 0 && <Comunidade grupos={grupos} escolherDestino focoPostId={post} />}
     </div>
   );
 }
 
 export const Route = createFileRoute("/_app/comunidades")({
+  // A notificação de menção (#55) chega como "/comunidades?post=<id>", para
+  // abrir direto na publicação em vez de só cair no feed geral.
+  validateSearch: (s: Record<string, unknown>) => ({
+    post: typeof s.post === "string" ? s.post : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Comunidades — Métrica Humana" },

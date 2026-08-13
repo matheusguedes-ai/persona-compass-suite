@@ -43,6 +43,19 @@ const NO_ALUNO: Record<string, string> = {
   "/pessoas": "/aluno",
 };
 
+/**
+ * Traduz o link, preservando o que vem depois do `?` — a notificação de
+ * menção (#55) grava "/comunidades?post=<id>" para abrir direto na
+ * publicação. Sem separar a query, a busca em NO_ALUNO nunca batia (o mapa
+ * só conhece a rota pura), e o aluno era jogado na rota do DONO.
+ */
+function linkTraduzido(link: string, area: "dono" | "aluno"): string {
+  if (area !== "aluno") return link;
+  const [base, query] = link.split("?");
+  const novaBase = NO_ALUNO[base] ?? base;
+  return query ? `${novaBase}?${query}` : novaBase;
+}
+
 export function Sino({ area = "dono" }: { area?: "dono" | "aluno" }) {
   const qc = useQueryClient();
   const listaFn = useServerFn(listarNotificacoes);
@@ -116,7 +129,7 @@ export function Sino({ area = "dono" }: { area?: "dono" | "aluno" }) {
                 <li key={n.id} className={n.lida_em ? "" : "bg-primary/5"}>
                   {n.link ? (
                     <a
-                      href={area === "aluno" ? (NO_ALUNO[n.link] ?? n.link) : n.link}
+                      href={linkTraduzido(n.link, area)}
                       onClick={() => setAberto(false)}
                       className="block px-4 py-2.5 hover:bg-muted/50"
                     >

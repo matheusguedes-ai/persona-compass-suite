@@ -6,22 +6,63 @@
  * ganha o poder de apagar o que não deveria estar lá.
  */
 import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   listarFeed, publicarPost, comentar, alternarCurtida, apagarPost, apagarComentario,
+  membrosDosGrupos,
 } from "@/lib/comunidade.functions";
+import { detectarMencao, marcarPessoa } from "@/lib/mencoes";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar } from "@/components/avatar-upload";
 import { LadoDaComunidade } from "@/components/comunidade-lado";
+import { PerfilColegaDialog } from "@/components/perfil-colega-dialog";
 import { Heart, MessageCircle, Paperclip, Trash2, FileText, X, Send } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { youtubeId } from "@/lib/learning.functions";
 import { ACCEPT, LIMITES, erroDeUpload } from "@/lib/erro-de-upload";
+
+/**
+ * Marcações @[Nome](person_id) viram texto destacado e clicável — abre o
+ * mesmo cartão de perfil que a aba Membros já usa (#55). A marcação em si
+ * fica só no texto salvo; aqui é só o desenho de volta em tela.
+ */
+function renderTextoComMencoes(texto: string, aoClicar: (personId: string) => void): ReactNode[] {
+  const partes: ReactNode[] = [];
+  const regex = /@\[([^\]]+)\]\(([0-9a-fA-F-]{36})\)/g;
+  let ultimo = 0;
+  let m: RegExpExecArray | null;
+  let chave = 0;
+  while ((m = regex.exec(texto))) {
+    if (m.index > ultimo) partes.push(texto.slice(ultimo, m.index));
+    const nome = m[1];
+    const id = m[2];
+    partes.push(
+      <button
+        key={`mencao-${chave++}`}
+        type="button"
+        onClick={() => aoClicar(id)}
+        className="font-medium text-primary hover:underline"
+      >
+        @{nome}
+      </button>,
+    );
+    ultimo = regex.lastIndex;
+  }
+  if (ultimo < texto.length) partes.push(texto.slice(ultimo));
+  return partes;
+}
+
+/** Onde, no texto, o @ ativo está — post ou um comentário específico. */
+type MencaoAlvo =
+  | { tipo: "post"; inicio: number; termo: string }
+  | { tipo: "comentario"; postId: string; inicio: number; termo: string };
 
 // O MESMO numero do bucket. Antes era 8 aqui e 5 la: toda foto de celular
 // entre 5 e 8 MB passava pela mensagem amigavel da tela, subia pela rede
@@ -47,11 +88,14 @@ export function Comunidade({
   grupos,
   escolherDestino = false,
   somenteLeitura = false,
+  focoPostId,
 }: {
   grupos: Array<{ id: string; name: string }>;
   escolherDestino?: boolean;
   /** Prévia "Ver como aluno": mostra o feed, mas não deixa publicar em nome dele. */
   somenteLeitura?: boolean;
+  /** Veio de uma notificação de menção — rola até este post ao carregar (#55). */
+  focoPostId?: string;
 }) {
   const qc = useQueryClient();
   const feedFn = useServerFn(listarFeed);
@@ -61,6 +105,7 @@ export function Comunidade({
   const apagarFn = useServerFn(apagarPost);
   const apagarComentarioFn = useServerFn(apagarComentario);
   const previaFn = useServerFn(assinarMeuEnvio);
+  const membrosFn = useServerFn(membrosDosGrupos);
 
   const [texto, setTexto] = useState("");
   const [link, setLink] = useState("");
@@ -73,6 +118,17 @@ export function Comunidade({
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
   const [comentando, setComentando] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
+  const textoRef = useRef<HTMLTextAreaElement>(null);
+  const comentarioRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // O cartão de perfil de quem foi mencionado — mesmo cartão da aba Membros.
+  const [vendoPerfil, setVendoPerfil] = useState<string | null>(null);
+
+  // A menção com @ em andamento: em qual campo, a partir de onde, e o que já
+  // foi digitado depois do @ (filtra a lista). Só um campo por vez tem foco,
+  // então um slot só serve tanto o post quanto qualquer comentário.
+  const [mencaoAtiva, setMencaoAtiva] = useState<MencaoAlvo | null>(null);
+  const [indiceSelecionado, setIndiceSelecionado] = useState(0);
 
   // Destino do post. Para o avaliado é sempre tudo; para o dono, o que ele marcar.
   //
@@ -135,6 +191,7 @@ export function Comunidade({
       }),
     onSuccess: () => {
       setTexto(""); setLink(""); setArquivo(null); setArquivoPreview(null);
+      setMencaoAtiva(null);
       if (fileRef.current) fileRef.current.value = "";
       recarregar();
     },
@@ -147,7 +204,11 @@ export function Comunidade({
   });
   const enviarComentario = useMutation({
     mutationFn: (v: { post_id: string; body: string }) => comentarFn({ data: v }),
-    onSuccess: (_r, v) => { setComentando((c) => ({ ...c, [v.post_id]: "" })); recarregar(); },
+    onSuccess: (_r, v) => {
+      setComentando((c) => ({ ...c, [v.post_id]: "" }));
+      setMencaoAtiva(null);
+      recarregar();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   const apagar = useMutation({
@@ -162,6 +223,110 @@ export function Comunidade({
   });
 
   const posts = data?.posts ?? [];
+
+  // Os grupos do campo que tem uma menção em andamento agora — do post
+  // (destino escolhido, ou todos os grupos de quem não escolhe) ou do post
+  // ao qual o comentário pertence. MESMA regra de visibilidade da aba
+  // Membros: quem pode ser marcado é sempre quem está nesses grupos, nunca
+  // gente de fora — a busca abaixo usa a mesma função que a aba já usa.
+  const groupIdsAtivos = !mencaoAtiva
+    ? []
+    : mencaoAtiva.tipo === "post"
+      ? (escolherDestino ? destino : grupos.map((g) => g.id))
+      : (posts.find((p) => p.id === mencaoAtiva.postId)?.group_ids ?? []);
+
+  const { data: membrosData } = useQuery({
+    queryKey: ["membros-mencao", groupIdsAtivos.join(",")],
+    queryFn: () => membrosFn({ data: { group_ids: groupIdsAtivos } }),
+    enabled: !!mencaoAtiva && groupIdsAtivos.length > 0,
+  });
+  const sugestoes = (membrosData?.membros ?? [])
+    .filter((m) => m.nome.toLowerCase().includes((mencaoAtiva?.termo ?? "").toLowerCase()))
+    .slice(0, 8);
+
+  function selecionarMencao(m: { person_id: string; nome: string }) {
+    if (!mencaoAtiva) return;
+    const marcado = `${marcarPessoa(m.nome, m.person_id)} `;
+    if (mencaoAtiva.tipo === "post") {
+      const fim = mencaoAtiva.inicio + 1 + mencaoAtiva.termo.length;
+      const novo = texto.slice(0, mencaoAtiva.inicio) + marcado + texto.slice(fim);
+      setTexto(novo);
+      // Devolve o foco ao campo, com o cursor logo depois do que inseriu.
+      requestAnimationFrame(() => {
+        const el = textoRef.current;
+        if (!el) return;
+        el.focus();
+        const pos = mencaoAtiva.inicio + marcado.length;
+        el.setSelectionRange(pos, pos);
+      });
+    } else {
+      const atual = comentando[mencaoAtiva.postId] ?? "";
+      const fim = mencaoAtiva.inicio + 1 + mencaoAtiva.termo.length;
+      const novo = atual.slice(0, mencaoAtiva.inicio) + marcado + atual.slice(fim);
+      setComentando((c) => ({ ...c, [mencaoAtiva.postId]: novo }));
+      requestAnimationFrame(() => {
+        const el = comentarioRefs.current[mencaoAtiva.postId];
+        if (!el) return;
+        el.focus();
+        const pos = mencaoAtiva.inicio + marcado.length;
+        el.setSelectionRange(pos, pos);
+      });
+    }
+    setMencaoAtiva(null);
+  }
+
+  /** As teclas que a listinha de @ entende, comuns ao post e ao comentário. */
+  function teclaDaMencao(e: KeyboardEvent, doCampo: boolean): boolean {
+    if (!doCampo || sugestoes.length === 0) return false;
+    if (e.key === "ArrowDown") { e.preventDefault(); setIndiceSelecionado((i) => (i + 1) % sugestoes.length); return true; }
+    if (e.key === "ArrowUp") { e.preventDefault(); setIndiceSelecionado((i) => (i - 1 + sugestoes.length) % sugestoes.length); return true; }
+    if (e.key === "Enter") { e.preventDefault(); selecionarMencao(sugestoes[indiceSelecionado] ?? sugestoes[0]); return true; }
+    if (e.key === "Escape") { e.preventDefault(); setMencaoAtiva(null); return true; }
+    return false;
+  }
+
+  function ListaDeMencao({ ativa }: { ativa: boolean }) {
+    if (!ativa || sugestoes.length === 0) return null;
+    return (
+      <div className="relative">
+        <div className="absolute z-10 mt-1 max-h-48 w-full min-w-48 overflow-y-auto rounded-lg border border-black/10 bg-popover shadow-md">
+          {sugestoes.map((m, i) => (
+            <button
+              key={m.person_id}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => selecionarMencao(m)}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                i === indiceSelecionado && "bg-muted",
+              )}
+            >
+              <Avatar url={m.avatar_url} nome={m.nome} className="size-6" />
+              <span className="truncate">{m.nome}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Veio de uma notificação de menção: rola até o post assim que o feed
+  // carregar. Se o post não estiver mais na lista (apagado, ou notificação
+  // antiga demais para os 80 mais recentes), mostra um aviso educado — nunca
+  // uma tela de erro (pedido explícito da #55).
+  const [postNaoEncontrado, setPostNaoEncontrado] = useState(false);
+  useEffect(() => {
+    if (!focoPostId || isLoading) return;
+    const existe = posts.some((p) => p.id === focoPostId);
+    if (existe) {
+      setPostNaoEncontrado(false);
+      const el = document.getElementById(`post-${focoPostId}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else {
+      setPostNaoEncontrado(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focoPostId, isLoading, posts.length]);
 
   return (
     // Feed à esquerda, ranking e membros à direita — no celular, um embaixo do
@@ -191,9 +356,22 @@ export function Comunidade({
       {!error && !somenteLeitura && (
       <div className="rounded-xl border border-black/5 bg-card p-4">
         <Textarea
-          value={texto} onChange={(e) => setTexto(e.target.value)} rows={3}
-          placeholder="Compartilhe algo com o grupo…"
+          ref={textoRef}
+          value={texto}
+          onChange={(e) => {
+            const valor = e.target.value;
+            setTexto(valor);
+            const cursor = e.target.selectionStart ?? valor.length;
+            const ativa = detectarMencao(valor, cursor);
+            setMencaoAtiva(ativa ? { tipo: "post", ...ativa } : null);
+            setIndiceSelecionado(0);
+          }}
+          onKeyDown={(e) => teclaDaMencao(e, mencaoAtiva?.tipo === "post")}
+          onBlur={() => setTimeout(() => setMencaoAtiva((m) => (m?.tipo === "post" ? null : m)), 150)}
+          rows={3}
+          placeholder="Compartilhe algo com o grupo… use @ para marcar alguém"
         />
+        <ListaDeMencao ativa={mencaoAtiva?.tipo === "post"} />
         {arquivo && (
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted/50 p-2 text-sm">
             {arquivo.kind === "imagem"
@@ -271,9 +449,24 @@ export function Comunidade({
         </p>
       )}
 
+      {/* Veio de uma notificação de menção, mas o post não está mais aqui —
+          apagado, ou fora da janela dos 80 mais recentes. Nunca é erro. */}
+      {postNaoEncontrado && (
+        <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">
+          A publicação que você estava procurando não está mais disponível.
+        </p>
+      )}
+
       {/* ---------------------------------------------------- feed --- */}
       {!error && posts.map((p) => (
-        <article key={p.id} className="rounded-xl border border-black/5 bg-card p-4">
+        <article
+          key={p.id}
+          id={`post-${p.id}`}
+          className={cn(
+            "rounded-xl border border-black/5 bg-card p-4 transition-shadow",
+            focoPostId === p.id && "ring-2 ring-primary/50",
+          )}
+        >
           <div className="flex items-baseline justify-between gap-2">
             <div className="min-w-0">
               <p className="text-sm font-medium">{p.author_name}</p>
@@ -295,7 +488,9 @@ export function Comunidade({
             </div>
           </div>
 
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{p.body}</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
+            {renderTextoComMencoes(p.body, setVendoPerfil)}
+          </p>
 
           {p.file_url && p.file_kind === "imagem" && (
             <img src={p.file_url} alt="" className="mt-3 max-h-96 w-full rounded-lg object-cover" />
@@ -359,23 +554,42 @@ export function Comunidade({
                       )}
                     </div>
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap">{c.body}</p>
+                  <p className="mt-1 whitespace-pre-wrap">
+                    {renderTextoComMencoes(c.body, setVendoPerfil)}
+                  </p>
                 </li>
               ))}
             </ul>
           )}
 
           <div className="mt-3 flex gap-2">
-            <Input
-              value={comentando[p.id] ?? ""}
-              onChange={(e) => setComentando((c) => ({ ...c, [p.id]: e.target.value }))}
-              placeholder="Escreva um comentário…"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (comentando[p.id] ?? "").trim()) {
-                  enviarComentario.mutate({ post_id: p.id, body: comentando[p.id] });
-                }
-              }}
-            />
+            <div className="flex-1">
+              <Input
+                ref={(el) => { comentarioRefs.current[p.id] = el; }}
+                value={comentando[p.id] ?? ""}
+                onChange={(e) => {
+                  const valor = e.target.value;
+                  setComentando((c) => ({ ...c, [p.id]: valor }));
+                  const cursor = e.target.selectionStart ?? valor.length;
+                  const ativa = detectarMencao(valor, cursor);
+                  setMencaoAtiva(ativa ? { tipo: "comentario", postId: p.id, ...ativa } : null);
+                  setIndiceSelecionado(0);
+                }}
+                placeholder="Escreva um comentário… use @ para marcar alguém"
+                onKeyDown={(e) => {
+                  const doCampo = mencaoAtiva?.tipo === "comentario" && mencaoAtiva.postId === p.id;
+                  if (teclaDaMencao(e, doCampo)) return;
+                  if (e.key === "Enter" && (comentando[p.id] ?? "").trim()) {
+                    enviarComentario.mutate({ post_id: p.id, body: comentando[p.id] });
+                  }
+                }}
+                onBlur={() => setTimeout(
+                  () => setMencaoAtiva((m) => (m?.tipo === "comentario" && m.postId === p.id ? null : m)),
+                  150,
+                )}
+              />
+              <ListaDeMencao ativa={mencaoAtiva?.tipo === "comentario" && mencaoAtiva.postId === p.id} />
+            </div>
             <Button
               size="sm" variant="outline"
               disabled={!(comentando[p.id] ?? "").trim()}
@@ -388,6 +602,7 @@ export function Comunidade({
       ))}
     </div>
       <LadoDaComunidade grupos={grupos} />
+      <PerfilColegaDialog personId={vendoPerfil} onOpenChange={(v) => !v && setVendoPerfil(null)} />
     </div>
   );
 }

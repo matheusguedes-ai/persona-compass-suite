@@ -103,6 +103,7 @@ export async function contaAtual(supabase: Cliente, userId: string): Promise<str
 const AREA_DA_NOTIFICACAO: Record<string, string> = {
   comunidade_post: "comunidade",
   comunidade_comentario: "comunidade",
+  comunidade_mencao: "comunidade",
   mentoria_agendada: "mentorias",
   mentoria_concluida: "mentorias",
   sessao_cancelada: "mentorias",

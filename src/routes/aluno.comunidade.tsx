@@ -17,7 +17,7 @@ import { Comunidade } from "@/components/comunidade";
 import { Users } from "lucide-react";
 
 function Pagina() {
-  const { ver } = Route.useSearch();
+  const { ver, post } = Route.useSearch();
   const fn = useServerFn(gruposDoAvaliado);
   const { data, isLoading } = useQuery({
     queryKey: ["grupos-do-avaliado", ver ?? null],
@@ -56,7 +56,7 @@ function Pagina() {
             : `Você participa de ${grupos.length} grupos, e vê todos aqui. O que você publica aparece em todos eles.`}
         </p>
       </div>
-      <Comunidade grupos={grupos} somenteLeitura={!!ver} />
+      <Comunidade grupos={grupos} somenteLeitura={!!ver} focoPostId={post} />
     </div>
   );
 }
@@ -64,6 +64,9 @@ function Pagina() {
 export const Route = createFileRoute("/aluno/comunidade")({
   validateSearch: (s: Record<string, unknown>) => ({
     ver: typeof s.ver === "string" ? s.ver : undefined,
+    // A notificação de menção (#55) chega como "?post=<id>", para abrir
+    // direto na publicação em vez de só cair no feed geral.
+    post: typeof s.post === "string" ? s.post : undefined,
   }),
   head: () => ({ meta: [{ title: "Comunidade" }, { name: "robots", content: "noindex" }] }),
   component: Pagina,
