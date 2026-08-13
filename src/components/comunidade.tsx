@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   listarFeed, publicarPost, comentar, alternarCurtida, apagarPost, apagarComentario,
-  membrosDosGrupos,
+  membrosDosGrupos, votarEnquete,
 } from "@/lib/comunidade.functions";
 import { detectarMencao, marcarPessoa } from "@/lib/mencoes";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/avatar-upload";
 import { LadoDaComunidade } from "@/components/comunidade-lado";
 import { PerfilColegaDialog } from "@/components/perfil-colega-dialog";
-import { Heart, MessageCircle, Paperclip, Trash2, FileText, X, Send } from "lucide-react";
+import { Heart, MessageCircle, Paperclip, Trash2, FileText, X, Send, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { youtubeId } from "@/lib/learning.functions";
@@ -106,9 +106,17 @@ export function Comunidade({
   const apagarComentarioFn = useServerFn(apagarComentario);
   const previaFn = useServerFn(assinarMeuEnvio);
   const membrosFn = useServerFn(membrosDosGrupos);
+  const votarFn = useServerFn(votarEnquete);
 
   const [texto, setTexto] = useState("");
   const [link, setLink] = useState("");
+  // Enquete (#54): a pergunta é o próprio `texto` acima — isto só guarda as
+  // opções, sempre entre 2 e 6.
+  const [enquete, setEnquete] = useState(false);
+  const [opcoesEnquete, setOpcoesEnquete] = useState<string[]>(["", ""]);
+  // Qual opção está com a lista de votantes aberta agora — um slot só serve
+  // qualquer enquete de qualquer post, porque option_id já é único.
+  const [verVotantes, setVerVotantes] = useState<string | null>(null);
   const [arquivo, setArquivo] = useState<{ url: string; kind: "imagem" | "pdf"; nome: string } | null>(null);
   // O bucket 'comunidade' é privado: arquivo.url guarda o IDENTIFICADOR (o que
   // salva). Isto guarda a versão ASSINADA do upload desta sessão, só para o
@@ -187,11 +195,15 @@ export function Comunidade({
           file_url: arquivo?.url ?? null,
           file_kind: arquivo?.kind ?? null,
           link_url: link.trim() || null,
+          poll_options: enquete
+            ? opcoesEnquete.map((o) => o.trim()).filter((o) => o.length > 0)
+            : undefined,
         },
       }),
     onSuccess: () => {
       setTexto(""); setLink(""); setArquivo(null); setArquivoPreview(null);
       setMencaoAtiva(null);
+      setEnquete(false); setOpcoesEnquete(["", ""]);
       if (fileRef.current) fileRef.current.value = "";
       recarregar();
     },
@@ -201,6 +213,11 @@ export function Comunidade({
   const curtir = useMutation({
     mutationFn: (v: { post_id: string; curtir: boolean }) => curtirFn({ data: v }),
     onSuccess: recarregar,
+  });
+  const votar = useMutation({
+    mutationFn: (v: { post_id: string; option_id: string }) => votarFn({ data: v }),
+    onSuccess: recarregar,
+    onError: (e: Error) => toast.error(e.message),
   });
   const enviarComentario = useMutation({
     mutationFn: (v: { post_id: string; body: string }) => comentarFn({ data: v }),
@@ -372,6 +389,44 @@ export function Comunidade({
           placeholder="Compartilhe algo com o grupo… use @ para marcar alguém"
         />
         <ListaDeMencao ativa={mencaoAtiva?.tipo === "post"} />
+        {/* Enquete (#54): a pergunta é o texto acima — aqui só as opções. */}
+        {enquete && (
+          <div className="mt-3 space-y-2 rounded-lg bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              A enquete usa o que você escreveu acima como pergunta. Adicione de 2 a 6 opções.
+            </p>
+            {opcoesEnquete.map((op, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={op}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setOpcoesEnquete((prev) => prev.map((x, j) => (j === i ? v : x)));
+                  }}
+                  placeholder={`Opção ${i + 1}`}
+                  maxLength={200}
+                />
+                {opcoesEnquete.length > 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setOpcoesEnquete((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {opcoesEnquete.length < 6 && (
+              <Button
+                type="button" variant="outline" size="sm"
+                onClick={() => setOpcoesEnquete((prev) => [...prev, ""])}
+              >
+                + Opção
+              </Button>
+            )}
+          </div>
+        )}
         {arquivo && (
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted/50 p-2 text-sm">
             {arquivo.kind === "imagem"
@@ -416,9 +471,17 @@ export function Comunidade({
           </div>
         )}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} disabled={enviandoArquivo}>
-            <Paperclip className="size-3.5" /> {enviandoArquivo ? "Enviando…" : "Imagem ou PDF"}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} disabled={enviandoArquivo}>
+              <Paperclip className="size-3.5" /> {enviandoArquivo ? "Enviando…" : "Imagem ou PDF"}
+            </Button>
+            <Button
+              variant={enquete ? "secondary" : "ghost"} size="sm"
+              onClick={() => setEnquete((v) => !v)}
+            >
+              <BarChart3 className="size-3.5" /> Enquete
+            </Button>
+          </div>
           <Button
             size="sm"
             onClick={() => publicar.mutate()}
@@ -426,6 +489,7 @@ export function Comunidade({
               publicar.isPending
               || texto.trim().length === 0
               || (escolherDestino ? destino.length === 0 : grupos.length === 0)
+              || (enquete && opcoesEnquete.filter((o) => o.trim().length > 0).length < 2)
             }
           >
             <Send className="size-3.5" /> {publicar.isPending ? "Publicando…" : "Publicar"}
@@ -491,6 +555,70 @@ export function Comunidade({
           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
             {renderTextoComMencoes(p.body, setVendoPerfil)}
           </p>
+
+          {/* Enquete (#54): a pergunta é o texto acima; aqui só as opções. */}
+          {p.enquete && (
+            <div className="mt-3 space-y-2">
+              {!p.enquete.meuVoto && (
+                <p className="text-xs text-muted-foreground">
+                  {p.enquete.totalVotos === 0 && "Seja o primeiro a votar. "}
+                  Os votos ficam visíveis para o grupo depois que você votar.
+                </p>
+              )}
+              {p.enquete.meuVoto
+                ? p.enquete.opcoes.map((o) => {
+                    const r = p.enquete!.resultado!.find((x) => x.id === o.id);
+                    if (!r) return null;
+                    const escolhida = o.id === p.enquete!.meuVoto;
+                    return (
+                      <div key={o.id} className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => votar.mutate({ post_id: p.id, option_id: o.id })}
+                            className={cn(
+                              "relative flex-1 overflow-hidden rounded-lg border p-2 text-left text-sm transition",
+                              escolhida ? "border-primary" : "border-black/10 hover:border-black/20",
+                            )}
+                          >
+                            <div
+                              className="absolute inset-y-0 left-0 bg-primary/10"
+                              style={{ width: `${r.porcentagem}%` }}
+                            />
+                            <div className="relative flex items-center justify-between gap-2">
+                              <span className={cn(escolhida && "font-medium")}>{o.texto}</span>
+                              <span className="shrink-0 text-xs text-muted-foreground">{r.porcentagem}%</span>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setVerVotantes((v) => (v === o.id ? null : o.id))}
+                            title="Ver quem votou"
+                            className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            {r.contagem}
+                          </button>
+                        </div>
+                        {verVotantes === o.id && (
+                          <p className="pl-2 text-xs text-muted-foreground">
+                            {r.votantes.length > 0 ? r.votantes.join(", ") : "Ninguém votou nesta opção ainda."}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })
+                : p.enquete.opcoes.map((o) => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => votar.mutate({ post_id: p.id, option_id: o.id })}
+                      className="w-full rounded-lg border border-black/10 p-2 text-left text-sm hover:bg-muted/50"
+                    >
+                      {o.texto}
+                    </button>
+                  ))}
+            </div>
+          )}
 
           {p.file_url && p.file_kind === "imagem" && (
             <img src={p.file_url} alt="" className="mt-3 max-h-96 w-full rounded-lg object-cover" />

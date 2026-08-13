@@ -171,6 +171,18 @@ export type Database = {
         Update: { post_id?: string; user_id?: string; created_at?: string }
         Relationships: []
       }
+      community_poll_options: {
+        Row: { id: string; post_id: string; texto: string; ordem: number; conta_id: string; created_at: string }
+        Insert: { id?: string; post_id: string; texto: string; ordem: number; conta_id?: string; created_at?: string }
+        Update: { id?: string; post_id?: string; texto?: string; ordem?: number; conta_id?: string; created_at?: string }
+        Relationships: []
+      }
+      community_poll_votes: {
+        Row: { id: string; post_id: string; option_id: string; voter_id: string; voter_name: string; conta_id: string; created_at: string; updated_at: string }
+        Insert: { id?: string; post_id: string; option_id: string; voter_id: string; voter_name: string; conta_id?: string; created_at?: string; updated_at?: string }
+        Update: { id?: string; post_id?: string; option_id?: string; voter_id?: string; voter_name?: string; conta_id?: string; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       mentorias: {
         Row: {
           created_at: string

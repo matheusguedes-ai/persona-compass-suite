@@ -95,7 +95,7 @@ export const listarFeed = createServerFn({ method: "GET" })
     const ids = [...new Set((vinculos ?? []).map((v) => v.post_id))];
     if (ids.length === 0) return { eu: context.userId, posts: [] };
 
-    const [{ data: posts, error }, { data: comentarios }, { data: reacoes }] = await Promise.all([
+    const [{ data: posts, error }, { data: comentarios }, { data: reacoes }, { data: opcoes }, { data: votos }] = await Promise.all([
       supabase.from("community_posts")
         .select("id, author_id, author_name, body, file_url, file_kind, link_url, created_at")
         .in("id", ids).order("created_at", { ascending: false }).limit(80),
@@ -103,6 +103,13 @@ export const listarFeed = createServerFn({ method: "GET" })
         .select("id, post_id, author_id, author_name, body, created_at")
         .in("post_id", ids).order("created_at"),
       supabase.from("community_reactions").select("post_id, user_id").in("post_id", ids),
+      // Enquete (#54): as opções aparecem para todo mundo que vê o post; o
+      // RESULTADO (linha abaixo) só é lido de verdade se eu já votei — a RLS
+      // de community_poll_votes barra o resto, então nem tentar filtrar aqui.
+      supabase.from("community_poll_options")
+        .select("id, post_id, texto").in("post_id", ids).order("ordem"),
+      supabase.from("community_poll_votes")
+        .select("post_id, option_id, voter_id, voter_name").in("post_id", ids),
     ]);
     // Quem modera o quê é decidido no banco, não aqui — a tela só pergunta.
     const podeModerar = new Set<string>();
@@ -122,23 +129,48 @@ export const listarFeed = createServerFn({ method: "GET" })
     const eu = context.userId;
     return {
       eu,
-      posts: listaPosts.map((p, i) => ({
-        ...p,
-        file_url: arquivosAssinados[i],
-        meu: p.author_id === eu,
-        // Só aparece lixeira em post alheio para quem realmente pode moderar.
-        modero: podeModerar.has(p.id),
-        // Em qual grupo aparece — só faz diferença para quem enxerga vários.
-        grupos: (vinculos ?? []).filter((v) => v.post_id === p.id)
-          .map((v) => v.groups?.name).filter((n): n is string => !!n),
-        // Os ids dos mesmos grupos — de onde a menção com @ no comentário
-        // busca quem pode ser marcado (#55).
-        group_ids: (vinculos ?? []).filter((v) => v.post_id === p.id).map((v) => v.group_id),
-        comentarios: (comentarios ?? []).filter((c) => c.post_id === p.id)
-          .map((c) => ({ ...c, meu: c.author_id === eu })),
-        curtidas: (reacoes ?? []).filter((r) => r.post_id === p.id).length,
-        curti: (reacoes ?? []).some((r) => r.post_id === p.id && r.user_id === eu),
-      })),
+      posts: listaPosts.map((p, i) => {
+        // Enquete (#54): opções e votos deste post, se houver.
+        const opcoesDoPost = (opcoes ?? []).filter((o) => o.post_id === p.id);
+        const votosDoPost = (votos ?? []).filter((v) => v.post_id === p.id);
+        const meuVoto = votosDoPost.find((v) => v.voter_id === eu)?.option_id ?? null;
+        const enquete = opcoesDoPost.length === 0 ? null : {
+          opcoes: opcoesDoPost.map((o) => ({ id: o.id, texto: o.texto })),
+          totalVotos: votosDoPost.length,
+          meuVoto,
+          // Regra de honestidade (#54): sem meu voto, nem contagem nem quem
+          // votou saem daqui — a RLS já barra a leitura das linhas alheias,
+          // isto só evita montar um objeto de resultado vazio/enganoso.
+          resultado: !meuVoto ? null : opcoesDoPost.map((o) => {
+            const doOpcao = votosDoPost.filter((v) => v.option_id === o.id);
+            return {
+              id: o.id,
+              contagem: doOpcao.length,
+              porcentagem: votosDoPost.length === 0
+                ? 0 : Math.round((doOpcao.length / votosDoPost.length) * 100),
+              votantes: doOpcao.map((v) => v.voter_name),
+            };
+          }),
+        };
+        return {
+          ...p,
+          file_url: arquivosAssinados[i],
+          meu: p.author_id === eu,
+          // Só aparece lixeira em post alheio para quem realmente pode moderar.
+          modero: podeModerar.has(p.id),
+          // Em qual grupo aparece — só faz diferença para quem enxerga vários.
+          grupos: (vinculos ?? []).filter((v) => v.post_id === p.id)
+            .map((v) => v.groups?.name).filter((n): n is string => !!n),
+          // Os ids dos mesmos grupos — de onde a menção com @ no comentário
+          // busca quem pode ser marcado (#55).
+          group_ids: (vinculos ?? []).filter((v) => v.post_id === p.id).map((v) => v.group_id),
+          comentarios: (comentarios ?? []).filter((c) => c.post_id === p.id)
+            .map((c) => ({ ...c, meu: c.author_id === eu })),
+          curtidas: (reacoes ?? []).filter((r) => r.post_id === p.id).length,
+          curti: (reacoes ?? []).some((r) => r.post_id === p.id && r.user_id === eu),
+          enquete,
+        };
+      }),
     };
   });
 
@@ -245,6 +277,9 @@ export const publicarPost = createServerFn({ method: "POST" })
       file_url: z.string().url().nullable().optional(),
       file_kind: z.enum(["imagem", "pdf"]).nullable().optional(),
       link_url: z.string().url().max(600).nullable().optional(),
+      // Enquete (#54): a pergunta é o próprio `body` — 2 a 6 opções de texto.
+      // Sem enquete, o campo nem vem no payload.
+      poll_options: z.array(z.string().trim().min(1).max(200)).min(2).max(6).optional(),
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
@@ -288,6 +323,28 @@ export const publicarPost = createServerFn({ method: "POST" })
       await supabase.from("community_posts").delete().eq("id", postId);
       throw new Error("Não consegui publicar nestes grupos.");
     }
+
+    // Enquete (#54): as opções nascem junto, na ordem em que foram digitadas.
+    // `sou_autor_do_post` (RLS de INSERT) lê community_posts direto, sem
+    // depender do vínculo de grupo acima já existir — mesma saída que a #55
+    // já usou para o mesmo tipo de corrida.
+    if (data.poll_options?.length) {
+      const { error: eO } = await supabase.from("community_poll_options").insert(
+        data.poll_options.map((texto, i) => ({
+          post_id: postId,
+          texto: texto.trim(),
+          ordem: i,
+          ...(conta ? { conta_id: conta } : {}),
+        })),
+      );
+      if (eO) {
+        // Enquete malformada não pode ficar pela metade — mesmo desfazimento
+        // do vínculo de grupo, e a cascata leva o post_groups junto.
+        await supabase.from("community_posts").delete().eq("id", postId);
+        throw new Error("Não consegui criar a enquete.");
+      }
+    }
+
     if (conta) {
       await darPonto(supabase, context.userId, conta, "publicar", postId);
       const autor = await meuNome(supabase, context.userId);
@@ -371,6 +428,51 @@ export const alternarCurtida = createServerFn({ method: "POST" })
         .delete().eq("post_id", data.post_id).eq("user_id", context.userId);
       if (error) throw new Error(error.message);
     }
+    return { ok: true };
+  });
+
+/**
+ * Vota (ou troca o voto) numa enquete (#54).
+ *
+ * Uma linha por (post, pessoa) — trocar de opção é UPDATE nesta mesma linha,
+ * não uma segunda linha (chave única `post_id, voter_id` na migração). O
+ * nome é recalculado a cada voto, igual ao author_name em post/comentário:
+ * congela quem votou, não some se a pessoa sair do grupo depois.
+ *
+ * Não confia que `option_id` pertence a `post_id` só porque o cliente mandou
+ * os dois juntos — confere no banco antes. A RLS também confere isso (e
+ * quem pode ver o post), mas o erro aqui sai com uma mensagem legível em vez
+ * do texto cru de "row-level security policy".
+ */
+export const votarEnquete = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ post_id: z.string().uuid(), option_id: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const supabase = context.supabase;
+    const { data: opcao, error: eO } = await supabase
+      .from("community_poll_options")
+      .select("id").eq("id", data.option_id).eq("post_id", data.post_id).maybeSingle();
+    if (eO) throw new Error(eO.message);
+    if (!opcao) throw new Error("Esta opção não existe mais.");
+
+    const conta = await contaDaPessoa(supabase, context.userId);
+    // Sem `.select()` depois do upsert de propósito: a policy de leitura do
+    // voto depende de "eu já votei nesta enquete", que só passa a ser
+    // verdade DEPOIS desta escrita — mesma armadilha de RLS circular que já
+    // apareceu em community_post_groups (ver a migração da #54).
+    const { error } = await supabase.from("community_poll_votes").upsert(
+      {
+        post_id: data.post_id,
+        option_id: data.option_id,
+        voter_id: context.userId,
+        voter_name: await meuNome(supabase, context.userId),
+        ...(conta ? { conta_id: conta } : {}),
+      },
+      { onConflict: "post_id,voter_id" },
+    );
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
