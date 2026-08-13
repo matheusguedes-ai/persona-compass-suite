@@ -1289,6 +1289,27 @@ export type Database = {
           },
         ]
       }
+      treinamento_aula_conclusoes: {
+        Row: { id: string; aula_id: string; person_id: string; conta_id: string; concluida_em: string }
+        Insert: { id?: string; aula_id: string; person_id: string; conta_id: string; concluida_em?: string }
+        Update: { id?: string; aula_id?: string; person_id?: string; conta_id?: string; concluida_em?: string }
+        Relationships: [
+          {
+            foreignKeyName: "treinamento_aula_conclusoes_aula_id_fkey"
+            columns: ["aula_id"]
+            isOneToOne: false
+            referencedRelation: "treinamento_aulas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "treinamento_aula_conclusoes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       treinamento_materiais: {
         Row: { id: string; aula_id: string; titulo: string; url: string; kind: string; ordem: number; created_at: string; visivel_aluno: boolean }
         Insert: { id?: string; aula_id: string; titulo: string; url: string; kind?: string; ordem?: number; created_at?: string; visivel_aluno?: boolean }
@@ -2052,6 +2073,14 @@ export type Database = {
       }
       avaliar_aula: {
         Args: { _aula_id: string; _estrelas: number; _comentario: string | null }
+        Returns: undefined
+      }
+      marcar_conclusao_aula: {
+        Args: { _aula_id: string }
+        Returns: undefined
+      }
+      desmarcar_conclusao_aula: {
+        Args: { _aula_id: string }
         Returns: undefined
       }
       can_see_track: { Args: { _track_id: string }; Returns: boolean }

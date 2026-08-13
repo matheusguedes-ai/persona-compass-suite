@@ -18,6 +18,7 @@ import {
   getTreinamento, updateTreinamento, deleteTreinamento, setGruposDoTreinamento,
   saveModulo, deleteModulo, saveAula, deleteAula, cancelarAula,
   saveMaterialAula, deleteMaterialAula, TIPOS_MATERIAL_TREINAMENTO, avaliarAula,
+  marcarAulaConcluida, desmarcarAulaConcluida,
 } from "@/lib/classroom.functions";
 import { meusGrupos } from "@/lib/comunidade.functions";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,14 @@ type AulaT = {
   avaliacao?: { media: number; contagem: number } | null;
   /** #231 — só para quem dá a aula: os comentários, identificados. */
   comentarios?: Array<{ estrelas: number; comentario: string | null; pessoa: string }>;
+  /** #256 — minha própria conclusão, se marquei esta aula gravada. */
+  minha_conclusao?: { concluida_em: string } | null;
+  /** #256 — o botão "Marcar como concluída" deve aparecer? */
+  pode_concluir?: boolean;
+  /** #256 — desfazer só antes de avaliar; a trava de verdade mora no banco. */
+  pode_desmarcar?: boolean;
+  /** #256 — só para quem dá a aula, só em aula gravada: quantos concluíram. */
+  concluidos_count?: number | null;
 };
 type ModuloT = { id: string; titulo: string; aulas: AulaT[] };
 
@@ -161,6 +170,20 @@ export function TreinamentoView({
       toast.success("Avaliação enviada. Obrigado!");
       inv();
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // #256 — concluir/desfazer aula gravada.
+  const marcarConcluidaFn = useServerFn(marcarAulaConcluida);
+  const marcarConcluida = useMutation({
+    mutationFn: (v: { aula_id: string }) => marcarConcluidaFn({ data: v }),
+    onSuccess: () => inv(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const desmarcarConcluidaFn = useServerFn(desmarcarAulaConcluida);
+  const desmarcarConcluida = useMutation({
+    mutationFn: (v: { aula_id: string }) => desmarcarConcluidaFn({ data: v }),
+    onSuccess: () => inv(),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -303,13 +326,17 @@ export function TreinamentoView({
                         {formatarPeriodo(aula.comeca_em, aula.termina_em)}
                       </p>
                     ) : podeEditar ? (
-                      <p className="flex items-center gap-1.5 text-amber-700">
-                        <CalendarClock className="size-4 shrink-0" />
-                        Sem data marcada — o check-in vai precisar dela.
+                      // #256 — aula sem horário É a aula gravada, de propósito:
+                      // não é mais "data ainda não marcada", é o estado final.
+                      <p className="flex items-center gap-1.5">
+                        <Video className="size-4 shrink-0" />
+                        Aula gravada
+                        {aula.concluidos_count != null &&
+                          ` · ${aula.concluidos_count} ${aula.concluidos_count === 1 ? "concluiu" : "concluíram"}`}
                       </p>
                     ) : (
                       <p className="flex items-center gap-1.5">
-                        <CalendarClock className="size-4 shrink-0" /> Data a definir.
+                        <Video className="size-4 shrink-0" /> Aula gravada.
                       </p>
                     )}
                     {aula.local && (
@@ -352,6 +379,38 @@ export function TreinamentoView({
                 <p className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
                   <CircleCheck className="size-4" /> Sua presença neste encontro está registrada.
                 </p>
+              )}
+
+              {/* #256 — aula gravada: concluir é o que libera a avaliação,
+                  no lugar de presença+término. Desfazer só aparece enquanto
+                  a trava do banco ainda permite (não avaliou). */}
+              {!podeEditar && aula.minha_conclusao && (
+                <p className="mt-3 flex flex-wrap items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+                  <CircleCheck className="size-4 shrink-0" /> Você concluiu esta aula.
+                  {aula.pode_desmarcar && (
+                    <button
+                      type="button"
+                      disabled={desmarcarConcluida.isPending}
+                      onClick={() => desmarcarConcluida.mutate({ aula_id: aula.id })}
+                      className="text-xs font-medium underline underline-offset-2 hover:no-underline disabled:opacity-50"
+                    >
+                      {desmarcarConcluida.isPending ? "Desfazendo…" : "Desfazer"}
+                    </button>
+                  )}
+                </p>
+              )}
+              {!podeEditar && aula.pode_concluir && (
+                <div className="mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={marcarConcluida.isPending}
+                    onClick={() => marcarConcluida.mutate({ aula_id: aula.id })}
+                  >
+                    <CircleCheck className="size-4" />
+                    {marcarConcluida.isPending ? "Marcando…" : "Marcar como concluída"}
+                  </Button>
+                </div>
               )}
 
               {/* #231 — convite discreto para avaliar, só quando faz sentido:

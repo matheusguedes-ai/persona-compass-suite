@@ -228,6 +228,25 @@ export const getTreinamento = createServerFn({ method: "GET" })
     const minhaPessoaId = data.preview_person_id ?? null;
     const agoraMs = Date.now();
 
+    // #256 — conclusão de aula gravada. Mesma leitura de dois lados que a
+    // avaliação: aluno recebe só a própria linha (RLS), dono recebe todas
+    // (para a contagem "N concluíram").
+    const { data: conclusoesCru, error: eConcl } = idsDasAulas.length
+      ? await supabase
+          .from("treinamento_aula_conclusoes")
+          .select("aula_id, person_id, concluida_em")
+          .in("aula_id", idsDasAulas)
+      : { data: [], error: null };
+    if (eConcl) throw new Error(eConcl.message);
+
+    type ConclRow = { aula_id: string; person_id: string; concluida_em: string };
+    const conclusoesPorAula = new Map<string, ConclRow[]>();
+    for (const c of (conclusoesCru ?? []) as unknown as ConclRow[]) {
+      const arr = conclusoesPorAula.get(c.aula_id) ?? [];
+      arr.push(c);
+      conclusoesPorAula.set(c.aula_id, arr);
+    }
+
     const modules = porOrdem(mods.data ?? []).map((m) => ({
       ...m,
       treinamento_aulas: undefined,
@@ -240,6 +259,13 @@ export const getTreinamento = createServerFn({ method: "GET" })
             : avaliacoesDaAula[0];
           const aulaTerminou = !!aula.termina_em && new Date(aula.termina_em).getTime() <= agoraMs;
           const notasDaTurma = avaliacoesDaAula.map((av) => av.estrelas);
+          // #256 — aula GRAVADA é a que nunca teve horário marcado. Aula com
+          // horário continua exatamente na regra da #231, abaixo.
+          const gravada = !aula.comeca_em;
+          const conclusoesDaAula = conclusoesPorAula.get(aula.id) ?? [];
+          const minhaConclusao = minhaPessoaId
+            ? conclusoesDaAula.find((c) => c.person_id === minhaPessoaId)
+            : conclusoesDaAula[0];
           return {
             ...aula,
             estive: estive.has(aula.id),
@@ -259,15 +285,28 @@ export const getTreinamento = createServerFn({ method: "GET" })
                 visivel_aluno: boolean;
               }>) ?? [],
             ),
-            // #231 — lado do aluno: a própria nota, se já enviou; senão, se o
-            // convite "Avalie esta aula" deve aparecer. As MESMAS três regras
-            // da função avaliar_aula (presença que conta, aula terminada, uma
-            // vez só) — repetidas aqui só para a TELA não oferecer o que o
-            // banco recusaria, nunca como a trava de verdade.
+            // #231/#256 — lado do aluno: a própria nota, se já enviou; senão,
+            // se o convite "Avalie esta aula" deve aparecer. As MESMAS regras
+            // da função avaliar_aula — repetidas aqui só para a TELA não
+            // oferecer o que o banco recusaria, nunca como a trava de
+            // verdade. Aula gravada libera por conclusão; aula com horário
+            // continua exatamente como na #231 (presença + término).
             minha_avaliacao: minhaAvaliacao
               ? { estrelas: minhaAvaliacao.estrelas, comentario: minhaAvaliacao.comentario }
               : null,
-            pode_avaliar: estive.has(aula.id) && aulaTerminou && !aula.cancelada && !minhaAvaliacao,
+            pode_avaliar: gravada
+              ? !!minhaConclusao && !aula.cancelada && !minhaAvaliacao
+              : estive.has(aula.id) && aulaTerminou && !aula.cancelada && !minhaAvaliacao,
+            // #256 — lado do aluno, só em aula gravada: a própria conclusão,
+            // e se o botão de marcar/desmarcar deve aparecer. Desmarcar só é
+            // oferecido enquanto não avaliou — a MESMA trava que
+            // desmarcar_conclusao_aula aplica no banco.
+            minha_conclusao: minhaConclusao ? { concluida_em: minhaConclusao.concluida_em } : null,
+            pode_concluir: gravada && !aula.cancelada && !minhaConclusao,
+            pode_desmarcar: gravada && !!minhaConclusao && !minhaAvaliacao,
+            // #256 — lado do mentor, só em aula gravada: contagem simples,
+            // sem lista de nomes (não foi pedida tela de relatório).
+            concluidos_count: dono && gravada ? conclusoesDaAula.length : null,
             // #231 — lado do mentor: média SEMPRE com contagem (nunca sozinha —
             // é o que a regra de honestidade pede), e os comentários
             // identificados. Só monta quando é o dono de verdade olhando (nunca
@@ -1747,6 +1786,33 @@ export const avaliarAula = createServerFn({ method: "POST" })
       _estrelas: data.estrelas,
       _comentario: data.comentario ?? null,
     });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
+ * #256 — marca uma aula GRAVADA como concluída. As regras — só aula sem
+ * horário, não cancelada, quem tem acesso ao treinamento — vivem dentro da
+ * RPC `marcar_conclusao_aula`, não aqui.
+ */
+export const marcarAulaConcluida = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ aula_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("marcar_conclusao_aula", { _aula_id: data.aula_id });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
+ * #256 — desfaz a conclusão. A RPC `desmarcar_conclusao_aula` recusa se a
+ * aula já foi avaliada — desfazer depois deixaria a avaliação órfã.
+ */
+export const desmarcarAulaConcluida = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ aula_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("desmarcar_conclusao_aula", { _aula_id: data.aula_id });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
