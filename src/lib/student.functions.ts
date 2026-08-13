@@ -116,7 +116,7 @@ export const getMyStudentProfile = createServerFn({ method: "GET" })
 
     const { data, error } = await supabase
       .from("people")
-      .select("id, full_name, email, phone, avatar_url")
+      .select("id, full_name, email, phone, avatar_url, company_name, banner_url, linkedin_url, instagram_url, site_url")
       .eq("user_id", userId)
       .order("created_at")
       .limit(1)
@@ -128,6 +128,7 @@ export const getMyStudentProfile = createServerFn({ method: "GET" })
       const { assinarUrl, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       data.avatar_url = await assinarUrl(supabaseAdmin, data.avatar_url, TTL_AVATAR_SEGUNDOS);
+      data.banner_url = await assinarUrl(supabaseAdmin, data.banner_url, TTL_AVATAR_SEGUNDOS);
     }
     return { pessoa: data, email_login: email, user_id: userId };
   });
@@ -142,30 +143,49 @@ export const getMyStudentProfile = createServerFn({ method: "GET" })
  */
 export const updateMyStudentProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({
+  .inputValidator((d) => {
+    // safeParse + throw manual: um ZodError "cru" chegaria ao toast como o
+    // array de issues inteiro em JSON (é assim que .message de ZodError
+    // funciona) — nada "claro" para quem não lê código. Pegando só a
+    // primeira mensagem, o que chega no toast é a frase da própria
+    // validação (de urlOpcional), não um bloco de JSON.
+    const r = z.object({
       full_name: z.string().trim().min(2).max(160),
       phone: z.string().trim().max(40).optional().nullable(),
       avatar_url: urlOpcional,
-    }).parse(d),
-  )
+      company_name: z.string().trim().max(160).optional().nullable(),
+      banner_url: urlOpcional,
+      linkedin_url: urlOpcional,
+      instagram_url: urlOpcional,
+      site_url: urlOpcional,
+    }).safeParse(d);
+    if (!r.success) throw new Error(r.error.issues[0]?.message ?? "Dados inválidos.");
+    return r.data;
+  })
   .handler(async ({ data, context }) => {
-    // A tela do aluno carrega a foto já ASSINADA (ver getMyStudentProfile) e
-    // reenvia esse mesmo valor ao salvar nome/telefone junto, sem trocar a
-    // foto — preserva o identificador já gravado em vez de persistir um link
-    // que expira em minutos.
+    // A tela do aluno carrega foto e banner já ASSINADOS (ver
+    // getMyStudentProfile) e reenvia esses mesmos valores ao salvar o resto
+    // junto, sem trocar a imagem — preserva o identificador já gravado em vez
+    // de persistir um link que expira em minutos. Mesma guarda para os dois.
     const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
     let avatarUrl = data.avatar_url ?? null;
-    if (ehUrlAssinadaNossa(avatarUrl)) {
+    let bannerUrl = data.banner_url ?? null;
+    if (ehUrlAssinadaNossa(avatarUrl) || ehUrlAssinadaNossa(bannerUrl)) {
       const { data: atual } = await context.supabase
-        .from("people").select("avatar_url").eq("user_id", context.userId)
+        .from("people").select("avatar_url, banner_url").eq("user_id", context.userId)
         .order("created_at").limit(1).maybeSingle();
-      avatarUrl = atual?.avatar_url ?? null;
+      if (ehUrlAssinadaNossa(avatarUrl)) avatarUrl = atual?.avatar_url ?? null;
+      if (ehUrlAssinadaNossa(bannerUrl)) bannerUrl = atual?.banner_url ?? null;
     }
     const { error } = await context.supabase.rpc("update_my_person", {
       _full_name: data.full_name,
       _phone: data.phone ?? null,
       _avatar_url: avatarUrl,
+      _company_name: data.company_name ?? null,
+      _banner_url: bannerUrl,
+      _linkedin_url: data.linkedin_url ?? null,
+      _instagram_url: data.instagram_url ?? null,
+      _site_url: data.site_url ?? null,
     });
     if (error) throw new Error(error.message);
     return { ok: true };

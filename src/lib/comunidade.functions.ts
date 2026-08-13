@@ -401,9 +401,14 @@ export const perfilDoColega = createServerFn({ method: "GET" })
       full_name: string;
       avatar_url: string | null;
       role_at_company: string | null;
+      company_name: string | null;
+      banner_url: string | null;
       profession: string | null;
       email: string | null;
       phone: string | null;
+      linkedin_url: string | null;
+      instagram_url: string | null;
+      site_url: string | null;
       autorizou: boolean;
     };
     const { data: r, error } = await (context.supabase.rpc as never as (
@@ -417,5 +422,6 @@ export const perfilDoColega = createServerFn({ method: "GET" })
     const { assinarUrl, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     perfil.avatar_url = await assinarUrl(supabaseAdmin, perfil.avatar_url, TTL_AVATAR_SEGUNDOS);
+    perfil.banner_url = await assinarUrl(supabaseAdmin, perfil.banner_url, TTL_AVATAR_SEGUNDOS);
     return { perfil };
   });

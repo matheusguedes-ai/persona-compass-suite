@@ -1291,6 +1291,11 @@ export type Database = {
           role: string
           avatar_url: string | null
           role_at_company: string | null
+          company_name: string | null
+          banner_url: string | null
+          linkedin_url: string | null
+          instagram_url: string | null
+          site_url: string | null
           updated_at: string
           user_id: string | null
         }
@@ -1307,6 +1312,11 @@ export type Database = {
           role?: string
           avatar_url?: string | null
           role_at_company?: string | null
+          company_name?: string | null
+          banner_url?: string | null
+          linkedin_url?: string | null
+          instagram_url?: string | null
+          site_url?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1323,6 +1333,11 @@ export type Database = {
           role?: string
           avatar_url?: string | null
           role_at_company?: string | null
+          company_name?: string | null
+          banner_url?: string | null
+          linkedin_url?: string | null
+          instagram_url?: string | null
+          site_url?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1972,7 +1987,11 @@ export type Database = {
       claim_student_profile: { Args: Record<string, never>; Returns: number }
       claim_team_membership: { Args: Record<string, never>; Returns: number }
       update_my_person: {
-        Args: { _full_name: string; _phone?: string | null; _avatar_url?: string | null }
+        Args: {
+          _full_name: string; _phone?: string | null; _avatar_url?: string | null
+          _company_name?: string | null; _banner_url?: string | null
+          _linkedin_url?: string | null; _instagram_url?: string | null; _site_url?: string | null
+        }
         Returns: number
       }
       posso_agendar_mentoria: { Args: { p_person_id: string }; Returns: boolean }

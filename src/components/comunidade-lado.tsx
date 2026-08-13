@@ -14,7 +14,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { rankingDoGrupo } from "@/lib/pontos.functions";
 import { membrosDosGrupos, perfilDoColega } from "@/lib/comunidade.functions";
 import { Avatar } from "@/components/avatar-upload";
-import { Trophy, Users, Mail, Phone, Briefcase, Lock } from "lucide-react";
+import {
+  Trophy, Users, Mail, Phone, Briefcase, Lock, Linkedin, Instagram, Globe,
+} from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -134,6 +136,13 @@ export function LadoDaComunidade({ grupos }: { grupos: Array<{ id: string; name:
           )}
           {perfil?.perfil && (
             <>
+              {/* Sangra até a borda do diálogo (p-6 no DialogContent) — sem
+                  banner, fica só o fundo neutro no lugar. */}
+              <div className="-mx-6 -mt-6 mb-1 h-20 w-[calc(100%+3rem)] overflow-hidden bg-gradient-to-r from-muted to-muted/60">
+                {perfil.perfil.banner_url && (
+                  <img src={perfil.perfil.banner_url} alt="" className="size-full object-cover" />
+                )}
+              </div>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-3">
                   <Avatar
@@ -145,8 +154,10 @@ export function LadoDaComunidade({ grupos }: { grupos: Array<{ id: string; name:
               </DialogHeader>
 
               <div className="space-y-2 text-sm">
-                {perfil.perfil.role_at_company && (
-                  <p className="text-muted-foreground">{perfil.perfil.role_at_company}</p>
+                {(perfil.perfil.role_at_company || perfil.perfil.company_name) && (
+                  <p className="text-muted-foreground">
+                    {[perfil.perfil.role_at_company, perfil.perfil.company_name].filter(Boolean).join(" · ")}
+                  </p>
                 )}
 
                 {perfil.perfil.autorizou ? (
@@ -168,6 +179,28 @@ export function LadoDaComunidade({ grupos }: { grupos: Array<{ id: string; name:
                         <Phone className="size-4 shrink-0 text-muted-foreground" />
                         {perfil.perfil.phone}
                       </p>
+                    )}
+                    {(perfil.perfil.linkedin_url || perfil.perfil.instagram_url || perfil.perfil.site_url) && (
+                      <div className="flex items-center gap-3 pt-1">
+                        {perfil.perfil.linkedin_url && (
+                          <a href={perfil.perfil.linkedin_url} target="_blank" rel="noopener noreferrer"
+                             className="text-muted-foreground hover:text-foreground" title="LinkedIn">
+                            <Linkedin className="size-4" />
+                          </a>
+                        )}
+                        {perfil.perfil.instagram_url && (
+                          <a href={perfil.perfil.instagram_url} target="_blank" rel="noopener noreferrer"
+                             className="text-muted-foreground hover:text-foreground" title="Instagram">
+                            <Instagram className="size-4" />
+                          </a>
+                        )}
+                        {perfil.perfil.site_url && (
+                          <a href={perfil.perfil.site_url} target="_blank" rel="noopener noreferrer"
+                             className="text-muted-foreground hover:text-foreground" title="Site pessoal">
+                            <Globe className="size-4" />
+                          </a>
+                        )}
+                      </div>
                     )}
                   </>
                 ) : (
