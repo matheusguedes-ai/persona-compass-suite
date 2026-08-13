@@ -183,6 +183,20 @@ export type Database = {
         Update: { id?: string; post_id?: string; option_id?: string; voter_id?: string; voter_name?: string; conta_id?: string; created_at?: string; updated_at?: string }
         Relationships: []
       }
+      community_post_eventos: {
+        Row: { post_id: string; evento_id: string | null; conta_id: string; created_at: string }
+        Insert: { post_id: string; evento_id?: string | null; conta_id?: string; created_at?: string }
+        Update: { post_id?: string; evento_id?: string | null; conta_id?: string; created_at?: string }
+        Relationships: [
+          {
+            foreignKeyName: "community_post_eventos_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "eventos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mentorias: {
         Row: {
           created_at: string

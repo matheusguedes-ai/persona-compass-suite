@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   listarFeed, publicarPost, comentar, alternarCurtida, apagarPost, apagarComentario,
-  membrosDosGrupos, votarEnquete,
+  membrosDosGrupos, votarEnquete, eventosParaEscolher,
 } from "@/lib/comunidade.functions";
 import { detectarMencao, marcarPessoa } from "@/lib/mencoes";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/avatar-upload";
 import { LadoDaComunidade } from "@/components/comunidade-lado";
 import { PerfilColegaDialog } from "@/components/perfil-colega-dialog";
-import { Heart, MessageCircle, Paperclip, Trash2, FileText, X, Send, BarChart3 } from "lucide-react";
+import { Heart, MessageCircle, Paperclip, Trash2, FileText, X, Send, BarChart3, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { youtubeId } from "@/lib/learning.functions";
@@ -78,6 +78,14 @@ function quando(iso: string) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 }
 
+/** Data e hora completas de um evento (#56) — diferente de `quando()` acima,
+    que é relativo ("3h atrás"): aqui é sempre um momento absoluto. */
+function dataDoEvento(iso: string) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+}
+
 /**
  * @param grupos     todos os grupos que a pessoa alcança
  * @param escolherDestino  true para o dono, que decide para onde vai cada post.
@@ -89,11 +97,15 @@ export function Comunidade({
   escolherDestino = false,
   somenteLeitura = false,
   focoPostId,
+  linkAgenda = "/agenda",
 }: {
   grupos: Array<{ id: string; name: string }>;
   escolherDestino?: boolean;
   /** Prévia "Ver como aluno": mostra o feed, mas não deixa publicar em nome dele. */
   somenteLeitura?: boolean;
+  /** Rota da Agenda de quem está vendo — o dono usa /agenda, o aluno usa
+      /aluno/agenda (#56). Passada pela rota, não descoberta aqui. */
+  linkAgenda?: string;
   /** Veio de uma notificação de menção — rola até este post ao carregar (#55). */
   focoPostId?: string;
 }) {
@@ -107,6 +119,7 @@ export function Comunidade({
   const previaFn = useServerFn(assinarMeuEnvio);
   const membrosFn = useServerFn(membrosDosGrupos);
   const votarFn = useServerFn(votarEnquete);
+  const eventosFn = useServerFn(eventosParaEscolher);
 
   const [texto, setTexto] = useState("");
   const [link, setLink] = useState("");
@@ -117,6 +130,15 @@ export function Comunidade({
   // Qual opção está com a lista de votantes aberta agora — um slot só serve
   // qualquer enquete de qualquer post, porque option_id já é único.
   const [verVotantes, setVerVotantes] = useState<string | null>(null);
+  // Evento como cartão (#56): mutuamente exclusivo com enquete — os dois
+  // ligados ao mesmo tempo não fazem sentido no mesmo post.
+  const [modoEvento, setModoEvento] = useState(false);
+  const [eventoEscolhido, setEventoEscolhido] = useState<{ id: string; titulo: string } | null>(null);
+  const { data: eventosData } = useQuery({
+    queryKey: ["eventos-para-escolher"],
+    queryFn: () => eventosFn(),
+    enabled: modoEvento,
+  });
   const [arquivo, setArquivo] = useState<{ url: string; kind: "imagem" | "pdf"; nome: string } | null>(null);
   // O bucket 'comunidade' é privado: arquivo.url guarda o IDENTIFICADOR (o que
   // salva). Isto guarda a versão ASSINADA do upload desta sessão, só para o
@@ -198,12 +220,14 @@ export function Comunidade({
           poll_options: enquete
             ? opcoesEnquete.map((o) => o.trim()).filter((o) => o.length > 0)
             : undefined,
+          evento_id: modoEvento ? eventoEscolhido?.id : undefined,
         },
       }),
     onSuccess: () => {
       setTexto(""); setLink(""); setArquivo(null); setArquivoPreview(null);
       setMencaoAtiva(null);
       setEnquete(false); setOpcoesEnquete(["", ""]);
+      setModoEvento(false); setEventoEscolhido(null);
       if (fileRef.current) fileRef.current.value = "";
       recarregar();
     },
@@ -427,6 +451,43 @@ export function Comunidade({
             )}
           </div>
         )}
+        {/* Evento como cartão (#56): escolher preenche o texto com o título —
+            a pergunta do requisito "referencia, não copia" é sobre o CARTÃO no
+            feed, que sempre lê o evento ao vivo; isto aqui é só o rascunho. */}
+        {modoEvento && (
+          <div className="mt-3 space-y-2 rounded-lg bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              Escolha um evento já cadastrado na Agenda para publicar como cartão.
+            </p>
+            {eventoEscolhido && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary bg-card p-2 text-sm">
+                <CalendarDays className="size-4 shrink-0 text-primary" />
+                <span className="min-w-0 flex-1 truncate font-medium">{eventoEscolhido.titulo}</span>
+                <button type="button" onClick={() => setEventoEscolhido(null)} className="text-muted-foreground hover:text-destructive">
+                  <X className="size-4" />
+                </button>
+              </div>
+            )}
+            {!eventoEscolhido && (
+              <div className="max-h-56 space-y-1 overflow-y-auto">
+                {(eventosData?.eventos ?? []).length === 0 && (
+                  <p className="text-xs text-muted-foreground">Nenhum evento cadastrado na Agenda ainda.</p>
+                )}
+                {(eventosData?.eventos ?? []).map((ev) => (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => { setEventoEscolhido({ id: ev.id, titulo: ev.titulo }); setTexto(ev.titulo); }}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-black/10 p-2 text-left text-sm hover:bg-muted/50"
+                  >
+                    <span className="min-w-0 truncate">{ev.titulo}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{dataDoEvento(ev.quando)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {arquivo && (
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted/50 p-2 text-sm">
             {arquivo.kind === "imagem"
@@ -477,9 +538,24 @@ export function Comunidade({
             </Button>
             <Button
               variant={enquete ? "secondary" : "ghost"} size="sm"
-              onClick={() => setEnquete((v) => !v)}
+              onClick={() => setEnquete((v) => {
+                // Mutuamente exclusivo com Evento (#56) — os dois ao mesmo
+                // tempo não fazem sentido no mesmo post.
+                if (!v) { setModoEvento(false); setEventoEscolhido(null); }
+                return !v;
+              })}
             >
               <BarChart3 className="size-3.5" /> Enquete
+            </Button>
+            <Button
+              variant={modoEvento ? "secondary" : "ghost"} size="sm"
+              onClick={() => setModoEvento((v) => {
+                if (!v) { setEnquete(false); setOpcoesEnquete(["", ""]); }
+                else setEventoEscolhido(null);
+                return !v;
+              })}
+            >
+              <CalendarDays className="size-3.5" /> Evento
             </Button>
           </div>
           <Button
@@ -490,6 +566,7 @@ export function Comunidade({
               || texto.trim().length === 0
               || (escolherDestino ? destino.length === 0 : grupos.length === 0)
               || (enquete && opcoesEnquete.filter((o) => o.trim().length > 0).length < 2)
+              || (modoEvento && !eventoEscolhido)
             }
           >
             <Send className="size-3.5" /> {publicar.isPending ? "Publicando…" : "Publicar"}
@@ -617,6 +694,48 @@ export function Comunidade({
                       {o.texto}
                     </button>
                   ))}
+            </div>
+          )}
+
+          {/* Cartão de evento (#56) — referencia o evento, nunca copia: os
+              dados abaixo vêm ao vivo de `eventos` a cada carregamento do
+              feed. Mudou a data na Agenda, o cartão muda sozinho. */}
+          {p.evento && p.evento.apagado && (
+            <p className="mt-3 rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+              Este evento não está mais disponível.
+            </p>
+          )}
+          {p.evento && !p.evento.apagado && (
+            <div className="mt-3 overflow-hidden rounded-lg border border-black/10">
+              {p.evento.imagemUrl && (
+                <img src={p.evento.imagemUrl} alt="" className="max-h-48 w-full object-cover" />
+              )}
+              <div className="space-y-1.5 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 flex-1 font-medium">{p.evento.titulo}</p>
+                  {p.evento.jaAconteceu && (
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                      já aconteceu
+                    </span>
+                  )}
+                </div>
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CalendarDays className="size-3.5" />
+                  {dataDoEvento(p.evento.quando)}
+                  {p.evento.terminaEm && ` até ${dataDoEvento(p.evento.terminaEm)}`}
+                </p>
+                {p.evento.linkUrl && (
+                  <a
+                    href={p.evento.linkUrl} target="_blank" rel="noreferrer"
+                    className="block truncate text-xs text-primary hover:underline"
+                  >
+                    {p.evento.linkUrl}
+                  </a>
+                )}
+                <a href={linkAgenda} className="mt-1 inline-block text-xs font-medium text-primary hover:underline">
+                  Ver na Agenda →
+                </a>
+              </div>
             </div>
           )}
 

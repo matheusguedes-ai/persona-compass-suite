@@ -56,7 +56,7 @@ function Pagina() {
             : `Você participa de ${grupos.length} grupos, e vê todos aqui. O que você publica aparece em todos eles.`}
         </p>
       </div>
-      <Comunidade grupos={grupos} somenteLeitura={!!ver} focoPostId={post} />
+      <Comunidade grupos={grupos} somenteLeitura={!!ver} focoPostId={post} linkAgenda="/aluno/agenda" />
     </div>
   );
 }

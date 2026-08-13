@@ -95,7 +95,7 @@ export const listarFeed = createServerFn({ method: "GET" })
     const ids = [...new Set((vinculos ?? []).map((v) => v.post_id))];
     if (ids.length === 0) return { eu: context.userId, posts: [] };
 
-    const [{ data: posts, error }, { data: comentarios }, { data: reacoes }, { data: opcoes }, { data: votos }] = await Promise.all([
+    const [{ data: posts, error }, { data: comentarios }, { data: reacoes }, { data: opcoes }, { data: votos }, { data: vinculosEvento }] = await Promise.all([
       supabase.from("community_posts")
         .select("id, author_id, author_name, body, file_url, file_kind, link_url, created_at")
         .in("id", ids).order("created_at", { ascending: false }).limit(80),
@@ -110,6 +110,13 @@ export const listarFeed = createServerFn({ method: "GET" })
         .select("id, post_id, texto").in("post_id", ids).order("ordem"),
       supabase.from("community_poll_votes")
         .select("post_id, option_id, voter_id, voter_name").in("post_id", ids),
+      // Evento como cartão (#56): o embed de `eventos` respeita a RLS DELE —
+      // se o evento foi apagado (evento_id virou null) ou se por algum motivo
+      // esta pessoa não pode mais vê-lo, `eventos` vem null sozinho, sem
+      // precisar de checagem extra aqui.
+      supabase.from("community_post_eventos")
+        .select("post_id, evento_id, eventos(id, titulo, quando, termina_em, link_url, imagem_url)")
+        .in("post_id", ids),
     ]);
     // Quem modera o quê é decidido no banco, não aqui — a tela só pergunta.
     const podeModerar = new Set<string>();
@@ -125,7 +132,12 @@ export const listarFeed = createServerFn({ method: "GET" })
     const arquivosAssinados = await assinarUrls(
       supabaseAdmin, listaPosts.map((p) => p.file_url), TTL_ARQUIVO_SEGUNDOS,
     );
+    // Mesmo tratamento que agendaDoMes já dá à imagem do evento.
+    const imagensEventoAssinadas = await assinarUrls(
+      supabaseAdmin, (vinculosEvento ?? []).map((v) => v.eventos?.imagem_url ?? null), TTL_ARQUIVO_SEGUNDOS,
+    );
 
+    const agora = Date.now();
     const eu = context.userId;
     return {
       eu,
@@ -152,6 +164,25 @@ export const listarFeed = createServerFn({ method: "GET" })
             };
           }),
         };
+        // Evento como cartão (#56): a linha em community_post_eventos existir
+        // é o sinal de "este post é um cartão de evento" — independente de o
+        // evento em si ainda existir ou não (ver a migração da #56).
+        const iEvento = (vinculosEvento ?? []).findIndex((v) => v.post_id === p.id);
+        const vinculoEvento = iEvento === -1 ? null : vinculosEvento![iEvento];
+        const evento = !vinculoEvento
+          ? null
+          : !vinculoEvento.eventos
+            ? { apagado: true as const }
+            : {
+                apagado: false as const,
+                id: vinculoEvento.eventos.id,
+                titulo: vinculoEvento.eventos.titulo,
+                quando: vinculoEvento.eventos.quando,
+                terminaEm: vinculoEvento.eventos.termina_em,
+                linkUrl: vinculoEvento.eventos.link_url,
+                imagemUrl: imagensEventoAssinadas[iEvento],
+                jaAconteceu: new Date(vinculoEvento.eventos.quando).getTime() < agora,
+              };
         return {
           ...p,
           file_url: arquivosAssinados[i],
@@ -169,6 +200,7 @@ export const listarFeed = createServerFn({ method: "GET" })
           curtidas: (reacoes ?? []).filter((r) => r.post_id === p.id).length,
           curti: (reacoes ?? []).some((r) => r.post_id === p.id && r.user_id === eu),
           enquete,
+          evento,
         };
       }),
     };
@@ -268,6 +300,26 @@ async function notificarMencoes(
   ));
 }
 
+/**
+ * Eventos que dá para escolher para virar cartão no feed (#56).
+ *
+ * Sem filtro nenhum aqui de propósito: a RLS de `eventos` (`posso_ver_evento`,
+ * migração 20260730040000) já resolve sozinha quem enxerga o quê — dono vê
+ * tudo da conta, mentor e aluno só o que foi destinado a eles. Filtrar de novo
+ * aqui só duplicaria a regra e arriscaria ela discordar da RLS um dia.
+ */
+export const eventosParaEscolher = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("eventos")
+      .select("id, titulo, quando, termina_em, link_url")
+      .order("quando", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return { eventos: data ?? [] };
+  });
+
 export const publicarPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -280,6 +332,8 @@ export const publicarPost = createServerFn({ method: "POST" })
       // Enquete (#54): a pergunta é o próprio `body` — 2 a 6 opções de texto.
       // Sem enquete, o campo nem vem no payload.
       poll_options: z.array(z.string().trim().min(1).max(200)).min(2).max(6).optional(),
+      // Evento da Agenda como cartão (#56). Sem cartão, o campo nem vem.
+      evento_id: z.string().uuid().optional(),
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
@@ -342,6 +396,29 @@ export const publicarPost = createServerFn({ method: "POST" })
         // do vínculo de grupo, e a cascata leva o post_groups junto.
         await supabase.from("community_posts").delete().eq("id", postId);
         throw new Error("Não consegui criar a enquete.");
+      }
+    }
+
+    // Evento como cartão (#56): não confia que o cliente só ofereceu eventos
+    // visíveis — confere de novo aqui. A RLS de `eventos` (`posso_ver_evento`)
+    // já faz o corte sozinha: se a pessoa não pode ver o evento, a leitura
+    // volta vazia e o post é desfeito, mesmo padrão da enquete.
+    if (data.evento_id) {
+      const { data: evento, error: eE } = await supabase
+        .from("eventos").select("id").eq("id", data.evento_id).maybeSingle();
+      if (eE) throw new Error(eE.message);
+      if (!evento) {
+        await supabase.from("community_posts").delete().eq("id", postId);
+        throw new Error("Este evento não existe mais ou você não pode vê-lo.");
+      }
+      const { error: eCE } = await supabase.from("community_post_eventos").insert({
+        post_id: postId,
+        evento_id: data.evento_id,
+        ...(conta ? { conta_id: conta } : {}),
+      });
+      if (eCE) {
+        await supabase.from("community_posts").delete().eq("id", postId);
+        throw new Error("Não consegui vincular o evento.");
       }
     }
 
