@@ -198,12 +198,48 @@ export const getTreinamento = createServerFn({ method: "GET" })
       (a) => a.fechada_em && !a.cancelada,
     ).length;
 
+    // #231 — avaliação de aula. Mesma leitura para os dois lados: o aluno
+    // recebe a PRÓPRIA linha (RLS entrega só a dele quando ele não é quem dá
+    // a aula), o dono recebe TODAS (RLS libera por posso_dar_aula) — e é essa
+    // mesma diferença de RLS que decide o que cada um pode calcular abaixo,
+    // sem precisar de duas consultas.
+    const { data: avaliacoesCru, error: eAval } = idsDasAulas.length
+      ? await supabase
+          .from("treinamento_avaliacoes")
+          .select("aula_id, person_id, estrelas, comentario, avaliada_em, people(full_name)")
+          .in("aula_id", idsDasAulas)
+      : { data: [], error: null };
+    if (eAval) throw new Error(eAval.message);
+
+    type AvalRow = {
+      aula_id: string; person_id: string; estrelas: number; comentario: string | null;
+      avaliada_em: string; people: { full_name: string } | null;
+    };
+    const avaliacoesPorAula = new Map<string, AvalRow[]>();
+    for (const av of (avaliacoesCru ?? []) as unknown as AvalRow[]) {
+      const arr = avaliacoesPorAula.get(av.aula_id) ?? [];
+      arr.push(av);
+      avaliacoesPorAula.set(av.aula_id, arr);
+    }
+    // Na prévia "Ver como aluno" é o DONO quem está logado, então a linha dele
+    // próprio não distingue "minha avaliação" de "avaliação de outro aluno" —
+    // precisa apontar explicitamente para quem está sendo pré-visualizado.
+    // Fora da prévia, a RLS já entregou só a linha do aluno de verdade.
+    const minhaPessoaId = data.preview_person_id ?? null;
+    const agoraMs = Date.now();
+
     const modules = porOrdem(mods.data ?? []).map((m) => ({
       ...m,
       treinamento_aulas: undefined,
       aulas: porOrdem(
         ((m.treinamento_aulas as unknown as Array<Record<string, unknown>>) ?? []).map((a) => {
-          const aula = a as { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number; treinamento_presencas?: Array<{ count: number }> };
+          const aula = a as { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number; cancelada: boolean; treinamento_presencas?: Array<{ count: number }> };
+          const avaliacoesDaAula = avaliacoesPorAula.get(aula.id) ?? [];
+          const minhaAvaliacao = minhaPessoaId
+            ? avaliacoesDaAula.find((av) => av.person_id === minhaPessoaId)
+            : avaliacoesDaAula[0];
+          const aulaTerminou = !!aula.termina_em && new Date(aula.termina_em).getTime() <= agoraMs;
+          const notasDaTurma = avaliacoesDaAula.map((av) => av.estrelas);
           return {
             ...aula,
             estive: estive.has(aula.id),
@@ -223,6 +259,31 @@ export const getTreinamento = createServerFn({ method: "GET" })
                 visivel_aluno: boolean;
               }>) ?? [],
             ),
+            // #231 — lado do aluno: a própria nota, se já enviou; senão, se o
+            // convite "Avalie esta aula" deve aparecer. As MESMAS três regras
+            // da função avaliar_aula (presença que conta, aula terminada, uma
+            // vez só) — repetidas aqui só para a TELA não oferecer o que o
+            // banco recusaria, nunca como a trava de verdade.
+            minha_avaliacao: minhaAvaliacao
+              ? { estrelas: minhaAvaliacao.estrelas, comentario: minhaAvaliacao.comentario }
+              : null,
+            pode_avaliar: estive.has(aula.id) && aulaTerminou && !aula.cancelada && !minhaAvaliacao,
+            // #231 — lado do mentor: média SEMPRE com contagem (nunca sozinha —
+            // é o que a regra de honestidade pede), e os comentários
+            // identificados. Só monta quando é o dono de verdade olhando (nunca
+            // na prévia "Ver como aluno", que deve mostrar só o que o aluno vê).
+            avaliacao: dono && notasDaTurma.length > 0
+              ? { media: notasDaTurma.reduce((a2, b2) => a2 + b2, 0) / notasDaTurma.length, contagem: notasDaTurma.length }
+              : null,
+            comentarios: dono
+              ? avaliacoesDaAula
+                  .filter((av) => av.comentario)
+                  .map((av) => ({
+                    estrelas: av.estrelas,
+                    comentario: av.comentario,
+                    pessoa: av.people?.full_name ?? "—",
+                  }))
+              : [],
           };
         }),
       ),
@@ -1662,4 +1723,30 @@ export const fecharListaDaAula = createServerFn({ method: "POST" })
     }
 
     return { ok: true, pontuados: (presencas ?? []).length };
+  });
+
+/**
+ * Avalia a aula: estrelas (1-5) e comentário opcional. #231 — as três regras
+ * — presença que conta (QR e manual iguais), aula já terminada, uma vez só —
+ * vivem dentro da RPC `avaliar_aula` (SECURITY DEFINER), não aqui; esta
+ * função só repassa e traduz o erro. Mesmo padrão de avaliarSessaoMentoria
+ * (student.functions.ts).
+ */
+export const avaliarAula = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      aula_id: z.string().uuid(),
+      estrelas: z.number().int().min(1).max(5),
+      comentario: z.string().trim().max(2000).optional().nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("avaliar_aula", {
+      _aula_id: data.aula_id,
+      _estrelas: data.estrelas,
+      _comentario: data.comentario ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

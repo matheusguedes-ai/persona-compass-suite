@@ -17,7 +17,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   getTreinamento, updateTreinamento, deleteTreinamento, setGruposDoTreinamento,
   saveModulo, deleteModulo, saveAula, deleteAula, cancelarAula,
-  saveMaterialAula, deleteMaterialAula, TIPOS_MATERIAL_TREINAMENTO,
+  saveMaterialAula, deleteMaterialAula, TIPOS_MATERIAL_TREINAMENTO, avaliarAula,
 } from "@/lib/classroom.functions";
 import { meusGrupos } from "@/lib/comunidade.functions";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, CalendarClock, CalendarOff, CircleCheck, Eye, EyeOff, ExternalLink, FileText, FolderKanban, Lock,
-  MapPin, NotebookPen, Paperclip, Pencil, Plus, Presentation, QrCode, Trash2, Upload, Video, X,
+  MapPin, NotebookPen, Paperclip, Pencil, Plus, Presentation, QrCode, Star, Trash2, Upload, Video, X,
 } from "lucide-react";
 import { CheckinDialog } from "@/components/checkin-professor";
 import { ListaDePresenca } from "@/components/lista-de-presenca";
@@ -54,8 +54,44 @@ type AulaT = {
   estive?: boolean;
   /** Quantas pessoas já têm presença gravada — avisa antes de mudar o horário. */
   presencas_count?: number;
+  /** #231 — minha própria nota, se já avaliei esta aula. */
+  minha_avaliacao?: { estrelas: number; comentario: string | null } | null;
+  /** #231 — o convite "Avalie esta aula" deve aparecer? */
+  pode_avaliar?: boolean;
+  /** #231 — só para quem dá a aula: média SEMPRE com contagem junto. */
+  avaliacao?: { media: number; contagem: number } | null;
+  /** #231 — só para quem dá a aula: os comentários, identificados. */
+  comentarios?: Array<{ estrelas: number; comentario: string | null; pessoa: string }>;
 };
 type ModuloT = { id: string; titulo: string; aulas: AulaT[] };
+
+function Estrelas({ n }: { n: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star key={i} className={cn("size-3.5", i <= n ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30")} />
+      ))}
+    </span>
+  );
+}
+
+function SeletorEstrelas({ valor, onChange }: { valor: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onChange(i)}
+          className="p-0.5"
+          aria-label={`${i} estrela${i > 1 ? "s" : ""}`}
+        >
+          <Star className={cn("size-5", i <= valor ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30")} />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const ICONE_MATERIAL: Record<string, typeof FileText> = {
   pdf: FileText, slide: Presentation, roteiro: NotebookPen, planilha: FileText,
@@ -111,6 +147,22 @@ export function TreinamentoView({
   const [editandoTreinamento, setEditandoTreinamento] = useState(false);
   const [checkinDe, setCheckinDe] = useState<string | null>(null);
   const [aba, setAba] = useState<"conteudo" | "presenca">("conteudo");
+
+  // #231 — rascunho da avaliação por aula, antes de enviar. Uma vez enviada,
+  // o dado vem do servidor (`minha_avaliacao`) e o rascunho não importa mais.
+  // Mesmo padrão de aluno.mentorias.tsx.
+  const [rascunhosAval, setRascunhosAval] = useState<Record<string, { estrelas: number; comentario: string }>>({});
+  const rascunhoAval = (id: string) => rascunhosAval[id] ?? { estrelas: 0, comentario: "" };
+  const avaliarFn = useServerFn(avaliarAula);
+  const avaliar = useMutation({
+    mutationFn: (v: { aula_id: string; estrelas: number; comentario: string }) =>
+      avaliarFn({ data: { aula_id: v.aula_id, estrelas: v.estrelas, comentario: v.comentario.trim() || undefined } }),
+    onSuccess: () => {
+      toast.success("Avaliação enviada. Obrigado!");
+      inv();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const modules = useMemo(
     () =>
@@ -302,6 +354,44 @@ export function TreinamentoView({
                 </p>
               )}
 
+              {/* #231 — convite discreto para avaliar, só quando faz sentido:
+                  esteve presente, a aula já terminou, e ainda não avaliou.
+                  Já avaliou → mostra a própria nota, só para ver (não edita). */}
+              {!podeEditar && aula.minha_avaliacao && (
+                <div className="mt-3 rounded-lg bg-muted/30 p-3">
+                  <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    Sua avaliação desta aula:
+                    <Estrelas n={aula.minha_avaliacao.estrelas} />
+                  </p>
+                  {aula.minha_avaliacao.comentario && (
+                    <p className="mt-1.5 text-sm leading-relaxed">{aula.minha_avaliacao.comentario}</p>
+                  )}
+                </div>
+              )}
+              {!podeEditar && aula.pode_avaliar && (
+                <div className="mt-3 space-y-2 rounded-lg border border-black/5 bg-card p-3">
+                  <p className="text-xs font-medium">Avalie esta aula</p>
+                  <SeletorEstrelas
+                    valor={rascunhoAval(aula.id).estrelas}
+                    onChange={(n) => setRascunhosAval((v) => ({ ...v, [aula.id]: { ...rascunhoAval(aula.id), estrelas: n } }))}
+                  />
+                  <Textarea
+                    value={rascunhoAval(aula.id).comentario}
+                    onChange={(e) => setRascunhosAval((v) => ({ ...v, [aula.id]: { ...rascunhoAval(aula.id), comentario: e.target.value } }))}
+                    placeholder="Comentário (opcional)"
+                    rows={2}
+                    className="text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={rascunhoAval(aula.id).estrelas < 1 || avaliar.isPending}
+                    onClick={() => avaliar.mutate({ aula_id: aula.id, ...rascunhoAval(aula.id) })}
+                  >
+                    {avaliar.isPending ? "Enviando…" : "Enviar avaliação"}
+                  </Button>
+                </div>
+              )}
+
               {aula.descricao && (
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                   {aula.descricao}
@@ -376,6 +466,43 @@ export function TreinamentoView({
                   </ul>
                 )}
               </div>
+
+              {/* #231 — só quem dá a aula vê isto: média SEMPRE com a
+                  contagem junto (nunca sozinha — média sem contagem engana),
+                  e os comentários identificados. */}
+              {podeEditar && (
+                <div className="mt-5 border-t border-black/5 pt-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium">Avaliações</h3>
+                    {aula.avaliacao && (
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Star className="size-3.5 fill-amber-400 text-amber-400" />
+                        <strong className="tabular-nums text-foreground">
+                          {aula.avaliacao.media.toFixed(1).replace(".", ",")}
+                        </strong>
+                        ({aula.avaliacao.contagem} {aula.avaliacao.contagem === 1 ? "avaliação" : "avaliações"})
+                      </span>
+                    )}
+                  </div>
+                  {!aula.avaliacao ? (
+                    <p className="mt-2 text-xs text-muted-foreground">Sem avaliações ainda.</p>
+                  ) : (aula.comentarios ?? []).length === 0 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">Nenhum comentário nesta aula.</p>
+                  ) : (
+                    <ul className="mt-2 space-y-2">
+                      {(aula.comentarios ?? []).map((c, i) => (
+                        <li key={i} className="rounded-lg bg-muted/30 p-3">
+                          <p className="flex items-center gap-2 text-xs font-medium">
+                            <Estrelas n={c.estrelas} />
+                            {c.pessoa}
+                          </p>
+                          <p className="mt-1 text-sm leading-relaxed">{c.comentario}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
