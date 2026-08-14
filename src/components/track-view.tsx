@@ -6,7 +6,7 @@
  * sincronia e faz o autor ver exatamente o que o aluno vê.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -760,6 +760,7 @@ function TrilhaDialog({
 
   const saveFn = useServerFn(updateTrack);
   const delFn = useServerFn(deleteTrack);
+  const navigate = useNavigate();
   const salvar = useMutation({
     mutationFn: async () => {
       await saveFn({
@@ -782,7 +783,9 @@ function TrilhaDialog({
   });
   const remover = useMutation({
     mutationFn: () => delFn({ data: { id: track.id } }),
-    onSuccess: () => { toast.success("Trilha removida"); window.location.href = "/educacao"; },
+    // #275 — mesmo padrão do TreinamentoDialog: navigate troca de rota na
+    // hora, em vez do reload duro deixar o diálogo visível até recarregar.
+    onSuccess: () => { toast.success("Trilha removida"); navigate({ to: "/educacao" }); },
     onError: (e: Error) => toast.error(e.message),
   });
 

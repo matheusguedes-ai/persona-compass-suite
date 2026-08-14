@@ -11,7 +11,7 @@
  * versão do aluno é a etapa 3; check-in e presença, as etapas 4 e 5.
  */
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -1181,6 +1181,7 @@ function TreinamentoDialog({
   const saveFn = useServerFn(updateTreinamento);
   const setGruposFn = useServerFn(setGruposDoTreinamento);
   const delFn = useServerFn(deleteTreinamento);
+  const navigate = useNavigate();
 
   const salvar = useMutation({
     mutationFn: async () => {
@@ -1198,7 +1199,11 @@ function TreinamentoDialog({
   });
   const remover = useMutation({
     mutationFn: () => delFn({ data: { id: treinamento.id } }),
-    onSuccess: () => { toast.success("Treinamento removido"); window.location.href = "/classroom"; },
+    // #275 — era `window.location.href`: um reload duro deixa o diálogo (e a
+    // página inteira, já sem o treinamento apagado) visível na tela até o
+    // navegador terminar de recarregar tudo do zero. `navigate` troca de
+    // rota na hora, desmontando este diálogo junto.
+    onSuccess: () => { toast.success("Treinamento removido"); navigate({ to: "/classroom" }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
