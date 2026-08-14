@@ -20,13 +20,16 @@ export type TreinamentoCard = {
 
 export type ClassroomBase = "/classroom" | "/aluno/classroom";
 
-export function TreinamentoCardItem({ t, base }: { t: TreinamentoCard; base: ClassroomBase }) {
+export function TreinamentoCardItem({
+  t, base, search,
+}: { t: TreinamentoCard; base: ClassroomBase; search?: { ver?: string } }) {
   // O roteador exige uma rota literal, não uma montada com template.
   const to = base === "/classroom" ? "/classroom/$treinamentoId" : "/aluno/classroom/$treinamentoId";
   return (
     <Link
       to={to}
       params={{ treinamentoId: t.id }}
+      search={search}
       className="group relative block w-60 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5 transition hover:ring-2 hover:ring-primary"
     >
       <div className="relative h-32 w-full" style={{ background: corDoTitulo(t.titulo) }}>
@@ -58,8 +61,11 @@ export function TreinamentoCardItem({ t, base }: { t: TreinamentoCard; base: Cla
 }
 
 export function PrateleiraTreinamentos({
-  titulo, ajuda, treinamentos, base,
-}: { titulo: string; ajuda?: string; treinamentos: TreinamentoCard[]; base: ClassroomBase }) {
+  titulo, ajuda, treinamentos, base, search,
+}: {
+  titulo: string; ajuda?: string; treinamentos: TreinamentoCard[]; base: ClassroomBase;
+  search?: { ver?: string };
+}) {
   if (treinamentos.length === 0) return null;
   return (
     <section>
@@ -69,7 +75,7 @@ export function PrateleiraTreinamentos({
       </div>
       {/* Rolagem horizontal: a lista cresce para o lado sem empurrar a página. */}
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
-        {treinamentos.map((t) => <TreinamentoCardItem key={t.id} t={t} base={base} />)}
+        {treinamentos.map((t) => <TreinamentoCardItem key={t.id} t={t} base={base} search={search} />)}
       </div>
     </section>
   );

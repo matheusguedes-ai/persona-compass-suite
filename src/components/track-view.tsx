@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import { erroDeUpload } from "@/lib/erro-de-upload";
+import { bloqueadoNoPreview } from "@/lib/preview-mode";
 
 type Material = { id: string; title: string; url: string; kind: string };
 type Lesson = {
@@ -73,8 +74,17 @@ export function TrackView({
   const [editandoTrilha, setEditandoTrilha] = useState(false);
 
   const modules = (data?.modules ?? []) as Module[];
-  const podeEditar = data?.can_edit === true;
+  // #274 — achado extra: faltava aqui o mesmo `&& base === ...` que o
+  // Classroom já tinha (classroom-view.tsx). Sem ele, `can_edit` vem `true`
+  // do servidor mesmo na prévia — é o DONO de verdade autenticado, e ele
+  // realmente pode editar a própria trilha — e os botões de editar/apagar
+  // apareciam em "Ver como aluno". A prévia só é honesta sem eles.
+  const podeEditar = data?.can_edit === true && base === "/educacao";
   const concluidas = new Set(data?.concluidas ?? []);
+  // #274 — "Marcar como vista" continua aparecendo na prévia (mostra o que o
+  // aluno vê e poderia clicar), mas o clique é recusado — nunca grava
+  // progresso da Academy em nome do mentor.
+  const isPreview = !!previewPersonId;
 
   // Todas as aulas em ordem de leitura, para achar a atual e a próxima.
   const aulas = useMemo(() => {
@@ -227,7 +237,7 @@ export function TrackView({
                   <div className="flex gap-2">
                     <Button
                       variant={concluidas.has(aula.id) ? "default" : "outline"}
-                      onClick={() => marcar.mutate({ lesson_id: aula.id, done: !concluidas.has(aula.id) })}
+                      onClick={() => bloqueadoNoPreview(isPreview, () => marcar.mutate({ lesson_id: aula.id, done: !concluidas.has(aula.id) }))}
                       disabled={marcar.isPending}
                     >
                       <Check className="size-4" />

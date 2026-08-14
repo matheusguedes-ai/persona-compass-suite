@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ACCEPT, erroDeUpload } from "@/lib/erro-de-upload";
+import { bloqueadoNoPreview } from "@/lib/preview-mode";
 
 type MaterialT = { id: string; titulo: string; url: string; kind: string; visivel_aluno: boolean };
 type AulaT = {
@@ -201,6 +202,11 @@ export function TreinamentoView({
   // anotações do professor (que o servidor nem manda para quem não é dono,
   // mas aqui o dono É o dono — o corte é da tela).
   const podeEditar = data?.can_edit === true && base === "/classroom";
+  // #274 — os botões de concluir/avaliar continuam aparecendo na prévia
+  // (mostram o que o ALUNO veria e poderia fazer — esconder mentiria sobre o
+  // que a prévia promete). O que muda é que clicar é recusado, não gravado
+  // como o mentor.
+  const isPreview = !!previewPersonId;
 
   const aulas = useMemo(() => modules.flatMap((m) => m.aulas), [modules]);
 
@@ -231,7 +237,10 @@ export function TreinamentoView({
   return (
     <div className="space-y-6">
       <div>
-        <Link to={base} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+        <Link
+          to={base} search={previewPersonId ? { ver: previewPersonId } : undefined}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="size-3" /> Voltar para o Classroom
         </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
@@ -391,7 +400,7 @@ export function TreinamentoView({
                     <button
                       type="button"
                       disabled={desmarcarConcluida.isPending}
-                      onClick={() => desmarcarConcluida.mutate({ aula_id: aula.id })}
+                      onClick={() => bloqueadoNoPreview(isPreview, () => desmarcarConcluida.mutate({ aula_id: aula.id }))}
                       className="text-xs font-medium underline underline-offset-2 hover:no-underline disabled:opacity-50"
                     >
                       {desmarcarConcluida.isPending ? "Desfazendo…" : "Desfazer"}
@@ -405,7 +414,7 @@ export function TreinamentoView({
                     size="sm"
                     variant="outline"
                     disabled={marcarConcluida.isPending}
-                    onClick={() => marcarConcluida.mutate({ aula_id: aula.id })}
+                    onClick={() => bloqueadoNoPreview(isPreview, () => marcarConcluida.mutate({ aula_id: aula.id }))}
                   >
                     <CircleCheck className="size-4" />
                     {marcarConcluida.isPending ? "Marcando…" : "Marcar como concluída"}
@@ -444,7 +453,7 @@ export function TreinamentoView({
                   <Button
                     size="sm"
                     disabled={rascunhoAval(aula.id).estrelas < 1 || avaliar.isPending}
-                    onClick={() => avaliar.mutate({ aula_id: aula.id, ...rascunhoAval(aula.id) })}
+                    onClick={() => bloqueadoNoPreview(isPreview, () => avaliar.mutate({ aula_id: aula.id, ...rascunhoAval(aula.id) }))}
                   >
                     {avaliar.isPending ? "Enviando…" : "Enviar avaliação"}
                   </Button>

@@ -16,6 +16,7 @@ import {
 import { detectarMencao, marcarPessoa } from "@/lib/mencoes";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { bloqueadoNoPreview } from "@/lib/preview-mode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -619,7 +620,7 @@ export function Comunidade({
               <span className="text-xs text-muted-foreground">{quando(p.created_at)}</span>
               {(p.meu || p.modero) && (
                 <button
-                  onClick={() => apagar.mutate(p.id)}
+                  onClick={() => bloqueadoNoPreview(somenteLeitura, () => apagar.mutate(p.id))}
                   className="text-muted-foreground hover:text-destructive"
                   title={p.meu ? "Apagar minha publicação" : "Remover do grupo"}
                 >
@@ -652,7 +653,7 @@ export function Comunidade({
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => votar.mutate({ post_id: p.id, option_id: o.id })}
+                            onClick={() => bloqueadoNoPreview(somenteLeitura, () => votar.mutate({ post_id: p.id, option_id: o.id }))}
                             className={cn(
                               "relative flex-1 overflow-hidden rounded-lg border p-2 text-left text-sm transition",
                               escolhida ? "border-primary" : "border-black/10 hover:border-black/20",
@@ -688,7 +689,7 @@ export function Comunidade({
                     <button
                       key={o.id}
                       type="button"
-                      onClick={() => votar.mutate({ post_id: p.id, option_id: o.id })}
+                      onClick={() => bloqueadoNoPreview(somenteLeitura, () => votar.mutate({ post_id: p.id, option_id: o.id }))}
                       className="w-full rounded-lg border border-black/10 p-2 text-left text-sm hover:bg-muted/50"
                     >
                       {o.texto}
@@ -776,7 +777,7 @@ export function Comunidade({
 
           <div className="mt-3 flex items-center gap-4 border-t border-black/5 pt-3">
             <button
-              onClick={() => curtir.mutate({ post_id: p.id, curtir: !p.curti })}
+              onClick={() => bloqueadoNoPreview(somenteLeitura, () => curtir.mutate({ post_id: p.id, curtir: !p.curti }))}
               className={cn("flex items-center gap-1.5 text-sm", p.curti ? "text-red-600" : "text-muted-foreground hover:text-foreground")}
             >
               <Heart className={cn("size-4", p.curti && "fill-current")} /> {p.curtidas > 0 ? p.curtidas : ""}
@@ -795,7 +796,10 @@ export function Comunidade({
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{quando(c.created_at)}</span>
                       {(c.meu || p.modero) && (
-                        <button onClick={() => apagarCom.mutate(c.id)} className="text-muted-foreground hover:text-destructive">
+                        <button
+                          onClick={() => bloqueadoNoPreview(somenteLeitura, () => apagarCom.mutate(c.id))}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
                           <Trash2 className="size-3" />
                         </button>
                       )}
@@ -827,7 +831,7 @@ export function Comunidade({
                   const doCampo = mencaoAtiva?.tipo === "comentario" && mencaoAtiva.postId === p.id;
                   if (teclaDaMencao(e, doCampo)) return;
                   if (e.key === "Enter" && (comentando[p.id] ?? "").trim()) {
-                    enviarComentario.mutate({ post_id: p.id, body: comentando[p.id] });
+                    bloqueadoNoPreview(somenteLeitura, () => enviarComentario.mutate({ post_id: p.id, body: comentando[p.id] }));
                   }
                 }}
                 onBlur={() => setTimeout(
@@ -840,7 +844,7 @@ export function Comunidade({
             <Button
               size="sm" variant="outline"
               disabled={!(comentando[p.id] ?? "").trim()}
-              onClick={() => enviarComentario.mutate({ post_id: p.id, body: comentando[p.id] })}
+              onClick={() => bloqueadoNoPreview(somenteLeitura, () => enviarComentario.mutate({ post_id: p.id, body: comentando[p.id] }))}
             >
               Enviar
             </Button>

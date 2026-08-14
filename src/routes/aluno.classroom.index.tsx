@@ -46,7 +46,10 @@ function ClassroomAluno() {
       ) : lista.length === 0 ? (
         <ClassroomVazio podeEditar={false} />
       ) : (
-        <PrateleiraTreinamentos titulo="Disponíveis para você" treinamentos={lista} base="/aluno/classroom" />
+        <PrateleiraTreinamentos
+          titulo="Disponíveis para você" treinamentos={lista} base="/aluno/classroom"
+          search={{ ver }}
+        />
       )}
     </div>
   );

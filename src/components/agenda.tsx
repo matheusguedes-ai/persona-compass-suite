@@ -302,6 +302,9 @@ export function Agenda({
       <Link
         key={c.id}
         to={area === "aluno" ? "/aluno/mentorias" : "/mentorias"}
+        // #274 — sem isto, clicar numa mentoria durante "Ver como aluno" caía
+        // em /aluno/mentorias sem `?ver=`, perdendo o modo.
+        search={area === "aluno" ? { ver: previewPersonId ?? undefined } : undefined}
         className={className}
         style={style}
         title={`${c.person_name}${horaBr(c.quando) ? ` · ${horaBr(c.quando)}` : ""}`}

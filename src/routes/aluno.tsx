@@ -1,4 +1,6 @@
-import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import {
+  createFileRoute, Link, Outlet, redirect, retainSearchParams, useNavigate, useRouterState,
+} from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyMembership } from "@/lib/team.functions";
@@ -16,6 +18,7 @@ import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/lib/theme";
 import { Sino } from "@/components/sino";
 import { SeloDaConta } from "@/components/selo-da-conta";
+import { lerPreviewSalvo, sairDoPreview, salvarPreview } from "@/lib/preview-mode";
 
 export const Route = createFileRoute("/aluno")({
   ssr: false,
@@ -23,6 +26,16 @@ export const Route = createFileRoute("/aluno")({
   validateSearch: (s: Record<string, unknown>) => ({
     ver: typeof s.ver === "string" ? s.ver : undefined,
   }),
+  search: {
+    // #274 — qualquer link/navegação DENTRO da área do aluno que esqueça de
+    // repassar `ver` continua com o modo ativo: o roteador reaplica sozinho,
+    // sem precisar caçar cada `<Link>` da árvore (a causa raiz do bug: o
+    // Classroom perdia o parâmetro só porque um card não o repassava). A
+    // trava de verdade contra perder o modo por completo — link colado sem o
+    // parâmetro, aba recarregada — é o sessionStorage logo abaixo, no
+    // AlunoLayout; isto aqui evita até o flash no caminho comum.
+    middlewares: [retainSearchParams(["ver"])],
+  },
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
@@ -69,6 +82,32 @@ function areaDaRota(pathname: string): string | null {
 function AlunoLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { ver } = Route.useSearch();
+  const navigate = useNavigate();
+
+  // #274 — o que REALMENTE vale agora, reconciliando a URL com o que ficou
+  // guardado nesta aba. `ver` presente manda e atualiza a storage (entrada
+  // nova pelo picker, ou troca deliberada de pessoa). `ver` ausente com
+  // storage preenchida é o caso de borda do #274 — link colado/aberto sem o
+  // parâmetro enquanto o modo devia continuar ativo: restaura em vez de
+  // trocar de identidade em silêncio. A rota é `ssr: false`, então o
+  // sessionStorage já existe desde a primeira renderização — sem flash.
+  const [verResolvido, setVerResolvido] = useState<string | undefined>(() => ver ?? lerPreviewSalvo());
+  useEffect(() => {
+    if (ver) {
+      salvarPreview(ver);
+      setVerResolvido(ver);
+    } else {
+      const guardado = lerPreviewSalvo();
+      setVerResolvido(guardado);
+      // `to: pathname` é essencial: sem ele o roteador não tem "rota atual"
+      // para atualizar e cai na rota do layout (`/aluno`), arrancando quem
+      // estava em `/aluno/classroom/$id` de volta para "Meus resultados".
+      if (guardado) {
+        navigate({ to: pathname, search: (prev) => ({ ...prev, ver: guardado }), replace: true });
+      }
+    }
+  }, [ver, pathname, navigate]);
+
   const brand = useBrand();
   // O mentor é um avaliado promovido: mesmo painel, com Grupos a mais. Era o
   // desenho que faltava — antes ele tinha um cadastro à parte e caía no painel
@@ -82,8 +121,8 @@ function AlunoLayout() {
   // menu que aparece pela metade e depois completa pisca a cada navegação.
   const areasFn = useServerFn(minhasAreas);
   const { data: acesso } = useQuery({
-    queryKey: ["minhas-areas", ver ?? null],
-    queryFn: () => areasFn({ data: { preview_person_id: ver ?? null } }),
+    queryKey: ["minhas-areas", verResolvido ?? null],
+    queryFn: () => areasFn({ data: { preview_person_id: verResolvido ?? null } }),
     staleTime: 60_000,
   });
   const liberada = (area: string | null) =>
@@ -125,7 +164,7 @@ function AlunoLayout() {
         const Icone = n.icon;
         return (
           <Link
-            key={n.to} to={n.to} search={{ ver }}
+            key={n.to} to={n.to} search={{ ver: verResolvido }}
             onClick={() => setMenuAberto(false)}
             title={recolhida ? n.label : undefined}
             className={cn(
@@ -195,11 +234,11 @@ function AlunoLayout() {
             <div className="lg:hidden"><BrandMark brand={brand} /></div>
             <div className="ml-auto flex items-center gap-2">
               {/* O caminho de volta de quem tem conta própria E é avaliado em
-                  outra. O aviso âmbar logo abaixo só aparece na PRÉVIA (`ver`);
-                  quem vem aqui como aluno de verdade ficava sem saída a não ser
-                  o botão do navegador. Nunca para aluno puro: ele não tem
-                  painel de mentor para onde voltar. */}
-              {!ver && membership?.tambem_avaliado && membership.kind !== "mentor" && (
+                  outra. O aviso âmbar logo abaixo só aparece na PRÉVIA
+                  (`verResolvido`); quem vem aqui como aluno de verdade ficava
+                  sem saída a não ser o botão do navegador. Nunca para aluno
+                  puro: ele não tem painel de mentor para onde voltar. */}
+              {!verResolvido && membership?.tambem_avaliado && membership.kind !== "mentor" && (
                 <Link
                   to="/"
                   className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -207,9 +246,9 @@ function AlunoLayout() {
                   <ArrowLeft className="size-3.5" /> Meu painel
                 </Link>
               )}
-              {!ver && <Sino area="aluno" />}
+              {!verResolvido && <Sino area="aluno" />}
               <ThemeToggle />
-              {!ver && (
+              {!verResolvido && (
                 <button
                   onClick={async () => { await supabase.auth.signOut(); window.location.href = "/auth"; }}
                   className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -221,8 +260,11 @@ function AlunoLayout() {
           </div>
         </header>
 
-        {/* Deixa explícito que não é a conta de quem está olhando. */}
-        {ver && (
+        {/* Deixa explícito que não é a conta de quem está olhando. #274 — usa
+            `verResolvido`, não `ver`: precisa continuar visível mesmo no
+            instante em que a URL ainda não foi corrigida (link colado sem o
+            parâmetro, restaurado pela storage no efeito acima). */}
+        {verResolvido && (
           <div className="border-b border-amber-200 bg-amber-50">
             <div className="flex flex-wrap items-center gap-3 px-6 py-2.5 text-sm text-amber-900">
               <Eye className="size-4 shrink-0" />
@@ -230,7 +272,13 @@ function AlunoLayout() {
                 Você está vendo a plataforma <strong>como o aluno vê</strong>. É só visualização — nada
                 que você fizer aqui é salvo no lugar dele.
               </span>
-              <a href="/pessoas" className="ml-auto flex items-center gap-1 font-medium hover:underline">
+              {/* #274 — a ÚNICA saída do modo: limpa a storage antes de sair da
+                  área /aluno. Nenhuma outra navegação apaga isso. */}
+              <a
+                href="/pessoas"
+                onClick={() => sairDoPreview()}
+                className="ml-auto flex items-center gap-1 font-medium hover:underline"
+              >
                 <ArrowLeft className="size-3.5" /> Voltar ao meu painel
               </a>
             </div>
@@ -245,7 +293,7 @@ function AlunoLayout() {
               <Lock className="mx-auto size-8 text-muted-foreground" />
               <h1 className="mt-4 text-base font-medium">Esta área não faz parte do seu acesso</h1>
               <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                {ver
+                {verResolvido
                   ? "Esta pessoa não tem acesso a esta área. Isso vem do grupo dela — ajuste em Grupos, na aba Acesso."
                   : "Seu programa não inclui esta parte da plataforma. Se achar que deveria incluir, fale com o seu mentor."}
               </p>

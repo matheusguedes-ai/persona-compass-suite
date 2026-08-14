@@ -14,20 +14,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  AlertCircle, KeyRound, MailCheck, ImageUp, Loader2, Trash2, Linkedin, Instagram, Globe,
+  AlertCircle, Eye, KeyRound, MailCheck, ImageUp, Loader2, Trash2, Linkedin, Instagram, Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/aluno/perfil")({
+  // #274 — antes esta rota nem tentava ler `ver`: em "Ver como aluno", quem
+  // aparecia (e quem era editável — nome, foto, e-mail, senha) era o
+  // MENTOR mesmo. Achado mais grave da varredura: dava pra trocar a própria
+  // senha de login pensando estar só olhando.
+  validateSearch: (s: Record<string, unknown>) => ({
+    ver: typeof s.ver === "string" ? s.ver : undefined,
+  }),
   head: () => ({ meta: [{ title: "Meu perfil" }, { name: "robots", content: "noindex" }] }),
   component: PerfilAluno,
 });
 
 function PerfilAluno() {
+  const { ver } = Route.useSearch();
+  const isPreview = !!ver;
   const qc = useQueryClient();
   const getFn = useServerFn(getMyStudentProfile);
   const saveFn = useServerFn(updateMyStudentProfile);
-  const { data, isLoading } = useQuery({ queryKey: ["meu-perfil-aluno"], queryFn: () => getFn() });
+  // Não busca o perfil do PRÓPRIO MENTOR durante a prévia — ele não é quem
+  // está sendo visualizado, e nem precisa aparecer.
+  const { data, isLoading } = useQuery({
+    queryKey: ["meu-perfil-aluno"], queryFn: () => getFn(), enabled: !isPreview,
+  });
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -132,6 +145,30 @@ function PerfilAluno() {
     } finally {
       setTrocando(false);
     }
+  }
+
+  // #274 — na prévia, nem os dados nem as ações de conta aparecem: o que
+  // ficaria editável aqui é o cadastro e o LOGIN do próprio mentor, não do
+  // aluno pré-visualizado. "Trocar email"/"Alterar senha" mexem direto na
+  // sessão de quem está logado de verdade — por isso a tela inteira fica de
+  // fora, não só os botões desligados.
+  if (isPreview) {
+    return (
+      <div className="max-w-xl space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Meu perfil</h1>
+        </div>
+        <div className="rounded-xl border border-dashed border-black/10 bg-card p-8 text-center ring-1 ring-black/5">
+          <Eye className="mx-auto size-8 text-muted-foreground" />
+          <h2 className="mt-4 text-base font-medium">Área pessoal do aluno</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+            Aqui é onde o aluno edita a própria foto, os dados e o acesso à conta (e-mail e senha).
+            Nesta pré-visualização isso fica desligado — são coisas que só a própria pessoa edita, na
+            conta dela.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
