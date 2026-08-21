@@ -737,6 +737,207 @@ export const deleteBand = createServerFn({ method: "POST" })
   });
 
 // ============================================================
+// #212 Fase 4, Fatia 2 — Painel de respostas
+// ============================================================
+
+/** Sobe até a raiz da linhagem (encadeada por forked_from_id) e desce
+ * juntando TODAS as versões — pra tela deixar trocar de versão sem
+ * misturar contagem de uma com a de outra (#212 F2 item 7). */
+async function linhagemDaVersao(
+  supabase: SupabaseClient<Database>, versionId: string, forkedFromId: string | null,
+): Promise<Array<{ id: string; title: string; is_published: boolean; created_at: string }>> {
+  let raizId = versionId;
+  let cursor = forkedFromId;
+  const visitados = new Set([versionId]);
+  for (let i = 0; i < 50 && cursor; i++) {
+    if (visitados.has(cursor)) break;
+    visitados.add(cursor);
+    raizId = cursor;
+    const { data } = await supabase.from("test_versions").select("forked_from_id").eq("id", cursor).maybeSingle();
+    cursor = data?.forked_from_id ?? null;
+  }
+
+  const todas = new Map<string, { id: string; title: string; is_published: boolean; created_at: string }>();
+  let nivel = [raizId];
+  for (let i = 0; i < 50 && nivel.length > 0; i++) {
+    const { data: linha } = await supabase
+      .from("test_versions").select("id, title, is_published, created_at").in("id", nivel);
+    for (const v of linha ?? []) todas.set(v.id, v);
+    const { data: filhos } = await supabase
+      .from("test_versions").select("id").in("forked_from_id", nivel);
+    nivel = (filhos ?? []).map((f) => f.id).filter((id) => !todas.has(id));
+  }
+  return Array.from(todas.values()).sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+/** Visão agregada, pergunta por pergunta, de uma versão. Em teste anônimo
+ * com menos de 3 respostas SUBMETIDAS, devolve `locked: true` e não busca
+ * nenhum conteúdo — a trava de verdade é a RLS de `test_answers`
+ * (`pode_ver_conteudo_resposta`); isto aqui só evita a consulta à toa e
+ * garante a mensagem certa mesmo se um dia essa checagem daqui divergir. */
+export const getResponsesSummary = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ version_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const { supabase } = context;
+
+    const { data: version, error: vErr } = await supabase
+      .from("test_versions").select("*").eq("id", data.version_id).maybeSingle();
+    if (vErr) throw new Error(vErr.message);
+    if (!version) throw new Error("Versão não encontrada");
+
+    const lineage = await linhagemDaVersao(supabase, version.id, version.forked_from_id);
+
+    const { data: responses, error: rErr } = await supabase
+      .from("test_responses")
+      .select("id, person_id, submitted_at, people(id, full_name, avatar_url)")
+      .eq("version_id", data.version_id)
+      .eq("kind", "self");
+    if (rErr) throw new Error(rErr.message);
+    const todasRespostas = responses ?? [];
+    const submetidas = todasRespostas.filter((r) => r.submitted_at);
+    const invited = todasRespostas.length;
+    const responded = submetidas.length;
+    const missing = invited - responded;
+    const locked = version.is_anonymous && responded < 3;
+
+    const { data: questions, error: qErr } = await supabase
+      .from("test_questions").select("*").eq("version_id", data.version_id).order("sort_order");
+    if (qErr) throw new Error(qErr.message);
+    const qs = questions ?? [];
+    const { data: options, error: oErr } = qs.length
+      ? await supabase.from("test_options").select("*").in("question_id", qs.map((q) => q.id)).order("sort_order")
+      : { data: [] as never[], error: null };
+    if (oErr) throw new Error(oErr.message);
+    const opts = options ?? [];
+
+    const base = { version, lineage, invited, responded, missing, locked, questions: qs, options: opts };
+    if (locked) return { ...base, aggregates: null, respondents: null };
+
+    const submittedIds = submetidas.map((r) => r.id);
+    const { data: answers, error: aErr } = submittedIds.length
+      ? await supabase.from("test_answers").select("response_id, question_id, payload").in("response_id", submittedIds)
+      : { data: [] as never[], error: null };
+    if (aErr) throw new Error(aErr.message);
+    const ans = answers ?? [];
+
+    const aggregates = qs.map((q) => {
+      const doQ = ans.filter((a) => a.question_id === q.id);
+      if (q.type === "multiple_choice" || q.type === "checkboxes") {
+        const counts = new Map<string, number>();
+        let comResposta = 0;
+        for (const a of doQ) {
+          const payload = a.payload as Record<string, unknown>;
+          const ids = q.type === "multiple_choice"
+            ? (typeof payload.option_id === "string" ? [payload.option_id] : [])
+            : (Array.isArray(payload.option_ids) ? (payload.option_ids as unknown[]).filter((x): x is string => typeof x === "string") : []);
+          if (ids.length > 0) comResposta++;
+          for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
+        }
+        const questionOptions = opts.filter((o) => o.question_id === q.id);
+        return {
+          question_id: q.id, type: q.type as QuestionType, total_respondentes: comResposta,
+          opcoes: questionOptions.map((o) => ({
+            option_id: o.id, label: o.label,
+            count: counts.get(o.id) ?? 0,
+            pct: comResposta > 0 ? Math.round(((counts.get(o.id) ?? 0) / comResposta) * 100) : 0,
+          })),
+        };
+      }
+      if (q.type === "linear_scale") {
+        const valores = doQ
+          .map((a) => (a.payload as Record<string, unknown>).value)
+          .filter((v): v is number => typeof v === "number");
+        const cfg = (q.config ?? {}) as Record<string, unknown>;
+        const min = Number(cfg.min ?? 1);
+        const max = Number(cfg.max ?? 5);
+        const distribuicaoMap = new Map<number, number>();
+        for (const v of valores) distribuicaoMap.set(v, (distribuicaoMap.get(v) ?? 0) + 1);
+        return {
+          question_id: q.id, type: q.type as QuestionType, total_respondentes: valores.length,
+          media: valores.length > 0 ? Math.round((valores.reduce((s, v) => s + v, 0) / valores.length) * 10) / 10 : null,
+          distribuicao: Array.from({ length: Math.max(0, max - min + 1) }, (_, i) => min + i).map((n) => ({
+            valor: n, count: distribuicaoMap.get(n) ?? 0,
+          })),
+        };
+      }
+      if (q.type === "short_text") {
+        return {
+          question_id: q.id, type: q.type as QuestionType,
+          total_respondentes: doQ.length,
+          textos: doQ
+            .map((a) => ({ response_id: a.response_id, text: (a.payload as Record<string, unknown>).text }))
+            .filter((t): t is { response_id: string; text: string } => typeof t.text === "string" && t.text.length > 0),
+        };
+      }
+      return { question_id: q.id, type: q.type as QuestionType, total_respondentes: doQ.length };
+    });
+
+    // #212 F2 item 3 — lista de respondentes só existe em teste
+    // IDENTIFICADO: sem person_id gravado, não há "abrir a resposta de
+    // fulano" pra oferecer.
+    const respondents = version.is_anonymous
+      ? null
+      : submetidas
+          .filter((r) => r.person_id)
+          .map((r) => ({
+            response_id: r.id,
+            person_id: r.person_id as string,
+            full_name: r.people?.full_name ?? "—",
+            avatar_url: r.people?.avatar_url ?? null,
+            submitted_at: r.submitted_at as string,
+          }));
+
+    return { ...base, aggregates, respondents };
+  });
+
+/** Resposta de UMA pessoa, pergunta por pergunta — só existe pra teste
+ * identificado (RLS de test_responses já garante que só o dono vê; aqui
+ * garantimos também que não é uma resposta anônima disfarçada). */
+export const getIndividualResponse = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ response_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const { supabase } = context;
+    const { data: response, error: rErr } = await supabase
+      .from("test_responses")
+      .select("id, version_id, person_id, submitted_at, people(id, full_name, avatar_url)")
+      .eq("id", data.response_id)
+      .maybeSingle();
+    if (rErr) throw new Error(rErr.message);
+    if (!response) throw new Error("Resposta não encontrada.");
+    if (!response.person_id) throw new Error("Este teste é anônimo — não existe visão individual.");
+
+    const [{ data: version }, { data: questions, error: qErr }] = await Promise.all([
+      supabase.from("test_versions").select("id, title").eq("id", response.version_id).maybeSingle(),
+      supabase.from("test_questions").select("*").eq("version_id", response.version_id).order("sort_order"),
+    ]);
+    if (qErr) throw new Error(qErr.message);
+    const qs = questions ?? [];
+    const { data: options, error: oErr } = qs.length
+      ? await supabase.from("test_options").select("*").in("question_id", qs.map((q) => q.id)).order("sort_order")
+      : { data: [] as never[], error: null };
+    if (oErr) throw new Error(oErr.message);
+    const { data: answers, error: aErr } = await supabase
+      .from("test_answers").select("question_id, payload").eq("response_id", data.response_id);
+    if (aErr) throw new Error(aErr.message);
+    const porPergunta = new Map((answers ?? []).map((a) => [a.question_id, a.payload]));
+
+    return {
+      person: response.people,
+      version,
+      submitted_at: response.submitted_at,
+      questions: qs.map((q) => ({
+        ...q,
+        question_options: (options ?? []).filter((o) => o.question_id === q.id),
+        payload: porPergunta.get(q.id) ?? null,
+      })),
+    };
+  });
+
+// ============================================================
 // Responses (mentor-authenticated)
 // ============================================================
 export const startResponse = createServerFn({ method: "POST" })

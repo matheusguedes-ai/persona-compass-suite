@@ -71,6 +71,7 @@ import { Route as ApiGoogleCallbackRouteImport } from './routes/api.google.callb
 import { Route as ApiIconeTamanhoRouteImport } from './routes/api.icone.$tamanho'
 import { Route as ApiMentorFotoSlugRouteImport } from './routes/api.mentor-foto.$slug'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
+import { Route as AppTestesVersionIdRespostasRouteImport } from './routes/_app.testes.$versionId.respostas'
 import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
 import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
 import { Route as ApiPublicCheckinAulaIdRouteImport } from './routes/api.public.checkin.$aulaId'
@@ -395,6 +396,12 @@ const AppTestesVersionIdEditarRoute =
     path: '/$versionId/editar',
     getParentRoute: () => AppTestesRoute,
   } as any)
+const AppTestesVersionIdRespostasRoute =
+  AppTestesVersionIdRespostasRouteImport.update({
+    id: '/$versionId/respostas',
+    path: '/$versionId/respostas',
+    getParentRoute: () => AppTestesRoute,
+  } as any)
 const ApiPublicActionPlanIdRoute = ApiPublicActionPlanIdRouteImport.update({
   id: '/api/public/action-plan/$id',
   path: '/api/public/action-plan/$id',
@@ -494,6 +501,7 @@ export interface FileRoutesByFullPath {
   '/aluno/classroom/': typeof AlunoClassroomIndexRoute
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/testes/$versionId/respostas': typeof AppTestesVersionIdRespostasRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
   '/api/public/checkin/$aulaId': typeof ApiPublicCheckinAulaIdRoute
@@ -558,6 +566,7 @@ export interface FileRoutesByTo {
   '/aluno/classroom': typeof AlunoClassroomIndexRoute
   '/aluno/educacao': typeof AlunoEducacaoIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/testes/$versionId/respostas': typeof AppTestesVersionIdRespostasRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
   '/api/public/checkin/$aulaId': typeof ApiPublicCheckinAulaIdRoute
@@ -630,6 +639,7 @@ export interface FileRoutesById {
   '/aluno/classroom/': typeof AlunoClassroomIndexRoute
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
+  '/_app/testes/$versionId/respostas': typeof AppTestesVersionIdRespostasRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
   '/api/public/checkin/$aulaId': typeof ApiPublicCheckinAulaIdRoute
@@ -702,6 +712,7 @@ export interface FileRouteTypes {
     | '/aluno/classroom/'
     | '/aluno/educacao/'
     | '/testes/$versionId/editar'
+    | '/testes/$versionId/respostas'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
     | '/api/public/checkin/$aulaId'
@@ -766,6 +777,7 @@ export interface FileRouteTypes {
     | '/aluno/classroom'
     | '/aluno/educacao'
     | '/testes/$versionId/editar'
+    | '/testes/$versionId/respostas'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
     | '/api/public/checkin/$aulaId'
@@ -837,6 +849,7 @@ export interface FileRouteTypes {
     | '/aluno/classroom/'
     | '/aluno/educacao/'
     | '/_app/testes/$versionId/editar'
+    | '/_app/testes/$versionId/respostas'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
     | '/api/public/checkin/$aulaId'
@@ -1316,6 +1329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTestesVersionIdEditarRouteImport
       parentRoute: typeof AppTestesRoute
     }
+    '/_app/testes/$versionId/respostas': {
+      id: '/_app/testes/$versionId/respostas'
+      path: '/$versionId/respostas'
+      fullPath: '/testes/$versionId/respostas'
+      preLoaderRoute: typeof AppTestesVersionIdRespostasRouteImport
+      parentRoute: typeof AppTestesRoute
+    }
     '/api/public/action-plan/$id': {
       id: '/api/public/action-plan/$id'
       path: '/api/public/action-plan/$id'
@@ -1429,11 +1449,13 @@ const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
 interface AppTestesRouteChildren {
   AppTestesIndexRoute: typeof AppTestesIndexRoute
   AppTestesVersionIdEditarRoute: typeof AppTestesVersionIdEditarRoute
+  AppTestesVersionIdRespostasRoute: typeof AppTestesVersionIdRespostasRoute
 }
 
 const AppTestesRouteChildren: AppTestesRouteChildren = {
   AppTestesIndexRoute: AppTestesIndexRoute,
   AppTestesVersionIdEditarRoute: AppTestesVersionIdEditarRoute,
+  AppTestesVersionIdRespostasRoute: AppTestesVersionIdRespostasRoute,
 }
 
 const AppTestesRouteWithChildren = AppTestesRoute._addFileChildren(

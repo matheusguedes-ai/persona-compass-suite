@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { QuestionType } from "@/lib/tests.functions";
+import { AbasDeTeste } from "@/components/abas-teste";
 
 type Forkable = { forked?: boolean; new_version_id?: string | null };
 type UpdQ = { id: string; prompt?: string; helper?: string | null; required?: boolean; type?: QuestionType; config?: Record<string, unknown>; sort_order?: number };
@@ -163,6 +164,7 @@ function EditorPage() {
         <Link to="/testes" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-3" /> Voltar
         </Link>
+        <AbasDeTeste versionId={versionId} hasInterpretation={version.has_interpretation} />
         <div className="flex items-center gap-2">
           {respostas > 0 && (
             <span
