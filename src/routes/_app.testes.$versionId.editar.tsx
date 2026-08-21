@@ -236,7 +236,9 @@ function EditorPage() {
                 <p className="text-[11px] text-muted-foreground">
                   {version.is_anonymous
                     ? "Indisponível em teste anônimo — não há como entregar devolutiva sem saber de quem é."
-                    : "Ligado, você configura dimensões, pontuação por opção e faixas de resultado logo abaixo."}
+                    : version.has_interpretation
+                      ? "Você configura dimensões, pontuação por opção e faixas de resultado logo abaixo."
+                      : "Ative para configurar dimensões, pontuação por opção e faixas de resultado."}
                 </p>
               </div>
               <Switch
