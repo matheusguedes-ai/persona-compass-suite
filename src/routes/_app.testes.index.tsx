@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { listTestVersions, duplicateTemplate, deleteTestVersion, createTestVersion } from "@/lib/tests.functions";
+import { listTestVersions, duplicateVersion, deleteTestVersion, createTestVersion } from "@/lib/tests.functions";
 import { listInstruments } from "@/lib/data.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,13 +11,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Copy, Pencil, Trash2, FileText, Plus } from "lucide-react";
+import { Copy, GitBranch, Pencil, Trash2, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/testes/")({
@@ -35,7 +38,7 @@ function TestesPage() {
   const qc = useQueryClient();
   const listVersionsFn = useServerFn(listTestVersions);
   const listInstrFn = useServerFn(listInstruments);
-  const dupFn = useServerFn(duplicateTemplate);
+  const dupFn = useServerFn(duplicateVersion);
   const delFn = useServerFn(deleteTestVersion);
   const createFn = useServerFn(createTestVersion);
 
@@ -43,10 +46,12 @@ function TestesPage() {
   const { data: versions = [] } = useQuery({ queryKey: ["test-versions"], queryFn: () => listVersionsFn({ data: {} }) });
 
   const dup = useMutation({
-    mutationFn: (id: string) => dupFn({ data: { template_version_id: id } }),
+    mutationFn: (v: { id: string; title?: string }) =>
+      dupFn({ data: { source_version_id: v.id, title: v.title?.trim() || undefined } }),
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: ["test-versions"] });
       toast.success("Cópia criada — abra para editar");
+      setCopiaAberto(false); setOrigemId(""); setCopiaTitulo("");
       nav({ to: "/testes/$versionId/editar", params: { versionId: row.id } });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -74,6 +79,12 @@ function TestesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const [copiaAberto, setCopiaAberto] = useState(false);
+  const [origemId, setOrigemId] = useState("");
+  const [copiaTitulo, setCopiaTitulo] = useState("");
+  const modelos = versions.filter((v) => v.is_template);
+  const meus = versions.filter((v) => !v.is_template);
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -83,43 +94,109 @@ function TestesPage() {
             Edite o modelo direto, duplique para manter o original intacto, ou crie um teste seu do zero.
           </p>
         </div>
-        <Dialog open={criarAberto} onOpenChange={setCriarAberto}>
-          <DialogTrigger asChild>
-            <Button><Plus className="size-4" /> Criar teste</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Criar teste</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Nome</Label>
-                <Input value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} maxLength={160} placeholder="Ex.: Pesquisa de satisfação — Turma 3" />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição (opcional)</Label>
-                <Textarea value={novaDescricao} onChange={(e) => setNovaDescricao(e.target.value)} maxLength={1000} rows={2} placeholder="Do que se trata." />
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">
-                <div>
-                  <p className="text-sm font-medium">Anônimo</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    A plataforma não guarda quem respondeu — nem você vai conseguir ver depois. Só dá pra
-                    escolher agora; não tem como mudar mais tarde.
-                  </p>
+        <div className="flex flex-wrap gap-2">
+          <Dialog
+            open={copiaAberto}
+            onOpenChange={(v) => { setCopiaAberto(v); if (!v) { setOrigemId(""); setCopiaTitulo(""); } }}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline"><GitBranch className="size-4" /> A partir de um existente</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Criar a partir de um teste existente</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Teste de origem</Label>
+                  <Select
+                    value={origemId}
+                    onValueChange={(v) => {
+                      setOrigemId(v);
+                      const origem = versions.find((x) => x.id === v);
+                      if (origem) setCopiaTitulo(`Cópia de ${origem.title}`);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Escolha um teste" /></SelectTrigger>
+                    <SelectContent>
+                      {modelos.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Modelos da plataforma</SelectLabel>
+                          {modelos.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>{v.title}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {meus.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>Meus testes</SelectLabel>
+                          {meus.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>{v.title}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Switch checked={novoAnonimo} onCheckedChange={setNovoAnonimo} />
+                {origemId && (
+                  <div className="space-y-2">
+                    <Label>Nome da cópia</Label>
+                    <Input value={copiaTitulo} onChange={(e) => setCopiaTitulo(e.target.value)} maxLength={160} />
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  A cópia nasce como rascunho, só sua — o teste de origem continua exatamente como está, sem
+                  nenhuma resposta. Perguntas, opções, seções, dimensões e faixas de resultado são copiadas
+                  quando existirem; convites e respostas nunca são.
+                </p>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                Nasce como rascunho — ninguém vê até você publicar. Você adiciona as perguntas na tela seguinte.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setCriarAberto(false)}>Cancelar</Button>
-              <Button onClick={() => criar.mutate()} disabled={!novoTitulo.trim() || criar.isPending}>
-                {criar.isPending ? "Criando…" : "Criar"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setCopiaAberto(false)}>Cancelar</Button>
+                <Button
+                  onClick={() => dup.mutate({ id: origemId, title: copiaTitulo })}
+                  disabled={!origemId || dup.isPending}
+                >
+                  {dup.isPending ? "Criando…" : "Criar cópia"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={criarAberto} onOpenChange={setCriarAberto}>
+            <DialogTrigger asChild>
+              <Button><Plus className="size-4" /> Criar teste</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Criar teste</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Nome</Label>
+                  <Input value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} maxLength={160} placeholder="Ex.: Pesquisa de satisfação — Turma 3" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Descrição (opcional)</Label>
+                  <Textarea value={novaDescricao} onChange={(e) => setNovaDescricao(e.target.value)} maxLength={1000} rows={2} placeholder="Do que se trata." />
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">
+                  <div>
+                    <p className="text-sm font-medium">Anônimo</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      A plataforma não guarda quem respondeu — nem você vai conseguir ver depois. Só dá pra
+                      escolher agora; não tem como mudar mais tarde.
+                    </p>
+                  </div>
+                  <Switch checked={novoAnonimo} onCheckedChange={setNovoAnonimo} />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Nasce como rascunho — ninguém vê até você publicar. Você adiciona as perguntas na tela seguinte.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setCriarAberto(false)}>Cancelar</Button>
+                <Button onClick={() => criar.mutate()} disabled={!novoTitulo.trim() || criar.isPending}>
+                  {criar.isPending ? "Criando…" : "Criar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <AbasDeTestes />
@@ -196,7 +273,7 @@ function TestesPage() {
                           </AlertDialogContent>
                         </AlertDialog>
                       )}
-                      <Button size="sm" variant="outline" onClick={() => dup.mutate(v.id)} disabled={dup.isPending}>
+                      <Button size="sm" variant="outline" onClick={() => dup.mutate({ id: v.id })} disabled={dup.isPending}>
                         <Copy className="size-3" /> Duplicar
                       </Button>
                       {v.can_edit && (

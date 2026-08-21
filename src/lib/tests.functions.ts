@@ -120,140 +120,12 @@ export const getTestVersion = createServerFn({ method: "GET" })
     };
   });
 
-export const duplicateTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ template_version_id: z.string().uuid(), title: z.string().min(1).max(160).optional() }).parse(d))
-  .handler(async ({ data, context }) => {
-    await exigirPermissao(context.supabase, context.userId, "testes");
-    const { supabase, userId } = context;
-    const { data: tpl, error: tErr } = await supabase
-      .from("test_versions").select("*").eq("id", data.template_version_id).maybeSingle();
-    if (tErr) throw new Error(tErr.message);
-    if (!tpl) throw new Error("Template não encontrado");
-
-    // Pre-fetch all source rows first; abort before inserting anything on any error.
-    const [dimsRes, qsRes, bandsRes] = await Promise.all([
-      supabase.from("test_dimensions").select("*").eq("version_id", tpl.id),
-      supabase.from("test_questions").select("*").eq("version_id", tpl.id),
-      supabase.from("test_result_bands").select("*").eq("version_id", tpl.id),
-    ]);
-    if (dimsRes.error) throw new Error(dimsRes.error.message);
-    if (qsRes.error) throw new Error(qsRes.error.message);
-    if (bandsRes.error) throw new Error(bandsRes.error.message);
-    const dims = dimsRes.data ?? [];
-    const qs = qsRes.data ?? [];
-    const bands = bandsRes.data ?? [];
-
-    let opts: Array<{ id: string; question_id: string; label: string; value: string | null; sort_order: number }> = [];
-    let srcScores: Array<{ option_id: string; dimension_id: string; points: number }> = [];
-    if (qs.length > 0) {
-      const optsRes = await supabase
-        .from("test_options").select("*").in("question_id", qs.map((q) => q.id));
-      if (optsRes.error) throw new Error(optsRes.error.message);
-      opts = optsRes.data ?? [];
-      if (opts.length > 0) {
-        const scoresRes = await supabase
-          .from("option_scores").select("*").in("option_id", opts.map((o) => o.id));
-        if (scoresRes.error) throw new Error(scoresRes.error.message);
-        srcScores = scoresRes.data ?? [];
-      }
-    }
-
-    const { data: newV, error: nErr } = await supabase
-      .from("test_versions")
-      .insert({
-        instrument_id: tpl.instrument_id,
-        mentor_id: userId,
-        title: data.title ?? `${tpl.title} (cópia)`,
-        description: tpl.description,
-        is_template: false,
-        is_published: false,
-        // A cópia herda dimensões/pontuação do template — tem interpretação
-        // de verdade, ao contrário de um teste criado em branco (#212 F1).
-        has_interpretation: true,
-      })
-      .select().single();
-    if (nErr) throw new Error(nErr.message);
-
-    const dimMap = new Map<string, string>();
-    if (dims.length > 0) {
-      const { data: newDims, error } = await supabase
-        .from("test_dimensions")
-        .insert(dims.map((d) => ({
-          version_id: newV.id, key: d.key, label: d.label,
-          description: d.description, color: d.color, sort_order: d.sort_order,
-        })))
-        .select();
-      if (error) throw new Error(error.message);
-      dims.forEach((d, i) => dimMap.set(d.id, newDims![i].id));
-    }
-
-    // O config de perguntas pontuadas por dimensão (ex.: linear_scale do Big Five)
-    // guarda o id da dimensão. Sem remapear para as dimensões da nova versão, a
-    // referência fica órfã e o teste pontua zero em tudo.
-    type QuestionConfig = (typeof qs)[number]["config"];
-    const remapQuestionConfig = (config: QuestionConfig): QuestionConfig => {
-      if (!config || typeof config !== "object" || Array.isArray(config)) return config;
-      const next: Record<string, unknown> = { ...config };
-      if (typeof next.dimension_id === "string") {
-        // Sem correspondência, zera em vez de manter um id de outra versão.
-        next.dimension_id = dimMap.get(next.dimension_id) ?? null;
-      }
-      return next as QuestionConfig;
-    };
-
-    const qMap = new Map<string, string>();
-    if (qs.length > 0) {
-      const { data: newQs, error } = await supabase
-        .from("test_questions")
-        .insert(qs.map((q) => ({
-          version_id: newV.id, type: q.type, prompt: q.prompt, helper: q.helper,
-          required: q.required, sort_order: q.sort_order, config: remapQuestionConfig(q.config),
-        })))
-        .select();
-      if (error) throw new Error(error.message);
-      qs.forEach((q, i) => qMap.set(q.id, newQs![i].id));
-
-      const optMap = new Map<string, string>();
-      if (opts.length > 0) {
-        const { data: newOpts, error: oErr } = await supabase
-          .from("test_options")
-          .insert(opts.map((o) => ({
-            question_id: qMap.get(o.question_id)!,
-            label: o.label, value: o.value, sort_order: o.sort_order,
-          })))
-          .select();
-        if (oErr) throw new Error(oErr.message);
-        opts.forEach((o, i) => optMap.set(o.id, newOpts![i].id));
-
-        if (srcScores.length > 0) {
-          const { error: sErr } = await supabase.from("option_scores").insert(
-            srcScores.map((s) => ({
-              option_id: optMap.get(s.option_id)!,
-              dimension_id: dimMap.get(s.dimension_id)!,
-              points: s.points,
-            })),
-          );
-          if (sErr) throw new Error(sErr.message);
-        }
-      }
-    }
-
-    if (bands.length > 0) {
-      const { error } = await supabase.from("test_result_bands").insert(
-        bands.map((b) => ({
-          version_id: newV.id,
-          dimension_id: b.dimension_id ? dimMap.get(b.dimension_id) : null,
-          min_score: b.min_score, max_score: b.max_score,
-          title: b.title, description: b.description, sort_order: b.sort_order,
-          mode: b.mode,
-        })),
-      );
-      if (error) throw new Error(error.message);
-    }
-
-    return newV;
-  });
+// duplicateVersion (#212 F5, mais abaixo) reaproveita clonarVersaoParaEdicao
+// — a mesma clonagem que já serve o fork-por-edição-estrutural — em vez de
+// manter uma segunda implementação de cópia. A antiga duplicateTemplate só
+// copiava dimensão/pergunta/opção/pontuação/faixa (nunca seção, sempre
+// forçava has_interpretation=true, nunca copiava is_anonymous); o clone
+// compartilhado já corrige os três.
 
 // #212 F1 — a porta de entrada em branco: nasce sem dimensão, sem pergunta,
 // sem interpretação. "Duplicar" (acima) continua sendo o caminho de quem
@@ -406,6 +278,45 @@ export const deleteTestVersion = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** #212 F5 — cria um teste novo a partir de um já existente: um dos 7
+ * templates da plataforma OU um teste próprio do mentor (a RLS de
+ * test_versions — `is_template = true OR mentor_id = acting_account()` —
+ * já garante que não dá pra escolher o teste de outra conta; se o select
+ * abaixo não achar nada, ou não existe ou não é uma origem permitida).
+ *
+ * Reaproveita clonarVersaoParaEdicao (a mesma clonagem do fork-por-edição)
+ * em vez de manter uma segunda implementação: dimensão, seção, pergunta
+ * (com config remapeado), opção, pontuação e faixa — o que a origem não
+ * tiver (MBTI sem faixa, Big Five sem pontuação por opção) simplesmente não
+ * entra, sem erro. A cópia nasce SEM histórico (não existe passo aqui que
+ * toque test_responses/test_answers) e independente (editar uma não altera
+ * a outra — só compartilham o `forked_from_id`, guardado como referência).
+ *
+ * Se qualquer parte da cópia falhar no meio, a versão nova (com o que já
+ * tinha entrado até ali) é apagada antes de repassar o erro — nunca fica
+ * teste pela metade no banco.
+ */
+export const duplicateVersion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    source_version_id: z.string().uuid(),
+    title: z.string().trim().min(1).max(160).optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const { supabase, userId } = context;
+    const { data: origem, error: oErr } = await supabase
+      .from("test_versions").select("title").eq("id", data.source_version_id).maybeSingle();
+    if (oErr) throw new Error(oErr.message);
+    if (!origem) throw new Error("Teste não encontrado.");
+
+    const clone = await clonarVersaoParaEdicao(supabase, data.source_version_id, {
+      mentorId: userId,
+      title: data.title?.trim() || `Cópia de ${origem.title}`,
+    });
+    return { id: clone.versionId };
+  });
+
 // ============================================================
 // Versionamento (#212, item 6; ampliado no item 7 da Fatia 3)
 //
@@ -427,7 +338,11 @@ export const deleteTestVersion = createServerFn({ method: "POST" })
 /** Clona uma versão inteira (mesma lógica de `duplicateTemplate`, remapeando
  * ids) e devolve os mapas antigo→novo de pergunta e opção, para quem chamou
  * saber onde a linha que ia mexer foi parar. */
-async function clonarVersaoParaEdicao(supabase: SupabaseClient<Database>, origemId: string) {
+async function clonarVersaoParaEdicao(
+  supabase: SupabaseClient<Database>,
+  origemId: string,
+  overrides?: { mentorId?: string; title?: string },
+) {
   const { data: origem, error: vErr } = await supabase
     .from("test_versions").select("*").eq("id", origemId).maybeSingle();
   if (vErr) throw new Error(vErr.message);
@@ -463,8 +378,8 @@ async function clonarVersaoParaEdicao(supabase: SupabaseClient<Database>, origem
 
   const { data: newV, error: nErr } = await supabase.from("test_versions").insert({
     instrument_id: origem.instrument_id,
-    mentor_id: origem.mentor_id,
-    title: origem.title,
+    mentor_id: overrides?.mentorId ?? origem.mentor_id,
+    title: overrides?.title ?? origem.title,
     description: origem.description,
     is_template: false,
     is_published: false,
@@ -474,100 +389,109 @@ async function clonarVersaoParaEdicao(supabase: SupabaseClient<Database>, origem
   }).select().single();
   if (nErr) throw new Error(nErr.message);
 
-  const dimMap = new Map<string, string>();
-  if (dims.length > 0) {
-    const { data: newDims, error } = await supabase
-      .from("test_dimensions")
-      .insert(dims.map((d) => ({
-        version_id: newV.id, key: d.key, label: d.label,
-        description: d.description, color: d.color, sort_order: d.sort_order,
-      })))
-      .select();
-    if (error) throw new Error(error.message);
-    dims.forEach((d, i) => dimMap.set(d.id, newDims![i].id));
-  }
-
-  // #212 F4 — seção clona ANTES de pergunta, porque pergunta precisa do
-  // mapa antigo→novo pra remapear section_id (mesmo raciocínio de dimensão).
-  const sectionMap = new Map<string, string>();
-  if (secs.length > 0) {
-    const { data: newSecs, error } = await supabase
-      .from("test_sections")
-      .insert(secs.map((s) => ({
-        version_id: newV.id, title: s.title, description: s.description, sort_order: s.sort_order,
-      })))
-      .select();
-    if (error) throw new Error(error.message);
-    secs.forEach((s, i) => sectionMap.set(s.id, newSecs![i].id));
-  }
-
-  // Mesmo remapeamento de `duplicateTemplate`: sem dimensão correspondente,
-  // zera em vez de manter um id de outra versão.
-  type QuestionConfig = (typeof qs)[number]["config"];
-  const remapQuestionConfig = (config: QuestionConfig): QuestionConfig => {
-    if (!config || typeof config !== "object" || Array.isArray(config)) return config;
-    const next: Record<string, unknown> = { ...config };
-    if (typeof next.dimension_id === "string") {
-      next.dimension_id = dimMap.get(next.dimension_id) ?? null;
-    }
-    return next as QuestionConfig;
-  };
-
-  const questionIdMap = new Map<string, string>();
-  const optionIdMap = new Map<string, string>();
-  if (qs.length > 0) {
-    const { data: newQs, error } = await supabase
-      .from("test_questions")
-      .insert(qs.map((q) => ({
-        version_id: newV.id, type: q.type, prompt: q.prompt, helper: q.helper,
-        required: q.required, sort_order: q.sort_order, config: remapQuestionConfig(q.config),
-        section_id: q.section_id ? sectionMap.get(q.section_id) ?? null : null,
-      })))
-      .select();
-    if (error) throw new Error(error.message);
-    qs.forEach((q, i) => questionIdMap.set(q.id, newQs![i].id));
-
-    if (opts.length > 0) {
-      const { data: newOpts, error: oErr } = await supabase
-        .from("test_options")
-        .insert(opts.map((o) => ({
-          question_id: questionIdMap.get(o.question_id)!,
-          label: o.label, value: o.value, sort_order: o.sort_order,
+  // #212 F5, item 8 — a partir daqui, qualquer erro precisa apagar a versão
+  // já criada antes de subir: senão fica teste pela metade no banco (o
+  // cascade de test_versions limpa dimensão/seção/pergunta/opção/pontuação/
+  // faixa que já tinham entrado). Cópia inteira, ou nenhuma.
+  try {
+    const dimMap = new Map<string, string>();
+    if (dims.length > 0) {
+      const { data: newDims, error } = await supabase
+        .from("test_dimensions")
+        .insert(dims.map((d) => ({
+          version_id: newV.id, key: d.key, label: d.label,
+          description: d.description, color: d.color, sort_order: d.sort_order,
         })))
         .select();
-      if (oErr) throw new Error(oErr.message);
-      opts.forEach((o, i) => optionIdMap.set(o.id, newOpts![i].id));
+      if (error) throw new Error(error.message);
+      dims.forEach((d, i) => dimMap.set(d.id, newDims![i].id));
+    }
 
-      if (srcScores.length > 0) {
-        const { error: sErr } = await supabase.from("option_scores").insert(
-          srcScores.map((s) => ({
-            option_id: optionIdMap.get(s.option_id)!,
-            dimension_id: dimMap.get(s.dimension_id)!,
-            points: s.points,
-          })),
-        );
-        if (sErr) throw new Error(sErr.message);
+    // #212 F4 — seção clona ANTES de pergunta, porque pergunta precisa do
+    // mapa antigo→novo pra remapear section_id (mesmo raciocínio de dimensão).
+    const sectionMap = new Map<string, string>();
+    if (secs.length > 0) {
+      const { data: newSecs, error } = await supabase
+        .from("test_sections")
+        .insert(secs.map((s) => ({
+          version_id: newV.id, title: s.title, description: s.description, sort_order: s.sort_order,
+        })))
+        .select();
+      if (error) throw new Error(error.message);
+      secs.forEach((s, i) => sectionMap.set(s.id, newSecs![i].id));
+    }
+
+    // Mesmo remapeamento de `duplicateTemplate`: sem dimensão correspondente,
+    // zera em vez de manter um id de outra versão.
+    type QuestionConfig = (typeof qs)[number]["config"];
+    const remapQuestionConfig = (config: QuestionConfig): QuestionConfig => {
+      if (!config || typeof config !== "object" || Array.isArray(config)) return config;
+      const next: Record<string, unknown> = { ...config };
+      if (typeof next.dimension_id === "string") {
+        next.dimension_id = dimMap.get(next.dimension_id) ?? null;
+      }
+      return next as QuestionConfig;
+    };
+
+    const questionIdMap = new Map<string, string>();
+    const optionIdMap = new Map<string, string>();
+    if (qs.length > 0) {
+      const { data: newQs, error } = await supabase
+        .from("test_questions")
+        .insert(qs.map((q) => ({
+          version_id: newV.id, type: q.type, prompt: q.prompt, helper: q.helper,
+          required: q.required, sort_order: q.sort_order, config: remapQuestionConfig(q.config),
+          section_id: q.section_id ? sectionMap.get(q.section_id) ?? null : null,
+        })))
+        .select();
+      if (error) throw new Error(error.message);
+      qs.forEach((q, i) => questionIdMap.set(q.id, newQs![i].id));
+
+      if (opts.length > 0) {
+        const { data: newOpts, error: oErr } = await supabase
+          .from("test_options")
+          .insert(opts.map((o) => ({
+            question_id: questionIdMap.get(o.question_id)!,
+            label: o.label, value: o.value, sort_order: o.sort_order,
+          })))
+          .select();
+        if (oErr) throw new Error(oErr.message);
+        opts.forEach((o, i) => optionIdMap.set(o.id, newOpts![i].id));
+
+        if (srcScores.length > 0) {
+          const { error: sErr } = await supabase.from("option_scores").insert(
+            srcScores.map((s) => ({
+              option_id: optionIdMap.get(s.option_id)!,
+              dimension_id: dimMap.get(s.dimension_id)!,
+              points: s.points,
+            })),
+          );
+          if (sErr) throw new Error(sErr.message);
+        }
       }
     }
-  }
 
-  const bandMap = new Map<string, string>();
-  if (bands.length > 0) {
-    const { data: newBands, error } = await supabase
-      .from("test_result_bands")
-      .insert(bands.map((b) => ({
-        version_id: newV.id,
-        dimension_id: b.dimension_id ? dimMap.get(b.dimension_id) : null,
-        min_score: b.min_score, max_score: b.max_score,
-        title: b.title, description: b.description, sort_order: b.sort_order,
-        mode: b.mode,
-      })))
-      .select();
-    if (error) throw new Error(error.message);
-    bands.forEach((b, i) => bandMap.set(b.id, newBands![i].id));
-  }
+    const bandMap = new Map<string, string>();
+    if (bands.length > 0) {
+      const { data: newBands, error } = await supabase
+        .from("test_result_bands")
+        .insert(bands.map((b) => ({
+          version_id: newV.id,
+          dimension_id: b.dimension_id ? dimMap.get(b.dimension_id) : null,
+          min_score: b.min_score, max_score: b.max_score,
+          title: b.title, description: b.description, sort_order: b.sort_order,
+          mode: b.mode,
+        })))
+        .select();
+      if (error) throw new Error(error.message);
+      bands.forEach((b, i) => bandMap.set(b.id, newBands![i].id));
+    }
 
-  return { versionId: newV.id as string, questionIdMap, optionIdMap, dimensionIdMap: dimMap, bandIdMap: bandMap, sectionIdMap: sectionMap };
+    return { versionId: newV.id as string, questionIdMap, optionIdMap, dimensionIdMap: dimMap, bandIdMap: bandMap, sectionIdMap: sectionMap };
+  } catch (e) {
+    await supabase.from("test_versions").delete().eq("id", newV.id);
+    throw e;
+  }
 }
 
 type VersaoEditavel = {
