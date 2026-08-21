@@ -1773,6 +1773,7 @@ export type Database = {
           id: string
           prompt: string
           required: boolean
+          section_id: string | null
           sort_order: number
           type: Database["public"]["Enums"]["question_type"]
           version_id: string
@@ -1784,6 +1785,7 @@ export type Database = {
           id?: string
           prompt?: string
           required?: boolean
+          section_id?: string | null
           sort_order?: number
           type: Database["public"]["Enums"]["question_type"]
           version_id: string
@@ -1795,13 +1797,59 @@ export type Database = {
           id?: string
           prompt?: string
           required?: boolean
+          section_id?: string | null
           sort_order?: number
           type?: Database["public"]["Enums"]["question_type"]
           version_id?: string
         }
         Relationships: [
           {
+            foreignKeyName: "test_questions_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "test_sections"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "test_questions_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "test_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_sections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          mentor_id: string
+          sort_order: number
+          title: string
+          version_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          mentor_id?: string
+          sort_order?: number
+          title: string
+          version_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          mentor_id?: string
+          sort_order?: number
+          title?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_sections_version_id_fkey"
             columns: ["version_id"]
             isOneToOne: false
             referencedRelation: "test_versions"

@@ -6,6 +6,7 @@ import { CheckCircle2, Circle, ArrowRight, LayoutDashboard } from "lucide-react"
 import { ResponseForm } from "@/components/response-form";
 import { CriarContaNoFim } from "@/components/criar-conta-no-fim";
 import { useApplyBrand, type Brand } from "@/lib/brand";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/bateria/$assessmentId")({
   head: () => ({ meta: [{ title: "Bateria de testes" }, { name: "robots", content: "noindex" }] }),
@@ -166,5 +167,13 @@ function BateriaPage() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto max-w-2xl p-6">{children}</div>;
+  // Sem isto, todo toast.error() da ResponseForm (pergunta obrigatória,
+  // avançar de bloco) era mudo aqui — só _app.tsx e aluno.tsx montam
+  // Toaster, e quem responde a bateria não passa por nenhum dos dois.
+  return (
+    <div className="mx-auto max-w-2xl p-6">
+      <Toaster position="top-right" />
+      {children}
+    </div>
+  );
 }

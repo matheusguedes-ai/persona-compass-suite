@@ -32,7 +32,8 @@ const TYPE_ICON: Partial<Record<QuestionType, React.ComponentType<{ className?: 
   short_text: AlignLeft,
 };
 
-type Pergunta = { id: string; prompt: string; type: QuestionType };
+type Pergunta = { id: string; prompt: string; type: QuestionType; section_id: string | null };
+type Secao = { id: string; title: string; description: string | null };
 // As 4 formas possíveis — teste sem interpretação só usa esses tipos
 // (TIPOS_SEM_INTERPRETACAO), então não existe um "outro tipo" de verdade
 // aqui; um quinto membro genérico só atrapalharia o TS a estreitar a união.
@@ -52,7 +53,16 @@ function RespostasPage() {
   const [aberto, setAberto] = useState<string | null>(null);
 
   if (isLoading || !data) return <div className="py-16 text-center text-sm text-muted-foreground">Carregando…</div>;
-  const { version, lineage, invited, responded, missing, locked, questions, aggregates, respondents } = data;
+  const { version, lineage, invited, responded, missing, locked, questions, sections, aggregates, respondents } = data;
+
+  // #212 F4 — resultados agrupados por seção; teste sem seção (todo teste
+  // anterior a esta fatia) renderiza a lista corrida de sempre.
+  const renderPergunta = (q: Pergunta) => {
+    const agg = (aggregates as Agregado[] | null)?.find((a) => a.question_id === q.id);
+    return agg ? <PerguntaAgregada key={q.id} question={q} agg={agg} /> : null;
+  };
+  const perguntas = questions as Pergunta[];
+  const semSecaoAgregado = perguntas.filter((q) => !q.section_id);
 
   return (
     <div className="space-y-6">
@@ -129,11 +139,31 @@ function RespostasPage() {
             </div>
           ) : (
             <>
-              {questions.map((q) => {
-                const agg = (aggregates as Agregado[] | null)?.find((a) => a.question_id === q.id);
-                if (!agg) return null;
-                return <PerguntaAgregada key={q.id} question={q as Pergunta} agg={agg} />;
-              })}
+              {sections.length === 0 ? (
+                perguntas.map((q) => renderPergunta(q))
+              ) : (
+                <>
+                  {(sections as Secao[]).map((s) => {
+                    const doSecao = perguntas.filter((q) => q.section_id === s.id);
+                    if (doSecao.length === 0) return null;
+                    return (
+                      <div key={s.id} className="space-y-3">
+                        <div>
+                          <h2 className="text-base font-semibold">{s.title}</h2>
+                          {s.description && <p className="text-xs text-muted-foreground">{s.description}</p>}
+                        </div>
+                        {doSecao.map((q) => renderPergunta(q))}
+                      </div>
+                    );
+                  })}
+                  {semSecaoAgregado.length > 0 && (
+                    <div className="space-y-3">
+                      <h2 className="text-base font-semibold">Outras perguntas</h2>
+                      {semSecaoAgregado.map((q) => renderPergunta(q))}
+                    </div>
+                  )}
+                </>
+              )}
 
               {respondents && respondents.length > 0 && (
                 <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">

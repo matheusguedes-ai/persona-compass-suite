@@ -67,11 +67,12 @@ export const getTestVersion = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
-    const [{ data: version, error: vErr }, dims, questions, bands, respostasRes] = await Promise.all([
+    const [{ data: version, error: vErr }, dims, questions, bands, sections, respostasRes] = await Promise.all([
       context.supabase.from("test_versions").select("*").eq("id", data.id).maybeSingle(),
       context.supabase.from("test_dimensions").select("*").eq("version_id", data.id).order("sort_order"),
       context.supabase.from("test_questions").select("*").eq("version_id", data.id).order("sort_order"),
       context.supabase.from("test_result_bands").select("*").eq("version_id", data.id).order("sort_order"),
+      context.supabase.from("test_sections").select("*").eq("version_id", data.id).order("sort_order"),
       // #212 item 6 — a tela avisa ANTES de editar, não só depois de forçar
       // uma versão nova: mesmo critério de "em uso" que já trava o Excluir.
       context.supabase.from("test_responses").select("id", { count: "exact", head: true }).eq("version_id", data.id),
@@ -81,6 +82,7 @@ export const getTestVersion = createServerFn({ method: "GET" })
     if (dims.error) throw new Error(dims.error.message);
     if (questions.error) throw new Error(questions.error.message);
     if (bands.error) throw new Error(bands.error.message);
+    if (sections.error) throw new Error(sections.error.message);
 
     const questionIds = (questions.data ?? []).map((q) => q.id);
     const [options, scores] = await Promise.all([
@@ -114,6 +116,7 @@ export const getTestVersion = createServerFn({ method: "GET" })
         points: Number(s.points),
       })),
       bands: bands.data ?? [],
+      sections: sections.data ?? [],
     };
   });
 
@@ -430,17 +433,20 @@ async function clonarVersaoParaEdicao(supabase: SupabaseClient<Database>, origem
   if (vErr) throw new Error(vErr.message);
   if (!origem) throw new Error("Versão não encontrada");
 
-  const [dimsRes, qsRes, bandsRes] = await Promise.all([
+  const [dimsRes, qsRes, bandsRes, secsRes] = await Promise.all([
     supabase.from("test_dimensions").select("*").eq("version_id", origemId),
     supabase.from("test_questions").select("*").eq("version_id", origemId),
     supabase.from("test_result_bands").select("*").eq("version_id", origemId),
+    supabase.from("test_sections").select("*").eq("version_id", origemId),
   ]);
   if (dimsRes.error) throw new Error(dimsRes.error.message);
   if (qsRes.error) throw new Error(qsRes.error.message);
   if (bandsRes.error) throw new Error(bandsRes.error.message);
+  if (secsRes.error) throw new Error(secsRes.error.message);
   const dims = dimsRes.data ?? [];
   const qs = qsRes.data ?? [];
   const bands = bandsRes.data ?? [];
+  const secs = secsRes.data ?? [];
 
   let opts: Array<{ id: string; question_id: string; label: string; value: string | null; sort_order: number }> = [];
   let srcScores: Array<{ option_id: string; dimension_id: string; points: number }> = [];
@@ -481,6 +487,20 @@ async function clonarVersaoParaEdicao(supabase: SupabaseClient<Database>, origem
     dims.forEach((d, i) => dimMap.set(d.id, newDims![i].id));
   }
 
+  // #212 F4 — seção clona ANTES de pergunta, porque pergunta precisa do
+  // mapa antigo→novo pra remapear section_id (mesmo raciocínio de dimensão).
+  const sectionMap = new Map<string, string>();
+  if (secs.length > 0) {
+    const { data: newSecs, error } = await supabase
+      .from("test_sections")
+      .insert(secs.map((s) => ({
+        version_id: newV.id, title: s.title, description: s.description, sort_order: s.sort_order,
+      })))
+      .select();
+    if (error) throw new Error(error.message);
+    secs.forEach((s, i) => sectionMap.set(s.id, newSecs![i].id));
+  }
+
   // Mesmo remapeamento de `duplicateTemplate`: sem dimensão correspondente,
   // zera em vez de manter um id de outra versão.
   type QuestionConfig = (typeof qs)[number]["config"];
@@ -501,6 +521,7 @@ async function clonarVersaoParaEdicao(supabase: SupabaseClient<Database>, origem
       .insert(qs.map((q) => ({
         version_id: newV.id, type: q.type, prompt: q.prompt, helper: q.helper,
         required: q.required, sort_order: q.sort_order, config: remapQuestionConfig(q.config),
+        section_id: q.section_id ? sectionMap.get(q.section_id) ?? null : null,
       })))
       .select();
     if (error) throw new Error(error.message);
@@ -546,19 +567,21 @@ async function clonarVersaoParaEdicao(supabase: SupabaseClient<Database>, origem
     bands.forEach((b, i) => bandMap.set(b.id, newBands![i].id));
   }
 
-  return { versionId: newV.id as string, questionIdMap, optionIdMap, dimensionIdMap: dimMap, bandIdMap: bandMap };
+  return { versionId: newV.id as string, questionIdMap, optionIdMap, dimensionIdMap: dimMap, bandIdMap: bandMap, sectionIdMap: sectionMap };
 }
 
 type VersaoEditavel = {
   versionId: string; forked: boolean;
   questionIdMap: Map<string, string>; optionIdMap: Map<string, string>;
   dimensionIdMap: Map<string, string>; bandIdMap: Map<string, string>;
+  sectionIdMap: Map<string, string>;
 };
 
 /** Resolve para onde uma mudança ESTRUTURAL deve ir: a própria versão, se
  * ainda não tem resposta nenhuma; um clone novo (em rascunho), se já tem.
  * #212 F3 — dimensão/pontuação/faixa passam a usar isto também: mexer nelas
- * num teste já respondido tem de virar versão nova, igual pergunta/opção. */
+ * num teste já respondido tem de virar versão nova, igual pergunta/opção.
+ * #212 F4 — seção entra na mesma regra. */
 async function versaoEditavelPara(supabase: SupabaseClient<Database>, versionId: string): Promise<VersaoEditavel> {
   const { count, error } = await supabase
     .from("test_responses").select("id", { count: "exact", head: true }).eq("version_id", versionId);
@@ -568,11 +591,12 @@ async function versaoEditavelPara(supabase: SupabaseClient<Database>, versionId:
       versionId, forked: false,
       questionIdMap: new Map(), optionIdMap: new Map(),
       dimensionIdMap: new Map(), bandIdMap: new Map(),
+      sectionIdMap: new Map(),
     };
   }
-  const { versionId: newId, questionIdMap, optionIdMap, dimensionIdMap, bandIdMap } =
+  const { versionId: newId, questionIdMap, optionIdMap, dimensionIdMap, bandIdMap, sectionIdMap } =
     await clonarVersaoParaEdicao(supabase, versionId);
-  return { versionId: newId, forked: true, questionIdMap, optionIdMap, dimensionIdMap, bandIdMap };
+  return { versionId: newId, forked: true, questionIdMap, optionIdMap, dimensionIdMap, bandIdMap, sectionIdMap };
 }
 
 /** Mesmo papel de `versionIdDaOpcao`, mas dimensão já tem version_id direto
@@ -593,6 +617,93 @@ async function versionIdDaFaixa(supabase: SupabaseClient<Database>, bandId: stri
   if (!data) throw new Error("Faixa não encontrada");
   return data.version_id;
 }
+
+/** Idem, para seção. */
+async function versionIdDaSecao(supabase: SupabaseClient<Database>, sectionId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("test_sections").select("version_id").eq("id", sectionId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Seção não encontrada");
+  return data.version_id;
+}
+
+// ============================================================
+// Sections (#212 F4) — agrupam perguntas em blocos. Opcional: teste sem
+// seção continua lista corrida, como sempre foi.
+// ============================================================
+export const upsertSection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid().optional(),
+    version_id: z.string().uuid(),
+    title: z.string().trim().min(1).max(160),
+    description: z.string().trim().max(1000).optional().nullable(),
+    sort_order: z.number().int().default(0),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const origemVersionId = data.id ? await versionIdDaSecao(context.supabase, data.id) : data.version_id;
+    const { versionId, forked, sectionIdMap } = await versaoEditavelPara(context.supabase, origemVersionId);
+    const targetId = data.id ? sectionIdMap.get(data.id) ?? (forked ? undefined : data.id) : undefined;
+    if (data.id && !targetId) throw new Error("Não foi possível localizar a seção na nova versão.");
+    const { id, version_id, ...rest } = data;
+    const { data: row, error } = await context.supabase
+      .from("test_sections")
+      .upsert({ ...rest, ...(targetId ? { id: targetId } : {}), version_id: versionId })
+      .select().single();
+    if (error) throw new Error(error.message);
+    return { ...row, forked, new_version_id: forked ? versionId : null };
+  });
+
+/** Item 4 da demanda — nunca apaga pergunta em silêncio. A checagem roda
+ * ANTES de decidir se forka: senão, tentar excluir uma seção cheia num
+ * teste já respondido criaria uma versão nova à toa (a exclusão seria
+ * recusada de qualquer forma, mas o clone já teria acontecido). */
+export const deleteSection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const { count, error: cErr } = await context.supabase
+      .from("test_questions").select("id", { count: "exact", head: true }).eq("section_id", data.id);
+    if (cErr) throw new Error(cErr.message);
+    if (count) {
+      throw new Error(
+        count === 1
+          ? "Esta seção tem 1 pergunta. Mova-a para outra seção (ou para fora de seção nenhuma) antes de excluir."
+          : `Esta seção tem ${count} perguntas. Mova-as para outra seção (ou para fora de seção nenhuma) antes de excluir.`,
+      );
+    }
+
+    const origemVersionId = await versionIdDaSecao(context.supabase, data.id);
+    const { versionId, forked, sectionIdMap } = await versaoEditavelPara(context.supabase, origemVersionId);
+    const targetId = forked ? sectionIdMap.get(data.id) : data.id;
+    if (!targetId) throw new Error("Não foi possível localizar a seção na nova versão.");
+    const { error } = await context.supabase.from("test_sections").delete().eq("id", targetId);
+    if (error) throw new Error(error.message);
+    return { ok: true, forked, new_version_id: forked ? versionId : null };
+  });
+
+/** Reordenar é cosmético — edita em cima sempre, mesmo padrão de
+ * `reorderQuestions`/`reorderDimensions`. */
+export const reorderSections = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    version_id: z.string().uuid(),
+    ordered_ids: z.array(z.string().uuid()),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const results = await Promise.all(
+      data.ordered_ids.map((id, i) =>
+        context.supabase.from("test_sections").update({ sort_order: i + 1 }).eq("id", id),
+      ),
+    );
+    for (const r of results) {
+      if (r.error) throw new Error(r.error.message);
+    }
+    return { ok: true };
+  });
 
 // ============================================================
 // Dimensions
@@ -698,25 +809,34 @@ export const updateQuestion = createServerFn({ method: "POST" })
     type: questionTypeSchema.optional(),
     config: z.record(z.string(), z.unknown()).optional(),
     sort_order: z.number().int().optional(),
+    section_id: z.string().uuid().nullable().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
     const { data: atual, error: qErr } = await context.supabase
-      .from("test_questions").select("version_id, type").eq("id", data.id).maybeSingle();
+      .from("test_questions").select("version_id, type, section_id").eq("id", data.id).maybeSingle();
     if (qErr) throw new Error(qErr.message);
     if (!atual) throw new Error("Pergunta não encontrada");
 
-    // Só mudar de TIPO é estrutural aqui — texto/obrigatória/config
-    // continuam editando em cima mesmo com resposta.
+    // Mudar de TIPO ou de SEÇÃO é estrutural aqui — texto/obrigatória/config
+    // continuam editando em cima mesmo com resposta (#212 F4: mover pergunta
+    // de seção entra na mesma régua de "mudou de tipo").
     const mudaTipo = data.type !== undefined && data.type !== atual.type;
-    const { versionId, forked, questionIdMap } = mudaTipo
+    const mudaSecao = data.section_id !== undefined && data.section_id !== atual.section_id;
+    const { versionId, forked, questionIdMap, sectionIdMap } = (mudaTipo || mudaSecao)
       ? await versaoEditavelPara(context.supabase, atual.version_id)
-      : { versionId: atual.version_id, forked: false, questionIdMap: new Map<string, string>() };
+      : { versionId: atual.version_id, forked: false, questionIdMap: new Map<string, string>(), sectionIdMap: new Map<string, string>() };
     const targetId = forked ? questionIdMap.get(data.id) : data.id;
     if (!targetId) throw new Error("Não foi possível localizar a pergunta na nova versão.");
 
-    const { id, config, ...rest } = data;
-    const patch = { ...rest, ...(config !== undefined ? { config: config as Json } : {}) };
+    const { id, config, section_id, ...rest } = data;
+    const patch = {
+      ...rest,
+      ...(config !== undefined ? { config: config as Json } : {}),
+      ...(section_id !== undefined
+        ? { section_id: forked ? (section_id ? sectionIdMap.get(section_id) ?? null : null) : section_id }
+        : {}),
+    };
     const { data: row, error } = await context.supabase
       .from("test_questions").update(patch).eq("id", targetId).select().single();
     if (error) throw new Error(error.message);
@@ -988,8 +1108,13 @@ export const getResponsesSummary = createServerFn({ method: "GET" })
       : { data: [] as never[], error: null };
     if (oErr) throw new Error(oErr.message);
     const opts = options ?? [];
+    // #212 F4 — resultados agrupados por seção; teste sem seção volta [].
+    const { data: sections, error: sErr } = await supabase
+      .from("test_sections").select("*").eq("version_id", data.version_id).order("sort_order");
+    if (sErr) throw new Error(sErr.message);
+    const secs = sections ?? [];
 
-    const base = { version, lineage, invited, responded, missing, locked, questions: qs, options: opts };
+    const base = { version, lineage, invited, responded, missing, locked, questions: qs, options: opts, sections: secs };
     if (locked) return { ...base, aggregates: null, respondents: null };
 
     const submittedIds = submetidas.map((r) => r.id);

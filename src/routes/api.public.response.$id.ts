@@ -38,13 +38,20 @@ async function loadResponsePayload(id: string) {
   const versionId = response.version_id;
   const { data: questions } = await supabase
     .from("test_questions")
-    .select("id, type, prompt, required, config, sort_order")
+    .select("id, type, prompt, required, config, sort_order, section_id")
     .eq("version_id", versionId)
     .order("sort_order");
   const qIds = (questions ?? []).map((q) => q.id);
   const { data: options } = qIds.length
     ? await supabase.from("test_options").select("id, question_id, label, sort_order").in("question_id", qIds).order("sort_order")
     : { data: [] };
+  // #212 F4 — teste sem seção volta [] e o formulário renderiza a lista
+  // corrida de sempre; com seção, o formulário pagina bloco a bloco.
+  const { data: sections } = await supabase
+    .from("test_sections")
+    .select("id, title, description, sort_order")
+    .eq("version_id", versionId)
+    .order("sort_order");
   return {
     submitted: false as const,
     brand,
@@ -58,6 +65,7 @@ async function loadResponsePayload(id: string) {
     },
     questions: questions ?? [],
     options: options ?? [],
+    sections: sections ?? [],
   };
 }
 

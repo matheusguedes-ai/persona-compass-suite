@@ -7,6 +7,7 @@ import { ResponseForm } from "@/components/response-form";
 import type { Result, ResultDim, PerDimBand } from "@/components/response-form";
 import { SeloEmpresa } from "@/components/selo-empresa";
 import { useApplyBrand, type Brand } from "@/lib/brand";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/responder/$responseId")({
   head: () => ({ meta: [{ title: "Responder teste" }, { name: "robots", content: "noindex" }] }),
@@ -46,6 +47,11 @@ function ResponderPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-6">
+      {/* Sem isto, todo aviso de "pergunta obrigatória" da ResponseForm — o
+          próprio, de antes desta fatia, e o "avance de bloco" novo — chamava
+          toast.error() em silêncio: só _app.tsx e aluno.tsx montam Toaster,
+          e quem responde o teste não passa por nenhum dos dois. */}
+      <Toaster position="top-right" />
       <ResponseForm
         responseId={responseId}
         onAlreadySubmitted={() => setAlreadySubmitted(true)}

@@ -4,10 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { AlertCircle, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertCircle, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from "lucide-react";
 
-export type Question = { id: string; type: string; prompt: string; required: boolean; config: Record<string, unknown> | null };
+export type Question = { id: string; type: string; prompt: string; required: boolean; config: Record<string, unknown> | null; section_id: string | null };
 export type Option = { id: string; question_id: string; label: string };
+export type Section = { id: string; title: string; description: string | null; sort_order: number };
 export type ResponsePayload = {
   submitted: false;
   kind: "self" | "observer";
@@ -15,6 +16,7 @@ export type ResponsePayload = {
   response: { id: string; submitted_at: string | null; test_versions: { title: string; description: string | null } | null; people: { full_name: string } | null };
   questions: Question[];
   options: Option[];
+  sections: Section[];
 };
 export type ResultDim = { id: string; key: string; label: string; color: string | null; points: number };
 export type PerDimBand = { dimension_id: string; label: string; color: string | null; mode: "natural" | "adaptado"; points: number; normalized: number | null; band: { title: string; description: string | null } | null };
@@ -40,6 +42,26 @@ const MENSAGEM_ERRO: Record<string, string> = {
   expired: "Este link expirou. Peça um novo ao seu mentor.",
   canceled: "Este link foi cancelado pelo seu mentor. Se isso não era esperado, fale com ele.",
 };
+
+/** Uma pergunta obrigatória sem resposta válida, em palavras — usado tanto
+ * no envio final (todas as perguntas) quanto ao avançar de bloco (#212 F4,
+ * só as do bloco atual). `null` = respondida certo. */
+function motivoInvalido(q: Question, a: Record<string, unknown> | undefined, indice: number): string | null {
+  if (!q.required) return null;
+  const ok =
+    (q.type === "multiple_choice" && typeof a?.option_id === "string" && (a.option_id as string).length > 0) ||
+    (q.type === "checkboxes" && Array.isArray(a?.option_ids) && (a!.option_ids as unknown[]).length > 0) ||
+    (q.type === "linear_scale" && typeof a?.value === "number" && Number.isFinite(a.value as number)) ||
+    ((q.type === "ranking" || q.type === "drag_order") && Array.isArray(a?.ordered_option_ids) && (a!.ordered_option_ids as unknown[]).length > 0) ||
+    (q.type === "forced_choice" && typeof a?.most_option_id === "string" && typeof a?.least_option_id === "string" && a.most_option_id !== a.least_option_id) ||
+    (q.type === "short_text" && typeof a?.text === "string" && (a.text as string).trim().length > 0);
+  if (ok) return null;
+  return q.type === "forced_choice"
+    ? `Pergunta ${indice + 1}: escolha uma opção em MAIS e outra em MENOS (diferentes).`
+    : `Pergunta ${indice + 1} é obrigatória: "${q.prompt || "sem título"}"`;
+}
+
+type Bloco = { id: string; title: string; description: string | null; questions: Question[] };
 
 export function ResponseForm({
   responseId,
@@ -73,12 +95,14 @@ export function ResponseForm({
   const [raterName, setRaterName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [blocoAtual, setBlocoAtual] = useState(0);
 
   useEffect(() => {
     let active = true;
     setPayload(null);
     setAnswers({});
     setError(null);
+    setBlocoAtual(0);
     fetch(`/api/public/response/${responseId}`)
       .then(async (r) => {
         if (!active) return;
@@ -120,22 +144,8 @@ export function ResponseForm({
       return;
     }
     for (let i = 0; i < payload.questions.length; i++) {
-      const q = payload.questions[i];
-      if (!q.required) continue;
-      const a = answers[q.id];
-      const ok =
-        (q.type === "multiple_choice" && typeof a?.option_id === "string" && (a.option_id as string).length > 0) ||
-        (q.type === "checkboxes" && Array.isArray(a?.option_ids) && (a!.option_ids as unknown[]).length > 0) ||
-        (q.type === "linear_scale" && typeof a?.value === "number" && Number.isFinite(a.value as number)) ||
-        ((q.type === "ranking" || q.type === "drag_order") && Array.isArray(a?.ordered_option_ids) && (a!.ordered_option_ids as unknown[]).length > 0) ||
-        (q.type === "forced_choice" && typeof a?.most_option_id === "string" && typeof a?.least_option_id === "string" && a.most_option_id !== a.least_option_id) ||
-        (q.type === "short_text" && typeof a?.text === "string" && (a.text as string).trim().length > 0);
-      if (!ok) {
-        toast.error(q.type === "forced_choice"
-          ? `Pergunta ${i + 1}: escolha uma opção em MAIS e outra em MENOS (diferentes).`
-          : `Pergunta ${i + 1} é obrigatória: "${q.prompt || "sem título"}"`);
-        return;
-      }
+      const motivo = motivoInvalido(payload.questions[i], answers[payload.questions[i].id], i);
+      if (motivo) { toast.error(motivo); return; }
     }
     setSubmitting(true);
     try {
@@ -170,6 +180,36 @@ export function ResponseForm({
   const isObserver = payload.kind === "observer";
   const subject = payload.subject_name ?? "a pessoa avaliada";
 
+  // #212 F4 — teste sem seção nenhuma: `blocos` fica null e a tela renderiza
+  // a lista corrida de sempre, sem nenhuma mudança. Com seção, uma pergunta
+  // sem seção (sobra de antes de existir a seção, ou nunca movida) cai num
+  // bloco "Outras perguntas" no fim — nunca some da experiência.
+  const semSecao = payload.questions.filter((q) => !q.section_id);
+  const blocos: Bloco[] | null = payload.sections.length === 0 ? null : [
+    ...payload.sections.map((s) => ({
+      id: s.id, title: s.title, description: s.description,
+      questions: payload.questions.filter((q) => q.section_id === s.id),
+    })),
+    ...(semSecao.length > 0 ? [{ id: "__sem_secao__", title: "Outras perguntas", description: null, questions: semSecao }] : []),
+  ];
+  const bloco = blocos?.[blocoAtual];
+  const perguntasParaMostrar = blocos ? (bloco?.questions ?? []) : payload.questions;
+
+  const irParaProximoBloco = () => {
+    if (!bloco) return;
+    for (const q of bloco.questions) {
+      const indiceGlobal = payload.questions.findIndex((x) => x.id === q.id);
+      const motivo = motivoInvalido(q, answers[q.id], indiceGlobal);
+      if (motivo) { toast.error(motivo); return; }
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setBlocoAtual((b) => b + 1);
+  };
+  const irParaBlocoAnterior = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setBlocoAtual((b) => Math.max(0, b - 1));
+  };
+
   return (
     <div className="space-y-4">
       {showHeader && (
@@ -195,8 +235,19 @@ export function ResponseForm({
         </div>
       )}
 
-      {payload.questions.map((q, i) => {
+      {blocos && bloco && (
+        <>
+          <p className="text-xs font-medium text-muted-foreground">Bloco {blocoAtual + 1} de {blocos.length}</p>
+          <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+            <h2 className="text-lg font-semibold">{bloco.title}</h2>
+            {bloco.description && <p className="mt-1 text-sm text-muted-foreground">{bloco.description}</p>}
+          </div>
+        </>
+      )}
+
+      {perguntasParaMostrar.map((q) => {
         const opts = payload.options.filter((o) => o.question_id === q.id);
+        const i = payload.questions.findIndex((x) => x.id === q.id);
         return (
           <div key={q.id} className="rounded-xl bg-card p-5 ring-1 ring-black/5">
             <Label className="text-sm font-medium">
@@ -209,9 +260,28 @@ export function ResponseForm({
         );
       })}
 
-      <Button onClick={submit} disabled={submitting} className="w-full">
-        {submitting ? "Enviando…" : submitLabel}
-      </Button>
+      {blocos ? (
+        <div className="flex items-center gap-2">
+          {blocoAtual > 0 && (
+            <Button type="button" variant="outline" onClick={irParaBlocoAnterior} disabled={submitting}>
+              <ChevronLeft className="size-4" /> Voltar
+            </Button>
+          )}
+          {blocoAtual < blocos.length - 1 ? (
+            <Button type="button" onClick={irParaProximoBloco} className="flex-1">
+              Próximo <ChevronRight className="size-4" />
+            </Button>
+          ) : (
+            <Button onClick={submit} disabled={submitting} className="flex-1">
+              {submitting ? "Enviando…" : submitLabel}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Button onClick={submit} disabled={submitting} className="w-full">
+          {submitting ? "Enviando…" : submitLabel}
+        </Button>
+      )}
     </div>
   );
 }
