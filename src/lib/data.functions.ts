@@ -750,7 +750,10 @@ export const getGroupDna = createServerFn({ method: "GET" })
         people: new Set<string>(),
         dims: new Map<string, Agg>(),
       };
-      entry.people.add(r.person_id);
+      // #212 — person_id é nullable (teste anônimo), mas a consulta acima já
+      // filtrou `.in("person_id", personIds)`: uma linha anônima nunca bate
+      // nesse IN, então quem chega aqui sempre tem person_id de verdade.
+      entry.people.add(r.person_id!);
 
       for (const d of dimsByVersion.get(r.version_id) ?? []) {
         const value = normalized[d.id]?.natural;

@@ -128,7 +128,8 @@ export function ResponseForm({
         (q.type === "checkboxes" && Array.isArray(a?.option_ids) && (a!.option_ids as unknown[]).length > 0) ||
         (q.type === "linear_scale" && typeof a?.value === "number" && Number.isFinite(a.value as number)) ||
         ((q.type === "ranking" || q.type === "drag_order") && Array.isArray(a?.ordered_option_ids) && (a!.ordered_option_ids as unknown[]).length > 0) ||
-        (q.type === "forced_choice" && typeof a?.most_option_id === "string" && typeof a?.least_option_id === "string" && a.most_option_id !== a.least_option_id);
+        (q.type === "forced_choice" && typeof a?.most_option_id === "string" && typeof a?.least_option_id === "string" && a.most_option_id !== a.least_option_id) ||
+        (q.type === "short_text" && typeof a?.text === "string" && (a.text as string).trim().length > 0);
       if (!ok) {
         toast.error(q.type === "forced_choice"
           ? `Pergunta ${i + 1}: escolha uma opção em MAIS e outra em MENOS (diferentes).`
@@ -340,6 +341,18 @@ function QuestionField({ q, options, value, onChange, subjectLabel }: {
           );
         })}
       </div>
+    );
+  }
+  if (q.type === "short_text") {
+    const text = (value?.text as string | undefined) ?? "";
+    return (
+      <Textarea
+        value={text}
+        maxLength={4000}
+        placeholder="Escreva sua resposta"
+        onChange={(e) => onChange({ text: e.target.value })}
+        rows={3}
+      />
     );
   }
   return <Textarea disabled placeholder="Tipo desconhecido" />;

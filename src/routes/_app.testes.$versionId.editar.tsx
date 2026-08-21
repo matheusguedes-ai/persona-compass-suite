@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
@@ -8,6 +8,7 @@ import {
   createOption, updateOption, deleteOption, setOptionScore,
   upsertDimension, deleteDimension,
   upsertBand, deleteBand,
+  TIPOS_SEM_INTERPRETACAO,
 } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +23,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown,
-  CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical, Scale,
+  CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical, Scale, AlignLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { QuestionType } from "@/lib/tests.functions";
 
+type Forkable = { forked?: boolean; new_version_id?: string | null };
 type UpdQ = { id: string; prompt?: string; helper?: string | null; required?: boolean; type?: QuestionType; config?: Record<string, unknown>; sort_order?: number };
 type UpdO = { id: string; label?: string; value?: string | null; sort_order?: number };
 type UpsDim = { id?: string; version_id: string; key: string; label: string; description?: string | null; color?: string | null; sort_order?: number };
@@ -44,6 +46,7 @@ const TYPE_LABEL: Record<QuestionType, string> = {
   ranking: "Classificação",
   drag_order: "Arrastar para ordenar",
   forced_choice: "Escolha forçada (mais/menos)",
+  short_text: "Texto livre",
 };
 const TYPE_ICON: Record<QuestionType, React.ComponentType<{ className?: string }>> = {
   multiple_choice: Circle,
@@ -52,11 +55,13 @@ const TYPE_ICON: Record<QuestionType, React.ComponentType<{ className?: string }
   ranking: ListOrdered,
   drag_order: GripVertical,
   forced_choice: Scale,
+  short_text: AlignLeft,
 };
 
 function EditorPage() {
   const { versionId } = Route.useParams();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const getFn = useServerFn(getTestVersion);
   const updV = useServerFn(updateTestVersion);
@@ -80,6 +85,21 @@ function EditorPage() {
 
   const inv = () => qc.invalidateQueries({ queryKey: ["test-version", versionId] });
 
+  // #212 item 6 — uma mudança estrutural numa versão já respondida volta com
+  // `forked: true` e o id da versão nova (em rascunho, clonada). A tela
+  // explica em português e leva o mentor pra lá — a antiga fica intocada,
+  // com quem já respondeu.
+  const avisaSeForkou = (r: Forkable) => {
+    if (r.forked && r.new_version_id) {
+      toast.info(
+        "Esse teste já tem resposta — criamos uma versão nova em rascunho para essa mudança. " +
+        "As respostas antigas continuam com a versão anterior.",
+        { duration: 8000 },
+      );
+      navigate({ to: "/testes/$versionId/editar", params: { versionId: r.new_version_id } });
+    }
+  };
+
   const updVersion = useMutation({
     mutationFn: (patch: { title?: string; description?: string | null; is_published?: boolean }) =>
       updV({ data: { id: versionId, ...patch } }),
@@ -89,19 +109,39 @@ function EditorPage() {
 
   const addQ = useMutation({
     mutationFn: (type: QuestionType) => createQFn({ data: { version_id: versionId, type } }),
-    onSuccess: inv,
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
     onError: (e: Error) => toast.error(e.message),
   });
-  const updQ = useMutation({ mutationFn: (v: UpdQ) => updQFn({ data: v }), onSuccess: inv });
-  const delQ = useMutation({ mutationFn: (id: string) => delQFn({ data: { id } }), onSuccess: inv });
+  const updQ = useMutation({
+    mutationFn: (v: UpdQ) => updQFn({ data: v }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const delQ = useMutation({
+    mutationFn: (id: string) => delQFn({ data: { id } }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const reorderQ = useMutation({
     mutationFn: (ids: string[]) => reorderFn({ data: { version_id: versionId, ordered_ids: ids } }),
     onSuccess: inv,
   });
 
-  const addO = useMutation({ mutationFn: (question_id: string) => createOFn({ data: { question_id } }), onSuccess: inv });
-  const updO = useMutation({ mutationFn: (v: UpdO) => updOFn({ data: v }), onSuccess: inv });
-  const delO = useMutation({ mutationFn: (id: string) => delOFn({ data: { id } }), onSuccess: inv });
+  const addO = useMutation({
+    mutationFn: (question_id: string) => createOFn({ data: { question_id } }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const updO = useMutation({
+    mutationFn: (v: UpdO) => updOFn({ data: v }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const delO = useMutation({
+    mutationFn: (id: string) => delOFn({ data: { id } }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const setScore = useMutation({
     mutationFn: (v: { option_id: string; dimension_id: string; points: number }) => scoreFn({ data: v }),
     onSuccess: inv,
@@ -113,7 +153,9 @@ function EditorPage() {
   const delB = useMutation({ mutationFn: (id: string) => delBandFn({ data: { id } }), onSuccess: inv });
 
   if (isLoading || !data) return <div className="py-16 text-center text-sm text-muted-foreground">Carregando…</div>;
-  const { version, dimensions, questions, options, scores, bands } = data;
+  const { version, dimensions, questions, options, scores, bands, respostas } = data;
+  const semInterpretacao = !version.has_interpretation;
+  const tiposDisponiveis = semInterpretacao ? TIPOS_SEM_INTERPRETACAO : (Object.keys(TYPE_LABEL) as QuestionType[]);
 
   return (
     <div className="space-y-6">
@@ -122,6 +164,14 @@ function EditorPage() {
           <ArrowLeft className="size-3" /> Voltar
         </Link>
         <div className="flex items-center gap-2">
+          {respostas > 0 && (
+            <span
+              className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200"
+              title="Mudar pergunta, tipo ou opção cria uma versão nova em rascunho — o que já foi respondido não muda."
+            >
+              Já tem {respostas} resposta{respostas === 1 ? "" : "s"}
+            </span>
+          )}
           <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-1.5">
             <Switch checked={version.is_published} onCheckedChange={(v) => updVersion.mutate({ is_published: v })} />
             <span className="text-xs font-medium">{version.is_published ? "Publicado" : "Rascunho"}</span>
@@ -129,7 +179,7 @@ function EditorPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+      <div className={semInterpretacao ? "grid grid-cols-1 gap-6" : "grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]"}>
         {/* CANVAS */}
         <div className="space-y-4">
           <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
@@ -145,6 +195,11 @@ function EditorPage() {
               className="mt-2 border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
               rows={2}
             />
+            {version.is_anonymous && (
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                🔒 Teste anônimo — quem responde não fica registrado, nem para você.
+              </p>
+            )}
           </div>
 
           {questions.map((q, idx) => {
@@ -181,7 +236,7 @@ function EditorPage() {
                       <Select value={q.type} onValueChange={(v) => updQ.mutate({ id: q.id, type: v as QuestionType })}>
                         <SelectTrigger className="h-8 w-52 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {(Object.keys(TYPE_LABEL) as QuestionType[]).map((t) => (
+                          {tiposDisponiveis.map((t) => (
                             <SelectItem key={t} value={t}>{TYPE_LABEL[t]}</SelectItem>
                           ))}
                         </SelectContent>
@@ -297,7 +352,7 @@ function EditorPage() {
 
           <div className="rounded-xl bg-card p-4 ring-1 ring-dashed ring-black/10">
             <div className="flex flex-wrap gap-2">
-              {(Object.keys(TYPE_LABEL) as QuestionType[]).map((t) => {
+              {tiposDisponiveis.map((t) => {
                 const Icon = TYPE_ICON[t];
                 return (
                   <Button key={t} size="sm" variant="outline" onClick={() => addQ.mutate(t)}>
@@ -309,7 +364,10 @@ function EditorPage() {
           </div>
         </div>
 
-        {/* SIDE PANEL */}
+        {/* SIDE PANEL — só existe pra teste com interpretação (#212 F1: esta
+            fatia não mexe em dimensão/pontuação/faixa, e um teste criado em
+            branco nasce sem nenhuma das três). */}
+        {version.has_interpretation && (
         <div className="lg:sticky lg:top-6 lg:h-fit">
           <Tabs defaultValue="dims">
             <TabsList className="w-full">
@@ -408,6 +466,7 @@ function EditorPage() {
             </TabsContent>
           </Tabs>
         </div>
+        )}
       </div>
     </div>
   );

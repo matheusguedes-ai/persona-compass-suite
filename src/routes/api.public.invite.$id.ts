@@ -126,8 +126,15 @@ export const Route = createFileRoute("/api/public/invite/$id")({
           }
 
           const versionIds: string[] = link.version_ids;
+          // #212 item 5a — mesmo pelo link aberto, teste anônimo não grava
+          // quem respondeu. A pessoa se identifica pra ENTRAR (nome/email
+          // viram um cadastro), mas o vínculo com a resposta em si não nasce
+          // se a versão for anônima.
+          const { data: versoes, error: vErr } = await supabase
+            .from("test_versions").select("id, is_anonymous").in("id", versionIds);
+          if (vErr) throw new Error(vErr.message);
+          const anonimaPorId = new Map((versoes ?? []).map((v) => [v.id, v.is_anonymous]));
           const common = {
-            person_id: person.id,
             mentor_id: link.mentor_id,
             group_id: link.group_id ?? null,
             status: "pending",
@@ -153,6 +160,7 @@ export const Route = createFileRoute("/api/public/invite/$id")({
               versionIds.map((version_id, idx) => ({
                 ...common,
                 version_id,
+                person_id: anonimaPorId.get(version_id) ? null : person.id,
                 assessment_response_id: assessment.id,
                 assessment_sort: idx,
               })),
@@ -163,7 +171,7 @@ export const Route = createFileRoute("/api/public/invite/$id")({
 
           const { data: response, error: rErr } = await supabase
             .from("test_responses")
-            .insert({ ...common, version_id: versionIds[0] })
+            .insert({ ...common, version_id: versionIds[0], person_id: anonimaPorId.get(versionIds[0]) ? null : person.id })
             .select("id")
             .single();
           if (rErr) throw new Error(rErr.message);

@@ -1825,7 +1825,7 @@ export type Database = {
           kind: string
           mentor_id: string
           parent_response_id: string | null
-          person_id: string
+          person_id: string | null
           rater_name: string | null
           result_band_id: string | null
           started_at: string | null
@@ -1849,7 +1849,7 @@ export type Database = {
           kind?: string
           mentor_id: string
           parent_response_id?: string | null
-          person_id: string
+          person_id?: string | null
           rater_name?: string | null
           result_band_id?: string | null
           started_at?: string | null
@@ -1873,7 +1873,7 @@ export type Database = {
           kind?: string
           mentor_id?: string
           parent_response_id?: string | null
-          person_id?: string
+          person_id?: string | null
           rater_name?: string | null
           result_band_id?: string | null
           started_at?: string | null
@@ -1993,8 +1993,11 @@ export type Database = {
           created_at: string
           derived_config: Json | null
           description: string | null
+          forked_from_id: string | null
+          has_interpretation: boolean
           id: string
           instrument_id: string
+          is_anonymous: boolean
           is_published: boolean
           is_template: boolean
           mentor_id: string | null
@@ -2005,8 +2008,11 @@ export type Database = {
           created_at?: string
           derived_config?: Json | null
           description?: string | null
+          forked_from_id?: string | null
+          has_interpretation?: boolean
           id?: string
           instrument_id: string
+          is_anonymous?: boolean
           is_published?: boolean
           is_template?: boolean
           mentor_id?: string | null
@@ -2017,8 +2023,11 @@ export type Database = {
           created_at?: string
           derived_config?: Json | null
           description?: string | null
+          forked_from_id?: string | null
+          has_interpretation?: boolean
           id?: string
           instrument_id?: string
+          is_anonymous?: boolean
           is_published?: boolean
           is_template?: boolean
           mentor_id?: string | null
@@ -2026,6 +2035,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "test_versions_forked_from_id_fkey"
+            columns: ["forked_from_id"]
+            isOneToOne: false
+            referencedRelation: "test_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "test_versions_instrument_id_fkey"
             columns: ["instrument_id"]
@@ -2116,6 +2132,7 @@ export type Database = {
         | "ranking"
         | "drag_order"
         | "forced_choice"
+        | "short_text"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2250,6 +2267,7 @@ export const Constants = {
         "ranking",
         "drag_order",
         "forced_choice",
+        "short_text",
       ],
     },
   },

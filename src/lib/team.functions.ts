@@ -445,6 +445,9 @@ export const canDownloadReport = createServerFn({ method: "GET" })
     if (rErr) throw new Error(rErr.message);
     // Não enxerga a resposta (a RLS já filtrou): nada a liberar.
     if (!resp) return { allowed: false };
+    // #212 — teste anônimo não tem person_id: sem pessoa, não há grupo pra
+    // checar can_download_reports. Mesma regra de fail-closed do `!resp`.
+    if (!resp.person_id) return { allowed: false };
 
     const { data: membro, error: mErr } = await supabase
       .from("team_members")

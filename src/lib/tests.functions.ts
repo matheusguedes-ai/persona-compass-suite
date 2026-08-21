@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao } from "@/lib/permissao.server";
 import { membershipDoUsuario } from "@/lib/team.functions";
-import type { Json } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database, Json } from "@/integrations/supabase/types";
 
 // ============================================================
 // Types
@@ -14,7 +15,15 @@ export type QuestionType =
   | "linear_scale"
   | "ranking"
   | "drag_order"
-  | "forced_choice";
+  | "forced_choice"
+  | "short_text";
+
+// #212 F1 — os 4 tipos que um teste SEM interpretação pode usar (coleta
+// pura). Os outros 3 (ranking, drag_order, forced_choice) continuam
+// existindo só para quem duplica um template e já tem interpretação ligada.
+export const TIPOS_SEM_INTERPRETACAO: QuestionType[] = [
+  "multiple_choice", "checkboxes", "linear_scale", "short_text",
+];
 
 // ============================================================
 // Versions
@@ -58,11 +67,14 @@ export const getTestVersion = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
-    const [{ data: version, error: vErr }, dims, questions, bands] = await Promise.all([
+    const [{ data: version, error: vErr }, dims, questions, bands, respostasRes] = await Promise.all([
       context.supabase.from("test_versions").select("*").eq("id", data.id).maybeSingle(),
       context.supabase.from("test_dimensions").select("*").eq("version_id", data.id).order("sort_order"),
       context.supabase.from("test_questions").select("*").eq("version_id", data.id).order("sort_order"),
       context.supabase.from("test_result_bands").select("*").eq("version_id", data.id).order("sort_order"),
+      // #212 item 6 — a tela avisa ANTES de editar, não só depois de forçar
+      // uma versão nova: mesmo critério de "em uso" que já trava o Excluir.
+      context.supabase.from("test_responses").select("id", { count: "exact", head: true }).eq("version_id", data.id),
     ]);
     if (vErr) throw new Error(vErr.message);
     if (!version) throw new Error("Versão não encontrada");
@@ -91,6 +103,7 @@ export const getTestVersion = createServerFn({ method: "GET" })
 
     return {
       version,
+      respostas: respostasRes.count ?? 0,
       dimensions: dims.data ?? [],
       questions: questions.data ?? [],
       options: options.data ?? [],
@@ -152,6 +165,9 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
         description: tpl.description,
         is_template: false,
         is_published: false,
+        // A cópia herda dimensões/pontuação do template — tem interpretação
+        // de verdade, ao contrário de um teste criado em branco (#212 F1).
+        has_interpretation: true,
       })
       .select().single();
     if (nErr) throw new Error(nErr.message);
@@ -236,6 +252,34 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
     return newV;
   });
 
+// #212 F1 — a porta de entrada em branco: nasce sem dimensão, sem pergunta,
+// sem interpretação. "Duplicar" (acima) continua sendo o caminho de quem
+// quer partir de um template; este é o caminho de quem quer um teste do
+// zero. O anonimato só se escolhe AQUI — updateTestVersion (abaixo) nunca
+// aceita mudar is_anonymous depois de criado.
+export const createTestVersion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    title: z.string().trim().min(1).max(160),
+    description: z.string().trim().max(1000).optional().nullable(),
+    is_anonymous: z.boolean().default(false),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const { data: row, error } = await context.supabase.from("test_versions").insert({
+      instrument_id: "personalizado",
+      mentor_id: context.userId,
+      title: data.title,
+      description: data.description ?? null,
+      is_template: false,
+      is_published: false,
+      is_anonymous: data.is_anonymous,
+      has_interpretation: false,
+    }).select().single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
 export const updateTestVersion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -301,9 +345,166 @@ export const deleteDimension = createServerFn({ method: "POST" })
   });
 
 // ============================================================
+// Versionamento (#212, item 6)
+//
+// Teste SEM resposta: edita em cima, sempre — é só um rascunho ainda sendo
+// desenhado. Teste COM resposta (mesmo critério que já trava o "Excluir" na
+// lista: qualquer linha em test_responses, pendente ou não): mudança
+// COSMÉTICA (título, descrição, texto/obrigatória/config de uma pergunta)
+// edita em cima; mudança ESTRUTURAL (pergunta ou opção nascendo, morrendo,
+// mudando de tipo ou de rótulo) clona a versão inteira e aplica ali — a
+// antiga não muda, então quem já respondeu continua com o que respondeu.
+//
+// Vale para QUALQUER teste (com interpretação ou não): dimensão/pontuação/
+// faixa de resultado não ganham a mesma trava aqui — a #212 pede
+// explicitamente para não mexer nisso nesta fatia (é a Fatia 3). O clone
+// abaixo ainda PRECISA copiar dimensão/pontuação/faixa quando existirem
+// (senão um teste duplicado de template perderia a interpretação ao ganhar
+// uma pergunta nova), só não é o gatilho que decide clonar.
+// ============================================================
+
+/** Clona uma versão inteira (mesma lógica de `duplicateTemplate`, remapeando
+ * ids) e devolve os mapas antigo→novo de pergunta e opção, para quem chamou
+ * saber onde a linha que ia mexer foi parar. */
+async function clonarVersaoParaEdicao(supabase: SupabaseClient<Database>, origemId: string) {
+  const { data: origem, error: vErr } = await supabase
+    .from("test_versions").select("*").eq("id", origemId).maybeSingle();
+  if (vErr) throw new Error(vErr.message);
+  if (!origem) throw new Error("Versão não encontrada");
+
+  const [dimsRes, qsRes, bandsRes] = await Promise.all([
+    supabase.from("test_dimensions").select("*").eq("version_id", origemId),
+    supabase.from("test_questions").select("*").eq("version_id", origemId),
+    supabase.from("test_result_bands").select("*").eq("version_id", origemId),
+  ]);
+  if (dimsRes.error) throw new Error(dimsRes.error.message);
+  if (qsRes.error) throw new Error(qsRes.error.message);
+  if (bandsRes.error) throw new Error(bandsRes.error.message);
+  const dims = dimsRes.data ?? [];
+  const qs = qsRes.data ?? [];
+  const bands = bandsRes.data ?? [];
+
+  let opts: Array<{ id: string; question_id: string; label: string; value: string | null; sort_order: number }> = [];
+  let srcScores: Array<{ option_id: string; dimension_id: string; points: number }> = [];
+  if (qs.length > 0) {
+    const optsRes = await supabase.from("test_options").select("*").in("question_id", qs.map((q) => q.id));
+    if (optsRes.error) throw new Error(optsRes.error.message);
+    opts = optsRes.data ?? [];
+    if (opts.length > 0) {
+      const scoresRes = await supabase.from("option_scores").select("*").in("option_id", opts.map((o) => o.id));
+      if (scoresRes.error) throw new Error(scoresRes.error.message);
+      srcScores = scoresRes.data ?? [];
+    }
+  }
+
+  const { data: newV, error: nErr } = await supabase.from("test_versions").insert({
+    instrument_id: origem.instrument_id,
+    mentor_id: origem.mentor_id,
+    title: origem.title,
+    description: origem.description,
+    is_template: false,
+    is_published: false,
+    is_anonymous: origem.is_anonymous,
+    has_interpretation: origem.has_interpretation,
+    forked_from_id: origem.id,
+  }).select().single();
+  if (nErr) throw new Error(nErr.message);
+
+  const dimMap = new Map<string, string>();
+  if (dims.length > 0) {
+    const { data: newDims, error } = await supabase
+      .from("test_dimensions")
+      .insert(dims.map((d) => ({
+        version_id: newV.id, key: d.key, label: d.label,
+        description: d.description, color: d.color, sort_order: d.sort_order,
+      })))
+      .select();
+    if (error) throw new Error(error.message);
+    dims.forEach((d, i) => dimMap.set(d.id, newDims![i].id));
+  }
+
+  // Mesmo remapeamento de `duplicateTemplate`: sem dimensão correspondente,
+  // zera em vez de manter um id de outra versão.
+  type QuestionConfig = (typeof qs)[number]["config"];
+  const remapQuestionConfig = (config: QuestionConfig): QuestionConfig => {
+    if (!config || typeof config !== "object" || Array.isArray(config)) return config;
+    const next: Record<string, unknown> = { ...config };
+    if (typeof next.dimension_id === "string") {
+      next.dimension_id = dimMap.get(next.dimension_id) ?? null;
+    }
+    return next as QuestionConfig;
+  };
+
+  const questionIdMap = new Map<string, string>();
+  const optionIdMap = new Map<string, string>();
+  if (qs.length > 0) {
+    const { data: newQs, error } = await supabase
+      .from("test_questions")
+      .insert(qs.map((q) => ({
+        version_id: newV.id, type: q.type, prompt: q.prompt, helper: q.helper,
+        required: q.required, sort_order: q.sort_order, config: remapQuestionConfig(q.config),
+      })))
+      .select();
+    if (error) throw new Error(error.message);
+    qs.forEach((q, i) => questionIdMap.set(q.id, newQs![i].id));
+
+    if (opts.length > 0) {
+      const { data: newOpts, error: oErr } = await supabase
+        .from("test_options")
+        .insert(opts.map((o) => ({
+          question_id: questionIdMap.get(o.question_id)!,
+          label: o.label, value: o.value, sort_order: o.sort_order,
+        })))
+        .select();
+      if (oErr) throw new Error(oErr.message);
+      opts.forEach((o, i) => optionIdMap.set(o.id, newOpts![i].id));
+
+      if (srcScores.length > 0) {
+        const { error: sErr } = await supabase.from("option_scores").insert(
+          srcScores.map((s) => ({
+            option_id: optionIdMap.get(s.option_id)!,
+            dimension_id: dimMap.get(s.dimension_id)!,
+            points: s.points,
+          })),
+        );
+        if (sErr) throw new Error(sErr.message);
+      }
+    }
+  }
+
+  if (bands.length > 0) {
+    const { error } = await supabase.from("test_result_bands").insert(
+      bands.map((b) => ({
+        version_id: newV.id,
+        dimension_id: b.dimension_id ? dimMap.get(b.dimension_id) : null,
+        min_score: b.min_score, max_score: b.max_score,
+        title: b.title, description: b.description, sort_order: b.sort_order,
+        mode: b.mode,
+      })),
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  return { versionId: newV.id as string, questionIdMap, optionIdMap };
+}
+
+type VersaoEditavel = { versionId: string; forked: boolean; questionIdMap: Map<string, string>; optionIdMap: Map<string, string> };
+
+/** Resolve para onde uma mudança ESTRUTURAL deve ir: a própria versão, se
+ * ainda não tem resposta nenhuma; um clone novo (em rascunho), se já tem. */
+async function versaoEditavelPara(supabase: SupabaseClient<Database>, versionId: string): Promise<VersaoEditavel> {
+  const { count, error } = await supabase
+    .from("test_responses").select("id", { count: "exact", head: true }).eq("version_id", versionId);
+  if (error) throw new Error(error.message);
+  if (!count) return { versionId, forked: false, questionIdMap: new Map(), optionIdMap: new Map() };
+  const { versionId: newId, questionIdMap, optionIdMap } = await clonarVersaoParaEdicao(supabase, versionId);
+  return { versionId: newId, forked: true, questionIdMap, optionIdMap };
+}
+
+// ============================================================
 // Questions
 // ============================================================
-const questionTypeSchema = z.enum(["multiple_choice", "checkboxes", "linear_scale", "ranking", "drag_order", "forced_choice"]);
+const questionTypeSchema = z.enum(["multiple_choice", "checkboxes", "linear_scale", "ranking", "drag_order", "forced_choice", "short_text"]);
 
 export const createQuestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -313,8 +514,9 @@ export const createQuestion = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
+    const { versionId, forked } = await versaoEditavelPara(context.supabase, data.version_id);
     const { data: max } = await context.supabase
-      .from("test_questions").select("sort_order").eq("version_id", data.version_id)
+      .from("test_questions").select("sort_order").eq("version_id", versionId)
       .order("sort_order", { ascending: false }).limit(1).maybeSingle();
     const sort_order = (max?.sort_order ?? 0) + 1;
     const defaultConfig =
@@ -322,11 +524,11 @@ export const createQuestion = createServerFn({ method: "POST" })
       data.type === "ranking" || data.type === "drag_order" ? { top_weight: 3 } :
       data.type === "forced_choice" ? { hint: "Escolha a que MAIS e a que MENOS descreve você." } : {};
     const { data: row, error } = await context.supabase.from("test_questions").insert({
-      version_id: data.version_id, type: data.type, prompt: "", required: true,
+      version_id: versionId, type: data.type, prompt: "", required: true,
       sort_order, config: defaultConfig,
     }).select().single();
     if (error) throw new Error(error.message);
-    return row;
+    return { ...row, forked, new_version_id: forked ? versionId : null };
   });
 
 export const updateQuestion = createServerFn({ method: "POST" })
@@ -342,12 +544,26 @@ export const updateQuestion = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
+    const { data: atual, error: qErr } = await context.supabase
+      .from("test_questions").select("version_id, type").eq("id", data.id).maybeSingle();
+    if (qErr) throw new Error(qErr.message);
+    if (!atual) throw new Error("Pergunta não encontrada");
+
+    // Só mudar de TIPO é estrutural aqui — texto/obrigatória/config
+    // continuam editando em cima mesmo com resposta.
+    const mudaTipo = data.type !== undefined && data.type !== atual.type;
+    const { versionId, forked, questionIdMap } = mudaTipo
+      ? await versaoEditavelPara(context.supabase, atual.version_id)
+      : { versionId: atual.version_id, forked: false, questionIdMap: new Map<string, string>() };
+    const targetId = forked ? questionIdMap.get(data.id) : data.id;
+    if (!targetId) throw new Error("Não foi possível localizar a pergunta na nova versão.");
+
     const { id, config, ...rest } = data;
     const patch = { ...rest, ...(config !== undefined ? { config: config as Json } : {}) };
     const { data: row, error } = await context.supabase
-      .from("test_questions").update(patch).eq("id", id).select().single();
+      .from("test_questions").update(patch).eq("id", targetId).select().single();
     if (error) throw new Error(error.message);
-    return row;
+    return { ...row, forked, new_version_id: forked ? versionId : null };
   });
 
 export const deleteQuestion = createServerFn({ method: "POST" })
@@ -355,9 +571,16 @@ export const deleteQuestion = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
-    const { error } = await context.supabase.from("test_questions").delete().eq("id", data.id);
+    const { data: q, error: qErr } = await context.supabase
+      .from("test_questions").select("version_id").eq("id", data.id).maybeSingle();
+    if (qErr) throw new Error(qErr.message);
+    if (!q) throw new Error("Pergunta não encontrada");
+    const { versionId, forked, questionIdMap } = await versaoEditavelPara(context.supabase, q.version_id);
+    const targetId = forked ? questionIdMap.get(data.id) : data.id;
+    if (!targetId) throw new Error("Não foi possível localizar a pergunta na nova versão.");
+    const { error } = await context.supabase.from("test_questions").delete().eq("id", targetId);
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, forked, new_version_id: forked ? versionId : null };
   });
 
 export const reorderQuestions = createServerFn({ method: "POST" })
@@ -382,21 +605,47 @@ export const reorderQuestions = createServerFn({ method: "POST" })
 // ============================================================
 // Options
 // ============================================================
+/** Sobe de opção até a versão dona da pergunta — duas consultas simples em
+ * vez de embed, pra não depender de FK de leitura entre tabelas (armadilha
+ * já registrada: embed sem FK direta não funciona pelo PostgREST). */
+async function versionIdDaOpcao(supabase: SupabaseClient<Database>, optionId: string): Promise<string> {
+  const { data: o, error: oErr } = await supabase
+    .from("test_options").select("question_id").eq("id", optionId).maybeSingle();
+  if (oErr) throw new Error(oErr.message);
+  if (!o) throw new Error("Opção não encontrada");
+  const { data: q, error: qErr } = await supabase
+    .from("test_questions").select("version_id").eq("id", o.question_id).maybeSingle();
+  if (qErr) throw new Error(qErr.message);
+  if (!q) throw new Error("Pergunta não encontrada");
+  return q.version_id;
+}
+
 export const createOption = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ question_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
+    const { data: q, error: qErr } = await context.supabase
+      .from("test_questions").select("version_id").eq("id", data.question_id).maybeSingle();
+    if (qErr) throw new Error(qErr.message);
+    if (!q) throw new Error("Pergunta não encontrada");
+    const { versionId, forked, questionIdMap } = await versaoEditavelPara(context.supabase, q.version_id);
+    const targetQuestionId = forked ? questionIdMap.get(data.question_id) : data.question_id;
+    if (!targetQuestionId) throw new Error("Não foi possível localizar a pergunta na nova versão.");
     const { data: max } = await context.supabase
-      .from("test_options").select("sort_order").eq("question_id", data.question_id)
+      .from("test_options").select("sort_order").eq("question_id", targetQuestionId)
       .order("sort_order", { ascending: false }).limit(1).maybeSingle();
     const sort_order = (max?.sort_order ?? 0) + 1;
     const { data: row, error } = await context.supabase
-      .from("test_options").insert({ question_id: data.question_id, label: "", sort_order }).select().single();
+      .from("test_options").insert({ question_id: targetQuestionId, label: "", sort_order }).select().single();
     if (error) throw new Error(error.message);
-    return row;
+    return { ...row, forked, new_version_id: forked ? versionId : null };
   });
 
+// #212 item 6 — rótulo/valor de opção é ESTRUTURAL, não cosmético: ao
+// contrário do texto de uma pergunta, o rótulo É o conteúdo que a pessoa
+// escolheu. Renomear "Sim" pra "Não" depois mudaria o que uma resposta
+// antiga significa sem quem respondeu ter feito nada.
 export const updateOption = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
@@ -407,11 +656,15 @@ export const updateOption = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
+    const origemVersionId = await versionIdDaOpcao(context.supabase, data.id);
+    const { versionId, forked, optionIdMap } = await versaoEditavelPara(context.supabase, origemVersionId);
+    const targetId = forked ? optionIdMap.get(data.id) : data.id;
+    if (!targetId) throw new Error("Não foi possível localizar a opção na nova versão.");
     const { id, ...rest } = data;
     const { data: row, error } = await context.supabase
-      .from("test_options").update(rest).eq("id", id).select().single();
+      .from("test_options").update(rest).eq("id", targetId).select().single();
     if (error) throw new Error(error.message);
-    return row;
+    return { ...row, forked, new_version_id: forked ? versionId : null };
   });
 
 export const deleteOption = createServerFn({ method: "POST" })
@@ -419,9 +672,13 @@ export const deleteOption = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
-    const { error } = await context.supabase.from("test_options").delete().eq("id", data.id);
+    const origemVersionId = await versionIdDaOpcao(context.supabase, data.id);
+    const { versionId, forked, optionIdMap } = await versaoEditavelPara(context.supabase, origemVersionId);
+    const targetId = forked ? optionIdMap.get(data.id) : data.id;
+    if (!targetId) throw new Error("Não foi possível localizar a opção na nova versão.");
+    const { error } = await context.supabase.from("test_options").delete().eq("id", targetId);
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, forked, new_version_id: forked ? versionId : null };
   });
 
 export const setOptionScore = createServerFn({ method: "POST" })
@@ -496,7 +753,7 @@ export const startResponse = createServerFn({ method: "POST" })
     // either a global template or owned by this mentor.
     const [personRes, versionRes] = await Promise.all([
       context.supabase.from("people").select("id, mentor_id").eq("id", data.person_id).maybeSingle(),
-      context.supabase.from("test_versions").select("id, mentor_id, is_template").eq("id", data.version_id).maybeSingle(),
+      context.supabase.from("test_versions").select("id, mentor_id, is_template, is_anonymous").eq("id", data.version_id).maybeSingle(),
     ]);
     if (personRes.error) throw new Error(personRes.error.message);
     if (versionRes.error) throw new Error(versionRes.error.message);
@@ -507,9 +764,12 @@ export const startResponse = createServerFn({ method: "POST" })
     if (!v || (!v.is_template && v.mentor_id !== context.userId)) {
       throw new Error("Versão de teste não encontrada ou não pertence a você.");
     }
+    // #212 item 5a — teste anônimo não grava quem respondeu: o vínculo nunca
+    // entra na linha, mesmo você tendo escolhido a pessoa pra endereçar o
+    // link. A trava é aqui, não escondida na tela.
     const { data: row, error } = await context.supabase.from("test_responses").insert({
       version_id: data.version_id,
-      person_id: data.person_id,
+      person_id: v.is_anonymous ? null : data.person_id,
       group_id: data.group_id ?? null,
       mentor_id: context.userId,
       status: "pending",
@@ -655,7 +915,7 @@ export const startAssessment = createServerFn({ method: "POST" })
 
     const [personRes, versionsRes] = await Promise.all([
       supabase.from("people").select("id, mentor_id").eq("id", data.person_id).maybeSingle(),
-      supabase.from("test_versions").select("id, mentor_id, is_template").in("id", versionIds),
+      supabase.from("test_versions").select("id, mentor_id, is_template, is_anonymous").in("id", versionIds),
     ]);
     if (personRes.error) throw new Error(personRes.error.message);
     if (versionsRes.error) throw new Error(versionsRes.error.message);
@@ -679,10 +939,12 @@ export const startAssessment = createServerFn({ method: "POST" })
     }).select("id").single();
     if (aErr) throw new Error(aErr.message);
 
+    // #212 item 5a — cada etapa segue o anonimato da SUA versão: uma bateria
+    // pode misturar teste identificado com anônimo.
     const { error: rErr } = await supabase.from("test_responses").insert(
       data.version_ids.map((version_id, idx) => ({
         version_id,
-        person_id: data.person_id,
+        person_id: byId.get(version_id)?.is_anonymous ? null : data.person_id,
         group_id: data.group_id ?? null,
         mentor_id: userId,
         status: "pending",

@@ -183,7 +183,10 @@ export const concluirCadastroPeloLink = createServerFn({ method: "POST" })
     if (data.nome?.trim()) patch.full_name = data.nome.trim();
     if (data.telefone?.trim()) patch.phone = data.telefone.trim();
     if (Object.keys(patch).length > 0) {
-      await supabase.from("people").update(patch).eq("id", r.person_id);
+      // #212 — person_id é nullable em test_responses (teste anônimo), mas
+      // `r.people` só existe quando o embed achou alguém em person_id — a
+      // checagem logo acima já garante que não é o caso anônimo aqui.
+      await supabase.from("people").update(patch).eq("id", r.person_id!);
     }
 
     const destino = `${siteUrl()}/criar-senha`;

@@ -89,6 +89,7 @@ function hasContent(qType: string, payload: Record<string, unknown> | undefined)
     const l = payload.least_option_id;
     return typeof m === "string" && typeof l === "string" && m.length > 0 && l.length > 0 && m !== l;
   }
+  if (qType === "short_text") return typeof payload.text === "string" && payload.text.trim().length > 0;
   return Object.keys(payload).length > 0;
 }
 
@@ -345,6 +346,12 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       leastScores.forEach((s) => {
         addAdaptado(s.dimension_id, -s.points);
       });
+    } else if (q.type === "short_text") {
+      // #212 F1 — coleta pura: guarda o texto, não pontua dimensão nenhuma
+      // (este tipo nunca tem interpretação, em nenhuma versão).
+      const text = typeof payload.text === "string" ? payload.text.trim().slice(0, 4000) : "";
+      if (!text) continue;
+      sanitized.set(q.id, { text });
     }
   }
 
