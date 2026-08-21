@@ -2118,10 +2118,10 @@
       "titulo": "Construtor de testes (tipo Google Forms)",
       "descricao": "Transformar o menu Testes num construtor: secoes, perguntas e varios formatos de resposta; interpretacao OPCIONAL por chavinha (ligada gera perfil/relatorio, desligada e coleta pura tipo pesquisa de satisfacao); painel de respostas com visao agregada e individual. Arquitetura decidida: REAPROVEITAR o menu existente, DISC/MBTI viram templates, botao 'criar novo teste' ao lado. Nada de menu novo.",
       "area": "Testes",
-      "status": "Planejado",
+      "status": "Em andamento",
       "depende_de": "Claude",
       "origem": "Lembretes do iPhone, 30/07 21:39 (chat C1)",
-      "prova": "Fase 4 do docs/roadmap-fases.md. Absorve a demanda 'Selecao pergunta a pergunta ao montar a bateria' e depende do BUG do select 'Dimensao pontuada' estar resolvido.",
+      "prova": "Fase 4 do docs/roadmap-fases.md, fatiada em 5 (F1-F5) na reabertura de 21/08 — o motor já existia (220 perguntas, 7 test_versions), então o trabalho é a oficina, não o motor. F1 ✅ construtor mínimo sem interpretação — criar teste, 4 tipos de pergunta (inclui texto livre, novo), publicar, enviar e responder pelo fluxo já existente, versionamento cosmético×estrutural (commit 823db55). F2 ✅ painel de respostas — visão agregada por pergunta, visão individual em teste identificado, proteção de anonimato com trava de RLS (só libera com 3+ respostas submetidas, mesmo padrão do ja_votei_na_enquete #54), contadores de convidado/respondeu/faltam, troca entre versões de uma mesma linhagem sem misturar contagem (commit 77a8d2c). Restam F3 (interpretação opcional), F4 (seções) e F5 (criar template a partir de teste personalizado).",
       "prioridade": 212
     },
     {
