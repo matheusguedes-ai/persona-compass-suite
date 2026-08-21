@@ -280,6 +280,69 @@ export const createTestVersion = createServerFn({ method: "POST" })
     return row;
   });
 
+/** #212 F3, item 8 — não deixa publicar teste com interpretação mal
+ * configurada: sem dimensão nenhuma, ou com pergunta pontuável (múltipla
+ * escolha/caixas/escala linear) que não pontua em nenhuma dimensão. Texto
+ * livre e os tipos só-de-template (ranking/drag_order/forced_choice) ficam
+ * de fora de propósito — não é isto que esta fatia pontua. Sem interpretação
+ * ligada, não há nada para validar aqui. */
+async function validarPublicacao(supabase: SupabaseClient<Database>, versionId: string): Promise<void> {
+  const { data: version, error: vErr } = await supabase
+    .from("test_versions").select("has_interpretation").eq("id", versionId).maybeSingle();
+  if (vErr) throw new Error(vErr.message);
+  if (!version || !version.has_interpretation) return;
+
+  const [{ data: dims, error: dErr }, { data: questions, error: qErr }] = await Promise.all([
+    supabase.from("test_dimensions").select("id").eq("version_id", versionId),
+    supabase.from("test_questions").select("id, prompt, type, config").eq("version_id", versionId).order("sort_order"),
+  ]);
+  if (dErr) throw new Error(dErr.message);
+  if (qErr) throw new Error(qErr.message);
+
+  const problemas: string[] = [];
+  if (!dims || dims.length === 0) problemas.push("nenhuma dimensão criada");
+
+  const qs = questions ?? [];
+  const pontuaveis = qs.filter((q) => q.type === "multiple_choice" || q.type === "checkboxes" || q.type === "linear_scale");
+  const comOpcoes = qs.filter((q) => q.type === "multiple_choice" || q.type === "checkboxes");
+
+  const optionsComPontos = new Set<string>();
+  const optionsPorPergunta = new Map<string, string[]>();
+  if (comOpcoes.length > 0) {
+    const { data: opts, error: oErr } = await supabase
+      .from("test_options").select("id, question_id").in("question_id", comOpcoes.map((q) => q.id));
+    if (oErr) throw new Error(oErr.message);
+    for (const o of opts ?? []) {
+      optionsPorPergunta.set(o.question_id, [...(optionsPorPergunta.get(o.question_id) ?? []), o.id]);
+    }
+    const optionIds = (opts ?? []).map((o) => o.id);
+    const { data: scores, error: sErr } = optionIds.length
+      ? await supabase.from("option_scores").select("option_id").in("option_id", optionIds)
+      : { data: [] as never[], error: null };
+    if (sErr) throw new Error(sErr.message);
+    for (const s of scores ?? []) optionsComPontos.add(s.option_id);
+  }
+
+  for (const q of pontuaveis) {
+    const rotulo = `"${q.prompt || "Pergunta sem texto"}"`;
+    if (q.type === "linear_scale") {
+      const cfg = (q.config ?? {}) as Record<string, unknown>;
+      if (typeof cfg.dimension_id !== "string" || !cfg.dimension_id) {
+        problemas.push(`${rotulo} não está ligada a nenhuma dimensão`);
+      }
+      continue;
+    }
+    const opcoesDaPergunta = optionsPorPergunta.get(q.id) ?? [];
+    if (opcoesDaPergunta.length === 0 || !opcoesDaPergunta.some((id) => optionsComPontos.has(id))) {
+      problemas.push(`${rotulo} não pontua em nenhuma dimensão`);
+    }
+  }
+
+  if (problemas.length > 0) {
+    throw new Error(`Não dá para publicar ainda: ${problemas.join("; ")}.`);
+  }
+}
+
 export const updateTestVersion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -293,10 +356,38 @@ export const updateTestVersion = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
     const { id, ...rest } = data;
+    if (rest.is_published) await validarPublicacao(context.supabase, id);
     const { data: row, error } = await context.supabase
       .from("test_versions").update(rest).eq("id", id).select().single();
     if (error) throw new Error(error.message);
     return row;
+  });
+
+/** #212 F3 — a chavinha que liga o motor de interpretação (dimensão/
+ * pontuação/faixa) já usado pelos 7 templates, agora também no construtor.
+ * A mesma trava que já existe no banco (test_versions_anonimo_sem_interpretacao)
+ * é checada aqui antes, pra dar um erro em português em vez da mensagem crua
+ * do Postgres — o banco continua sendo quem garante de verdade. */
+export const setHasInterpretation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    version_id: z.string().uuid(),
+    has_interpretation: z.boolean(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const { data: version, error: vErr } = await context.supabase
+      .from("test_versions").select("is_anonymous").eq("id", data.version_id).maybeSingle();
+    if (vErr) throw new Error(vErr.message);
+    if (!version) throw new Error("Versão não encontrada");
+    if (data.has_interpretation && version.is_anonymous) {
+      throw new Error("Teste anônimo não pode ter interpretação — não há como entregar devolutiva sem saber de quem é.");
+    }
+    const { versionId, forked } = await versaoEditavelPara(context.supabase, data.version_id);
+    const { data: row, error } = await context.supabase
+      .from("test_versions").update({ has_interpretation: data.has_interpretation }).eq("id", versionId).select().single();
+    if (error) throw new Error(error.message);
+    return { ...row, forked, new_version_id: forked ? versionId : null };
   });
 
 export const deleteTestVersion = createServerFn({ method: "POST" })
@@ -313,54 +404,21 @@ export const deleteTestVersion = createServerFn({ method: "POST" })
   });
 
 // ============================================================
-// Dimensions
-// ============================================================
-export const upsertDimension = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid().optional(),
-    version_id: z.string().uuid(),
-    key: z.string().trim().min(1).max(20),
-    label: z.string().trim().min(1).max(80),
-    description: z.string().trim().max(500).optional().nullable(),
-    color: z.string().trim().max(20).optional().nullable(),
-    sort_order: z.number().int().default(0),
-  }).parse(d))
-  .handler(async ({ data, context }) => {
-    await exigirPermissao(context.supabase, context.userId, "testes");
-    const { data: row, error } = await context.supabase
-      .from("test_dimensions").upsert(data).select().single();
-    if (error) throw new Error(error.message);
-    return row;
-  });
-
-export const deleteDimension = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    await exigirPermissao(context.supabase, context.userId, "testes");
-    const { error } = await context.supabase.from("test_dimensions").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
-
-// ============================================================
-// Versionamento (#212, item 6)
+// Versionamento (#212, item 6; ampliado no item 7 da Fatia 3)
 //
 // Teste SEM resposta: edita em cima, sempre — é só um rascunho ainda sendo
 // desenhado. Teste COM resposta (mesmo critério que já trava o "Excluir" na
 // lista: qualquer linha em test_responses, pendente ou não): mudança
 // COSMÉTICA (título, descrição, texto/obrigatória/config de uma pergunta)
-// edita em cima; mudança ESTRUTURAL (pergunta ou opção nascendo, morrendo,
-// mudando de tipo ou de rótulo) clona a versão inteira e aplica ali — a
-// antiga não muda, então quem já respondeu continua com o que respondeu.
+// edita em cima; mudança ESTRUTURAL (pergunta/opção nascendo, morrendo,
+// mudando de tipo ou de rótulo; dimensão/pontuação/faixa de resultado
+// nascendo, morrendo ou mudando de valor) clona a versão inteira e aplica
+// ali — a antiga não muda, então quem já respondeu (ou já recebeu um
+// resultado calculado) continua com o que foi calculado na hora.
 //
-// Vale para QUALQUER teste (com interpretação ou não): dimensão/pontuação/
-// faixa de resultado não ganham a mesma trava aqui — a #212 pede
-// explicitamente para não mexer nisso nesta fatia (é a Fatia 3). O clone
-// abaixo ainda PRECISA copiar dimensão/pontuação/faixa quando existirem
-// (senão um teste duplicado de template perderia a interpretação ao ganhar
-// uma pergunta nova), só não é o gatilho que decide clonar.
+// Reordenar (pergunta ou dimensão) é a exceção: não muda o que uma resposta
+// já dada significa, só a ordem de exibição — por isso `reorderQuestions` e
+// `reorderDimensions`, abaixo, editam em cima sempre, sem clonar.
 // ============================================================
 
 /** Clona uma versão inteira (mesma lógica de `duplicateTemplate`, remapeando
@@ -472,34 +530,133 @@ async function clonarVersaoParaEdicao(supabase: SupabaseClient<Database>, origem
     }
   }
 
+  const bandMap = new Map<string, string>();
   if (bands.length > 0) {
-    const { error } = await supabase.from("test_result_bands").insert(
-      bands.map((b) => ({
+    const { data: newBands, error } = await supabase
+      .from("test_result_bands")
+      .insert(bands.map((b) => ({
         version_id: newV.id,
         dimension_id: b.dimension_id ? dimMap.get(b.dimension_id) : null,
         min_score: b.min_score, max_score: b.max_score,
         title: b.title, description: b.description, sort_order: b.sort_order,
         mode: b.mode,
-      })),
-    );
+      })))
+      .select();
     if (error) throw new Error(error.message);
+    bands.forEach((b, i) => bandMap.set(b.id, newBands![i].id));
   }
 
-  return { versionId: newV.id as string, questionIdMap, optionIdMap };
+  return { versionId: newV.id as string, questionIdMap, optionIdMap, dimensionIdMap: dimMap, bandIdMap: bandMap };
 }
 
-type VersaoEditavel = { versionId: string; forked: boolean; questionIdMap: Map<string, string>; optionIdMap: Map<string, string> };
+type VersaoEditavel = {
+  versionId: string; forked: boolean;
+  questionIdMap: Map<string, string>; optionIdMap: Map<string, string>;
+  dimensionIdMap: Map<string, string>; bandIdMap: Map<string, string>;
+};
 
 /** Resolve para onde uma mudança ESTRUTURAL deve ir: a própria versão, se
- * ainda não tem resposta nenhuma; um clone novo (em rascunho), se já tem. */
+ * ainda não tem resposta nenhuma; um clone novo (em rascunho), se já tem.
+ * #212 F3 — dimensão/pontuação/faixa passam a usar isto também: mexer nelas
+ * num teste já respondido tem de virar versão nova, igual pergunta/opção. */
 async function versaoEditavelPara(supabase: SupabaseClient<Database>, versionId: string): Promise<VersaoEditavel> {
   const { count, error } = await supabase
     .from("test_responses").select("id", { count: "exact", head: true }).eq("version_id", versionId);
   if (error) throw new Error(error.message);
-  if (!count) return { versionId, forked: false, questionIdMap: new Map(), optionIdMap: new Map() };
-  const { versionId: newId, questionIdMap, optionIdMap } = await clonarVersaoParaEdicao(supabase, versionId);
-  return { versionId: newId, forked: true, questionIdMap, optionIdMap };
+  if (!count) {
+    return {
+      versionId, forked: false,
+      questionIdMap: new Map(), optionIdMap: new Map(),
+      dimensionIdMap: new Map(), bandIdMap: new Map(),
+    };
+  }
+  const { versionId: newId, questionIdMap, optionIdMap, dimensionIdMap, bandIdMap } =
+    await clonarVersaoParaEdicao(supabase, versionId);
+  return { versionId: newId, forked: true, questionIdMap, optionIdMap, dimensionIdMap, bandIdMap };
 }
+
+/** Mesmo papel de `versionIdDaOpcao`, mas dimensão já tem version_id direto
+ * — um hop só. */
+async function versionIdDaDimensao(supabase: SupabaseClient<Database>, dimensionId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("test_dimensions").select("version_id").eq("id", dimensionId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Dimensão não encontrada");
+  return data.version_id;
+}
+
+/** Idem, para faixa de resultado. */
+async function versionIdDaFaixa(supabase: SupabaseClient<Database>, bandId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("test_result_bands").select("version_id").eq("id", bandId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Faixa não encontrada");
+  return data.version_id;
+}
+
+// ============================================================
+// Dimensions
+// ============================================================
+export const upsertDimension = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid().optional(),
+    version_id: z.string().uuid(),
+    key: z.string().trim().min(1).max(20),
+    label: z.string().trim().min(1).max(80),
+    description: z.string().trim().max(500).optional().nullable(),
+    color: z.string().trim().max(20).optional().nullable(),
+    sort_order: z.number().int().default(0),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const origemVersionId = data.id ? await versionIdDaDimensao(context.supabase, data.id) : data.version_id;
+    const { versionId, forked, dimensionIdMap } = await versaoEditavelPara(context.supabase, origemVersionId);
+    const targetId = data.id ? dimensionIdMap.get(data.id) ?? (forked ? undefined : data.id) : undefined;
+    if (data.id && !targetId) throw new Error("Não foi possível localizar a dimensão na nova versão.");
+    const { id, version_id, ...rest } = data;
+    const { data: row, error } = await context.supabase
+      .from("test_dimensions")
+      .upsert({ ...rest, ...(targetId ? { id: targetId } : {}), version_id: versionId })
+      .select().single();
+    if (error) throw new Error(error.message);
+    return { ...row, forked, new_version_id: forked ? versionId : null };
+  });
+
+export const deleteDimension = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const origemVersionId = await versionIdDaDimensao(context.supabase, data.id);
+    const { versionId, forked, dimensionIdMap } = await versaoEditavelPara(context.supabase, origemVersionId);
+    const targetId = forked ? dimensionIdMap.get(data.id) : data.id;
+    if (!targetId) throw new Error("Não foi possível localizar a dimensão na nova versão.");
+    const { error } = await context.supabase.from("test_dimensions").delete().eq("id", targetId);
+    if (error) throw new Error(error.message);
+    return { ok: true, forked, new_version_id: forked ? versionId : null };
+  });
+
+/** Reordenar é cosmético (não muda o que uma resposta já dada significa) —
+ * edita em cima sempre, mesmo padrão de `reorderQuestions`. */
+export const reorderDimensions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    version_id: z.string().uuid(),
+    ordered_ids: z.array(z.string().uuid()),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const results = await Promise.all(
+      data.ordered_ids.map((id, i) =>
+        context.supabase.from("test_dimensions").update({ sort_order: i + 1 }).eq("id", id),
+      ),
+    );
+    for (const r of results) {
+      if (r.error) throw new Error(r.error.message);
+    }
+    return { ok: true };
+  });
 
 // ============================================================
 // Questions
@@ -690,16 +847,22 @@ export const setOptionScore = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
+    const origemVersionId = await versionIdDaOpcao(context.supabase, data.option_id);
+    const { versionId, forked, optionIdMap, dimensionIdMap } = await versaoEditavelPara(context.supabase, origemVersionId);
+    const optionId = forked ? optionIdMap.get(data.option_id) : data.option_id;
+    const dimensionId = forked ? dimensionIdMap.get(data.dimension_id) : data.dimension_id;
+    if (!optionId || !dimensionId) throw new Error("Não foi possível localizar a opção ou a dimensão na nova versão.");
     if (data.points === 0) {
       await context.supabase.from("option_scores").delete()
-        .eq("option_id", data.option_id).eq("dimension_id", data.dimension_id);
-      return { ok: true };
+        .eq("option_id", optionId).eq("dimension_id", dimensionId);
+      return { ok: true, forked, new_version_id: forked ? versionId : null };
     }
     const { error } = await context.supabase.from("option_scores").upsert(
-      data, { onConflict: "option_id,dimension_id" },
+      { option_id: optionId, dimension_id: dimensionId, points: data.points },
+      { onConflict: "option_id,dimension_id" },
     );
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, forked, new_version_id: forked ? versionId : null };
   });
 
 // ============================================================
@@ -720,10 +883,20 @@ export const upsertBand = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
+    const origemVersionId = data.id ? await versionIdDaFaixa(context.supabase, data.id) : data.version_id;
+    const { versionId, forked, bandIdMap, dimensionIdMap } = await versaoEditavelPara(context.supabase, origemVersionId);
+    const targetId = data.id ? bandIdMap.get(data.id) ?? (forked ? undefined : data.id) : undefined;
+    if (data.id && !targetId) throw new Error("Não foi possível localizar a faixa na nova versão.");
+    // Sem dimensão (faixa "geral") continua sem; com dimensão, remapeia se
+    // forkou — igual ao que o clone já faz com band.dimension_id.
+    const dimensionId = !data.dimension_id ? null : (forked ? dimensionIdMap.get(data.dimension_id) ?? null : data.dimension_id);
+    const { id, version_id, ...rest } = data;
     const { data: row, error } = await context.supabase
-      .from("test_result_bands").upsert(data).select().single();
+      .from("test_result_bands")
+      .upsert({ ...rest, ...(targetId ? { id: targetId } : {}), version_id: versionId, dimension_id: dimensionId })
+      .select().single();
     if (error) throw new Error(error.message);
-    return row;
+    return { ...row, forked, new_version_id: forked ? versionId : null };
   });
 
 export const deleteBand = createServerFn({ method: "POST" })
@@ -731,9 +904,13 @@ export const deleteBand = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
-    const { error } = await context.supabase.from("test_result_bands").delete().eq("id", data.id);
+    const origemVersionId = await versionIdDaFaixa(context.supabase, data.id);
+    const { versionId, forked, bandIdMap } = await versaoEditavelPara(context.supabase, origemVersionId);
+    const targetId = forked ? bandIdMap.get(data.id) : data.id;
+    if (!targetId) throw new Error("Não foi possível localizar a faixa na nova versão.");
+    const { error } = await context.supabase.from("test_result_bands").delete().eq("id", targetId);
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { ok: true, forked, new_version_id: forked ? versionId : null };
   });
 
 // ============================================================

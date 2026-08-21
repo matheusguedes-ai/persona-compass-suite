@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
-  getTestVersion, updateTestVersion,
+  getTestVersion, updateTestVersion, setHasInterpretation,
   createQuestion, updateQuestion, deleteQuestion, reorderQuestions,
   createOption, updateOption, deleteOption, setOptionScore,
-  upsertDimension, deleteDimension,
+  upsertDimension, deleteDimension, reorderDimensions,
   upsertBand, deleteBand,
   TIPOS_SEM_INTERPRETACAO,
 } from "@/lib/tests.functions";
@@ -66,6 +66,7 @@ function EditorPage() {
 
   const getFn = useServerFn(getTestVersion);
   const updV = useServerFn(updateTestVersion);
+  const hasInterpFn = useServerFn(setHasInterpretation);
   const createQFn = useServerFn(createQuestion);
   const updQFn = useServerFn(updateQuestion);
   const delQFn = useServerFn(deleteQuestion);
@@ -76,6 +77,7 @@ function EditorPage() {
   const scoreFn = useServerFn(setOptionScore);
   const upsertDimFn = useServerFn(upsertDimension);
   const delDimFn = useServerFn(deleteDimension);
+  const reorderDimFn = useServerFn(reorderDimensions);
   const upsertBandFn = useServerFn(upsertBand);
   const delBandFn = useServerFn(deleteBand);
 
@@ -105,6 +107,11 @@ function EditorPage() {
     mutationFn: (patch: { title?: string; description?: string | null; is_published?: boolean }) =>
       updV({ data: { id: versionId, ...patch } }),
     onSuccess: () => { inv(); toast.success("Salvo"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const hasInterp = useMutation({
+    mutationFn: (v: boolean) => hasInterpFn({ data: { version_id: versionId, has_interpretation: v } }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -145,13 +152,34 @@ function EditorPage() {
   });
   const setScore = useMutation({
     mutationFn: (v: { option_id: string; dimension_id: string; points: number }) => scoreFn({ data: v }),
-    onSuccess: inv,
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const upsertDim = useMutation({ mutationFn: (v: UpsDim) => upsertDimFn({ data: v }), onSuccess: inv });
-  const delDim = useMutation({ mutationFn: (id: string) => delDimFn({ data: { id } }), onSuccess: inv });
-  const upsertB = useMutation({ mutationFn: (v: UpsBand) => upsertBandFn({ data: v }), onSuccess: inv });
-  const delB = useMutation({ mutationFn: (id: string) => delBandFn({ data: { id } }), onSuccess: inv });
+  const upsertDim = useMutation({
+    mutationFn: (v: UpsDim) => upsertDimFn({ data: v }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const delDim = useMutation({
+    mutationFn: (id: string) => delDimFn({ data: { id } }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const reorderDim = useMutation({
+    mutationFn: (ids: string[]) => reorderDimFn({ data: { version_id: versionId, ordered_ids: ids } }),
+    onSuccess: inv,
+  });
+  const upsertB = useMutation({
+    mutationFn: (v: UpsBand) => upsertBandFn({ data: v }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const delB = useMutation({
+    mutationFn: (id: string) => delBandFn({ data: { id } }),
+    onSuccess: (r) => { avisaSeForkou(r); inv(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   if (isLoading || !data) return <div className="py-16 text-center text-sm text-muted-foreground">Carregando…</div>;
   const { version, dimensions, questions, options, scores, bands, respostas } = data;
@@ -202,6 +230,21 @@ function EditorPage() {
                 🔒 Teste anônimo — quem responde não fica registrado, nem para você.
               </p>
             )}
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-3 ring-1 ring-black/5">
+              <div>
+                <p className="text-sm font-medium">Este teste gera um perfil</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {version.is_anonymous
+                    ? "Indisponível em teste anônimo — não há como entregar devolutiva sem saber de quem é."
+                    : "Ligado, você configura dimensões, pontuação por opção e faixas de resultado logo abaixo."}
+                </p>
+              </div>
+              <Switch
+                checked={version.has_interpretation}
+                disabled={version.is_anonymous}
+                onCheckedChange={(v) => hasInterp.mutate(v)}
+              />
+            </div>
           </div>
 
           {questions.map((q, idx) => {
@@ -346,6 +389,12 @@ function EditorPage() {
                         onUpdate={(config) => updQ.mutate({ id: q.id, config })}
                       />
                     )}
+
+                    {q.type === "short_text" && version.has_interpretation && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Texto livre não pontua em nenhuma dimensão — fica de fora do cálculo do perfil.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -366,9 +415,9 @@ function EditorPage() {
           </div>
         </div>
 
-        {/* SIDE PANEL — só existe pra teste com interpretação (#212 F1: esta
-            fatia não mexe em dimensão/pontuação/faixa, e um teste criado em
-            branco nasce sem nenhuma das três). */}
+        {/* SIDE PANEL — só existe pra teste com interpretação ligada. Um teste
+            criado em branco nasce sem ela (#212 F1); a chavinha acima liga o
+            motor de dimensão/pontuação/faixa (#212 F3). */}
         {version.has_interpretation && (
         <div className="lg:sticky lg:top-6 lg:h-fit">
           <Tabs defaultValue="dims">
@@ -377,9 +426,31 @@ function EditorPage() {
               <TabsTrigger value="bands" className="flex-1">Resultados</TabsTrigger>
             </TabsList>
             <TabsContent value="dims" className="mt-3 space-y-2">
-              {dimensions.map((d) => (
+              {dimensions.map((d, idx) => (
                 <div key={d.id} className="rounded-lg bg-card p-3 ring-1 ring-black/5 space-y-2">
                   <div className="flex items-center gap-2">
+                    <div className="flex flex-col">
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        disabled={idx === 0}
+                        onClick={() => {
+                          const ids = dimensions.map((x) => x.id);
+                          [ids[idx - 1], ids[idx]] = [ids[idx], ids[idx - 1]];
+                          reorderDim.mutate(ids);
+                        }}
+                      ><ChevronUp className="size-3" /></button>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                        disabled={idx === dimensions.length - 1}
+                        onClick={() => {
+                          const ids = dimensions.map((x) => x.id);
+                          [ids[idx], ids[idx + 1]] = [ids[idx + 1], ids[idx]];
+                          reorderDim.mutate(ids);
+                        }}
+                      ><ChevronDown className="size-3" /></button>
+                    </div>
                     <span className="size-3 rounded-full" style={{ background: d.color ?? "var(--muted-foreground)" }} />
                     <Input defaultValue={d.key} className="h-7 w-16 text-xs" onBlur={(e) =>
                       e.target.value !== d.key && upsertDim.mutate({ ...d, key: e.target.value })
@@ -547,16 +618,18 @@ function LinearScaleEditor({ question, dimensions, onUpdate }: {
         <div><Label className="text-[10px]">Rótulo mín.</Label><Input value={minLabel} onChange={(e) => setMinLabel(e.target.value)} onBlur={save} className="h-8 text-xs" /></div>
         <div><Label className="text-[10px]">Rótulo máx.</Label><Input value={maxLabel} onChange={(e) => setMaxLabel(e.target.value)} onBlur={save} className="h-8 text-xs" /></div>
       </div>
-      <div>
-        <Label className="text-[10px]">Dimensão pontuada</Label>
-        <Select value={dimId} onValueChange={(v) => { setDimId(v); persist(v); }}>
-          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione…" /></SelectTrigger>
-          <SelectContent>
-            {dimensions.map((d) => <SelectItem key={d.id} value={d.id}>{d.label} ({d.key})</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <p className="text-[10px] text-muted-foreground">O valor escolhido pelo aluno soma nessa dimensão.</p>
+      {dimensions.length > 0 && (
+        <div>
+          <Label className="text-[10px]">Dimensão pontuada</Label>
+          <Select value={dimId} onValueChange={(v) => { setDimId(v); persist(v); }}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione…" /></SelectTrigger>
+            <SelectContent>
+              {dimensions.map((d) => <SelectItem key={d.id} value={d.id}>{d.label} ({d.key})</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-[10px] text-muted-foreground">O valor escolhido pelo aluno soma nessa dimensão.</p>
+        </div>
+      )}
     </div>
   );
 }
