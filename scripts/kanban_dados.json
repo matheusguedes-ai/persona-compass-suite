@@ -2718,6 +2718,16 @@
       "prioridade": 271,
       "origem": "Achado da auditoria #214 (docs/auditoria-dono-do-dado.md)",
       "prova": "Fechado em f06f76e (ponto de retorno em 2ae3089). Migração 20260812160000_comunidade_dono_do_post.sql: coluna conta_id (uuid, NOT NULL, sem FK — mesmo padrão de eventos.conta_id/notificacoes.conta_id), função conta_do_autor(uuid) espelhando a lógica de contaDaPessoa() (people.mentor_id primeiro, senão acting_account()), backfill dos posts existentes (0 na hora) e DEFAULT conta_do_autor(auth.uid()) na coluna, para o código antigo (que não menciona a coluna) não quebrar na janela entre aplicar o banco e publicar o código novo. publicarPost em comunidade.functions.ts preenche conta_id reaproveitando a MESMA chamada a contaDaPessoa() que já existia (só antecipada para antes do INSERT). TESTE QUE DECIDE, local e em produção: post do dono (author_id=conta_id=b676892d) e post da aluna Gabriela Inácio Botelho (author_id=7af1180b da Gabriela, conta_id=b676892d do MENTOR) — prova que o caso ambíguo da auditoria está resolvido pelo caminho certo. RLS não tocada (cp_insert só checa author_id=auth.uid()). Tela da Comunidade sem nenhuma mudança visível, local e em produção. Limpeza com prova: 4 posts de teste apagados (locais 4ed60465.../37837626..., produção 46799b4e.../7b09e490...), 0 restantes."
+    },
+    {
+      "titulo": "Trava: teste identificado exige pessoa na resposta",
+      "descricao": "test_responses.person_id virou nullable na Fatia 1 do #212 para caber o teste anônimo, mas ficou nullable para QUALQUER resposta — o banco aceitaria em silêncio uma resposta de teste identificado sem pessoa. Trigger no banco: identificado exige person_id, anônimo exige ausência dele (não CHECK simples, porque a regra depende de test_versions.is_anonymous, de outra tabela).",
+      "area": "Testes",
+      "status": "Concluído",
+      "depende_de": "Claude",
+      "prioridade": 277,
+      "origem": "verificação do chat no banco após a Fatia 1 da #212 (21/08)",
+      "prova": "Levantamento ANTES da trava (produção, 21/08): 0 das 19 respostas existentes violavam a regra em qualquer direção. Migração 20260821210000_trava_pessoa_resposta.sql: função valida_pessoa_da_resposta() (SECURITY DEFINER) + trigger tr_valida_pessoa_da_resposta (BEFORE INSERT OR UPDATE OF person_id, version_id) em test_responses, mesmo mecanismo do avaliar_aula (#231). Testado com 6 casos numa transação com ROLLBACK (nada ficou gravado): identificado sem pessoa recusado, identificado com pessoa aceito, anônimo com pessoa recusado, anônimo sem pessoa aceito, UPDATE removendo pessoa de resposta identificada recusado, UPDATE trocando por pessoa válida aceito. Nenhum código de escrita mudou — os 7 pontos que gravam test_responses (startResponse, startAssessment, os dois inserts do endpoint público, createObserverInvite, as duas funções de retake) já eram consistentes com is_anonymous. grants_faltando() (#273) retornou 0 depois da nova função SECURITY DEFINER. Commit fa821cc."
     }
   ],
   "planilha": {
