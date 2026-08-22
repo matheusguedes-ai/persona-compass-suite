@@ -2728,6 +2728,16 @@
       "prioridade": 277,
       "origem": "verificação do chat no banco após a Fatia 1 da #212 (21/08)",
       "prova": "Levantamento ANTES da trava (produção, 21/08): 0 das 19 respostas existentes violavam a regra em qualquer direção. Migração 20260821210000_trava_pessoa_resposta.sql: função valida_pessoa_da_resposta() (SECURITY DEFINER) + trigger tr_valida_pessoa_da_resposta (BEFORE INSERT OR UPDATE OF person_id, version_id) em test_responses, mesmo mecanismo do avaliar_aula (#231). Testado com 6 casos numa transação com ROLLBACK (nada ficou gravado): identificado sem pessoa recusado, identificado com pessoa aceito, anônimo com pessoa recusado, anônimo sem pessoa aceito, UPDATE removendo pessoa de resposta identificada recusado, UPDATE trocando por pessoa válida aceito. Nenhum código de escrita mudou — os 7 pontos que gravam test_responses (startResponse, startAssessment, os dois inserts do endpoint público, createObserverInvite, as duas funções de retake) já eram consistentes com is_anonymous. grants_faltando() (#273) retornou 0 depois da nova função SECURITY DEFINER. Commit fa821cc."
+    },
+    {
+      "titulo": "Botão \"Check-in\" aparece em aula gravada, onde não faz sentido",
+      "descricao": "No painel do mentor, a aula gravada (sem horário) mostrava o botão azul \"Check-in\" — mas aula gravada não tem check-in (a própria #256 trocou o texto antigo por \"Aula gravada · N concluíram\" por esse motivo). O botão sobrava ali e confundia, sugerindo uma ação que não existe.",
+      "area": "Classroom",
+      "status": "Concluído",
+      "depende_de": "Claude",
+      "prioridade": 276,
+      "origem": "Teste de tela do chat, 14/08",
+      "prova": "Commit 8e82204. O botão só olhava para \"cancelada\" — faltava também olhar para \"tem horário\". Agora exige aula.comeca_em junto com !cancelada, em src/components/classroom-view.tsx. Levantamento: nenhum outro lugar da plataforma (lista de aulas, aba Presença, qualquer atalho) tinha botão ou link de check-in — a tela do treinamento era o único ponto. Caminho inverso: abrir /checkin/$aulaId direto para uma aula gravada agora responde \"Esta aula não tem check-in\" (citando o nome da aula) em vez de oferecer 'Estou presente' para uma janela que nunca existiu — o check-in real depende de um passe que só nasce escaneando o QR rotativo, e esse QR não existe mais para aula gravada, mas agora a tela avisa antes de deixar a pessoa tentar. Testado ao vivo: aula com horário continuou com o botão normal; aula de teste sem horário criada, aberta (sem botão) e apagada depois, id citado antes de apagar. npx tsc --noEmit e npx vite build limpos. Nenhuma regra de conclusão (#256) ou avaliação (#231) foi tocada."
     }
   ],
   "planilha": {
