@@ -360,8 +360,9 @@ export function TreinamentoView({
                   <div className="flex shrink-0 gap-2">
                     {/* Check-in de encontro cancelado só produziria presença em
                         aula que não houve — o servidor recusa, e a tela não
-                        oferece. */}
-                    {!aula.cancelada && (
+                        oferece. #276 — aula gravada (sem comeca_em) não tem
+                        horário nenhum para o check-in medir: o botão some. */}
+                    {!aula.cancelada && aula.comeca_em && (
                       <Button onClick={() => setCheckinDe(aula.id)}>
                         <QrCode className="size-4" /> Check-in
                       </Button>

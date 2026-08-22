@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { distanciaLegivel } from "@/lib/geo";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/lib/brand";
-import { CalendarClock, CircleCheck, Hand, LogIn, MapPin, QrCode } from "lucide-react";
+import { CalendarClock, CircleCheck, Hand, LogIn, MapPin, QrCode, Video } from "lucide-react";
 
 export const Route = createFileRoute("/checkin/$aulaId")({
   ssr: false,
@@ -129,6 +129,26 @@ function Checkin() {
         )}
         <p className="mt-3 rounded-lg bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
           Os pontos deste encontro entram no seu ranking quando o professor fechar a lista da aula.
+        </p>
+        <Button asChild variant="outline" className="mt-5 w-full">
+          <Link to="/aluno/classroom" search={{ ver: undefined }}>Ver o treinamento</Link>
+        </Button>
+      </Casca>
+    );
+  }
+
+  // #276 — aula gravada (sem comeca_em) não tem check-in: dizer isso de cara,
+  // em vez de oferecer "Estou presente" para uma janela que não existe. Só
+  // depois da checagem de presença já confirmada acima — se por algum motivo
+  // já existir uma presença registrada para esta aula, ela continua contando
+  // a história certa.
+  if (aula && !aula.comeca_em) {
+    return (
+      <Casca>
+        <Video className="size-7 text-primary" />
+        <h1 className="mt-3 text-lg font-semibold">Esta aula não tem check-in</h1>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          {aula.titulo} é uma aula gravada — sem horário marcado, não tem check-in para confirmar.
         </p>
         <Button asChild variant="outline" className="mt-5 w-full">
           <Link to="/aluno/classroom" search={{ ver: undefined }}>Ver o treinamento</Link>
