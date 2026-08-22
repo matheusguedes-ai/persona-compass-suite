@@ -8,6 +8,7 @@
  * Com um banner só, não há setas nem bolinhas: controle de navegação para um
  * item só é ruído.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -90,7 +91,7 @@ export function BannersAcademy({
       } catch { /* sem preview agora */ }
       setForm((v) => ({ ...v, imagem_url: pub.publicUrl }));
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setEnviando(false);
     }
@@ -112,7 +113,7 @@ export function BannersAcademy({
       setForm({ imagem_url: "", link_url: "", titulo: "" });
       setPreview(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const acao = useMutation({
@@ -121,7 +122,7 @@ export function BannersAcademy({
         ? excluirFn({ data: { id: v.id } })
         : moverFn({ data: { id: v.id, direcao: v.direcao! } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["banners"] }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   // Sem banner e sem poder criar, a seção inteira some — não vale ocupar o topo

@@ -16,6 +16,7 @@
  * #254: o calendário/faixa/horários virou `SeletorDeHorario`, compartilhado
  * com /sessao/$id (remarcar) — ver seletor-de-horario.tsx.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -62,7 +63,7 @@ export function AgendarPage({ slug }: { slug: string }) {
       setNome(r.nome);
       setEmailConfirmado(email.trim());
     },
-    onError: (e: Error) => setRecusa(e.message),
+    onError: (e: Error) => setRecusa(mensagemDeErro(e)),
   });
 
   const { data: horariosData, isLoading: carregandoHorarios } = useQuery({
@@ -82,7 +83,7 @@ export function AgendarPage({ slug }: { slug: string }) {
   const confirmar = useMutation({
     mutationFn: () => confirmarFn({ data: { slug, email: emailConfirmado!, quando: horarioSelecionado! } }),
     onSuccess: (r) => setConfirmado({ quando: r.quando }),
-    onError: (e: Error) => setRecusa(e.message),
+    onError: (e: Error) => setRecusa(mensagemDeErro(e)),
   });
 
   if (carregandoLink) return <Shell><p className="text-center text-sm text-muted-foreground">Carregando…</p></Shell>;

@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { BannersAcademy } from "@/components/banners-academy";
 import { Biblioteca } from "@/components/biblioteca";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -71,7 +72,7 @@ function EducacaoPage() {
       toast.success("Trilha criada — agora monte os módulos e as aulas");
       nav({ to: "/educacao/$trackId", params: { trackId: (row as { id: string }).id } });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const lista = trilhas as TrackCard[];

@@ -14,6 +14,7 @@
  * presença é a server function autenticada do outro lado — aqui não se escreve
  * nada no banco.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   codigoValido, janelaDaAula, dentroDaJanela, assinarPasse, cookieDoPasse,
@@ -114,7 +115,7 @@ export const Route = createFileRoute("/api/public/checkin/$aulaId")({
           return recado(
             "Não deu para abrir o check-in",
             `Tente escanear de novo. Se continuar, o professor pode registrar a sua presença. (${
-              e instanceof Error ? e.message : "erro"
+              mensagemDeErro(e)
             })`,
             500,
           );

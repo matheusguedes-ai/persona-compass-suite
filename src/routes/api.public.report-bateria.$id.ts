@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import { buildReport, buildMbtiFromFactors, formatDuration, podeVerPessoaAutenticado } from "@/lib/report.server";
 
@@ -100,7 +101,7 @@ export const Route = createFileRoute("/api/public/report-bateria/$id")({
           if (out.status === 404) return json({ error: out.error }, 404);
           return json(out.data);
         } catch (e) {
-          const msg = e instanceof Error ? e.message : "erro";
+          const msg = mensagemDeErro(e);
           return json({ error: msg }, 500);
         }
       },

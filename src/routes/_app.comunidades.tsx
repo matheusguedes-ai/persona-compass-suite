@@ -5,6 +5,7 @@
  * o que aconteceu. Ao publicar, ele escolhe para quais grupos vai — o mesmo
  * texto pode servir a três turmas sem virar três publicações.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -31,7 +32,7 @@ function Pagina() {
 
       {error && (
         <div className="rounded-xl bg-destructive/10 p-8 text-center">
-          <p className="text-sm text-destructive">{(error as Error).message}</p>
+          <p className="text-sm text-destructive">{mensagemDeErro(error)}</p>
         </div>
       )}
 

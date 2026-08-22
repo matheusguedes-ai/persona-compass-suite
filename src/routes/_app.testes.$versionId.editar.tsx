@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -113,28 +114,28 @@ function EditorPage() {
     mutationFn: (patch: { title?: string; description?: string | null; is_published?: boolean }) =>
       updV({ data: { id: versionId, ...patch } }),
     onSuccess: () => { inv(); toast.success("Salvo"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const hasInterp = useMutation({
     mutationFn: (v: boolean) => hasInterpFn({ data: { version_id: versionId, has_interpretation: v } }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const addQ = useMutation({
     mutationFn: (type: QuestionType) => createQFn({ data: { version_id: versionId, type } }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const updQ = useMutation({
     mutationFn: (v: UpdQ) => updQFn({ data: v }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const delQ = useMutation({
     mutationFn: (id: string) => delQFn({ data: { id } }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const reorderQ = useMutation({
     mutationFn: (ids: string[]) => reorderFn({ data: { version_id: versionId, ordered_ids: ids } }),
@@ -144,33 +145,33 @@ function EditorPage() {
   const addO = useMutation({
     mutationFn: (question_id: string) => createOFn({ data: { question_id } }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const updO = useMutation({
     mutationFn: (v: UpdO) => updOFn({ data: v }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const delO = useMutation({
     mutationFn: (id: string) => delOFn({ data: { id } }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const setScore = useMutation({
     mutationFn: (v: { option_id: string; dimension_id: string; points: number }) => scoreFn({ data: v }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const upsertDim = useMutation({
     mutationFn: (v: UpsDim) => upsertDimFn({ data: v }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const delDim = useMutation({
     mutationFn: (id: string) => delDimFn({ data: { id } }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const reorderDim = useMutation({
     mutationFn: (ids: string[]) => reorderDimFn({ data: { version_id: versionId, ordered_ids: ids } }),
@@ -179,23 +180,23 @@ function EditorPage() {
   const upsertB = useMutation({
     mutationFn: (v: UpsBand) => upsertBandFn({ data: v }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const delB = useMutation({
     mutationFn: (id: string) => delBandFn({ data: { id } }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const upsertSec = useMutation({
     mutationFn: (v: UpsSec) => upsertSecFn({ data: v }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const delSec = useMutation({
     mutationFn: (id: string) => delSecFn({ data: { id } }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const reorderSec = useMutation({
     mutationFn: (ids: string[]) => reorderSecFn({ data: { version_id: versionId, ordered_ids: ids } }),

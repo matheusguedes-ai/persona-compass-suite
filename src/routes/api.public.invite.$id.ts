@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { loadBrandAndSettings } from "@/lib/brand.server";
@@ -14,6 +15,8 @@ const joinSchema = z.object({
   // pontuação. Só garante que não é um punhado de caracteres solto.
   phone: z.string().trim().min(8).max(40),
 });
+
+const JOIN_FIELD_LABELS = { full_name: "Nome", email: "Email", phone: "Telefone" };
 
 type Reason = "not_found" | "inactive" | "expired" | "full";
 
@@ -77,7 +80,7 @@ export const Route = createFileRoute("/api/public/invite/$id")({
             message: reason ? MESSAGES[reason] : null,
           });
         } catch (e) {
-          return json({ error: e instanceof Error ? e.message : "erro" }, 500);
+          return json({ error: mensagemDeErro(e) }, 500);
         }
       },
 
@@ -178,9 +181,9 @@ export const Route = createFileRoute("/api/public/invite/$id")({
           return json({ kind: "response", id: response.id });
         } catch (e) {
           if (e instanceof z.ZodError) {
-            return json({ error: "Dados inválidos. Confira nome, email e telefone." }, 400);
+            return json({ error: mensagemDeErro(e, JOIN_FIELD_LABELS) }, 400);
           }
-          return json({ error: e instanceof Error ? e.message : "erro" }, 500);
+          return json({ error: mensagemDeErro(e) }, 500);
         }
       },
     },

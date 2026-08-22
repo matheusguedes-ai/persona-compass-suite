@@ -5,6 +5,7 @@
  * faixa por dia) e os links que oferece (cada um com sua duração e regras).
  * O aluno usa o link em /agendar/$slug — sem login, ver docs/plano-mentorias-fatia4.md.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -97,19 +98,19 @@ function AbaDisponibilidade() {
   const criar = useMutation({
     mutationFn: (args: { dia_semana: number; hora_inicio: string; hora_fim: string }) => criarFn({ data: args }),
     onSuccess: invalidar,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const atualizar = useMutation({
     mutationFn: (args: { id: string; hora_inicio?: string; hora_fim?: string; ativo?: boolean }) => atualizarFn({ data: args }),
     onSuccess: invalidar,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const remover = useMutation({
     mutationFn: (id: string) => removerFn({ data: { id } }),
     onSuccess: () => { toast.success("Faixa removida."); invalidar(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
@@ -271,19 +272,19 @@ function AbaLinks() {
       setAberto(false);
       invalidar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const alternarAtivo = useMutation({
     mutationFn: (args: { id: string; ativo: boolean }) => atualizarFn({ data: args }),
     onSuccess: invalidar,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const remover = useMutation({
     mutationFn: (id: string) => removerFn({ data: { id } }),
     onSuccess: () => { toast.success("Link removido."); invalidar(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   function copiar(slug: string) {

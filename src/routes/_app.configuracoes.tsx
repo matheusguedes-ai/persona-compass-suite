@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -153,7 +154,7 @@ function ConfiguracoesPage() {
       qc.invalidateQueries({ queryKey: ["my-profile"] });
       toast.success("Alterações salvas");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   /** Marca, relatório, mensagens, remetente — reconfigura para todo mundo; só dono. */
@@ -167,7 +168,7 @@ function ConfiguracoesPage() {
       qc.invalidateQueries({ queryKey: ["account-brand"] });
       toast.success("Alterações salvas");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   /**
@@ -202,7 +203,7 @@ function ConfiguracoesPage() {
       setLogoUrl(pub.publicUrl);
       saveConta.mutate({ logo_url: pub.publicUrl });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
+      toast.error(mensagemDeErro(e, undefined, "Falha ao enviar a imagem."));
     } finally {
       setEnviando(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -232,7 +233,7 @@ function ConfiguracoesPage() {
       setIconUrl(pub.publicUrl);
       saveConta.mutate({ icon_url: pub.publicUrl });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao enviar o ícone.");
+      toast.error(mensagemDeErro(e, undefined, "Falha ao enviar o ícone."));
     } finally {
       setEnviandoIcone(false);
     }
@@ -261,7 +262,7 @@ function ConfiguracoesPage() {
       setLoginImagemUrl(pub.publicUrl);
       saveConta.mutate({ login_imagem_url: pub.publicUrl });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
+      toast.error(mensagemDeErro(e, undefined, "Falha ao enviar a imagem."));
     } finally {
       setEnviandoLoginImagem(false);
     }
@@ -701,7 +702,7 @@ function AbaEmails() {
       qc.invalidateQueries({ queryKey: ["email-status"] });
       toast.success("Remetente salvo");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const testar = useMutation({
@@ -710,7 +711,7 @@ function AbaEmails() {
       qc.invalidateQueries({ queryKey: ["email-logs"] });
       toast.success(`Email de teste enviado para ${(r as { para: string }).para}`);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Verificando…</p>;
@@ -845,7 +846,7 @@ function GoogleCalendar() {
     mutationFn: () => conectarFn(),
     // Sai da plataforma para a tela do Google e volta pelo callback.
     onSuccess: (r) => { window.location.href = r.url; },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const desconectar = useMutation({
@@ -854,7 +855,7 @@ function GoogleCalendar() {
       toast.success("Google Calendar desconectado.");
       qc.invalidateQueries({ queryKey: ["google"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;

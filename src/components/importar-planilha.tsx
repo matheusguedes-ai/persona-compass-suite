@@ -5,6 +5,7 @@
  * exatamente o tipo de ação em que o estrago passa despercebido. O mentor vê o
  * que entendemos de cada linha, e o que vai ficar de fora, antes de confirmar.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -74,7 +75,7 @@ export function ImportarPlanilha({
       fechar();
       onPronto?.();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   function fechar() {
@@ -94,7 +95,7 @@ export function ImportarPlanilha({
       const { linhas } = await lerPlanilhaDePessoas(file);
       setLinhas(linhas);
     } catch (e) {
-      setErroArquivo(e instanceof Error ? e.message : "Não consegui ler a planilha.");
+      setErroArquivo(mensagemDeErro(e, undefined, "Não consegui ler a planilha."));
     } finally {
       setLendo(false);
       if (fileRef.current) fileRef.current.value = "";

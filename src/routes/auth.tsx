@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -71,13 +72,13 @@ function AuthPage() {
         options: { redirectTo: `${window.location.origin}${safeNext(next)}` },
       });
       if (error) {
-        setError(error.message ?? "Falha ao entrar com Google.");
+        setError(mensagemDeErro(error, undefined, "Falha ao entrar com Google."));
         setBusy(false);
         return;
       }
       // Em caso de sucesso, o navegador é redirecionado ao Google automaticamente.
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao entrar com Google.");
+      setError(mensagemDeErro(e, undefined, "Falha ao entrar com Google."));
       setBusy(false);
     }
   }
@@ -101,7 +102,7 @@ function AuthPage() {
         const r = await pedirAcesso({ data: { email } });
         setInfo(r.mensagem);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Não consegui enviar agora. Tente de novo.");
+        setError(mensagemDeErro(err, undefined, "Não consegui enviar agora. Tente de novo."));
       }
       setBusy(false);
       return;
@@ -110,7 +111,7 @@ function AuthPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setBusy(false);
-        setError(error.message);
+        setError(mensagemDeErro(error));
         return;
       }
       if (target === "/") nav({ to: "/" });
@@ -119,7 +120,7 @@ function AuthPage() {
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) {
         setBusy(false);
-        setError(error.message);
+        setError(mensagemDeErro(error));
         return;
       }
       // Após cadastro, deslogar (caso a sessão tenha sido criada automaticamente)

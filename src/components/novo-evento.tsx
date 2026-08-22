@@ -9,6 +9,7 @@
  * string crua faria o servidor (UTC) ler 14:00 como horário de Londres e o
  * evento apareceria às 11h no Brasil.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -73,7 +74,7 @@ export function NovoEvento({ open, onOpenChange }: { open: boolean; onOpenChange
       } catch { /* sem preview agora — não impede salvar */ }
       setImagemUrl(pub.publicUrl);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setEnviando(false);
     }
@@ -113,7 +114,7 @@ export function NovoEvento({ open, onOpenChange }: { open: boolean; onOpenChange
       setTitulo(""); setDescricao(""); setQuando(""); setTerminaEm("");
       setLinkUrl(""); setImagemUrl(null); setImagemPreview(null); setGrupos([]); setPessoas([]);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const semDestino = grupos.length + pessoas.length === 0;

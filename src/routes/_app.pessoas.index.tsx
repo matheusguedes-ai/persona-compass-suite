@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ROLE_LABEL, type PersonRole } from "@/lib/mock-data";
@@ -61,7 +62,7 @@ function PessoasPage() {
       setOpen(false);
       resetForm();
     },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao cadastrar."),
+    onError: (e: unknown) => toast.error(mensagemDeErro(e, undefined, "Falha ao cadastrar.")),
   });
   const list = people.filter((p) => {
     const okQ = p.full_name.toLowerCase().includes(q.toLowerCase()) || p.email.toLowerCase().includes(q.toLowerCase());

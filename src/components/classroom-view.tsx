@@ -10,6 +10,7 @@
  * Esta tela é do MASTER (etapa 2 do plano em docs/analise-classroom.md). A
  * versão do aluno é a etapa 3; check-in e presença, as etapas 4 e 5.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -171,7 +172,7 @@ export function TreinamentoView({
       toast.success("Avaliação enviada. Obrigado!");
       inv();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   // #256 — concluir/desfazer aula gravada.
@@ -179,13 +180,13 @@ export function TreinamentoView({
   const marcarConcluida = useMutation({
     mutationFn: (v: { aula_id: string }) => marcarConcluidaFn({ data: v }),
     onSuccess: () => inv(),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const desmarcarConcluidaFn = useServerFn(desmarcarAulaConcluida);
   const desmarcarConcluida = useMutation({
     mutationFn: (v: { aula_id: string }) => desmarcarConcluidaFn({ data: v }),
     onSuccess: () => inv(),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const modules = useMemo(
@@ -225,7 +226,7 @@ export function TreinamentoView({
   if (error) {
     return (
       <div className="rounded-xl bg-destructive/10 p-8 text-center">
-        <p className="text-sm text-destructive">{(error as Error).message}</p>
+        <p className="text-sm text-destructive">{mensagemDeErro(error)}</p>
       </div>
     );
   }
@@ -646,7 +647,7 @@ function ModuloBloco({
   const del = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
     onSuccess: () => { onRemover(); toast.success("Módulo removido"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (
@@ -733,7 +734,7 @@ function ModuloDialog({
       data: { id: inicial.id, treinamento_id: treinamentoId, titulo: titulo.trim() },
     }),
     onSuccess: () => { toast.success(inicial.id ? "Módulo atualizado" : "Módulo criado"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (
@@ -791,7 +792,7 @@ function AulaDialog({
       );
       onSalvo();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const salvar = useMutation({
     mutationFn: () => saveFn({
@@ -808,12 +809,12 @@ function AulaDialog({
       },
     }),
     onSuccess: () => { toast.success(inicial.id ? "Aula atualizada" : "Aula criada"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const remover = useMutation({
     mutationFn: () => delFn({ data: { id: inicial.id! } }),
     onSuccess: () => { toast.success("Aula removida"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const fimInvalido = !!terminaEm && !!comecaEm && new Date(terminaEm) <= new Date(comecaEm);
@@ -1023,7 +1024,7 @@ function MaterialDialog({
       setUrl(pub.publicUrl);
       if (!titulo) setTitulo(f.name.replace(/\.[^.]+$/, ""));
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setEnviando(false);
     }
@@ -1041,12 +1042,12 @@ function MaterialDialog({
       },
     }),
     onSuccess: () => { toast.success("Material salvo"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const remover = useMutation({
     mutationFn: () => delFn({ data: { id: inicial.id! } }),
     onSuccess: () => { toast.success("Material removido"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (
@@ -1195,7 +1196,7 @@ function TreinamentoDialog({
       await setGruposFn({ data: { treinamento_id: treinamento.id, group_ids: grupos } });
     },
     onSuccess: () => { toast.success("Treinamento atualizado"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const remover = useMutation({
     mutationFn: () => delFn({ data: { id: treinamento.id } }),
@@ -1204,7 +1205,7 @@ function TreinamentoDialog({
     // navegador terminar de recarregar tudo do zero. `navigate` troca de
     // rota na hora, desmontando este diálogo junto.
     onSuccess: () => { toast.success("Treinamento removido"); navigate({ to: "/classroom" }); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const alternar = (id: string) =>

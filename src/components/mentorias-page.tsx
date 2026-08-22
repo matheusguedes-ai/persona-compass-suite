@@ -5,6 +5,7 @@
  * agendar. Calculada no servidor (`listMentorias`), nunca digitada aqui —
  * mesmo princípio que já regia a fila de devolutivas.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -64,7 +65,7 @@ export function MentoriasPage() {
       setAberto(false); setPersonId(""); setTitulo(""); setSessoes("4"); setObservacoes(""); setLinkId("");
       qc.invalidateQueries({ queryKey: ["mentorias"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const mentorias = data?.mentorias ?? [];
@@ -94,7 +95,7 @@ export function MentoriasPage() {
 
       {error && (
         <div className="rounded-xl bg-destructive/10 p-8 text-center">
-          <p className="text-sm text-destructive">{(error as Error).message}</p>
+          <p className="text-sm text-destructive">{mensagemDeErro(error)}</p>
         </div>
       )}
 

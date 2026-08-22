@@ -5,6 +5,7 @@
  * usuário (`avatares/<user_id>/…`). O nome carrega a hora para o navegador não
  * insistir no arquivo antigo depois da troca.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,7 +96,7 @@ export function AvatarUpload({
       } catch { /* sem preview agora */ }
       onChange(data.publicUrl);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
+      toast.error(mensagemDeErro(e, undefined, "Falha ao enviar a imagem."));
     } finally {
       setEnviando(false);
       if (ref.current) ref.current.value = "";

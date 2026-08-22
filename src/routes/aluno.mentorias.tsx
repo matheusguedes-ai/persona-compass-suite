@@ -6,6 +6,7 @@
  * resumo — nem a tela oferece o botão, nem o servidor aceitaria (RLS não tem
  * policy de UPDATE de sessão para o aluno).
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -81,7 +82,7 @@ function Mentorias() {
       toast.success("Avaliação enviada. Obrigado!");
       qc.invalidateQueries({ queryKey: ["minhas-mentorias"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   // --- Agendar mentoria (por pacote, #255) --------------------------------
@@ -111,7 +112,7 @@ function Mentorias() {
       setAgendandoPacoteId(null); setDiaPacote(null); setHorarioPacote(null);
       qc.invalidateQueries({ queryKey: ["minhas-mentorias"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   // --- Cancelar / remarcar uma sessão já marcada (reaproveita o #254) -----
@@ -128,7 +129,7 @@ function Mentorias() {
       toast.success("Sessão cancelada.");
       qc.invalidateQueries({ queryKey: ["minhas-mentorias"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const { data: horariosSessaoData, isLoading: carregandoHorariosSessao } = useQuery({
@@ -150,7 +151,7 @@ function Mentorias() {
       setRemarcandoSessaoId(null); setDiaSessao(null); setHorarioSessao(null);
       qc.invalidateQueries({ queryKey: ["minhas-mentorias"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const lista = data?.sessoes ?? [];

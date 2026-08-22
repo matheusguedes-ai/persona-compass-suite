@@ -5,6 +5,7 @@
  * comunidade é a mesma para os dois — o que muda é por onde se chega, e o dono
  * ganha o poder de apagar o que não deveria estar lá.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -232,7 +233,7 @@ export function Comunidade({
       if (fileRef.current) fileRef.current.value = "";
       recarregar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const curtir = useMutation({
@@ -242,7 +243,7 @@ export function Comunidade({
   const votar = useMutation({
     mutationFn: (v: { post_id: string; option_id: string }) => votarFn({ data: v }),
     onSuccess: recarregar,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const enviarComentario = useMutation({
     mutationFn: (v: { post_id: string; body: string }) => comentarFn({ data: v }),
@@ -251,17 +252,17 @@ export function Comunidade({
       setMencaoAtiva(null);
       recarregar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const apagar = useMutation({
     mutationFn: (id: string) => apagarFn({ data: { id } }),
     onSuccess: () => { toast.success("Publicação removida."); recarregar(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const apagarCom = useMutation({
     mutationFn: (id: string) => apagarComentarioFn({ data: { id } }),
     onSuccess: recarregar,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const posts = data?.posts ?? [];
@@ -580,7 +581,7 @@ export function Comunidade({
 
       {error && (
         <div className="rounded-xl bg-destructive/10 p-8 text-center">
-          <p className="text-sm text-destructive">{(error as Error).message}</p>
+          <p className="text-sm text-destructive">{mensagemDeErro(error)}</p>
         </div>
       )}
 

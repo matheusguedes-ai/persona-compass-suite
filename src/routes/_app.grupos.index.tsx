@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { GROUP_TYPE_LABEL, type GroupType } from "@/lib/mock-data";
@@ -158,7 +159,7 @@ function NewGroupDialog() {
       toast.success("Grupo criado");
       reset();
     },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao criar grupo."),
+    onError: (e: unknown) => toast.error(mensagemDeErro(e, undefined, "Falha ao criar grupo.")),
   });
 
   function reset() {

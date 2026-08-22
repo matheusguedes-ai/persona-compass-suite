@@ -8,6 +8,7 @@
  * devolve false e a interface explica a pendência em vez de dar erro — o resto
  * da plataforma não depende disso para funcionar.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 
 const RESEND_URL = "https://api.resend.com/emails";
 
@@ -72,7 +73,7 @@ export async function enviarEmail(params: {
     }
     return { ok: true, provider_id: corpo.id ?? null };
   } catch (e) {
-    return { ok: false, erro: e instanceof Error ? e.message : "Falha de conexão com o serviço de email." };
+    return { ok: false, erro: mensagemDeErro(e, undefined, "Falha de conexão com o serviço de email.") };
   }
 }
 

@@ -5,6 +5,7 @@
  * botões de montar módulo, aula e material. Isso evita manter duas telas em
  * sincronia e faz o autor ver exatamente o que o aluno vê.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -110,7 +111,7 @@ export function TrackView({
     mutationFn: (v: { lesson_id: string; done: boolean }) =>
       toggleFn({ data: { ...v, track_id: trackId } }),
     onSuccess: inv,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando trilha…</p>;
@@ -366,7 +367,7 @@ function ModuloBloco({
   const del = useMutation({
     mutationFn: (id: string) => delModFn({ data: { id } }),
     onSuccess: () => { onRemover(); toast.success("Módulo removido"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (
@@ -473,7 +474,7 @@ function ModuloDialog({
       },
     }),
     onSuccess: () => { toast.success(inicial.id ? "Módulo atualizado" : "Módulo criado"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const ehSub = !!inicial.parent_id;
@@ -530,12 +531,12 @@ function AulaDialog({
       },
     }),
     onSuccess: () => { toast.success(inicial.id ? "Aula atualizada" : "Aula criada"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const remover = useMutation({
     mutationFn: () => delFn({ data: { id: inicial.id! } }),
     onSuccess: () => { toast.success("Aula removida"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const vid = youtubeId(videoUrl);
@@ -632,12 +633,12 @@ function MaterialDialog({
       },
     }),
     onSuccess: () => { toast.success("Material salvo"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const remover = useMutation({
     mutationFn: () => delFn({ data: { id: inicial.id! } }),
     onSuccess: () => { toast.success("Material removido"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (
@@ -735,7 +736,7 @@ function TrilhaDialog({
       } catch { /* sem preview agora — não impede salvar */ }
       setCoverUrl(pub.publicUrl);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setEnviandoCapa(false);
     }
@@ -779,14 +780,14 @@ function TrilhaDialog({
       toast.success("Trilha atualizada");
       onSalvo();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const remover = useMutation({
     mutationFn: () => delFn({ data: { id: track.id } }),
     // #275 — mesmo padrão do TreinamentoDialog: navigate troca de rota na
     // hora, em vez do reload duro deixar o diálogo visível até recarregar.
     onSuccess: () => { toast.success("Trilha removida"); navigate({ to: "/educacao" }); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (

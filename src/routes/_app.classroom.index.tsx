@@ -4,6 +4,7 @@
  * Menu só do dono da conta, como os eventos da agenda: as policies de escrita
  * exigem `mentor_id = auth.uid()`. A tela do aluno é /aluno/classroom.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -54,7 +55,7 @@ function ClassroomPage() {
       toast.success("Treinamento criado — agora monte os módulos e as aulas");
       nav({ to: "/classroom/$treinamentoId", params: { treinamentoId: (row as { id: string }).id } });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const lista = treinamentos as TreinamentoCard[];
@@ -76,7 +77,7 @@ function ClassroomPage() {
 
       {error ? (
         <div className="rounded-xl bg-destructive/10 p-8 text-center">
-          <p className="text-sm text-destructive">{(error as Error).message}</p>
+          <p className="text-sm text-destructive">{mensagemDeErro(error)}</p>
         </div>
       ) : lista.length === 0 ? (
         <ClassroomVazio podeEditar />

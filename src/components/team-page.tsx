@@ -4,6 +4,7 @@
  * São o mesmo cadastro por baixo (`team_members`); o que muda é o recorte de
  * acesso: mentor recebe grupos, colaborador recebe permissões de funcionalidade.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -65,22 +66,22 @@ export function TeamPage({ kind }: { kind: "mentor" | "colaborador" }) {
     mutationFn: (v: { name: string; email: string; permissions: Permissao[] }) =>
       createFn({ data: { ...v, kind } }),
     onSuccess: () => { inv(); setNovoAberto(false); toast.success(ehMentor ? "Mentor convidado" : "Colaborador convidado"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const update = useMutation({
     mutationFn: (v: { id: string; status?: "ativo" | "inativo"; permissions?: Permissao[] }) => updateFn({ data: v }),
     onSuccess: () => { inv(); toast.success("Atualizado"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const remove = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
     onSuccess: () => { inv(); toast.success("Removido"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const reset = useMutation({
     mutationFn: (id: string) => resetFn({ data: { id } }),
     onSuccess: () => { inv(); toast.success("Novo link gerado — o link antigo parou de valer"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const lista = useMemo(() => {
@@ -352,7 +353,7 @@ function AcessoDialog({
       toast.success("Acesso atualizado");
       onFechar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const marcado = (id: string) => Object.prototype.hasOwnProperty.call(sel, id);

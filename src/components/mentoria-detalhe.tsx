@@ -6,6 +6,7 @@
  * só: na primeira vez pede os itens do checklist; depois, eles só aparecem
  * (o professor não edita item — a spec não descreve essa edição).
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -102,7 +103,7 @@ export function MentoriaDetalhe({ id }: { id: string }) {
       setAgendando(false); setQuando(""); setTerminaEm(""); setLocal(""); setLinkUrl("");
       recarregar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e, { link_url: "Link da chamada", local: "Endereço", quando: "Início" })),
   });
 
   // --- Aumentar o pacote / escolher o link --------------------------------
@@ -115,7 +116,7 @@ export function MentoriaDetalhe({ id }: { id: string }) {
   const salvarPacote = useMutation({
     mutationFn: () => atualizarFn({ data: { id, sessoes_contratadas: Number(novaQtd), link_id: novoLinkId || null } }),
     onSuccess: () => { toast.success("Pacote atualizado."); setEditandoPacote(false); recarregar(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   // --- Cancelar / remarcar pelo professor (#257) --------------------------
@@ -130,7 +131,7 @@ export function MentoriaDetalhe({ id }: { id: string }) {
   const cancelar = useMutation({
     mutationFn: (sessaoId: string) => cancelarFn({ data: { id: sessaoId, motivo: motivoCancelar.trim() || undefined } }),
     onSuccess: () => { toast.success("Sessão cancelada."); setMotivoCancelar(""); recarregar(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const [remarcandoId, setRemarcandoId] = useState<string | null>(null);
@@ -156,7 +157,7 @@ export function MentoriaDetalhe({ id }: { id: string }) {
       setRemarcandoId(null); setDiaRemarcar(null); setHorarioRemarcar(null);
       recarregar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   // --- Concluir / editar resumo ------------------------------------------
@@ -200,7 +201,7 @@ export function MentoriaDetalhe({ id }: { id: string }) {
         { id: row.id, nome: f.name, tamanho_bytes: f.size, tipo: f.type, url: null },
       ]);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setEnviandoArquivo(false);
     }
@@ -224,11 +225,11 @@ export function MentoriaDetalhe({ id }: { id: string }) {
       setResumindo(null);
       recarregar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando…</p>;
-  if (error || !data) return <p className="text-sm text-destructive">{(error as Error)?.message ?? "Erro"}</p>;
+  if (error || !data) return <p className="text-sm text-destructive">{mensagemDeErro(error)}</p>;
 
   const { mentoria, sessoes } = data;
 

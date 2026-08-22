@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import { loadBrandAndSettings } from "@/lib/brand.server";
 
@@ -84,7 +85,7 @@ export const Route = createFileRoute("/api/public/assessment/$id")({
           }
           return new Response(JSON.stringify(payload), { headers: { "content-type": "application/json" } });
         } catch (e) {
-          const msg = e instanceof Error ? e.message : "erro";
+          const msg = mensagemDeErro(e);
           return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { "content-type": "application/json" } });
         }
       },

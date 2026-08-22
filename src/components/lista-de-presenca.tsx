@@ -11,6 +11,7 @@
  *    cálculo. Sem isso, "atrasado" calculado e "atrasado" digitado ficam
  *    indistinguíveis, e mudar a hora da aula recalcularia só metade da lista.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -71,11 +72,11 @@ export function ListaDePresenca({ treinamentoId }: { treinamentoId: string }) {
       inv();
       toast.success(fechou ? "Lista fechada" : "Lista reaberta");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Carregando a lista…</p>;
-  if (error) return <p className="text-sm text-destructive">{(error as Error).message}</p>;
+  if (error) return <p className="text-sm text-destructive">{mensagemDeErro(error)}</p>;
   if (!data) return null;
 
   if (aulas.length === 0) {
@@ -423,7 +424,7 @@ function AjustarLinha({
         },
       }),
     onSuccess: () => { toast.success("Linha ajustada"); onSalvo(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   // O motivo é obrigatório justamente nas duas decisões mais contestáveis: negar
@@ -589,7 +590,7 @@ ${r.linhas.map((l) => `<tr>${cols.map((c) => `<td>${esc((l as Record<string, unk
       return r.linhas.length;
     },
     onSuccess: (n) => { toast.success(`${n} linhas exportadas.`); setAberto(false); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (

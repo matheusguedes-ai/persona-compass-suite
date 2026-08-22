@@ -5,6 +5,7 @@
  * guarda o refresh token. Só o servidor encosta no token — a tabela não tem
  * policy de leitura, então ele nunca chega ao navegador.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   trocarCodigoPorTokens, criarAgenda, agendaExiste, emailDaConta, verificarEstado,
@@ -66,7 +67,7 @@ export const Route = createFileRoute("/api/google/callback")({
                 // outra, para a conexão não travar por causa disto.
                 try {
                   await supabaseAdmin.from("google_conexoes")
-                    .update({ ultimo_erro: `Reaproveitar a agenda: ${(e as Error).message}`.slice(0, 500) })
+                    .update({ ultimo_erro: `Reaproveitar a agenda: ${mensagemDeErro(e)}`.slice(0, 500) })
                     .eq("user_id", userId);
                 } catch { /* nem isso pode travar a conexão */ }
               }
@@ -92,7 +93,7 @@ export const Route = createFileRoute("/api/google/callback")({
 
           return volta("Google Calendar conectado.", true);
         } catch (e) {
-          return volta((e as Error).message, false);
+          return volta(mensagemDeErro(e), false);
         }
       },
     },

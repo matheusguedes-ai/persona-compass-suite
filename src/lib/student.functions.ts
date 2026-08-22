@@ -143,13 +143,12 @@ export const getMyStudentProfile = createServerFn({ method: "GET" })
  */
 export const updateMyStudentProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => {
-    // safeParse + throw manual: um ZodError "cru" chegaria ao toast como o
-    // array de issues inteiro em JSON (é assim que .message de ZodError
-    // funciona) — nada "claro" para quem não lê código. Pegando só a
-    // primeira mensagem, o que chega no toast é a frase da própria
-    // validação (de urlOpcional), não um bloco de JSON.
-    const r = z.object({
+  .inputValidator((d) =>
+    // #263 — o toast cru de ZodError (JSON das issues) agora é traduzido no
+    // ponto único onde o erro vira tela (mensagemDeErro, src/lib/erro-legivel.ts).
+    // Isto aqui era o conserto pontual só deste formulário, antes desse tradutor
+    // existir; virou caso particular do central, sem precisar de safeParse manual.
+    z.object({
       full_name: z.string().trim().min(2).max(160),
       phone: z.string().trim().max(40).optional().nullable(),
       avatar_url: urlOpcional,
@@ -158,10 +157,8 @@ export const updateMyStudentProfile = createServerFn({ method: "POST" })
       linkedin_url: urlOpcional,
       instagram_url: urlOpcional,
       site_url: urlOpcional,
-    }).safeParse(d);
-    if (!r.success) throw new Error(r.error.issues[0]?.message ?? "Dados inválidos.");
-    return r.data;
-  })
+    }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     // A tela do aluno carrega foto e banner já ASSINADOS (ver
     // getMyStudentProfile) e reenvia esses mesmos valores ao salvar o resto

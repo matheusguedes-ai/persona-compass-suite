@@ -8,6 +8,7 @@
  * A senha não é escolhida aqui, de propósito — ver o cabeçalho de
  * `concluirCadastroPeloLink`. O link do teste é descartável; a conta não é.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -36,7 +37,7 @@ export function CriarContaNoFim({ responseId }: { responseId: string }) {
   const enviar = useMutation({
     mutationFn: () => concluirFn({ data: { response_id: responseId, nome, telefone } }),
     onSuccess: (r) => setEnviado(r.mensagem),
-    onError: (e: Error) => setEnviado(e.message),
+    onError: (e: Error) => setEnviado(mensagemDeErro(e)),
   });
 
   // Sem cadastro ligado, ou já tem conta: não há o que oferecer.

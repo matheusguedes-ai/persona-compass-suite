@@ -9,6 +9,7 @@
  * resultado sai com a fonte e o acento certos — gerador de PDF em JavaScript
  * costuma tropeçar em "ç" e "ã", que é metade dos nomes daqui.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -85,7 +86,7 @@ ${r.linhas.map((l) => `<tr>${cols.map((c) => `<td>${String((l as Record<string, 
       toast.success(`${n} ${n === 1 ? "pessoa exportada" : "pessoas exportadas"}.`);
       setAberto(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (

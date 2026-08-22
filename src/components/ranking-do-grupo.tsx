@@ -4,6 +4,7 @@
  * Mesma lista que o aluno vê. Quem tem zero aparece igual — para o mentor, é
  * justamente essa a informação útil: quem não está participando.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { rankingDoGrupo } from "@/lib/pontos.functions";
@@ -31,7 +32,7 @@ export function RankingDoGrupo({ groupId }: { groupId: string }) {
 
       {error && (
         <div className="rounded-xl bg-destructive/10 p-8 text-center">
-          <p className="text-sm text-destructive">{(error as Error).message}</p>
+          <p className="text-sm text-destructive">{mensagemDeErro(error)}</p>
         </div>
       )}
 

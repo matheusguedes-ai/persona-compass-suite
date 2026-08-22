@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { AbasDeTestes } from "@/components/abas-testes";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -54,13 +55,13 @@ function TestesPage() {
       setCopiaAberto(false); setOrigemId(""); setCopiaTitulo("");
       nav({ to: "/testes/$versionId/editar", params: { versionId: row.id } });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const del = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["test-versions"] }); toast.success("Excluído"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const [criarAberto, setCriarAberto] = useState(false);
@@ -76,7 +77,7 @@ function TestesPage() {
       setNovoTitulo(""); setNovaDescricao(""); setNovoAnonimo(false);
       nav({ to: "/testes/$versionId/editar", params: { versionId: row.id } });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const [copiaAberto, setCopiaAberto] = useState(false);

@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ export const Route = createFileRoute("/.lovable/oauth/consent")({
     <main className="mx-auto max-w-md p-8">
       <h1 className="text-xl font-semibold">Não foi possível carregar</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        {String((error as Error)?.message ?? error)}
+        {mensagemDeErro(error)}
       </p>
     </main>
   ),
@@ -79,7 +80,7 @@ function Consent() {
       : await api.denyAuthorization(authorization_id);
     if (error) {
       setBusy(false);
-      setError(error.message);
+      setError(mensagemDeErro(error));
       return;
     }
     const target = data?.redirect_url ?? data?.redirect_to;

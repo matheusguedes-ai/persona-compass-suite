@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { meuPerfilVisivel, definirPerfilVisivel } from "@/lib/comunidade.functions";
 import { Switch } from "@/components/ui/switch";
 import { createFileRoute } from "@tanstack/react-router";
@@ -93,7 +94,7 @@ function PerfilAluno() {
       } catch { /* sem preview agora */ }
       setBanner(pub.publicUrl);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao enviar o banner.");
+      toast.error(mensagemDeErro(e, undefined, "Falha ao enviar o banner."));
     } finally {
       setEnviandoBanner(false);
     }
@@ -110,7 +111,7 @@ function PerfilAluno() {
       qc.invalidateQueries({ queryKey: ["student-area"] });
       toast.success("Dados atualizados — seu mentor já vê a mudança");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   async function trocarEmail(e: React.FormEvent) {
@@ -122,7 +123,7 @@ function PerfilAluno() {
       toast.success("Enviamos um link de confirmação para o novo email.");
       setNovoEmail("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Não foi possível trocar o email.");
+      toast.error(mensagemDeErro(err, undefined, "Não foi possível trocar o email."));
     } finally {
       setTrocando(false);
     }
@@ -141,7 +142,7 @@ function PerfilAluno() {
       toast.success("Senha alterada.");
       setSenha(""); setSenha2("");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Não foi possível trocar a senha.");
+      toast.error(mensagemDeErro(err, undefined, "Não foi possível trocar a senha."));
     } finally {
       setTrocando(false);
     }
@@ -368,7 +369,7 @@ function VisibilidadeDoPerfil() {
       qc.invalidateQueries({ queryKey: ["perfil-visivel"] });
       toast.success(v ? "Seus dados agora aparecem para o grupo." : "Seus dados ficaram ocultos.");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (

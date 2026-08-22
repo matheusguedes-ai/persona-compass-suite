@@ -12,6 +12,7 @@
  * Dentro da pasta os materiais saem agrupados por formato (PDFs juntos,
  * planilhas juntas, imagens juntas), que foi o pedido dele.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -166,7 +167,7 @@ export function Biblioteca({
         }));
       }
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setEnviando(null);
     }
@@ -195,7 +196,7 @@ export function Biblioteca({
       setOrigem("link");
       setCapaPreview(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const salvarP = useMutation({
@@ -215,23 +216,23 @@ export function Biblioteca({
       setFormPasta({ id: undefined, titulo: "", descricao: "", capa_url: "" });
       setCapaPastaPreview(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const excluir = useMutation({
     mutationFn: (id: string) => excluirFn({ data: { id } }),
     onSuccess: () => { toast.success("Material removido."); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const excluirP = useMutation({
     mutationFn: (id: string) => excluirPastaFn({ data: { id } }),
     onSuccess: () => { toast.success("Pasta removida. O material voltou para a raiz."); inv(); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const mover = useMutation({
     mutationFn: (v: { id: string; direcao: "cima" | "baixo" }) => moverPastaFn({ data: v }),
     onSuccess: inv,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const pastas = (data?.pastas ?? []) as Pasta[];
@@ -818,7 +819,7 @@ function Destinos({ alvo, id }: { alvo: "pasta" | "material"; id: string }) {
       qc.invalidateQueries({ queryKey: ["biblioteca"] });
       toast.success("Acesso atualizado.");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const mudou =

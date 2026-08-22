@@ -8,6 +8,7 @@
  * Quem não for escolhido continua vendo o card — trancado. O professor precisa
  * ler isso na hora de decidir, então está escrito na própria caixa.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { meusGrupos } from "@/lib/comunidade.functions";
@@ -59,7 +60,7 @@ export function QuemAcessa({
           <p className="text-xs font-medium text-muted-foreground">Grupos</p>
           {erroGrupos ? (
             <div className="mt-1 rounded-lg bg-destructive/10 p-3 text-center">
-              <p className="text-xs text-destructive">{(erroGrupos as Error).message}</p>
+              <p className="text-xs text-destructive">{mensagemDeErro(erroGrupos)}</p>
             </div>
           ) : (dg?.grupos ?? []).length === 0 ? (
             <p className="mt-1 text-xs text-muted-foreground">Nenhum grupo ainda.</p>

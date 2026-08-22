@@ -11,6 +11,7 @@
  * Serve o master (`/agenda`) e o aluno (`/aluno/agenda`, `/aluno/mentorias`)
  * sem mudar nada: a RLS já recorta os dados de cada um.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -182,7 +183,7 @@ export function Agenda({
       qc.invalidateQueries({ queryKey: ["agenda"] });
       setAberto(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   // Domingo da semana de `ref` — mesma base usada pela grade e pelo intervalo.

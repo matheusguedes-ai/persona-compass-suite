@@ -9,6 +9,7 @@
  * permite_cancelar ou permite_remarcar ligado (ver enviarConfirmacaoEmail em
  * agendamento.functions.ts).
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -61,7 +62,7 @@ export function SessaoPage({ id }: { id: string }) {
     // verdade) devolver status:'cancelada' — a página cai sozinha no modo
     // leitura, igual abriria se o aluno voltasse depois.
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sessao", id] }),
-    onError: (e: Error) => setErroAcao(e.message),
+    onError: (e: Error) => setErroAcao(mensagemDeErro(e)),
   });
 
   const { data: horariosData, isLoading: carregandoHorarios } = useQuery({
@@ -91,7 +92,7 @@ export function SessaoPage({ id }: { id: string }) {
       setRemarcando(false);
       qc.invalidateQueries({ queryKey: ["sessao", id] });
     },
-    onError: (e: Error) => setErroAcao(e.message),
+    onError: (e: Error) => setErroAcao(mensagemDeErro(e)),
   });
 
   if (isLoading) return <Shell><p className="text-center text-sm text-muted-foreground">Carregando…</p></Shell>;

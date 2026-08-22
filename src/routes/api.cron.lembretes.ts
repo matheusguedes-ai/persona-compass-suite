@@ -10,6 +10,7 @@
  * configurado — devolve 404, nunca 401: um 401 confirma que a rota existe
  * para quem está tentando adivinhar o segredo.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/api/cron/lembretes")({
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/api/cron/lembretes")({
           });
         } catch (e) {
           console.error("[cron/lembretes] falhou:", e);
-          return new Response(JSON.stringify({ ok: false, erro: e instanceof Error ? e.message : "erro" }), {
+          return new Response(JSON.stringify({ ok: false, erro: mensagemDeErro(e) }), {
             status: 500,
             headers: { "content-type": "application/json" },
           });

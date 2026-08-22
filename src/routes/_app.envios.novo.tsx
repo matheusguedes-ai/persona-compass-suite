@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -84,7 +85,7 @@ function NovoEnvio() {
       toast.success(`Convite enviado para ${(res as { para: string }).para}`);
       setCreatedLinks((prev) => prev?.map((x) => (x.id === r.id ? { ...x, email: { ok: true } } : x)) ?? prev);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const getProfileFn = useServerFn(getMyProfile);
@@ -215,7 +216,7 @@ function NovoEnvio() {
             });
             r.email = { ok: true };
           } catch (e) {
-            r.email = { ok: false, motivo: e instanceof Error ? e.message : "falhou" };
+            r.email = { ok: false, motivo: mensagemDeErro(e, undefined, "falhou") };
           }
         }
       }
@@ -229,7 +230,7 @@ function NovoEnvio() {
       else if (falhas > 0) toast.warning(`${results.length} criados · ${enviados} email(s) enviados, ${falhas} não`);
       else toast.success(`${results.length} envio(s) criados`);
     },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao criar envios"),
+    onError: (e: unknown) => toast.error(mensagemDeErro(e, undefined, "Falha ao criar envios")),
   });
 
   const linkFor = (r: { id: string; battery?: boolean; invite?: boolean }) => {

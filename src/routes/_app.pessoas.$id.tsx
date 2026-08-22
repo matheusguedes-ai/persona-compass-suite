@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ROLE_LABEL, type PersonRole } from "@/lib/mock-data";
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/_app/pessoas/$id")({
   }),
   component: PersonProfile,
   errorComponent: ({ error }) => (
-    <div className="grid place-items-center py-24 text-sm text-destructive">{error.message}</div>
+    <div className="grid place-items-center py-24 text-sm text-destructive">{mensagemDeErro(error)}</div>
   ),
   notFoundComponent: () => (
     <div className="grid place-items-center py-24 text-sm text-muted-foreground">Pessoa não encontrada.</div>
@@ -63,7 +64,7 @@ function PersonProfile() {
       toast.success("Pessoa removida");
       nav({ to: "/pessoas" });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const retakeFn = useServerFn(authorizeRetake);
@@ -77,11 +78,11 @@ function PersonProfile() {
       qc.invalidateQueries({ queryKey: ["person", id] });
       toast.success("Novo teste liberado. O link já aparece no histórico.");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   if (isLoading) return <div className="py-12 text-center text-sm text-muted-foreground">Carregando…</div>;
-  if (error || !data) return <div className="py-12 text-center text-sm text-destructive">{(error as Error)?.message ?? "Erro"}</div>;
+  if (error || !data) return <div className="py-12 text-center text-sm text-destructive">{mensagemDeErro(error)}</div>;
 
   const { person, groups, responses } = data;
   const history = buildHistory(responses ?? []);
@@ -390,7 +391,7 @@ function BotaoMentor({ personId, nome }: { personId: string; nome: string }) {
       qc.invalidateQueries({ queryKey: ["mentores"] });
       toast.success(ehMentor ? `${nome} deixou de ser mentor.` : `${nome} agora é mentor.`);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (
@@ -443,7 +444,7 @@ function GruposDoMentor({ personId, nome }: { personId: string; nome: string }) 
       can_download_reports?: boolean; can_schedule_mentorias?: boolean;
     }) => salvarFn({ data: { person_id: personId, ...v } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["grupos-do-mentor", personId] }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const grupos = data?.grupos ?? [];

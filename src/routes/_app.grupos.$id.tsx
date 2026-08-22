@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { GROUP_TYPE_LABEL, type GroupType } from "@/lib/mock-data";
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/_app/grupos/$id")({
   }),
   component: GroupDetail,
   errorComponent: ({ error }) => (
-    <div className="grid place-items-center py-24 text-sm text-destructive">{error.message}</div>
+    <div className="grid place-items-center py-24 text-sm text-destructive">{mensagemDeErro(error)}</div>
   ),
   notFoundComponent: () => (
     <div className="grid place-items-center py-24 text-sm text-muted-foreground">Grupo não encontrado.</div>
@@ -68,13 +69,13 @@ function GroupDetail() {
       toast.success("Grupo excluído");
       nav({ to: "/grupos" });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const removeMember = useMutation({
     mutationFn: (person_id: string) => removeFn({ data: { group_id: id, person_id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["group", id] }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const setInstr = useMutation({
@@ -84,11 +85,11 @@ function GroupDetail() {
       qc.invalidateQueries({ queryKey: ["groups"] });
       toast.success("Testes liberados atualizados");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   if (isLoading) return <div className="py-12 text-center text-sm text-muted-foreground">Carregando…</div>;
-  if (error || !data) return <div className="py-12 text-center text-sm text-destructive">{(error as Error)?.message ?? "Erro"}</div>;
+  if (error || !data) return <div className="py-12 text-center text-sm text-destructive">{mensagemDeErro(error)}</div>;
 
   const { group, members, instruments } = data;
   const currentInstrIds = instruments.map((i) => i.instrument_id);
@@ -277,7 +278,7 @@ function AddPeopleDialog({ groupId, excludeIds }: { groupId: string; excludeIds:
       toast.success("Pessoas adicionadas");
       setSelected([]); setQ(""); setOpen(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (
@@ -525,7 +526,7 @@ function AcessoDoGrupo({ groupId, atual }: { groupId: string; atual: string[] | 
       qc.invalidateQueries({ queryKey: ["groups"] });
       toast.success("Acesso do grupo atualizado");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const mudou = JSON.stringify(areas) !== JSON.stringify(atual);

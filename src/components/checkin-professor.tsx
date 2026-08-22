@@ -15,6 +15,7 @@
  *    app de e-mail, onde o passe do scan não existe. Saber isso na véspera vale
  *    mais que qualquer mensagem de erro bonita.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -60,7 +61,7 @@ export function CheckinDialog({ aulaId, onFechar }: { aulaId: string; onFechar: 
 
         {isLoading && <p className="text-sm text-muted-foreground">Abrindo o check-in…</p>}
         {error && (
-          <p className="text-sm text-destructive">{(error as Error).message}</p>
+          <p className="text-sm text-destructive">{mensagemDeErro(error)}</p>
         )}
 
         {data && !data.janela && (
@@ -253,7 +254,7 @@ function TravaDeLocal({
       toast.error(
         (e as Error).message === "SEM_GPS"
           ? "Não consegui a localização deste aparelho. Libere o acesso no navegador e tente de novo."
-          : (e as Error).message,
+          : mensagemDeErro(e),
       );
     },
   });
@@ -318,7 +319,7 @@ function Turma({
     mutationFn: (v: { person_id: string; situacao?: "ausente" | null }) =>
       marcarFn({ data: { aula_id: aulaId, ...v } }),
     onSuccess: () => { onMudou(); toast.success("Lista atualizada"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const porPessoa = new Map(presencas.map((p) => [p.person_id, p]));

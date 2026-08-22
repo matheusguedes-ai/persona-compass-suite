@@ -8,6 +8,7 @@
  * quando a tela abre; se não existir, é porque a pessoa digitou o endereço na
  * mão, e aí não há o que fazer além de mandar pedir o link.
  */
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,7 +34,7 @@ export function CriarSenha() {
     setSalvando(true);
     const { error } = await supabase.auth.updateUser({ password: senha });
     setSalvando(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(mensagemDeErro(error));
     toast.success("Senha criada. Bem-vindo!");
     window.location.href = "/aluno";
   }

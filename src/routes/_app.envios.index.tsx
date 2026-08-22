@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { AbasDeTestes } from "@/components/abas-testes";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -73,7 +74,7 @@ function EnviosPage() {
   const toggleLink = useMutation({
     mutationFn: (v: { id: string; is_active: boolean }) => setInviteLinkActiveFn({ data: v }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["invite-links"] }); toast.success("Link atualizado"); },
-    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar"),
+    onError: (e: unknown) => toast.error(mensagemDeErro(e, undefined, "Falha ao atualizar")),
   });
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -88,22 +89,22 @@ function EnviosPage() {
   const cancelarResposta = useMutation({
     mutationFn: (v: { id: string; canceled: boolean }) => cancelarRespostaFn({ data: v }),
     onSuccess: (_d, v) => { recarregar(); toast.success(v.canceled ? "Envio cancelado — o link parou de funcionar" : "Envio reativado"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const cancelarBateria = useMutation({
     mutationFn: (v: { id: string; canceled: boolean }) => cancelarBateriaFn({ data: v }),
     onSuccess: (_d, v) => { recarregar(); toast.success(v.canceled ? "Bateria cancelada — os links pararam de funcionar" : "Bateria reativada"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const excluirResposta = useMutation({
     mutationFn: (id: string) => excluirRespostaFn({ data: { id } }),
     onSuccess: () => { recarregar(); toast.success("Envio excluído"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
   const excluirBateria = useMutation({
     mutationFn: (id: string) => excluirBateriaFn({ data: { id } }),
     onSuccess: () => { recarregar(); toast.success("Bateria excluída"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const { data: batteries = [] } = useQuery({
@@ -124,7 +125,7 @@ function EnviosPage() {
       toast.success("Link do observador copiado");
       refetch();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível criar o convite");
+      toast.error(mensagemDeErro(e, undefined, "Não foi possível criar o convite"));
     }
   };
 

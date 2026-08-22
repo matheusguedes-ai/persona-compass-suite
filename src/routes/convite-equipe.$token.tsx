@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -47,7 +48,7 @@ function ConviteEquipePage() {
         setTimeout(() => nav({ to: "/" }), 1600);
       } catch (e) {
         if (!vivo) return;
-        setErro(e instanceof Error ? e.message : "Não foi possível aceitar o convite.");
+        setErro(mensagemDeErro(e, undefined, "Não foi possível aceitar o convite."));
         setEstado("erro");
       }
     })();
@@ -125,14 +126,14 @@ function CriarConta({ token, onPronto }: { token: string; onPronto: () => void }
         setFalha(
           r.jaExistia
             ? "Você já tem uma conta com este e-mail. Entre com a sua senha atual para aceitar o convite."
-            : error.message,
+            : mensagemDeErro(error),
         );
         setOcupado(false);
         return;
       }
       onPronto();
     } catch (e) {
-      setFalha(e instanceof Error ? e.message : "Não consegui criar a conta.");
+      setFalha(mensagemDeErro(e, undefined, "Não consegui criar a conta."));
       setOcupado(false);
     }
   }
