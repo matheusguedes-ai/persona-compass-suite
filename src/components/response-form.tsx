@@ -332,10 +332,10 @@ function QuestionField({ q, options, value, onChange, subjectLabel }: {
           <span>{String(cfg.minLabel ?? min)}</span>
           <span>{String(cfg.maxLabel ?? max)}</span>
         </div>
-        <div className="mt-2 flex gap-2">
+        <div className="mt-2 flex gap-2 overflow-x-auto">
           {items.map((n) => (
             <button key={n} type="button" onClick={() => onChange({ value: n })}
-              className={`h-10 flex-1 rounded-lg border text-sm font-medium transition-colors ${current === n ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/40"}`}>
+              className={`h-10 min-w-11 flex-1 rounded-lg border text-sm font-medium transition-colors ${current === n ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/40"}`}>
               {n}
             </button>
           ))}
@@ -361,8 +361,8 @@ function QuestionField({ q, options, value, onChange, subjectLabel }: {
             <div key={oid} className="flex items-center gap-2 rounded-lg border border-input bg-background p-3 text-sm">
               <span className="font-mono text-xs text-muted-foreground">{i + 1}º</span>
               <span className="flex-1">{o.label}</span>
-              <button type="button" onClick={() => move(i, -1)} className="rounded p-1 hover:bg-muted"><ArrowUp className="size-3" /></button>
-              <button type="button" onClick={() => move(i, 1)} className="rounded p-1 hover:bg-muted"><ArrowDown className="size-3" /></button>
+              <button type="button" onClick={() => move(i, -1)} className="rounded p-4 hover:bg-muted lg:p-1"><ArrowUp className="size-3" /></button>
+              <button type="button" onClick={() => move(i, 1)} className="rounded p-4 hover:bg-muted lg:p-1"><ArrowDown className="size-3" /></button>
             </div>
           );
         })}
@@ -389,7 +389,7 @@ function QuestionField({ q, options, value, onChange, subjectLabel }: {
           return (
             <div key={o.id} className={`grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded-lg border p-3 text-sm ${isMost ? "border-primary bg-primary/5" : isLeast ? "border-destructive/50 bg-destructive/5" : "border-input"}`}>
               <span className="flex-1">{o.label}</span>
-              <div className="w-16 text-center">
+              <label className="flex w-16 shrink-0 cursor-pointer items-center justify-center self-stretch">
                 <input
                   type="radio"
                   name={`${q.id}-most`}
@@ -397,8 +397,8 @@ function QuestionField({ q, options, value, onChange, subjectLabel }: {
                   checked={isMost}
                   onChange={() => onChange({ most_option_id: o.id, least_option_id: least === o.id ? undefined : least })}
                 />
-              </div>
-              <div className="w-16 text-center">
+              </label>
+              <label className="flex w-16 shrink-0 cursor-pointer items-center justify-center self-stretch">
                 <input
                   type="radio"
                   name={`${q.id}-least`}
@@ -406,7 +406,7 @@ function QuestionField({ q, options, value, onChange, subjectLabel }: {
                   checked={isLeast}
                   onChange={() => onChange({ most_option_id: most === o.id ? undefined : most, least_option_id: o.id })}
                 />
-              </div>
+              </label>
             </div>
           );
         })}
