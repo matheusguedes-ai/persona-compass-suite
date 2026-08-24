@@ -11,7 +11,8 @@
  * versão do aluno é a etapa 3; check-in e presença, as etapas 4 e 5.
  */
 import { mensagemDeErro } from "@/lib/erro-legivel";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useFadeDeRolagem } from "@/lib/use-fade-de-rolagem";
+import { useEffect, useLayoutEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -159,6 +160,13 @@ export function TreinamentoView({
   const [editandoTreinamento, setEditandoTreinamento] = useState(false);
   const [checkinDe, setCheckinDe] = useState<string | null>(null);
   const [aba, setAba] = useState<"conteudo" | "presenca" | "conclusao">("conteudo");
+  // #279 F4 — pista visual de rolagem na barra Conteúdo/Presença/Conclusão;
+  // hook chamado aqui, antes dos returns antecipados de isLoading/error/!data.
+  const abasRef = useFadeDeRolagem<HTMLDivElement>();
+  useLayoutEffect(() => {
+    abasRef.ref.current?.querySelector<HTMLElement>('[data-ativo="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aba]);
 
   // #231 — rascunho da avaliação por aula, antes de enviar. Uma vez enviada,
   // o dado vem do servidor (`minha_avaliacao`) e o rascunho não importa mais.
@@ -305,18 +313,29 @@ export function TreinamentoView({
 
       {/* A lista de presença é assunto de quem conduz a aula, não do aluno. */}
       {podeEditar && (
-        <div className="inline-flex rounded-lg bg-muted p-1">
-          {([["conteudo", "Conteúdo"], ["presenca", "Presença"], ["conclusao", "Conclusão"]] as const).map(([v, r]) => (
-            <button
-              key={v} onClick={() => setAba(v)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium",
-                aba === v ? "bg-background shadow-sm" : "text-muted-foreground",
-              )}
-            >
-              {r}
-            </button>
-          ))}
+        <div className="relative inline-flex max-w-full">
+          {abasRef.fade.esquerda && (
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-6 rounded-l-lg bg-gradient-to-r from-muted to-transparent" />
+          )}
+          <div
+            ref={abasRef.ref} onScroll={abasRef.atualizar}
+            className="inline-flex max-w-full overflow-x-auto rounded-lg bg-muted p-1"
+          >
+            {([["conteudo", "Conteúdo"], ["presenca", "Presença"], ["conclusao", "Conclusão"]] as const).map(([v, r]) => (
+              <button
+                key={v} onClick={() => setAba(v)} data-ativo={aba === v}
+                className={cn(
+                  "shrink-0 rounded-md px-3 py-1.5 text-sm font-medium",
+                  aba === v ? "bg-background shadow-sm" : "text-muted-foreground",
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          {abasRef.fade.direita && (
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-6 rounded-r-lg bg-gradient-to-l from-muted to-transparent" />
+          )}
         </div>
       )}
 
