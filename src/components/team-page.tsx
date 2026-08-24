@@ -131,8 +131,8 @@ export function TeamPage({ kind }: { kind: "mentor" | "colaborador" }) {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-xl bg-card ring-1 ring-black/5">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-black/5 bg-muted/50">
               <tr>
                 <th className="px-6 py-3 font-medium text-muted-foreground">Nome</th>

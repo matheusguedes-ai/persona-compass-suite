@@ -187,8 +187,8 @@ export function ImportarPlanilha({
               </div>
             )}
 
-            <div className="max-h-72 overflow-y-auto rounded-lg ring-1 ring-black/5">
-              <table className="w-full text-left text-xs">
+            <div className="max-h-72 overflow-auto rounded-lg ring-1 ring-black/5">
+              <table className="w-full min-w-[520px] text-left text-xs">
                 <thead className="sticky top-0 bg-muted/80 backdrop-blur">
                   <tr>
                     <th className="px-3 py-2 font-medium text-muted-foreground">Linha</th>

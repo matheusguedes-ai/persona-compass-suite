@@ -174,13 +174,13 @@ function Dashboard() {
               <h2 className="text-base font-medium tracking-tight">Atividade recente</h2>
               <Link to="/envios" className="text-xs font-medium text-accent hover:underline">Ver todos</Link>
             </div>
-            <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
+            <div className="overflow-x-auto rounded-xl bg-card ring-1 ring-black/5">
               {recent.length === 0 ? (
                 <p className="p-8 text-center text-sm text-muted-foreground">
                   {isLoading ? "Carregando…" : "Nenhum envio ainda. Crie o primeiro em Envios."}
                 </p>
               ) : (
-                <table className="w-full text-left text-sm">
+                <table className="w-full min-w-[640px] text-left text-sm">
                   <thead className="border-b border-black/5 bg-muted/50">
                     <tr>
                       <th className="px-6 py-3 font-medium text-muted-foreground">Avaliado</th>

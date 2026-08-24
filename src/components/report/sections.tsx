@@ -395,8 +395,8 @@ export function ReportBody({
           <p className="mt-2 text-sm text-muted-foreground">
             Média das respostas de {data.external.count} observador(es) comparada à sua autoimagem.
           </p>
-          <div className="mt-5 overflow-hidden rounded-lg ring-1 ring-black/5">
-            <table className="w-full text-left text-sm">
+          <div className="mt-5 overflow-x-auto rounded-lg ring-1 ring-black/5">
+            <table className="w-full min-w-[520px] text-left text-sm">
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2 font-medium">Fator</th>
