@@ -13,6 +13,7 @@ import {
   Users2,
   CalendarDays,
   Presentation,
+  X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -56,7 +57,12 @@ const NAV = [
   { to: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
-export function AppSidebar() {
+export function AppSidebar({
+  menuAberto, onFechar,
+}: {
+  menuAberto: boolean;
+  onFechar: () => void;
+}) {
   const user = useCurrentUser();
   const brand = useBrand();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -92,62 +98,100 @@ export function AppSidebar() {
   const displayName = user?.displayName ?? "—";
   const email = user?.email ?? "";
 
-  return (
-    <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-black/5 bg-sidebar lg:flex">
-      <div className="flex h-16 items-center px-6">
-        <Link to="/">
-          <BrandMark brand={brand} />
-        </Link>
-      </div>
-
-      <nav className="mt-4 flex-1 space-y-1 px-3">
-        {items.map((item) => {
-          const active =
-            item.to === "/"
-              ? pathname === "/"
-              : pathname === item.to || pathname.startsWith(item.to + "/");
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-              )}
-            >
-              <Icon className="size-4 shrink-0" />
-              {item.label}
-            </Link>
-          );
-        })}
-        {/* Quem tem conta própria E é avaliado em outra. Sem este atalho, a
-            área de aluno dele existe e responde, mas nenhum caminho da
-            interface leva até lá — ele só chegaria digitando /aluno. Separado
-            do menu por uma linha: é a outra conta, não mais um item desta. */}
-        {membership?.tambem_avaliado && (
+  // Reaproveitado nas duas barras (fixa do computador e gaveta do celular) —
+  // mesmos itens, mesma permissão, só o container muda. `onFechar` no clique
+  // não afeta o computador: lá a gaveta nunca abre, então nunca há o que fechar.
+  const navegacao = (
+    <nav className="mt-4 flex-1 space-y-1 px-3">
+      {items.map((item) => {
+        const active =
+          item.to === "/"
+            ? pathname === "/"
+            : pathname === item.to || pathname.startsWith(item.to + "/");
+        const Icon = item.icon;
+        return (
           <Link
-            to="/aluno"
-            search={{ ver: undefined }}
-            className="mt-4 flex items-center gap-3 rounded-md border-t border-black/5 px-3 pb-2 pt-4 text-sm font-medium text-muted-foreground transition-colors hover:text-sidebar-accent-foreground"
+            key={item.to}
+            to={item.to}
+            onClick={onFechar}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              active
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+            )}
           >
-            <GraduationCap className="size-4 shrink-0" />
-            Minha área de aluno
+            <Icon className="size-4 shrink-0" />
+            {item.label}
           </Link>
-        )}
-      </nav>
+        );
+      })}
+      {/* Quem tem conta própria E é avaliado em outra. Sem este atalho, a
+          área de aluno dele existe e responde, mas nenhum caminho da
+          interface leva até lá — ele só chegaria digitando /aluno. Separado
+          do menu por uma linha: é a outra conta, não mais um item desta. */}
+      {membership?.tambem_avaliado && (
+        <Link
+          to="/aluno"
+          search={{ ver: undefined }}
+          onClick={onFechar}
+          className="mt-4 flex items-center gap-3 rounded-md border-t border-black/5 px-3 pb-2 pt-4 text-sm font-medium text-muted-foreground transition-colors hover:text-sidebar-accent-foreground"
+        >
+          <GraduationCap className="size-4 shrink-0" />
+          Minha área de aluno
+        </Link>
+      )}
+    </nav>
+  );
 
-      <div className="border-t border-black/5 p-4">
-        <div className="flex items-center gap-3">
-          <Avatar url={meuPerfil?.profile?.avatar_url} nome={displayName} size={32} />
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-xs font-medium">{displayName}</span>
-            <span className="truncate text-[10px] text-muted-foreground">{email}</span>
-          </div>
+  const rodape = (
+    <div className="border-t border-black/5 p-4">
+      <div className="flex items-center gap-3">
+        <Avatar url={meuPerfil?.profile?.avatar_url} nome={displayName} size={32} />
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-xs font-medium">{displayName}</span>
+          <span className="truncate text-[10px] text-muted-foreground">{email}</span>
         </div>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Barra fixa do computador — inalterada: mesma classe, mesmo lugar. */}
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-black/5 bg-sidebar lg:flex">
+        <div className="flex h-16 items-center px-6">
+          <Link to="/">
+            <BrandMark brand={brand} />
+          </Link>
+        </div>
+        {navegacao}
+        {rodape}
+      </aside>
+
+      {/* Gaveta do celular — mesmo padrão do painel do aluno (aluno.tsx):
+          fundo escurecido fecha ao tocar fora, gaveta só abaixo de lg. */}
+      {menuAberto && (
+        <>
+          <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={onFechar} />
+          <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-black/5 bg-sidebar lg:hidden">
+            <div className="flex h-16 items-center justify-between px-6">
+              <Link to="/" onClick={onFechar}>
+                <BrandMark brand={brand} />
+              </Link>
+              <button
+                onClick={onFechar}
+                className="rounded-md p-2 text-muted-foreground hover:bg-muted"
+                title="Fechar menu"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            {navegacao}
+            {rodape}
+          </aside>
+        </>
+      )}
+    </>
   );
 }

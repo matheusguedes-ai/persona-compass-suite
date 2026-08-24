@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, redirect, isRedirect } from "@tanstack/react-router";
+import { useState } from "react";
 import { SeloDaConta } from "@/components/selo-da-conta";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
@@ -40,13 +41,17 @@ export const Route = createFileRoute("/_app")({
 });
 
 function AppLayout() {
+  // #279 F1 — gaveta de navegação do celular. Vive aqui porque AppSidebar
+  // (dono da gaveta) e AppHeader (dono do botão que abre) são irmãos, não
+  // pai/filho — o estado precisa morar no ancestral comum.
+  const [menuAberto, setMenuAberto] = useState(false);
   return (
     <BrandProvider>
       <div className="min-h-screen bg-background font-sans text-foreground" style={{ fontFamily: 'Geist, ui-sans-serif, system-ui, sans-serif' }}>
-        <AppSidebar />
+        <AppSidebar menuAberto={menuAberto} onFechar={() => setMenuAberto(false)} />
         <div className="lg:pl-64">
-          <AppHeader />
-          <main className="p-8">
+          <AppHeader onAbrirMenu={() => setMenuAberto(true)} />
+          <main className="p-4 sm:p-8">
             <Outlet />
           </main>
           <SeloDaConta />
