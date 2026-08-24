@@ -2738,6 +2738,16 @@
       "prioridade": 276,
       "origem": "Teste de tela do chat, 14/08",
       "prova": "Commit 8e82204. O botão só olhava para \"cancelada\" — faltava também olhar para \"tem horário\". Agora exige aula.comeca_em junto com !cancelada, em src/components/classroom-view.tsx. Levantamento: nenhum outro lugar da plataforma (lista de aulas, aba Presença, qualquer atalho) tinha botão ou link de check-in — a tela do treinamento era o único ponto. Caminho inverso: abrir /checkin/$aulaId direto para uma aula gravada agora responde \"Esta aula não tem check-in\" (citando o nome da aula) em vez de oferecer 'Estou presente' para uma janela que nunca existiu — o check-in real depende de um passe que só nasce escaneando o QR rotativo, e esse QR não existe mais para aula gravada, mas agora a tela avisa antes de deixar a pessoa tentar. Testado ao vivo: aula com horário continuou com o botão normal; aula de teste sem horário criada, aberta (sem botão) e apagada depois, id citado antes de apagar. npx tsc --noEmit e npx vite build limpos. Nenhuma regra de conclusão (#256) ou avaliação (#231) foi tocada."
+    },
+    {
+      "titulo": "PWA instalável e telas responsivas (mobile)",
+      "descricao": "Plataforma como app mobile: instalável (PWA) e todas as telas responsivas, mentor e aluno. Fatiado — Fatia 0 é só diagnóstico (somente leitura, nenhum código alterado): inventário das 44 telas das três áreas (mentor/colaborador, aluno, público) classificadas em ✅ já funciona / ⚠️ funciona com incômodo / ❌ quebrada a 390px, com as causas compartilhadas que explicam várias telas de uma vez, o que já está pronto de base responsiva e de PWA, e uma proposta de ordem para as próximas fatias.",
+      "area": "Plataforma / Mobile",
+      "status": "Em andamento",
+      "depende_de": "Claude",
+      "origem": "Matheus, 24/08: dono do produto quer a plataforma como app mobile",
+      "prioridade": 279,
+      "prova": "Fatia 0 (diagnóstico) entregue em 4b57ca9 (ponto de retorno em 95c6c6c) — docs/diagnostico-mobile.md. 44 telas cobertas: mentor 8 ✅/4 ⚠️/9 ❌, aluno 8 ✅/3 ⚠️/0 ❌, público 6 ✅/4 ⚠️/2 ❌. Achado mais forte: o painel do mentor não tem NENHUMA navegação no celular (sem hambúrguer, sidebar só aparece ≥1024px) — confirmado ao vivo com captura de tela, bloqueia as 21 telas do mentor. Sete causas compartilhadas mapeadas por quantas telas cada uma resolve de uma vez (a maior: tabela crua dentro de overflow-hidden em vez de overflow-auto, corta conteúdo sem rolagem, repetida de forma independente em 7 telas — 5 no mentor + os 2 relatórios públicos). PWA mais avançado do que o esperado: manifesto dinâmico por marca da conta, viewport e até ícone de iPhone já ligados em __root.tsx; falta só o service worker (sem vite-plugin-pwa/workbox no projeto). Nenhum arquivo de código/estilo/componente/migração foi alterado, só o próprio docs/diagnostico-mobile.md. Pendência registrada (não é bug, é lacuna de processo): #279 ainda não tem página própria no Notion — não criei uma, seguindo a regra de que quem registra no Notion é o chat; falta o chat abrir a página e, dentro dela, o checklist de fatias (F0 já pronta) para o Matheus acompanhar."
     }
   ],
   "planilha": {
