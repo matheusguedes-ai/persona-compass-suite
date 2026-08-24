@@ -17,6 +17,7 @@ import {
   youtubeId, TIPOS_MATERIAL, PUBLICOS,
 } from "@/lib/learning.functions";
 import { QuemAcessa } from "@/components/quem-acessa";
+import { ListaDeConcluidosTrilha } from "@/components/lista-de-concluidos";
 import { RecortarImagem } from "@/components/recorte-imagem";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -198,6 +199,19 @@ export function TrackView({
         )}
       </div>
 
+      {/* #221 F1 — só quem edita vê quem concluiu; o aluno já tem a própria
+          barra de progresso acima. */}
+      {podeEditar && (
+        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Quem concluiu
+          </h2>
+          <div className="mt-3">
+            <ListaDeConcluidosTrilha trackId={trackId} />
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* -------- Player -------- */}
         <div className="space-y-4">
@@ -349,7 +363,13 @@ export function TrackView({
       {editandoTrilha && (
         <TrilhaDialog
           track={data.track} onFechar={() => setEditandoTrilha(false)}
-          onSalvo={() => { setEditandoTrilha(false); inv(); qc.invalidateQueries({ queryKey: ["tracks"] }); }}
+          onSalvo={() => {
+            setEditandoTrilha(false); inv();
+            qc.invalidateQueries({ queryKey: ["tracks"] });
+            // #221 F1 — mesmo motivo do Classroom: mudar o percentual mínimo
+            // precisa refletir na régua sem precisar recarregar a página.
+            qc.invalidateQueries({ queryKey: ["concluidos-trilha", trackId] });
+          }}
         />
       )}
     </div>
@@ -697,13 +717,18 @@ function MaterialDialog({
 function TrilhaDialog({
   track, onFechar, onSalvo,
 }: {
-  track: { id: string; title: string; description: string | null; cover_url: string | null; audience: string; is_published: boolean };
+  track: {
+    id: string; title: string; description: string | null; cover_url: string | null;
+    audience: string; is_published: boolean; percentual_minimo?: number | null;
+  };
   onFechar: () => void; onSalvo: () => void;
 }) {
   const [title, setTitle] = useState(track.title);
   const [description, setDescription] = useState(track.description ?? "");
   const [coverUrl, setCoverUrl] = useState(track.cover_url ?? "");
   const [audience, setAudience] = useState(track.audience);
+  // #221 F1 — texto, não número: mesmo motivo do TreinamentoDialog (Classroom).
+  const [percentualMinimo, setPercentualMinimo] = useState(String(track.percentual_minimo ?? 100));
   const [publicada, setPublicada] = useState(track.is_published);
 
   // O bucket é privado: `coverUrl` guarda o IDENTIFICADOR (o que salva).
@@ -769,6 +794,7 @@ function TrilhaDialog({
           id: track.id, title: title.trim(), description: description.trim() || null,
           cover_url: coverUrl.trim() || null,
           audience: audience as "equipe" | "alunos" | "ambos", is_published: publicada,
+          percentual_minimo: Math.min(100, Math.max(1, Number(percentualMinimo) || 100)),
         },
       });
       if (grupos && pessoas) {
@@ -854,6 +880,22 @@ function TrilhaDialog({
                 setGrupos={setGrupos} setPessoas={setPessoas}
               />
             )}
+            <div className="space-y-2">
+              <Label>Percentual mínimo para concluir</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number" min={1} max={100} className="w-24"
+                  value={percentualMinimo}
+                  onChange={(e) => setPercentualMinimo(e.target.value)}
+                />
+                <span className="text-sm text-muted-foreground">% das aulas assistidas</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Conta as aulas publicadas que a pessoa já marcou como vista.
+                <strong> Padrão 100%</strong> — mudar aqui vale a partir de agora, não reescreve
+                quem já tinha concluído pela régua anterior.
+              </p>
+            </div>
             <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">
               <div>
                 <p className="text-sm font-medium">Publicada</p>

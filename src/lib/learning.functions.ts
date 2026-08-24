@@ -58,6 +58,9 @@ const trackSchema = z.object({
   cover_url: urlOpcional,
   audience: z.enum(["equipe", "alunos", "ambos"]).default("alunos"),
   is_published: z.boolean().default(false),
+  // #221 F1 — o mesmo intervalo do CHECK do banco. Default 100 cobre a
+  // criação (quem não mexe nisso ganha a régua cheia, igual já é hoje).
+  percentual_minimo: z.number().int().min(1).max(100).default(100),
 });
 
 export const listTracks = createServerFn({ method: "GET" })
@@ -523,4 +526,112 @@ export const toggleLessonDone = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
     }
     return { ok: true, done: data.done };
+  });
+
+/**
+ * #221 F1 — a régua de conclusão da Academy: quem já cumpriu o percentual
+ * mínimo da trilha, e quanto cada um já fez.
+ *
+ * "Item cumprido" = aula da trilha (só as PUBLICADAS — o aluno nunca vê
+ * rascunho) registrada em `learning_progress`. Aula despublicada depois não
+ * conta em nenhum dos dois lados, mesmo espírito de "aula cancelada não
+ * entra na conta" do Classroom.
+ *
+ * A turma é a mesma regra do cadeado (`track_liberada`): trilha SEM destino
+ * nenhum está aberta a todos os alunos da conta; COM destino, é só quem foi
+ * marcado (pessoa ou grupo). Só LÊ `learning_progress` — nenhuma escrita,
+ * nenhuma regra de progresso tocada.
+ */
+export const listaDeConcluidosTrilha = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ track_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: pode, error: ePode } = await supabase.rpc("can_edit_track", { _track_id: data.track_id });
+    if (ePode) throw new Error(ePode.message);
+    if (pode !== true) throw new Error("Você não edita esta trilha.");
+
+    const { data: track, error: eTr } = await supabase
+      .from("learning_tracks")
+      .select("id, title, owner_id, percentual_minimo")
+      .eq("id", data.track_id)
+      .maybeSingle();
+    if (eTr) throw new Error(eTr.message);
+    if (!track) throw new Error("Trilha não encontrada.");
+
+    const { data: aulas, error: eA } = await supabase
+      .from("learning_lessons")
+      .select("id")
+      .eq("track_id", data.track_id)
+      .eq("is_published", true);
+    if (eA) throw new Error(eA.message);
+    const aulaIds = new Set((aulas ?? []).map((a) => a.id));
+
+    const { data: destinos, error: eD } = await supabase
+      .from("learning_track_destinos").select("group_id, person_id").eq("track_id", data.track_id);
+    if (eD) throw new Error(eD.message);
+    const groupIds = (destinos ?? []).filter((d) => d.group_id).map((d) => d.group_id as string);
+    const personIds = (destinos ?? []).filter((d) => d.person_id).map((d) => d.person_id as string);
+
+    type Aluno = { person_id: string; nome: string; email: string | null; user_id: string | null };
+    const alunos = new Map<string, Aluno>();
+
+    if ((destinos ?? []).length === 0) {
+      // Sem destino nenhum, a trilha está aberta a TODOS os alunos da conta
+      // — mesma regra de `track_liberada`. "Aluno" aqui é qualquer cadastro
+      // (`people`) do dono da trilha: não existe papel "aluno" separado no
+      // banco, é `people` (cadastro do mentor) × `team_members` (equipe).
+      const { data: todos, error: eP } = await supabase
+        .from("people").select("id, full_name, email, user_id").eq("mentor_id", track.owner_id);
+      if (eP) throw new Error(eP.message);
+      for (const p of todos ?? []) {
+        alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
+      }
+    } else {
+      if (personIds.length) {
+        const { data: diretos, error: e1 } = await supabase
+          .from("people").select("id, full_name, email, user_id").in("id", personIds);
+        if (e1) throw new Error(e1.message);
+        for (const p of diretos ?? []) {
+          alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
+        }
+      }
+      if (groupIds.length) {
+        const { data: membros, error: e2 } = await supabase
+          .from("group_members").select("person_id, people(id, full_name, email, user_id)").in("group_id", groupIds);
+        if (e2) throw new Error(e2.message);
+        for (const m of membros ?? []) {
+          const p = m.people as unknown as { id: string; full_name: string; email: string | null; user_id: string | null } | null;
+          if (!p || alunos.has(p.id)) continue;
+          alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
+        }
+      }
+    }
+
+    const { data: progresso, error: eG } = await supabase
+      .from("learning_progress").select("lesson_id, user_id").eq("track_id", data.track_id);
+    if (eG) throw new Error(eG.message);
+
+    const feitosPorUser = new Map<string, number>();
+    for (const p of progresso ?? []) {
+      if (!aulaIds.has(p.lesson_id)) continue; // aula despublicada depois não conta
+      feitosPorUser.set(p.user_id, (feitosPorUser.get(p.user_id) ?? 0) + 1);
+    }
+
+    const { calcularConclusao } = await import("@/lib/regua-de-conclusao");
+    const pessoas = [...alunos.values()]
+      .map((aluno) => {
+        const feitos = aluno.user_id ? (feitosPorUser.get(aluno.user_id) ?? 0) : 0;
+        return {
+          person_id: aluno.person_id, nome: aluno.nome, email: aluno.email,
+          ...calcularConclusao(feitos, aulaIds.size, track.percentual_minimo),
+        };
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }) || a.person_id.localeCompare(b.person_id));
+
+    return {
+      track: { id: track.id, title: track.title, percentual_minimo: track.percentual_minimo },
+      total_itens: aulaIds.size,
+      pessoas,
+    };
   });

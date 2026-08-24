@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { CheckinDialog } from "@/components/checkin-professor";
 import { ListaDePresenca } from "@/components/lista-de-presenca";
+import { ListaDeConcluidosTreinamento } from "@/components/lista-de-concluidos";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -157,7 +158,7 @@ export function TreinamentoView({
   const [editMaterial, setEditMaterial] = useState<{ id?: string; aula_id: string } | null>(null);
   const [editandoTreinamento, setEditandoTreinamento] = useState(false);
   const [checkinDe, setCheckinDe] = useState<string | null>(null);
-  const [aba, setAba] = useState<"conteudo" | "presenca">("conteudo");
+  const [aba, setAba] = useState<"conteudo" | "presenca" | "conclusao">("conteudo");
 
   // #231 — rascunho da avaliação por aula, antes de enviar. Uma vez enviada,
   // o dado vem do servidor (`minha_avaliacao`) e o rascunho não importa mais.
@@ -305,7 +306,7 @@ export function TreinamentoView({
       {/* A lista de presença é assunto de quem conduz a aula, não do aluno. */}
       {podeEditar && (
         <div className="inline-flex rounded-lg bg-muted p-1">
-          {([["conteudo", "Conteúdo"], ["presenca", "Presença"]] as const).map(([v, r]) => (
+          {([["conteudo", "Conteúdo"], ["presenca", "Presença"], ["conclusao", "Conclusão"]] as const).map(([v, r]) => (
             <button
               key={v} onClick={() => setAba(v)}
               className={cn(
@@ -320,6 +321,7 @@ export function TreinamentoView({
       )}
 
       {podeEditar && aba === "presenca" && <ListaDePresenca treinamentoId={treinamentoId} />}
+      {podeEditar && aba === "conclusao" && <ListaDeConcluidosTreinamento treinamentoId={treinamentoId} />}
 
       <div className={cn("grid gap-6 lg:grid-cols-[1fr_320px]", podeEditar && aba !== "conteudo" && "hidden")}>
         {/* -------- Ficha da aula -------- */}
@@ -631,6 +633,9 @@ export function TreinamentoView({
           onSalvo={() => {
             setEditandoTreinamento(false); inv();
             qc.invalidateQueries({ queryKey: ["treinamentos"] });
+            // #221 F1 — mudar o percentual mínimo precisa refletir na régua
+            // sem precisar de F5: é o próprio critério de pronto da fatia.
+            qc.invalidateQueries({ queryKey: ["concluidos-treinamento", treinamentoId] });
           }}
         />
       )}
@@ -1164,7 +1169,7 @@ function TreinamentoDialog({
 }: {
   treinamento: {
     id: string; titulo: string; descricao: string | null; capa_url: string | null;
-    publicado: boolean; tolerancia_atraso_min?: number | null;
+    publicado: boolean; tolerancia_atraso_min?: number | null; percentual_minimo?: number | null;
   };
   gruposAtuais: string[]; onFechar: () => void; onSalvo: () => void;
 }) {
@@ -1175,6 +1180,8 @@ function TreinamentoDialog({
   // Texto, não número, no estado: com `useState<number>` o campo não deixa
   // apagar o "1" de "10" para digitar "5" — vira 0 no meio do caminho.
   const [tolerancia, setTolerancia] = useState(String(treinamento.tolerancia_atraso_min ?? 10));
+  // #221 F1 — a régua de conclusão. Mesmo motivo do texto acima.
+  const [percentualMinimo, setPercentualMinimo] = useState(String(treinamento.percentual_minimo ?? 100));
   const [grupos, setGrupos] = useState<string[]>(gruposAtuais);
 
   const gruposFn = useServerFn(meusGrupos);
@@ -1192,6 +1199,7 @@ function TreinamentoDialog({
           id: treinamento.id, titulo: titulo.trim(), descricao: descricao.trim() || null,
           capa_url: capaUrl.trim() || null, publicado,
           tolerancia_atraso_min: Math.min(120, Math.max(0, Number(tolerancia) || 0)),
+          percentual_minimo: Math.min(100, Math.max(1, Number(percentualMinimo) || 100)),
         },
       });
       await setGruposFn({ data: { treinamento_id: treinamento.id, group_ids: grupos } });
@@ -1259,6 +1267,23 @@ function TreinamentoDialog({
               Vale para a lista de presença e para a planilha que sai daqui. Não muda pontuação:
               atrasado conta como presente no ranking. <strong>Zero</strong> = qualquer minuto
               depois do início já é atraso.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Percentual mínimo para concluir</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number" min={1} max={100} className="w-24"
+                value={percentualMinimo}
+                onChange={(e) => setPercentualMinimo(e.target.value)}
+              />
+              <span className="text-sm text-muted-foreground">% das aulas cumpridas</span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Aula com horário conta pela presença (QR ou marcada à mão); aula gravada conta
+              quando o aluno marca como concluída. Aula cancelada não entra na conta.
+              <strong> Padrão 100%</strong> — mudar aqui vale a partir de agora, não reescreve
+              quem já tinha concluído pela régua anterior.
             </p>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">

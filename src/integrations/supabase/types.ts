@@ -967,6 +967,7 @@ export type Database = {
           id: string
           is_published: boolean
           owner_id: string
+          percentual_minimo: number
           sort_order: number
           title: string
           updated_at: string
@@ -979,6 +980,7 @@ export type Database = {
           id?: string
           is_published?: boolean
           owner_id: string
+          percentual_minimo?: number
           sort_order?: number
           title: string
           updated_at?: string
@@ -991,6 +993,7 @@ export type Database = {
           id?: string
           is_published?: boolean
           owner_id?: string
+          percentual_minimo?: number
           sort_order?: number
           title?: string
           updated_at?: string
@@ -1200,9 +1203,9 @@ export type Database = {
         Relationships: []
       }
       treinamentos: {
-        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; capa_url: string | null; publicado: boolean; created_at: string; updated_at: string; tolerancia_atraso_min: number }
-        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string; tolerancia_atraso_min?: number }
-        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string; tolerancia_atraso_min?: number }
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; capa_url: string | null; publicado: boolean; created_at: string; updated_at: string; tolerancia_atraso_min: number; percentual_minimo: number }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string; tolerancia_atraso_min?: number; percentual_minimo?: number }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; capa_url?: string | null; publicado?: boolean; created_at?: string; updated_at?: string; tolerancia_atraso_min?: number; percentual_minimo?: number }
         Relationships: []
       }
       treinamento_modulos: {
