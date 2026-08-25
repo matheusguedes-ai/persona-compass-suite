@@ -38,7 +38,7 @@ export default defineConfig({
   nitro: {
     routeRules: {
       "/sw.js": { headers: { "cache-control": "no-cache" } },
-      "/workbox-*.js": { headers: { "cache-control": "no-cache" } },
+      "/workbox-**": { headers: { "cache-control": "no-cache" } },
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any,
