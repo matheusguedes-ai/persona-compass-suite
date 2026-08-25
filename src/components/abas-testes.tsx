@@ -25,6 +25,10 @@ import { useFadeDeRolagem } from "@/lib/use-fade-de-rolagem";
 const ABAS = [
   { to: "/testes", label: "Testes", perm: "testes" },
   { to: "/envios", label: "Envios", perm: "envios" },
+  // #280 — central de acesso e download; reaproveita a permissão "testes" (a
+  // mesma que já protege o painel de respostas do construtor) em vez de
+  // criar uma quarta permissão só para isto.
+  { to: "/respostas", label: "Respostas", perm: "testes" },
 ] as const;
 
 export function AbasDeTestes() {

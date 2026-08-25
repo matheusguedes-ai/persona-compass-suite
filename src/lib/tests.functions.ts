@@ -1118,6 +1118,47 @@ export const getResponsesSummary = createServerFn({ method: "GET" })
     return { ...base, aggregates, respondents };
   });
 
+/** #280 — corpo de `getIndividualResponse` extraído para reaproveitar no
+ * download de PDF (`getIndividualResponseParaPdf`, em
+ * exportar-respostas.functions.ts), que precisa da MESMA busca com uma
+ * checagem de dono a mais na frente, em vez de duplicar a consulta. */
+export async function carregarRespostaIndividual(supabase: SupabaseClient<Database>, responseId: string) {
+  const { data: response, error: rErr } = await supabase
+    .from("test_responses")
+    .select("id, version_id, person_id, submitted_at, people(id, full_name, avatar_url)")
+    .eq("id", responseId)
+    .maybeSingle();
+  if (rErr) throw new Error(rErr.message);
+  if (!response) throw new Error("Resposta não encontrada.");
+  if (!response.person_id) throw new Error("Este teste é anônimo — não existe visão individual.");
+
+  const [{ data: version }, { data: questions, error: qErr }] = await Promise.all([
+    supabase.from("test_versions").select("id, title").eq("id", response.version_id).maybeSingle(),
+    supabase.from("test_questions").select("*").eq("version_id", response.version_id).order("sort_order"),
+  ]);
+  if (qErr) throw new Error(qErr.message);
+  const qs = questions ?? [];
+  const { data: options, error: oErr } = qs.length
+    ? await supabase.from("test_options").select("*").in("question_id", qs.map((q) => q.id)).order("sort_order")
+    : { data: [] as never[], error: null };
+  if (oErr) throw new Error(oErr.message);
+  const { data: answers, error: aErr } = await supabase
+    .from("test_answers").select("question_id, payload").eq("response_id", responseId);
+  if (aErr) throw new Error(aErr.message);
+  const porPergunta = new Map((answers ?? []).map((a) => [a.question_id, a.payload]));
+
+  return {
+    person: response.people,
+    version,
+    submitted_at: response.submitted_at,
+    questions: qs.map((q) => ({
+      ...q,
+      question_options: (options ?? []).filter((o) => o.question_id === q.id),
+      payload: porPergunta.get(q.id) ?? null,
+    })),
+  };
+}
+
 /** Resposta de UMA pessoa, pergunta por pergunta — só existe pra teste
  * identificado (RLS de test_responses já garante que só o dono vê; aqui
  * garantimos também que não é uma resposta anônima disfarçada). */
@@ -1126,42 +1167,32 @@ export const getIndividualResponse = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ response_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
-    const { supabase } = context;
-    const { data: response, error: rErr } = await supabase
-      .from("test_responses")
-      .select("id, version_id, person_id, submitted_at, people(id, full_name, avatar_url)")
-      .eq("id", data.response_id)
-      .maybeSingle();
-    if (rErr) throw new Error(rErr.message);
-    if (!response) throw new Error("Resposta não encontrada.");
-    if (!response.person_id) throw new Error("Este teste é anônimo — não existe visão individual.");
-
-    const [{ data: version }, { data: questions, error: qErr }] = await Promise.all([
-      supabase.from("test_versions").select("id, title").eq("id", response.version_id).maybeSingle(),
-      supabase.from("test_questions").select("*").eq("version_id", response.version_id).order("sort_order"),
-    ]);
-    if (qErr) throw new Error(qErr.message);
-    const qs = questions ?? [];
-    const { data: options, error: oErr } = qs.length
-      ? await supabase.from("test_options").select("*").in("question_id", qs.map((q) => q.id)).order("sort_order")
-      : { data: [] as never[], error: null };
-    if (oErr) throw new Error(oErr.message);
-    const { data: answers, error: aErr } = await supabase
-      .from("test_answers").select("question_id, payload").eq("response_id", data.response_id);
-    if (aErr) throw new Error(aErr.message);
-    const porPergunta = new Map((answers ?? []).map((a) => [a.question_id, a.payload]));
-
-    return {
-      person: response.people,
-      version,
-      submitted_at: response.submitted_at,
-      questions: qs.map((q) => ({
-        ...q,
-        question_options: (options ?? []).filter((o) => o.question_id === q.id),
-        payload: porPergunta.get(q.id) ?? null,
-      })),
-    };
+    return carregarRespostaIndividual(context.supabase, data.response_id);
   });
+
+/** Formata o payload de UMA pergunta no texto exibido — usado tanto no
+ * diálogo do painel de respostas quanto no PDF individual (#280): mesma
+ * regra por tipo, uma função só. */
+export function formatarResposta(q: { type: string; question_options: Array<{ id: string; label: string }>; payload: unknown }): string {
+  if (q.payload == null) return "— não respondida —";
+  const payload = q.payload as Record<string, unknown>;
+  if (q.type === "multiple_choice") {
+    const opt = q.question_options.find((o) => o.id === payload.option_id);
+    return opt?.label ?? "—";
+  }
+  if (q.type === "checkboxes") {
+    const ids = Array.isArray(payload.option_ids) ? (payload.option_ids as unknown[]) : [];
+    const labels = q.question_options.filter((o) => ids.includes(o.id)).map((o) => o.label);
+    return labels.length > 0 ? labels.join(", ") : "—";
+  }
+  if (q.type === "linear_scale") {
+    return typeof payload.value === "number" ? String(payload.value) : "—";
+  }
+  if (q.type === "short_text") {
+    return typeof payload.text === "string" && payload.text ? payload.text : "—";
+  }
+  return "—";
+}
 
 // ============================================================
 // Responses (mentor-authenticated)

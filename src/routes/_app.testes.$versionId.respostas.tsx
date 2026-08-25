@@ -12,13 +12,28 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { getResponsesSummary, getIndividualResponse } from "@/lib/tests.functions";
+import {
+  getResponsesSummary,
+  getIndividualResponse,
+  formatarResposta,
+} from "@/lib/tests.functions";
 import type { QuestionType } from "@/lib/tests.functions";
+import { getMyMembership } from "@/lib/team.functions";
 import { AbasDeTeste } from "@/components/abas-teste";
 import { Avatar } from "@/components/avatar-upload";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Lock, Inbox, CheckSquare, Circle, SlidersHorizontal, AlignLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  Lock,
+  Inbox,
+  CheckSquare,
+  Circle,
+  SlidersHorizontal,
+  AlignLeft,
+  Printer,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_app/testes/$versionId/respostas")({
   head: () => ({ meta: [{ title: "Respostas — Métrica Humana" }] }),
@@ -50,6 +65,15 @@ function RespostasPage() {
     queryKey: ["responses-summary", versionId],
     queryFn: () => fn({ data: { version_id: versionId } }),
   });
+  // #280 — só o dono baixa o PDF individual; colaborador continua abrindo o
+  // diálogo normalmente, só sem o botão.
+  const membershipFn = useServerFn(getMyMembership);
+  const { data: membership } = useQuery({
+    queryKey: ["my-membership"],
+    queryFn: () => membershipFn(),
+    staleTime: 300_000,
+  });
+  const souDono = (membership?.kind ?? "owner") === "owner";
   const [aberto, setAberto] = useState<string | null>(null);
 
   if (isLoading || !data) return <div className="py-16 text-center text-sm text-muted-foreground">Carregando…</div>;
@@ -194,7 +218,14 @@ function RespostasPage() {
         </>
       )}
 
-      {aberto && <RespostaIndividualDialog responseId={aberto} onClose={() => setAberto(null)} />}
+      {aberto && (
+        <RespostaIndividualDialog
+          versionId={versionId}
+          responseId={aberto}
+          souDono={souDono}
+          onClose={() => setAberto(null)}
+        />
+      )}
     </div>
   );
 }
@@ -266,7 +297,17 @@ function PerguntaAgregada({ question, agg }: { question: Pergunta; agg: Agregado
   );
 }
 
-function RespostaIndividualDialog({ responseId, onClose }: { responseId: string; onClose: () => void }) {
+function RespostaIndividualDialog({
+  versionId,
+  responseId,
+  souDono,
+  onClose,
+}: {
+  versionId: string;
+  responseId: string;
+  souDono: boolean;
+  onClose: () => void;
+}) {
   const fn = useServerFn(getIndividualResponse);
   const { data, isLoading } = useQuery({
     queryKey: ["individual-response", responseId],
@@ -283,6 +324,21 @@ function RespostaIndividualDialog({ responseId, onClose }: { responseId: string;
           <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>
         ) : (
           <div className="space-y-4">
+            {/* #280 — só o dono baixa; colaborador vê a mesma tela sem o
+                botão (a rota em si também recusa, não é só o botão escondido). */}
+            {souDono && (
+              <div className="flex justify-end">
+                <Button asChild variant="outline" size="sm">
+                  <Link
+                    to="/testes/$versionId/pdf/$responseId"
+                    params={{ versionId, responseId }}
+                    target="_blank"
+                  >
+                    <Printer className="size-3" /> Baixar PDF
+                  </Link>
+                </Button>
+              </div>
+            )}
             {data.questions.map((q) => (
               <div key={q.id} className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">{q.prompt}</p>
@@ -294,25 +350,4 @@ function RespostaIndividualDialog({ responseId, onClose }: { responseId: string;
       </DialogContent>
     </Dialog>
   );
-}
-
-function formatarResposta(q: { type: string; question_options: Array<{ id: string; label: string }>; payload: unknown }): string {
-  if (q.payload == null) return "— não respondida —";
-  const payload = q.payload as Record<string, unknown>;
-  if (q.type === "multiple_choice") {
-    const opt = q.question_options.find((o) => o.id === payload.option_id);
-    return opt?.label ?? "—";
-  }
-  if (q.type === "checkboxes") {
-    const ids = Array.isArray(payload.option_ids) ? (payload.option_ids as unknown[]) : [];
-    const labels = q.question_options.filter((o) => ids.includes(o.id)).map((o) => o.label);
-    return labels.length > 0 ? labels.join(", ") : "—";
-  }
-  if (q.type === "linear_scale") {
-    return typeof payload.value === "number" ? String(payload.value) : "—";
-  }
-  if (q.type === "short_text") {
-    return typeof payload.text === "string" && payload.text ? payload.text : "—";
-  }
-  return "—";
 }

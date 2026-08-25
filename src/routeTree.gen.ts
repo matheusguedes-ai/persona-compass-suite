@@ -26,6 +26,7 @@ import { Route as AppGruposRouteImport } from './routes/_app.grupos'
 import { Route as AppMentoresRouteImport } from './routes/_app.mentores'
 import { Route as AppMentoriasRouteImport } from './routes/_app.mentorias'
 import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
+import { Route as AppRespostasRouteImport } from './routes/_app.respostas'
 import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
@@ -61,6 +62,7 @@ import { Route as AppMentoriasIdRouteImport } from './routes/_app.mentorias.$id'
 import { Route as AppMentoriasAgendamentoRouteImport } from './routes/_app.mentorias.agendamento'
 import { Route as AppPessoasIndexRouteImport } from './routes/_app.pessoas.index'
 import { Route as AppPessoasIdRouteImport } from './routes/_app.pessoas.$id'
+import { Route as AppRespostasIndexRouteImport } from './routes/_app.respostas.index'
 import { Route as AppTestesIndexRouteImport } from './routes/_app.testes.index'
 import { Route as AlunoClassroomIndexRouteImport } from './routes/aluno.classroom.index'
 import { Route as AlunoClassroomTreinamentoIdRouteImport } from './routes/aluno.classroom.$treinamentoId'
@@ -79,6 +81,7 @@ import { Route as ApiPublicInviteIdRouteImport } from './routes/api.public.invit
 import { Route as ApiPublicReportBateriaIdRouteImport } from './routes/api.public.report-bateria.$id'
 import { Route as ApiPublicReportIdRouteImport } from './routes/api.public.report.$id'
 import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
+import { Route as AppTestesVersionIdPdfResponseIdRouteImport } from './routes/_app.testes.$versionId.pdf.$responseId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -164,6 +167,11 @@ const AppMentoriasRoute = AppMentoriasRouteImport.update({
 const AppPessoasRoute = AppPessoasRouteImport.update({
   id: '/pessoas',
   path: '/pessoas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRespostasRoute = AppRespostasRouteImport.update({
+  id: '/respostas',
+  path: '/respostas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTestesRoute = AppTestesRouteImport.update({
@@ -344,6 +352,11 @@ const AppPessoasIdRoute = AppPessoasIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppPessoasRoute,
 } as any)
+const AppRespostasIndexRoute = AppRespostasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRespostasRoute,
+} as any)
 const AppTestesIndexRoute = AppTestesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -438,6 +451,12 @@ const ApiPublicResponseIdRoute = ApiPublicResponseIdRouteImport.update({
   path: '/api/public/response/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppTestesVersionIdPdfResponseIdRoute =
+  AppTestesVersionIdPdfResponseIdRouteImport.update({
+    id: '/$versionId/pdf/$responseId',
+    path: '/$versionId/pdf/$responseId',
+    getParentRoute: () => AppTestesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -456,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/mentores': typeof AppMentoresRoute
   '/mentorias': typeof AppMentoriasRouteWithChildren
   '/pessoas': typeof AppPessoasRouteWithChildren
+  '/respostas': typeof AppRespostasRouteWithChildren
   '/testes': typeof AppTestesRouteWithChildren
   '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
@@ -497,6 +517,7 @@ export interface FileRoutesByFullPath {
   '/grupos/': typeof AppGruposIndexRoute
   '/mentorias/': typeof AppMentoriasIndexRoute
   '/pessoas/': typeof AppPessoasIndexRoute
+  '/respostas/': typeof AppRespostasIndexRoute
   '/testes/': typeof AppTestesIndexRoute
   '/aluno/classroom/': typeof AlunoClassroomIndexRoute
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
@@ -509,6 +530,7 @@ export interface FileRoutesByFullPath {
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
+  '/testes/$versionId/pdf/$responseId': typeof AppTestesVersionIdPdfResponseIdRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -562,6 +584,7 @@ export interface FileRoutesByTo {
   '/grupos': typeof AppGruposIndexRoute
   '/mentorias': typeof AppMentoriasIndexRoute
   '/pessoas': typeof AppPessoasIndexRoute
+  '/respostas': typeof AppRespostasIndexRoute
   '/testes': typeof AppTestesIndexRoute
   '/aluno/classroom': typeof AlunoClassroomIndexRoute
   '/aluno/educacao': typeof AlunoEducacaoIndexRoute
@@ -574,6 +597,7 @@ export interface FileRoutesByTo {
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
+  '/testes/$versionId/pdf/$responseId': typeof AppTestesVersionIdPdfResponseIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -593,6 +617,7 @@ export interface FileRoutesById {
   '/_app/mentores': typeof AppMentoresRoute
   '/_app/mentorias': typeof AppMentoriasRouteWithChildren
   '/_app/pessoas': typeof AppPessoasRouteWithChildren
+  '/_app/respostas': typeof AppRespostasRouteWithChildren
   '/_app/testes': typeof AppTestesRouteWithChildren
   '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
@@ -635,6 +660,7 @@ export interface FileRoutesById {
   '/_app/grupos/': typeof AppGruposIndexRoute
   '/_app/mentorias/': typeof AppMentoriasIndexRoute
   '/_app/pessoas/': typeof AppPessoasIndexRoute
+  '/_app/respostas/': typeof AppRespostasIndexRoute
   '/_app/testes/': typeof AppTestesIndexRoute
   '/aluno/classroom/': typeof AlunoClassroomIndexRoute
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
@@ -647,6 +673,7 @@ export interface FileRoutesById {
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
+  '/_app/testes/$versionId/pdf/$responseId': typeof AppTestesVersionIdPdfResponseIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -667,6 +694,7 @@ export interface FileRouteTypes {
     | '/mentores'
     | '/mentorias'
     | '/pessoas'
+    | '/respostas'
     | '/testes'
     | '/agendar/$slug'
     | '/aluno/agenda'
@@ -708,6 +736,7 @@ export interface FileRouteTypes {
     | '/grupos/'
     | '/mentorias/'
     | '/pessoas/'
+    | '/respostas/'
     | '/testes/'
     | '/aluno/classroom/'
     | '/aluno/educacao/'
@@ -720,6 +749,7 @@ export interface FileRouteTypes {
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
+    | '/testes/$versionId/pdf/$responseId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -773,6 +803,7 @@ export interface FileRouteTypes {
     | '/grupos'
     | '/mentorias'
     | '/pessoas'
+    | '/respostas'
     | '/testes'
     | '/aluno/classroom'
     | '/aluno/educacao'
@@ -785,6 +816,7 @@ export interface FileRouteTypes {
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
+    | '/testes/$versionId/pdf/$responseId'
   id:
     | '__root__'
     | '/_app'
@@ -803,6 +835,7 @@ export interface FileRouteTypes {
     | '/_app/mentores'
     | '/_app/mentorias'
     | '/_app/pessoas'
+    | '/_app/respostas'
     | '/_app/testes'
     | '/agendar/$slug'
     | '/aluno/agenda'
@@ -845,6 +878,7 @@ export interface FileRouteTypes {
     | '/_app/grupos/'
     | '/_app/mentorias/'
     | '/_app/pessoas/'
+    | '/_app/respostas/'
     | '/_app/testes/'
     | '/aluno/classroom/'
     | '/aluno/educacao/'
@@ -857,6 +891,7 @@ export interface FileRouteTypes {
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
+    | '/_app/testes/$versionId/pdf/$responseId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1012,6 +1047,13 @@ declare module '@tanstack/react-router' {
       path: '/pessoas'
       fullPath: '/pessoas'
       preLoaderRoute: typeof AppPessoasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/respostas': {
+      id: '/_app/respostas'
+      path: '/respostas'
+      fullPath: '/respostas'
+      preLoaderRoute: typeof AppRespostasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/testes': {
@@ -1259,6 +1301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPessoasIdRouteImport
       parentRoute: typeof AppPessoasRoute
     }
+    '/_app/respostas/': {
+      id: '/_app/respostas/'
+      path: '/'
+      fullPath: '/respostas/'
+      preLoaderRoute: typeof AppRespostasIndexRouteImport
+      parentRoute: typeof AppRespostasRoute
+    }
     '/_app/testes/': {
       id: '/_app/testes/'
       path: '/'
@@ -1385,6 +1434,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicResponseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/testes/$versionId/pdf/$responseId': {
+      id: '/_app/testes/$versionId/pdf/$responseId'
+      path: '/$versionId/pdf/$responseId'
+      fullPath: '/testes/$versionId/pdf/$responseId'
+      preLoaderRoute: typeof AppTestesVersionIdPdfResponseIdRouteImport
+      parentRoute: typeof AppTestesRoute
+    }
   }
 }
 
@@ -1446,16 +1502,30 @@ const AppPessoasRouteWithChildren = AppPessoasRoute._addFileChildren(
   AppPessoasRouteChildren,
 )
 
+interface AppRespostasRouteChildren {
+  AppRespostasIndexRoute: typeof AppRespostasIndexRoute
+}
+
+const AppRespostasRouteChildren: AppRespostasRouteChildren = {
+  AppRespostasIndexRoute: AppRespostasIndexRoute,
+}
+
+const AppRespostasRouteWithChildren = AppRespostasRoute._addFileChildren(
+  AppRespostasRouteChildren,
+)
+
 interface AppTestesRouteChildren {
   AppTestesIndexRoute: typeof AppTestesIndexRoute
   AppTestesVersionIdEditarRoute: typeof AppTestesVersionIdEditarRoute
   AppTestesVersionIdRespostasRoute: typeof AppTestesVersionIdRespostasRoute
+  AppTestesVersionIdPdfResponseIdRoute: typeof AppTestesVersionIdPdfResponseIdRoute
 }
 
 const AppTestesRouteChildren: AppTestesRouteChildren = {
   AppTestesIndexRoute: AppTestesIndexRoute,
   AppTestesVersionIdEditarRoute: AppTestesVersionIdEditarRoute,
   AppTestesVersionIdRespostasRoute: AppTestesVersionIdRespostasRoute,
+  AppTestesVersionIdPdfResponseIdRoute: AppTestesVersionIdPdfResponseIdRoute,
 }
 
 const AppTestesRouteWithChildren = AppTestesRoute._addFileChildren(
@@ -1472,6 +1542,7 @@ interface AppRouteChildren {
   AppMentoresRoute: typeof AppMentoresRoute
   AppMentoriasRoute: typeof AppMentoriasRouteWithChildren
   AppPessoasRoute: typeof AppPessoasRouteWithChildren
+  AppRespostasRoute: typeof AppRespostasRouteWithChildren
   AppTestesRoute: typeof AppTestesRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppClassroomTreinamentoIdRoute: typeof AppClassroomTreinamentoIdRoute
@@ -1490,6 +1561,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMentoresRoute: AppMentoresRoute,
   AppMentoriasRoute: AppMentoriasRouteWithChildren,
   AppPessoasRoute: AppPessoasRouteWithChildren,
+  AppRespostasRoute: AppRespostasRouteWithChildren,
   AppTestesRoute: AppTestesRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppClassroomTreinamentoIdRoute: AppClassroomTreinamentoIdRoute,
