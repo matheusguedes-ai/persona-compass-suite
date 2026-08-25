@@ -8,11 +8,57 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { registerSW } from "virtual:pwa-register";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CurrentUserProvider } from "../lib/role-context";
 import { SCRIPT_ANTI_PISCADA, ThemeProvider } from "@/lib/theme";
+
+/**
+ * #279 F6 — service worker do PWA. Registro manual (não o injetado
+ * automático do plugin): este projeto não tem um index.html estático para
+ * o plugin injetar o script nele — cada rota é montada pelo Nitro na hora
+ * do pedido — então o registro precisa acontecer aqui, no código do próprio
+ * app, depois de montado no navegador.
+ *
+ * `registerType: "autoUpdate"` (vite.config.ts) já faz o service worker
+ * novo assumir sozinho, sem esperar as abas antigas fecharem. O
+ * `onNeedRefresh` abaixo é redundância de propósito — força a troca sem
+ * perguntar nada, mesmo que o instante exato em que o evento disparar varie
+ * entre navegadores. E como a plataforma publica várias vezes por dia, o
+ * `setInterval` confere a cada hora — sem ele, o navegador só checaria
+ * sozinho a cada navegação ou, no limite, a cada 24h.
+ */
+function useServiceWorkerDoApp() {
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    let idDoIntervalo: number | undefined;
+    const atualizar = registerSW({
+      immediate: true,
+      onRegisteredSW(_url, registration) {
+        if (!registration) return;
+        idDoIntervalo = window.setInterval(
+          () => {
+            void registration.update();
+          },
+          60 * 60 * 1000,
+        );
+      },
+      onNeedRefresh() {
+        void atualizar(true);
+      },
+      onRegisterError(erro) {
+        console.error("[pwa] service worker não registrou:", erro);
+      },
+    });
+    // RootComponent nunca desmonta na vida normal do app (é a raiz), mas o
+    // efeito ainda precisa saber limpar o intervalo se algum dia isso mudar.
+    return () => {
+      if (idDoIntervalo !== undefined) window.clearInterval(idDoIntervalo);
+    };
+  }, []);
+}
 
 function NotFoundComponent() {
   return (
@@ -137,6 +183,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useServiceWorkerDoApp();
 
   return (
     <QueryClientProvider client={queryClient}>
