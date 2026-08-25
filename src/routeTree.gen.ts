@@ -40,6 +40,7 @@ import { Route as AlunoRankingRouteImport } from './routes/aluno.ranking'
 import { Route as ApiManifestRouteImport } from './routes/api.manifest'
 import { Route as ApiMarcaRouteImport } from './routes/api.marca'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
+import { Route as CertificadoCertificadoIdRouteImport } from './routes/certificado.$certificadoId'
 import { Route as CheckinAulaIdRouteImport } from './routes/checkin.$aulaId'
 import { Route as ConviteEquipeTokenRouteImport } from './routes/convite-equipe.$token'
 import { Route as ConviteLinkIdRouteImport } from './routes/convite.$linkId'
@@ -239,6 +240,12 @@ const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
   path: '/bateria/$assessmentId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CertificadoCertificadoIdRoute =
+  CertificadoCertificadoIdRouteImport.update({
+    id: '/certificado/$certificadoId',
+    path: '/certificado/$certificadoId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CheckinAulaIdRoute = CheckinAulaIdRouteImport.update({
   id: '/checkin/$aulaId',
   path: '/checkin/$aulaId',
@@ -488,6 +495,7 @@ export interface FileRoutesByFullPath {
   '/api/manifest': typeof ApiManifestRoute
   '/api/marca': typeof ApiMarcaRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/certificado/$certificadoId': typeof CertificadoCertificadoIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -554,6 +562,7 @@ export interface FileRoutesByTo {
   '/api/manifest': typeof ApiManifestRoute
   '/api/marca': typeof ApiMarcaRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/certificado/$certificadoId': typeof CertificadoCertificadoIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -630,6 +639,7 @@ export interface FileRoutesById {
   '/api/manifest': typeof ApiManifestRoute
   '/api/marca': typeof ApiMarcaRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
+  '/certificado/$certificadoId': typeof CertificadoCertificadoIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
   '/convite-equipe/$token': typeof ConviteEquipeTokenRoute
   '/convite/$linkId': typeof ConviteLinkIdRoute
@@ -707,6 +717,7 @@ export interface FileRouteTypes {
     | '/api/manifest'
     | '/api/marca'
     | '/bateria/$assessmentId'
+    | '/certificado/$certificadoId'
     | '/checkin/$aulaId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
@@ -773,6 +784,7 @@ export interface FileRouteTypes {
     | '/api/manifest'
     | '/api/marca'
     | '/bateria/$assessmentId'
+    | '/certificado/$certificadoId'
     | '/checkin/$aulaId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
@@ -848,6 +860,7 @@ export interface FileRouteTypes {
     | '/api/manifest'
     | '/api/marca'
     | '/bateria/$assessmentId'
+    | '/certificado/$certificadoId'
     | '/checkin/$aulaId'
     | '/convite-equipe/$token'
     | '/convite/$linkId'
@@ -906,6 +919,7 @@ export interface RootRouteChildren {
   ApiManifestRoute: typeof ApiManifestRoute
   ApiMarcaRoute: typeof ApiMarcaRoute
   BateriaAssessmentIdRoute: typeof BateriaAssessmentIdRoute
+  CertificadoCertificadoIdRoute: typeof CertificadoCertificadoIdRoute
   CheckinAulaIdRoute: typeof CheckinAulaIdRoute
   ConviteEquipeTokenRoute: typeof ConviteEquipeTokenRoute
   ConviteLinkIdRoute: typeof ConviteLinkIdRoute
@@ -1145,6 +1159,13 @@ declare module '@tanstack/react-router' {
       path: '/bateria/$assessmentId'
       fullPath: '/bateria/$assessmentId'
       preLoaderRoute: typeof BateriaAssessmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/certificado/$certificadoId': {
+      id: '/certificado/$certificadoId'
+      path: '/certificado/$certificadoId'
+      fullPath: '/certificado/$certificadoId'
+      preLoaderRoute: typeof CertificadoCertificadoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkin/$aulaId': {
@@ -1617,6 +1638,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiManifestRoute: ApiManifestRoute,
   ApiMarcaRoute: ApiMarcaRoute,
   BateriaAssessmentIdRoute: BateriaAssessmentIdRoute,
+  CertificadoCertificadoIdRoute: CertificadoCertificadoIdRoute,
   CheckinAulaIdRoute: CheckinAulaIdRoute,
   ConviteEquipeTokenRoute: ConviteEquipeTokenRoute,
   ConviteLinkIdRoute: ConviteLinkIdRoute,

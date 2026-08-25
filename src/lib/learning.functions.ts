@@ -185,6 +185,39 @@ export const getTrack = createServerFn({ method: "GET" })
         .map((s) => ({ ...s, lessons: aulasPorModulo.get(s.id) ?? [] })),
     }));
 
+    // #221 F2 — autocheck do certificado: só para o aluno de verdade, com a
+    // trilha liberada. NUNCA na prévia "Ver como aluno" (`preview_person_id`)
+    // — ali quem está autenticado é o dono, e emitir em nome de quem está
+    // sendo pré-visualizado gravaria um certificado que a pessoa real nunca
+    // pediu nem ganhou. Mesma régua central de `listaDeConcluidosTrilha` —
+    // nunca uma segunda conta.
+    let meuCertificado: { id: string; emitido_em: string } | null = null;
+    if (!data.preview_person_id && liberada) {
+      const conclusao = await calcularConclusoesDaTrilha(supabase, data.id);
+      const minhaLinha = conclusao.pessoas.find((p) => p.user_id === userId);
+      if (minhaLinha) {
+        if (minhaLinha.concluido) {
+          const { garantirCertificadosDaTrilha } = await import("@/lib/certificados.functions");
+          await garantirCertificadosDaTrilha(
+            conclusao.track.owner_id,
+            conclusao.track.id,
+            conclusao.track.title,
+            [minhaLinha],
+          );
+        }
+        // Busca incondicional: certificado já emitido é "foto, não espelho" —
+        // continua valendo mesmo se um % exigido mais alto hoje tirar a
+        // pessoa de "concluído".
+        const { data: cert } = await supabase
+          .from("certificados")
+          .select("id, emitido_em")
+          .eq("trilha_id", data.id)
+          .eq("person_id", minhaLinha.person_id)
+          .maybeSingle();
+        meuCertificado = cert ?? null;
+      }
+    }
+
     return {
       track,
       // Trancada não devolve nada de dentro. A RLS já não entregaria, mas
@@ -193,6 +226,7 @@ export const getTrack = createServerFn({ method: "GET" })
       concluidas: liberada ? (progress.data ?? []).map((p) => p.lesson_id) : [],
       can_edit: podeEditar.data === true,
       liberada,
+      meu_certificado: meuCertificado,
     };
   });
 
@@ -541,97 +575,149 @@ export const toggleLessonDone = createServerFn({ method: "POST" })
  * nenhum está aberta a todos os alunos da conta; COM destino, é só quem foi
  * marcado (pessoa ou grupo). Só LÊ `learning_progress` — nenhuma escrita,
  * nenhuma regra de progresso tocada.
+ *
+ * #221 F2 — extraída para fora de `listaDeConcluidosTrilha` (que continua
+ * existindo, agora como uma casca fina em cima desta) para o autocheck do
+ * próprio aluno em `getTrack` fazer a MESMA pergunta, sem duas contas que
+ * podem discordar — é a razão de existir da régua central. Não checa
+ * permissão nenhuma; quem chama decide se pode ver a turma inteira ou só a
+ * própria linha.
+ */
+export async function calcularConclusoesDaTrilha(
+  supabase: SupabaseClient<Database>,
+  trackId: string,
+) {
+  const { data: track, error: eTr } = await supabase
+    .from("learning_tracks")
+    .select("id, title, owner_id, percentual_minimo")
+    .eq("id", trackId)
+    .maybeSingle();
+  if (eTr) throw new Error(eTr.message);
+  if (!track) throw new Error("Trilha não encontrada.");
+
+  const { data: aulas, error: eA } = await supabase
+    .from("learning_lessons")
+    .select("id")
+    .eq("track_id", trackId)
+    .eq("is_published", true);
+  if (eA) throw new Error(eA.message);
+  const aulaIds = new Set((aulas ?? []).map((a) => a.id));
+
+  const { data: destinos, error: eD } = await supabase
+    .from("learning_track_destinos").select("group_id, person_id").eq("track_id", trackId);
+  if (eD) throw new Error(eD.message);
+  const groupIds = (destinos ?? []).filter((d) => d.group_id).map((d) => d.group_id as string);
+  const personIds = (destinos ?? []).filter((d) => d.person_id).map((d) => d.person_id as string);
+
+  type Aluno = { person_id: string; nome: string; email: string | null; user_id: string | null };
+  const alunos = new Map<string, Aluno>();
+
+  if ((destinos ?? []).length === 0) {
+    // Sem destino nenhum, a trilha está aberta a TODOS os alunos da conta
+    // — mesma regra de `track_liberada`. "Aluno" aqui é qualquer cadastro
+    // (`people`) do dono da trilha: não existe papel "aluno" separado no
+    // banco, é `people` (cadastro do mentor) × `team_members` (equipe).
+    const { data: todos, error: eP } = await supabase
+      .from("people").select("id, full_name, email, user_id").eq("mentor_id", track.owner_id);
+    if (eP) throw new Error(eP.message);
+    for (const p of todos ?? []) {
+      alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
+    }
+  } else {
+    if (personIds.length) {
+      const { data: diretos, error: e1 } = await supabase
+        .from("people").select("id, full_name, email, user_id").in("id", personIds);
+      if (e1) throw new Error(e1.message);
+      for (const p of diretos ?? []) {
+        alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
+      }
+    }
+    if (groupIds.length) {
+      const { data: membros, error: e2 } = await supabase
+        .from("group_members").select("person_id, people(id, full_name, email, user_id)").in("group_id", groupIds);
+      if (e2) throw new Error(e2.message);
+      for (const m of membros ?? []) {
+        const p = m.people as unknown as { id: string; full_name: string; email: string | null; user_id: string | null } | null;
+        if (!p || alunos.has(p.id)) continue;
+        alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
+      }
+    }
+  }
+
+  const { data: progresso, error: eG } = await supabase
+    .from("learning_progress").select("lesson_id, user_id").eq("track_id", trackId);
+  if (eG) throw new Error(eG.message);
+
+  const feitosPorUser = new Map<string, number>();
+  for (const p of progresso ?? []) {
+    if (!aulaIds.has(p.lesson_id)) continue; // aula despublicada depois não conta
+    feitosPorUser.set(p.user_id, (feitosPorUser.get(p.user_id) ?? 0) + 1);
+  }
+
+  const { calcularConclusao } = await import("@/lib/regua-de-conclusao");
+  const pessoas = [...alunos.values()]
+    .map((aluno) => {
+      const feitos = aluno.user_id ? (feitosPorUser.get(aluno.user_id) ?? 0) : 0;
+      return {
+        person_id: aluno.person_id,
+        nome: aluno.nome,
+        email: aluno.email,
+        user_id: aluno.user_id,
+        ...calcularConclusao(feitos, aulaIds.size, track.percentual_minimo),
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }) ||
+        a.person_id.localeCompare(b.person_id),
+    );
+
+  return {
+    track: {
+      id: track.id,
+      title: track.title,
+      owner_id: track.owner_id,
+      percentual_minimo: track.percentual_minimo,
+    },
+    total_itens: aulaIds.size,
+    pessoas,
+  };
+}
+
+/**
+ * #221 F2 — a casca fina: checa permissão (só quem edita vê a turma
+ * inteira), pergunta para a régua central, e garante que quem concluiu
+ * tenha certificado emitido antes de devolver a lista — o mentor não aperta
+ * botão nenhum, isto roda toda vez que ele abre o bloco "Quem concluiu"
+ * (rotina já estabelecida pela F1).
  */
 export const listaDeConcluidosTrilha = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ track_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: pode, error: ePode } = await supabase.rpc("can_edit_track", { _track_id: data.track_id });
+    const { data: pode, error: ePode } = await supabase.rpc("can_edit_track", {
+      _track_id: data.track_id,
+    });
     if (ePode) throw new Error(ePode.message);
     if (pode !== true) throw new Error("Você não edita esta trilha.");
 
-    const { data: track, error: eTr } = await supabase
-      .from("learning_tracks")
-      .select("id, title, owner_id, percentual_minimo")
-      .eq("id", data.track_id)
-      .maybeSingle();
-    if (eTr) throw new Error(eTr.message);
-    if (!track) throw new Error("Trilha não encontrada.");
+    const resultado = await calcularConclusoesDaTrilha(supabase, data.track_id);
 
-    const { data: aulas, error: eA } = await supabase
-      .from("learning_lessons")
-      .select("id")
-      .eq("track_id", data.track_id)
-      .eq("is_published", true);
-    if (eA) throw new Error(eA.message);
-    const aulaIds = new Set((aulas ?? []).map((a) => a.id));
-
-    const { data: destinos, error: eD } = await supabase
-      .from("learning_track_destinos").select("group_id, person_id").eq("track_id", data.track_id);
-    if (eD) throw new Error(eD.message);
-    const groupIds = (destinos ?? []).filter((d) => d.group_id).map((d) => d.group_id as string);
-    const personIds = (destinos ?? []).filter((d) => d.person_id).map((d) => d.person_id as string);
-
-    type Aluno = { person_id: string; nome: string; email: string | null; user_id: string | null };
-    const alunos = new Map<string, Aluno>();
-
-    if ((destinos ?? []).length === 0) {
-      // Sem destino nenhum, a trilha está aberta a TODOS os alunos da conta
-      // — mesma regra de `track_liberada`. "Aluno" aqui é qualquer cadastro
-      // (`people`) do dono da trilha: não existe papel "aluno" separado no
-      // banco, é `people` (cadastro do mentor) × `team_members` (equipe).
-      const { data: todos, error: eP } = await supabase
-        .from("people").select("id, full_name, email, user_id").eq("mentor_id", track.owner_id);
-      if (eP) throw new Error(eP.message);
-      for (const p of todos ?? []) {
-        alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
-      }
-    } else {
-      if (personIds.length) {
-        const { data: diretos, error: e1 } = await supabase
-          .from("people").select("id, full_name, email, user_id").in("id", personIds);
-        if (e1) throw new Error(e1.message);
-        for (const p of diretos ?? []) {
-          alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
-        }
-      }
-      if (groupIds.length) {
-        const { data: membros, error: e2 } = await supabase
-          .from("group_members").select("person_id, people(id, full_name, email, user_id)").in("group_id", groupIds);
-        if (e2) throw new Error(e2.message);
-        for (const m of membros ?? []) {
-          const p = m.people as unknown as { id: string; full_name: string; email: string | null; user_id: string | null } | null;
-          if (!p || alunos.has(p.id)) continue;
-          alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
-        }
-      }
-    }
-
-    const { data: progresso, error: eG } = await supabase
-      .from("learning_progress").select("lesson_id, user_id").eq("track_id", data.track_id);
-    if (eG) throw new Error(eG.message);
-
-    const feitosPorUser = new Map<string, number>();
-    for (const p of progresso ?? []) {
-      if (!aulaIds.has(p.lesson_id)) continue; // aula despublicada depois não conta
-      feitosPorUser.set(p.user_id, (feitosPorUser.get(p.user_id) ?? 0) + 1);
-    }
-
-    const { calcularConclusao } = await import("@/lib/regua-de-conclusao");
-    const pessoas = [...alunos.values()]
-      .map((aluno) => {
-        const feitos = aluno.user_id ? (feitosPorUser.get(aluno.user_id) ?? 0) : 0;
-        return {
-          person_id: aluno.person_id, nome: aluno.nome, email: aluno.email,
-          ...calcularConclusao(feitos, aulaIds.size, track.percentual_minimo),
-        };
-      })
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }) || a.person_id.localeCompare(b.person_id));
+    const { garantirCertificadosDaTrilha, buscarCertificadosEmitidos } =
+      await import("@/lib/certificados.functions");
+    await garantirCertificadosDaTrilha(
+      resultado.track.owner_id,
+      resultado.track.id,
+      resultado.track.title,
+      resultado.pessoas,
+    );
+    const certificados = await buscarCertificadosEmitidos(supabase, {
+      trilha_id: data.track_id,
+    });
 
     return {
-      track: { id: track.id, title: track.title, percentual_minimo: track.percentual_minimo },
-      total_itens: aulaIds.size,
-      pessoas,
+      ...resultado,
+      pessoas: resultado.pessoas.map((p) => ({ ...p, certificado: certificados.get(p.person_id) ?? null })),
     };
   });

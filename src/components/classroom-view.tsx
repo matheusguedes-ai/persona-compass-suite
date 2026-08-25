@@ -37,8 +37,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, CalendarClock, CalendarOff, CircleCheck, Eye, EyeOff, ExternalLink, FileText, FolderKanban, Lock,
-  MapPin, NotebookPen, Paperclip, Pencil, Plus, Presentation, QrCode, Star, Trash2, Upload, Video, X,
+  ArrowLeft, Award, CalendarClock, CalendarOff, CircleCheck, Eye, EyeOff, ExternalLink, FileText, FolderKanban, Lock,
+  MapPin, NotebookPen, Paperclip, Pencil, Plus, Presentation, Printer, QrCode, Star, Trash2, Upload, Video, X,
 } from "lucide-react";
 import { CheckinDialog } from "@/components/checkin-professor";
 import { ListaDePresenca } from "@/components/lista-de-presenca";
@@ -310,6 +310,31 @@ export function TreinamentoView({
           )}
         </div>
       </div>
+
+      {/* #221 F2 — emitido sozinho, sem a pessoa pedir; isto só avisa que já
+          pode baixar. Nunca na prévia "Ver como aluno" — meu_certificado só
+          vem preenchido para o aluno de verdade (ver getTreinamento). */}
+      {!podeEditar && data.meu_certificado && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+          <div className="flex items-center gap-3">
+            <Award className="size-6 shrink-0 text-emerald-600" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">Certificado disponível</p>
+              <p className="text-xs text-emerald-700">
+                Você concluiu este treinamento — baixe o seu certificado quando quiser.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/certificado/$certificadoId"
+            params={{ certificadoId: data.meu_certificado.id }}
+            target="_blank"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            <Printer className="size-4" /> Baixar certificado
+          </Link>
+        </div>
+      )}
 
       {/* A lista de presença é assunto de quem conduz a aula, não do aluno. */}
       {podeEditar && (

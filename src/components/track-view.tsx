@@ -32,8 +32,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, Check, CircleCheck, ExternalLink, FileText, Image as ImageIcon, Lock, Paperclip,
-  Pencil, Plus, Trash2, Video, X,
+  ArrowLeft, Award, Check, CircleCheck, ExternalLink, FileText, Image as ImageIcon, Lock, Paperclip,
+  Pencil, Plus, Printer, Trash2, Video, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -198,6 +198,31 @@ export function TrackView({
           </div>
         )}
       </div>
+
+      {/* #221 F2 — emitido sozinho, sem a pessoa pedir; isto só avisa que já
+          pode baixar. Nunca na prévia "Ver como aluno" — meu_certificado só
+          vem preenchido para o aluno de verdade (ver getTrack). */}
+      {!podeEditar && data.meu_certificado && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+          <div className="flex items-center gap-3">
+            <Award className="size-6 shrink-0 text-emerald-600" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">Certificado disponível</p>
+              <p className="text-xs text-emerald-700">
+                Você concluiu esta trilha — baixe o seu certificado quando quiser.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/certificado/$certificadoId"
+            params={{ certificadoId: data.meu_certificado.id }}
+            target="_blank"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            <Printer className="size-4" /> Baixar certificado
+          </Link>
+        </div>
+      )}
 
       {/* #221 F1 — só quem edita vê quem concluiu; o aluno já tem a própria
           barra de progresso acima. */}

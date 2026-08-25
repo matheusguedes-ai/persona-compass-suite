@@ -9,7 +9,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Circle } from "lucide-react";
+import { Award, CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { listaDeConcluidosTreinamento } from "@/lib/classroom.functions";
 import { listaDeConcluidosTrilha } from "@/lib/learning.functions";
@@ -23,6 +23,9 @@ type Pessoa = {
   percentual: number | null;
   percentual_exigido: number;
   concluido: boolean;
+  // #221 F2 — null até o certificado ser emitido (automático, no instante em
+  // que esta lista é calculada — ver garantirCertificadosDoTreinamento/Trilha).
+  certificado: { id: string; emitido_em: string } | null;
 };
 
 function Lista({
@@ -82,6 +85,14 @@ function Lista({
             <span className="w-24 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
               {p.feitos} de {p.total} · {p.percentual ?? 0}%
             </span>
+            {/* #221 F2 — a emissão é automática (ninguém aperta botão); isto
+                só mostra o que já aconteceu. */}
+            {p.certificado && (
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                <Award className="size-3" />
+                Certificado em {new Date(p.certificado.emitido_em).toLocaleDateString("pt-BR")}
+              </span>
+            )}
           </div>
         ))}
       </div>

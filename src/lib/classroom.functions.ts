@@ -341,6 +341,48 @@ export const getTreinamento = createServerFn({ method: "GET" })
       (mat as { url: string | null }).url = urlsAssinadas[i];
     });
 
+    // #221 F2 — autocheck do certificado: só para o aluno de verdade vendo a
+    // própria tela. NUNCA na prévia "Ver como aluno" (`preview_person_id`)
+    // — ali quem está autenticado é o dono, e emitir em nome de quem está
+    // sendo pré-visualizado gravaria um certificado que a pessoa real nunca
+    // pediu nem ganhou. Mesma régua central de `listaDeConcluidosTreinamento`
+    // — nunca uma segunda conta.
+    let meuCertificado: { id: string; emitido_em: string } | null = null;
+    if (!data.preview_person_id) {
+      const { data: minhaPessoa } = await supabase
+        .from("people")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("mentor_id", treinamento.mentor_id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (minhaPessoa) {
+        const conclusao = await calcularConclusoesDoTreinamento(supabase, data.id);
+        const minhaLinha = conclusao.pessoas.find((p) => p.person_id === minhaPessoa.id);
+        if (minhaLinha?.concluido) {
+          const { garantirCertificadosDoTreinamento } =
+            await import("@/lib/certificados.functions");
+          await garantirCertificadosDoTreinamento(
+            conclusao.treinamento.mentor_id,
+            conclusao.treinamento.id,
+            conclusao.treinamento.titulo,
+            [minhaLinha],
+          );
+        }
+        // Busca incondicional: certificado já emitido é "foto, não espelho" —
+        // continua valendo mesmo se um % exigido mais alto hoje tirar a
+        // pessoa de "concluído".
+        const { data: cert } = await supabase
+          .from("certificados")
+          .select("id, emitido_em")
+          .eq("treinamento_id", data.id)
+          .eq("person_id", minhaPessoa.id)
+          .maybeSingle();
+        meuCertificado = cert ?? null;
+      }
+    }
+
     return {
       treinamento,
       modules,
@@ -350,6 +392,7 @@ export const getTreinamento = createServerFn({ method: "GET" })
       })),
       minha_frequencia: { estive: encontrosContados, de: encontrosFechados },
       can_edit: dono,
+      meu_certificado: meuCertificado,
     };
   });
 
@@ -1846,114 +1889,181 @@ function presencaContaNaRegua(situacao: string | null): boolean {
  *
  * Só LÊ `treinamento_presencas` e `treinamento_aula_conclusoes` — nenhuma
  * escrita, nenhuma regra de #231/#256 tocada.
+ *
+ * #221 F2 — extraída para fora de `listaDeConcluidosTreinamento` (que
+ * continua existindo, agora como uma casca fina em cima desta) para o
+ * autocheck do próprio aluno em `getTreinamento` fazer a MESMA pergunta,
+ * sem duas contas que podem discordar — é a razão de existir da régua
+ * central. Não checa permissão nenhuma; quem chama decide se pode ver a
+ * turma inteira ou só a própria linha.
+ */
+export async function calcularConclusoesDoTreinamento(
+  supabase: SupabaseClient<Database>,
+  treinamentoId: string,
+) {
+  const { data: treinamento, error: eT } = await supabase
+    .from("treinamentos")
+    .select("id, titulo, mentor_id, percentual_minimo")
+    .eq("id", treinamentoId)
+    .maybeSingle();
+  if (eT) throw new Error(eT.message);
+  if (!treinamento) throw new Error("Treinamento não encontrado.");
+
+  const { data: modulos, error: eM } = await supabase
+    .from("treinamento_modulos").select("id").eq("treinamento_id", treinamentoId);
+  if (eM) throw new Error(eM.message);
+  const modIds = (modulos ?? []).map((m) => m.id);
+
+  const { data: aulasCru, error: eA } = modIds.length
+    ? await supabase.from("treinamento_aulas").select("id, comeca_em, cancelada").in("modulo_id", modIds)
+    : { data: [], error: null };
+  if (eA) throw new Error(eA.message);
+
+  const validas = (aulasCru ?? []).filter((a) => !a.cancelada);
+  const comHorario = validas.filter((a) => a.comeca_em);
+  const gravadas = validas.filter((a) => !a.comeca_em);
+
+  const { data: tg } = await supabase
+    .from("treinamento_grupos").select("group_id").eq("treinamento_id", treinamentoId);
+  const groupIds = (tg ?? []).map((g) => g.group_id);
+  const { data: membros } = groupIds.length
+    ? await supabase.from("group_members").select("person_id, people(full_name, email)").in("group_id", groupIds)
+    : { data: [] as never[] };
+
+  const alunos = new Map<string, { person_id: string; nome: string; email: string | null }>();
+  for (const m of membros ?? []) {
+    const p = m.people as unknown as { full_name: string; email: string | null } | null;
+    if (!p || alunos.has(m.person_id)) continue;
+    alunos.set(m.person_id, { person_id: m.person_id, nome: p.full_name, email: p.email });
+  }
+
+  const [presRes, conclRes] = await Promise.all([
+    comHorario.length
+      ? supabase.from("treinamento_presencas").select("aula_id, person_id, situacao").in("aula_id", comHorario.map((a) => a.id))
+      : Promise.resolve({ data: [] as Array<{ aula_id: string; person_id: string; situacao: string | null }>, error: null }),
+    gravadas.length
+      ? supabase.from("treinamento_aula_conclusoes").select("aula_id, person_id").in("aula_id", gravadas.map((a) => a.id))
+      : Promise.resolve({ data: [] as Array<{ aula_id: string; person_id: string }>, error: null }),
+  ]);
+  if (presRes.error) throw new Error(presRes.error.message);
+  if (conclRes.error) throw new Error(conclRes.error.message);
+
+  // Quem cumpriu mas já saiu do grupo continua na lista — mesmo motivo de
+  // `montarTabelaPresenca`: a conclusão dele aconteceu, e sumir da lista
+  // por um ajuste de turma depois apagaria isso.
+  const idsExtras = new Set<string>();
+  for (const p of presRes.data ?? []) if (!alunos.has(p.person_id)) idsExtras.add(p.person_id);
+  for (const c of conclRes.data ?? []) if (!alunos.has(c.person_id)) idsExtras.add(c.person_id);
+  if (idsExtras.size) {
+    const { data: extras } = await supabase.from("people").select("id, full_name, email").in("id", [...idsExtras]);
+    for (const p of extras ?? []) alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email });
+  }
+
+  const presPorAluno = new Map<string, Map<string, string | null>>();
+  for (const p of presRes.data ?? []) {
+    let m = presPorAluno.get(p.person_id);
+    if (!m) { m = new Map(); presPorAluno.set(p.person_id, m); }
+    m.set(p.aula_id, p.situacao);
+  }
+  const conclPorAluno = new Map<string, Set<string>>();
+  for (const c of conclRes.data ?? []) {
+    let s = conclPorAluno.get(c.person_id);
+    if (!s) { s = new Set(); conclPorAluno.set(c.person_id, s); }
+    s.add(c.aula_id);
+  }
+
+  const { calcularConclusao } = await import("@/lib/regua-de-conclusao");
+  const pessoas = [...alunos.values()]
+    .map((aluno) => {
+      let feitos = 0;
+      const minhasPresencas = presPorAluno.get(aluno.person_id);
+      for (const a of comHorario) {
+        // `.has` primeiro: SEM registro nenhum nunca conta — só cai em
+        // `presencaContaNaRegua` quando existe uma linha de presença de
+        // verdade (cujo `situacao` pode legitimamente ser null).
+        if (minhasPresencas?.has(a.id) && presencaContaNaRegua(minhasPresencas.get(a.id) ?? null)) feitos++;
+      }
+      for (const a of gravadas) {
+        if (conclPorAluno.get(aluno.person_id)?.has(a.id)) feitos++;
+      }
+      return {
+        ...aluno,
+        ...calcularConclusao(feitos, validas.length, treinamento.percentual_minimo),
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }) ||
+        a.person_id.localeCompare(b.person_id),
+    );
+
+  return {
+    treinamento: {
+      id: treinamento.id,
+      titulo: treinamento.titulo,
+      mentor_id: treinamento.mentor_id,
+      percentual_minimo: treinamento.percentual_minimo,
+    },
+    total_itens: validas.length,
+    pessoas,
+  };
+}
+
+/**
+ * #221 F2 — a casca fina: checa permissão (só quem dá aula vê a turma
+ * inteira), pergunta para a régua central, e garante que quem concluiu
+ * tenha certificado emitido antes de devolver a lista — o mentor não aperta
+ * botão nenhum, isto roda toda vez que ele abre a aba "Conclusão" (rotina já
+ * estabelecida pela F1).
  */
 export const listaDeConcluidosTreinamento = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ treinamento_id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: treinamento, error: eT } = await supabase
-      .from("treinamentos")
-      .select("id, titulo, percentual_minimo")
-      .eq("id", data.treinamento_id)
-      .maybeSingle();
-    if (eT) throw new Error(eT.message);
-    if (!treinamento) throw new Error("Treinamento não encontrado.");
-
-    const { data: modulos, error: eM } = await supabase
-      .from("treinamento_modulos").select("id").eq("treinamento_id", data.treinamento_id);
-    if (eM) throw new Error(eM.message);
-    const modIds = (modulos ?? []).map((m) => m.id);
-
-    const { data: aulasCru, error: eA } = modIds.length
-      ? await supabase.from("treinamento_aulas").select("id, comeca_em, cancelada").in("modulo_id", modIds)
-      : { data: [], error: null };
-    if (eA) throw new Error(eA.message);
-
     // Mesmo truque de `tabelaDePresenca`: `posso_dar_aula` é por aula, não há
     // RPC de treinamento inteiro. Sem aula nenhuma, a RLS de `treinamentos`
     // já barrou quem não pode ler — não há mais nada para checar.
-    const primeira = (aulasCru ?? [])[0]?.id;
-    if (primeira) {
-      const { data: pode, error: ePode } = await supabase.rpc("posso_dar_aula", { p_aula: primeira });
+    const { data: modulos } = await supabase
+      .from("treinamento_modulos")
+      .select("id")
+      .eq("treinamento_id", data.treinamento_id);
+    const modIds = (modulos ?? []).map((m) => m.id);
+    const { data: primeiraAula } = modIds.length
+      ? await supabase
+          .from("treinamento_aulas")
+          .select("id")
+          .in("modulo_id", modIds)
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
+    if (primeiraAula) {
+      const { data: pode, error: ePode } = await supabase.rpc("posso_dar_aula", {
+        p_aula: primeiraAula.id,
+      });
       if (ePode) throw new Error(ePode.message);
       if (pode !== true) throw new Error("Você não conduz este treinamento.");
     }
 
-    const validas = (aulasCru ?? []).filter((a) => !a.cancelada);
-    const comHorario = validas.filter((a) => a.comeca_em);
-    const gravadas = validas.filter((a) => !a.comeca_em);
+    const resultado = await calcularConclusoesDoTreinamento(supabase, data.treinamento_id);
 
-    const { data: tg } = await supabase
-      .from("treinamento_grupos").select("group_id").eq("treinamento_id", data.treinamento_id);
-    const groupIds = (tg ?? []).map((g) => g.group_id);
-    const { data: membros } = groupIds.length
-      ? await supabase.from("group_members").select("person_id, people(full_name, email)").in("group_id", groupIds)
-      : { data: [] as never[] };
-
-    const alunos = new Map<string, { person_id: string; nome: string; email: string | null }>();
-    for (const m of membros ?? []) {
-      const p = m.people as unknown as { full_name: string; email: string | null } | null;
-      if (!p || alunos.has(m.person_id)) continue;
-      alunos.set(m.person_id, { person_id: m.person_id, nome: p.full_name, email: p.email });
-    }
-
-    const [presRes, conclRes] = await Promise.all([
-      comHorario.length
-        ? supabase.from("treinamento_presencas").select("aula_id, person_id, situacao").in("aula_id", comHorario.map((a) => a.id))
-        : Promise.resolve({ data: [] as Array<{ aula_id: string; person_id: string; situacao: string | null }>, error: null }),
-      gravadas.length
-        ? supabase.from("treinamento_aula_conclusoes").select("aula_id, person_id").in("aula_id", gravadas.map((a) => a.id))
-        : Promise.resolve({ data: [] as Array<{ aula_id: string; person_id: string }>, error: null }),
-    ]);
-    if (presRes.error) throw new Error(presRes.error.message);
-    if (conclRes.error) throw new Error(conclRes.error.message);
-
-    // Quem cumpriu mas já saiu do grupo continua na lista — mesmo motivo de
-    // `montarTabelaPresenca`: a conclusão dele aconteceu, e sumir da lista
-    // por um ajuste de turma depois apagaria isso.
-    const idsExtras = new Set<string>();
-    for (const p of presRes.data ?? []) if (!alunos.has(p.person_id)) idsExtras.add(p.person_id);
-    for (const c of conclRes.data ?? []) if (!alunos.has(c.person_id)) idsExtras.add(c.person_id);
-    if (idsExtras.size) {
-      const { data: extras } = await supabase.from("people").select("id, full_name, email").in("id", [...idsExtras]);
-      for (const p of extras ?? []) alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email });
-    }
-
-    const presPorAluno = new Map<string, Map<string, string | null>>();
-    for (const p of presRes.data ?? []) {
-      let m = presPorAluno.get(p.person_id);
-      if (!m) { m = new Map(); presPorAluno.set(p.person_id, m); }
-      m.set(p.aula_id, p.situacao);
-    }
-    const conclPorAluno = new Map<string, Set<string>>();
-    for (const c of conclRes.data ?? []) {
-      let s = conclPorAluno.get(c.person_id);
-      if (!s) { s = new Set(); conclPorAluno.set(c.person_id, s); }
-      s.add(c.aula_id);
-    }
-
-    const { calcularConclusao } = await import("@/lib/regua-de-conclusao");
-    const pessoas = [...alunos.values()]
-      .map((aluno) => {
-        let feitos = 0;
-        const minhasPresencas = presPorAluno.get(aluno.person_id);
-        for (const a of comHorario) {
-          // `.has` primeiro: SEM registro nenhum nunca conta — só cai em
-          // `presencaContaNaRegua` quando existe uma linha de presença de
-          // verdade (cujo `situacao` pode legitimamente ser null).
-          if (minhasPresencas?.has(a.id) && presencaContaNaRegua(minhasPresencas.get(a.id) ?? null)) feitos++;
-        }
-        for (const a of gravadas) {
-          if (conclPorAluno.get(aluno.person_id)?.has(a.id)) feitos++;
-        }
-        return { ...aluno, ...calcularConclusao(feitos, validas.length, treinamento.percentual_minimo) };
-      })
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }) || a.person_id.localeCompare(b.person_id));
+    const { garantirCertificadosDoTreinamento, buscarCertificadosEmitidos } =
+      await import("@/lib/certificados.functions");
+    await garantirCertificadosDoTreinamento(
+      resultado.treinamento.mentor_id,
+      resultado.treinamento.id,
+      resultado.treinamento.titulo,
+      resultado.pessoas,
+    );
+    const certificados = await buscarCertificadosEmitidos(supabase, {
+      treinamento_id: data.treinamento_id,
+    });
 
     return {
-      treinamento: { id: treinamento.id, titulo: treinamento.titulo, percentual_minimo: treinamento.percentual_minimo },
-      total_itens: validas.length,
-      pessoas,
+      ...resultado,
+      pessoas: resultado.pessoas.map((p) => ({
+        ...p,
+        certificado: certificados.get(p.person_id) ?? null,
+      })),
     };
   });

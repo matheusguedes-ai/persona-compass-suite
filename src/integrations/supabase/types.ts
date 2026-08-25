@@ -2102,6 +2102,70 @@ export type Database = {
           },
         ]
       }
+      certificados: {
+        Row: {
+          codigo: string
+          conta_id: string
+          emitido_em: string
+          id: string
+          nome_item: string
+          nome_pessoa: string
+          percentual_atingido: number
+          percentual_exigido: number
+          person_id: string
+          treinamento_id: string | null
+          trilha_id: string | null
+        }
+        Insert: {
+          codigo?: string
+          conta_id: string
+          emitido_em?: string
+          id?: string
+          nome_item: string
+          nome_pessoa: string
+          percentual_atingido: number
+          percentual_exigido: number
+          person_id: string
+          treinamento_id?: string | null
+          trilha_id?: string | null
+        }
+        Update: {
+          codigo?: string
+          conta_id?: string
+          emitido_em?: string
+          id?: string
+          nome_item?: string
+          nome_pessoa?: string
+          percentual_atingido?: number
+          percentual_exigido?: number
+          person_id?: string
+          treinamento_id?: string | null
+          trilha_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificados_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_treinamento_id_fkey"
+            columns: ["treinamento_id"]
+            isOneToOne: false
+            referencedRelation: "treinamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificados_trilha_id_fkey"
+            columns: ["trilha_id"]
+            isOneToOne: false
+            referencedRelation: "learning_tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
