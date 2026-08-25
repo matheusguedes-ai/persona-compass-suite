@@ -396,34 +396,68 @@ export function Agenda({
       </div>
 
       {modo === "mes" ? (
-        <div className="overflow-x-auto">
-          <div className="min-w-[42rem]">
-            <div className="grid grid-cols-7 gap-1 pb-1">
-              {SEMANA.map((d) => (
-                <div key={d} className="px-1 text-center text-xs font-medium text-muted-foreground">
-                  {d}
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {celulas.map((d, i) => {
-                if (!d) return <div key={`v${i}`} />;
-                const itens = doDia(d);
-                const ehHoje = mesmoDia(d, hoje);
-                return (
-                  <div
-                    key={d.toISOString()}
-                    className={`min-h-20 rounded-lg p-1.5 ring-1 ${
-                      ehHoje ? "bg-primary/5 ring-primary/40" : "bg-card ring-black/5"
-                    }`}
-                  >
-                    <span
-                      className={`text-xs tabular-nums ${
-                        ehHoje ? "font-semibold text-primary" : "text-muted-foreground"
+        <>
+          {/* Grade do mês — só a partir de md. Sete colunas não cabem num celular. */}
+          <div className="hidden overflow-x-auto md:block">
+            <div className="min-w-[42rem]">
+              <div className="grid grid-cols-7 gap-1 pb-1">
+                {SEMANA.map((d) => (
+                  <div key={d} className="px-1 text-center text-xs font-medium text-muted-foreground">
+                    {d}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {celulas.map((d, i) => {
+                  if (!d) return <div key={`v${i}`} />;
+                  const itens = doDia(d);
+                  const ehHoje = mesmoDia(d, hoje);
+                  return (
+                    <div
+                      key={d.toISOString()}
+                      className={`min-h-20 rounded-lg p-1.5 ring-1 ${
+                        ehHoje ? "bg-primary/5 ring-primary/40" : "bg-card ring-black/5"
                       }`}
                     >
-                      {d.getDate()}
-                    </span>
+                      <span
+                        className={`text-xs tabular-nums ${
+                          ehHoje ? "font-semibold text-primary" : "text-muted-foreground"
+                        }`}
+                      >
+                        {d.getDate()}
+                      </span>
+                      <ul className="mt-1 space-y-1">
+                        {itens.map((c) => (
+                          <li key={c.id}>
+                            {renderItem(c, `block w-full truncate rounded px-1.5 py-1 text-left text-[11px] leading-tight ${classesDoItem(c)}`)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Celular: mesmos dias do mês, em lista — mesma ideia da visão Semana
+              (um cartão por dia, sem grade, sem rolagem lateral), só que para
+              o mês inteiro em vez de 7 dias. */}
+          <div className="space-y-2 md:hidden">
+            {celulas.filter((d): d is Date => d !== null).map((d) => {
+              const itens = [...doDia(d)].sort((a, b) => a.quando.localeCompare(b.quando));
+              const ehHoje = mesmoDia(d, hoje);
+              return (
+                <div
+                  key={d.toISOString()}
+                  className={`rounded-lg p-2 ring-1 ${ehHoje ? "bg-primary/5 ring-primary/40" : "bg-card ring-black/5"}`}
+                >
+                  <div className={`text-xs font-medium capitalize ${ehHoje ? "text-primary" : "text-muted-foreground"}`}>
+                    {SEMANA[d.getDay()]} · {d.getDate()}
+                  </div>
+                  {itens.length === 0 ? (
+                    <p className="py-1 text-xs text-muted-foreground">Nada marcado.</p>
+                  ) : (
                     <ul className="mt-1 space-y-1">
                       {itens.map((c) => (
                         <li key={c.id}>
@@ -431,12 +465,12 @@ export function Agenda({
                         </li>
                       ))}
                     </ul>
-                  </div>
-                );
-              })}
-            </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
+        </>
       ) : (
         <>
           {/* Grade com horas — só a partir de md. Sete colunas não cabem num celular. */}
