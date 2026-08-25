@@ -8,6 +8,18 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+// #279 F6 — o Nitro deste projeto manda o build do cliente para caminhos
+// DIFERENTES dependendo de onde roda: `.output/public` fora do sandbox do
+// Lovable, `dist/client` dentro dele (mesma checagem que
+// node_modules/@lovable.dev/vite-tanstack-config/dist/index.js usa para
+// decidir `nitroOpts.output`, ~linha 557-565). O vite-plugin-pwa não lê essa
+// config — ele só olha para o outDir que passamos aqui — então, sem isto,
+// o build quebra ("não achei nada para cache") sempre que rodar dentro do
+// sandbox, mesmo funcionando perfeitamente fora dele.
+const dentroDoSandbox =
+  process.env.LOVABLE_SANDBOX === "1" || !!process.env.DEV_SERVER__PROJECT_PATH;
+const outDirDoClienteNitro = dentroDoSandbox ? "dist/client" : ".output/public";
+
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
@@ -42,11 +54,9 @@ export default defineConfig({
         injectRegister: false,
         manifest: false,
         includeManifestIcons: false,
-        // O Nitro deste projeto manda o build do cliente direto para
-        // .output/public (não o dist/ padrão do Vite) — sem isto, o plugin
-        // procura os arquivos no lugar errado e o build quebra dizendo que
-        // não achou nada para colocar em cache.
-        outDir: ".output/public",
+        // Ver o comentário grande no topo do arquivo — o caminho muda
+        // dependendo de rodar dentro ou fora do sandbox do Lovable.
+        outDir: outDirDoClienteNitro,
         workbox: {
           // Só os arquivos do próprio app (JS/CSS/ícone da aba). Nada de
           // HTML — este projeto não tem HTML estático, toda rota é servida
