@@ -14,6 +14,7 @@ import { Route as AlunoRouteImport } from './routes/aluno'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CriarSenhaRouteImport } from './routes/criar-senha'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as VerificarRouteImport } from './routes/verificar'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
@@ -48,6 +49,8 @@ import { Route as RelatorioBateriaAssessmentIdRouteImport } from './routes/relat
 import { Route as RelatorioResponseIdRouteImport } from './routes/relatorio.$responseId'
 import { Route as ResponderResponseIdRouteImport } from './routes/responder.$responseId'
 import { Route as SessaoIdRouteImport } from './routes/sessao.$id'
+import { Route as VerificarIndexRouteImport } from './routes/verificar.index'
+import { Route as VerificarCodigoRouteImport } from './routes/verificar.$codigo'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AppClassroomIndexRouteImport } from './routes/_app.classroom.index'
@@ -106,6 +109,11 @@ const CriarSenhaRoute = CriarSenhaRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerificarRoute = VerificarRouteImport.update({
+  id: '/verificar',
+  path: '/verificar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotmcpChar93ListToolsRoute =
@@ -281,6 +289,16 @@ const SessaoIdRoute = SessaoIdRouteImport.update({
   id: '/sessao/$id',
   path: '/sessao/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const VerificarIndexRoute = VerificarIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => VerificarRoute,
+} as any)
+const VerificarCodigoRoute = VerificarCodigoRouteImport.update({
+  id: '/$codigo',
+  path: '/$codigo',
+  getParentRoute: () => VerificarRoute,
 } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
@@ -471,6 +489,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/criar-senha': typeof CriarSenhaRoute
   '/mcp': typeof McpRoute
+  '/verificar': typeof VerificarRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agenda': typeof AppAgendaRoute
@@ -503,7 +522,9 @@ export interface FileRoutesByFullPath {
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/sessao/$id': typeof SessaoIdRoute
+  '/verificar/$codigo': typeof VerificarCodigoRoute
   '/aluno/': typeof AlunoIndexRoute
+  '/verificar/': typeof VerificarIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
@@ -570,8 +591,10 @@ export interface FileRoutesByTo {
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/sessao/$id': typeof SessaoIdRoute
+  '/verificar/$codigo': typeof VerificarCodigoRoute
   '/': typeof AppIndexRoute
   '/aluno': typeof AlunoIndexRoute
+  '/verificar': typeof VerificarIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
@@ -615,6 +638,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/criar-senha': typeof CriarSenhaRoute
   '/mcp': typeof McpRoute
+  '/verificar': typeof VerificarRouteWithChildren
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/agenda': typeof AppAgendaRoute
@@ -647,8 +671,10 @@ export interface FileRoutesById {
   '/relatorio/$responseId': typeof RelatorioResponseIdRoute
   '/responder/$responseId': typeof ResponderResponseIdRoute
   '/sessao/$id': typeof SessaoIdRoute
+  '/verificar/$codigo': typeof VerificarCodigoRoute
   '/_app/': typeof AppIndexRoute
   '/aluno/': typeof AlunoIndexRoute
+  '/verificar/': typeof VerificarIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_app/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
@@ -693,6 +719,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/criar-senha'
     | '/mcp'
+    | '/verificar'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/agenda'
@@ -725,7 +752,9 @@ export interface FileRouteTypes {
     | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/sessao/$id'
+    | '/verificar/$codigo'
     | '/aluno/'
+    | '/verificar/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/classroom/$treinamentoId'
@@ -792,8 +821,10 @@ export interface FileRouteTypes {
     | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/sessao/$id'
+    | '/verificar/$codigo'
     | '/'
     | '/aluno'
+    | '/verificar'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/classroom/$treinamentoId'
@@ -836,6 +867,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/criar-senha'
     | '/mcp'
+    | '/verificar'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_app/agenda'
@@ -868,8 +900,10 @@ export interface FileRouteTypes {
     | '/relatorio/$responseId'
     | '/responder/$responseId'
     | '/sessao/$id'
+    | '/verificar/$codigo'
     | '/_app/'
     | '/aluno/'
+    | '/verificar/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_app/classroom/$treinamentoId'
@@ -913,6 +947,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CriarSenhaRoute: typeof CriarSenhaRoute
   McpRoute: typeof McpRoute
+  VerificarRoute: typeof VerificarRouteWithChildren
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AgendarSlugRoute: typeof AgendarSlugRoute
@@ -977,6 +1012,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verificar': {
+      id: '/verificar'
+      path: '/verificar'
+      fullPath: '/verificar'
+      preLoaderRoute: typeof VerificarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/list-tools': {
@@ -1216,6 +1258,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/sessao/$id'
       preLoaderRoute: typeof SessaoIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/verificar/': {
+      id: '/verificar/'
+      path: '/'
+      fullPath: '/verificar/'
+      preLoaderRoute: typeof VerificarIndexRouteImport
+      parentRoute: typeof VerificarRoute
+    }
+    '/verificar/$codigo': {
+      id: '/verificar/$codigo'
+      path: '/$codigo'
+      fullPath: '/verificar/$codigo'
+      preLoaderRoute: typeof VerificarCodigoRouteImport
+      parentRoute: typeof VerificarRoute
     }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
@@ -1625,12 +1681,27 @@ const AlunoRouteChildren: AlunoRouteChildren = {
 
 const AlunoRouteWithChildren = AlunoRoute._addFileChildren(AlunoRouteChildren)
 
+interface VerificarRouteChildren {
+  VerificarCodigoRoute: typeof VerificarCodigoRoute
+  VerificarIndexRoute: typeof VerificarIndexRoute
+}
+
+const VerificarRouteChildren: VerificarRouteChildren = {
+  VerificarCodigoRoute: VerificarCodigoRoute,
+  VerificarIndexRoute: VerificarIndexRoute,
+}
+
+const VerificarRouteWithChildren = VerificarRoute._addFileChildren(
+  VerificarRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AlunoRoute: AlunoRouteWithChildren,
   AuthRoute: AuthRoute,
   CriarSenhaRoute: CriarSenhaRoute,
   McpRoute: McpRoute,
+  VerificarRoute: VerificarRouteWithChildren,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,

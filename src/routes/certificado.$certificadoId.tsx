@@ -22,6 +22,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
 import { getCertificadoParaPdf } from "@/lib/certificados.functions";
 import { Button } from "@/components/ui/button";
 import { PRINT_CSS, ReportBrandHeader, type ReportBrand } from "@/components/report/sections";
@@ -59,6 +60,37 @@ function CertificadoPage() {
     queryFn: () => fn({ data: { certificado_id: certificadoId } }),
   });
   const brand = useBrand();
+
+  // #221 F3 — QR para a verificação pública. Mesmo padrão de
+  // checkin-professor.tsx: import dinâmico (só pesa nesta tela) e SVG (fica
+  // nítido tanto na tela quanto impresso, em qualquer tamanho). A origem vem
+  // do navegador — domínio próprio, preview do Lovable ou localhost geram o
+  // QR certo sozinhos, sem variável de ambiente para manter em dia.
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  // Só existe depois do efeito (client-only, como o QR) — `window` não
+  // existe no SSR, e ler `location.host` direto no corpo do componente
+  // divergiria entre o HTML do servidor e a primeira hidratação.
+  const [host, setHost] = useState<string | null>(null);
+  const codigo = data?.codigo;
+  useEffect(() => {
+    if (!codigo) return;
+    setHost(window.location.host);
+    let vivo = true;
+    (async () => {
+      const QRCode = (await import("qrcode")).default;
+      const url = `${window.location.origin}/verificar/${codigo}`;
+      const texto = await QRCode.toString(url, {
+        type: "svg",
+        margin: 0,
+        errorCorrectionLevel: "M",
+        width: 96,
+      });
+      if (vivo) setQrSvg(texto);
+    })().catch(() => setQrSvg(null));
+    return () => {
+      vivo = false;
+    };
+  }, [codigo]);
 
   if (isLoading)
     return <div className="py-16 text-center text-sm text-muted-foreground">Carregando…</div>;
@@ -100,9 +132,22 @@ function CertificadoPage() {
         <p className="mt-8 text-sm text-muted-foreground">
           Emitido em {new Date(data.emitido_em).toLocaleDateString("pt-BR")}
         </p>
-        <p className="mt-10 text-[11px] text-muted-foreground">
-          Código de verificação: <span className="font-mono">{data.codigo}</span>
-        </p>
+        <div className="mt-10 flex flex-col items-center gap-2">
+          {qrSvg && (
+            <div
+              className="size-24 text-foreground [&_svg]:size-full"
+              dangerouslySetInnerHTML={{ __html: qrSvg }}
+            />
+          )}
+          {host && (
+            <p className="text-[11px] text-muted-foreground">
+              Verifique em <span className="font-medium text-foreground">{host}/verificar</span>
+            </p>
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            Código: <span className="font-mono">{data.codigo}</span>
+          </p>
+        </div>
       </div>
     </div>
   );

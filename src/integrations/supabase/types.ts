@@ -2166,6 +2166,24 @@ export type Database = {
           },
         ]
       }
+      verificacao_certificado_limite: {
+        Row: {
+          janela_inicio: string
+          origem: string
+          tentativas: number
+        }
+        Insert: {
+          janela_inicio?: string
+          origem: string
+          tentativas?: number
+        }
+        Update: {
+          janela_inicio?: string
+          origem?: string
+          tentativas?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
