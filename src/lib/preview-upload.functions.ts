@@ -21,7 +21,12 @@ import { assinarUrl, partirUrl, TTL_ARQUIVO_SEGUNDOS } from "@/lib/storage-assin
 
 export const assinarMeuEnvio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ url: z.string().url() }).parse(d))
+  // #282 — recebe o identificador interno (bucket/caminho), não mais uma URL:
+  // `z.string().url()` rejeitaria isso na cara. Quem garante que é algo do
+  // nosso storage (e não texto qualquer) é `partirUrl` logo abaixo, e quem
+  // garante que é do PRÓPRIO dono é a checagem de `dono` na sequência — a
+  // validação de formato aqui não precisa fazer esse trabalho de novo.
+  .inputValidator((d) => z.object({ url: z.string().trim().min(1) }).parse(d))
   .handler(async ({ context, data }) => {
     const alvo = partirUrl(data.url);
     const dono = alvo?.caminho.split("/")[0];

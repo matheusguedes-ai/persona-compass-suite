@@ -87,14 +87,18 @@ export function AvatarUpload({
         upsert: true,
       });
       if (error) throw new Error(erroDeUpload(error, "avatares"));
-      const { data } = supabase.storage.from("avatares").getPublicUrl(caminho);
+      // #282 — o que se grava é só o identificador interno (bucket/caminho),
+      // nunca `getPublicUrl()`: aquele endereço parece um link de internet,
+      // mas o bucket é privado e ele nunca funcionou sozinho — ver
+      // storage-assinado.server.ts.
+      const identificador = `avatares/${caminho}`;
       // Pede ao servidor o preview desta MESMA foto que acabei de enviar — o
       // bucket privado não deixa o navegador assinar sozinho. Se falhar, ainda
       // salva certo; só o preview imediato fica sem foto até recarregar.
       try {
-        setPreview((await previaFn({ data: { url: data.publicUrl } })).url);
+        setPreview((await previaFn({ data: { url: identificador } })).url);
       } catch { /* sem preview agora */ }
-      onChange(data.publicUrl);
+      onChange(identificador);
     } catch (e) {
       toast.error(mensagemDeErro(e, undefined, "Falha ao enviar a imagem."));
     } finally {

@@ -40,3 +40,29 @@ export const urlOpcional = z
   })
   .optional()
   .nullable();
+
+/**
+ * #282 — igual a `urlOpcional`, mas também aceita o identificador interno do
+ * NOSSO storage (`bucket/caminho`, sem domínio — ver storage-assinado.server.ts)
+ * além de um link http(s) de verdade. Só para os campos que o formulário de
+ * avatar/banner grava — `avatar_url`/`banner_url` de `people` e de `profiles`
+ * (o componente de upload é o mesmo para os dois). Os demais campos de link
+ * (site, LinkedIn, Instagram, capa por URL colada à mão…) continuam em
+ * `urlOpcional`: eles nunca recebem o identificador interno, só endereço
+ * externo digitado pela própria pessoa.
+ *
+ * Mesma lista de buckets de `storage-assinado.server.ts`, repetida aqui (não
+ * importada) de propósito: aquele arquivo é `.server.ts`, e este precisa
+ * continuar seguro para validar formulário no navegador também.
+ */
+const CAMINHO_INTERNO_DO_STORAGE = /^(biblioteca|avatares|marca|eventos|comunidade)\/.+$/;
+
+export const urlOuCaminhoInterno = z
+  .string()
+  .trim()
+  .max(600)
+  .refine((v) => v === "" || ehUrlSegura(v) || CAMINHO_INTERNO_DO_STORAGE.test(v), {
+    message: "Use um endereço começando com http:// ou https://",
+  })
+  .optional()
+  .nullable();

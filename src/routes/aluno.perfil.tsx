@@ -88,11 +88,13 @@ function PerfilAluno() {
         upsert: true,
       });
       if (error) throw new Error(erroDeUpload(error, "avatares"));
-      const { data: pub } = supabase.storage.from("avatares").getPublicUrl(caminho);
+      // #282 — identificador interno (bucket/caminho), não `getPublicUrl()` —
+      // mesmo motivo do avatar, ver avatar-upload.tsx e storage-assinado.server.ts.
+      const identificador = `avatares/${caminho}`;
       try {
-        setBannerPreview((await previaFn({ data: { url: pub.publicUrl } })).url);
+        setBannerPreview((await previaFn({ data: { url: identificador } })).url);
       } catch { /* sem preview agora */ }
-      setBanner(pub.publicUrl);
+      setBanner(identificador);
     } catch (e) {
       toast.error(mensagemDeErro(e, undefined, "Falha ao enviar o banner."));
     } finally {

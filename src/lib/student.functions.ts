@@ -7,7 +7,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { urlOpcional } from "@/lib/url-segura";
+import { urlOpcional, urlOuCaminhoInterno } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assinarArquivosMentoria } from "@/lib/storage-assinado.server";
 import { calcularElegibilidade, type Elegibilidade } from "@/lib/agendamento.functions";
@@ -151,9 +151,11 @@ export const updateMyStudentProfile = createServerFn({ method: "POST" })
     z.object({
       full_name: z.string().trim().min(2).max(160),
       phone: z.string().trim().max(40).optional().nullable(),
-      avatar_url: urlOpcional,
+      // #282 — avatar_url/banner_url chegam como identificador interno
+      // (bucket/caminho), não URL — ver AvatarUpload/enviarBanner.
+      avatar_url: urlOuCaminhoInterno,
       company_name: z.string().trim().max(160).optional().nullable(),
-      banner_url: urlOpcional,
+      banner_url: urlOuCaminhoInterno,
       linkedin_url: urlOpcional,
       instagram_url: urlOpcional,
       site_url: urlOpcional,

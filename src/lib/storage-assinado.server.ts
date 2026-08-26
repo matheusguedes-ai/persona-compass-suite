@@ -2,19 +2,29 @@
  * Assina URLs de arquivo dos buckets privados 'biblioteca', 'avatares',
  * 'marca', 'eventos' e 'comunidade'.
  *
- * O que fica gravado no banco continua sendo a URL no formato que
- * `getPublicUrl()` monta no navegador
- * (https://<projeto>.supabase.co/storage/v1/object/public/<bucket>/<caminho>).
- * Isso não muda — é só um IDENTIFICADOR de bucket+caminho. Ela nunca mais é
- * usada direto: aqui, na hora de responder ao cliente, vira uma URL ASSINADA
- * e com prazo, minerada pela service role.
+ * #282 — o que fica gravado no banco é só o CAMINHO INTERNO
+ * (`<bucket>/<conta>/<arquivo>`, ex.: `avatares/b676892d.../foto.png`) — nunca
+ * um endereço de internet de verdade. Até aqui (#221–#281) era gravada a URL
+ * inteira que `getPublicUrl()` monta no navegador
+ * (https://<projeto>.supabase.co/storage/v1/object/public/<bucket>/<caminho>),
+ * só que essa URL NUNCA funcionou sozinha — o bucket é privado, então aquele
+ * endereço "público" sempre foi, na prática, um jeito estranho de guardar
+ * bucket+caminho por baixo de um prefixo que não faz nada. `partirUrl`
+ * reconhece as DUAS formas (o caminho novo e a URL antiga) para o que já
+ * estava gravado antes desta fatia continuar funcionando sem migração forçada
+ * em tudo de uma vez — ver a migração de dados que converteu os registros de
+ * pessoa (avatar/banner) para o formato novo.
+ *
+ * De qualquer forma, o identificador nunca é usado direto: aqui, na hora de
+ * responder ao cliente, vira uma URL ASSINADA e com prazo, minerada pela
+ * service role.
  *
  * Link EXTERNO (Google Drive, YouTube etc — o modo "link" da tela) não bate
- * com o padrão do NOSSO domínio de storage, então passa direto, sem tentar
- * assinar. A checagem é sobre uma coisa técnica e estável (é ou não é uma URL
- * do nosso próprio storage) — diferente da checagem de UI que existia em
- * biblioteca.tsx (que tentava adivinhar em qual MODO a pessoa editou o
- * material, e essa foi substituída pela coluna `arquivo_proprio`).
+ * com nenhum dos dois padrões do NOSSO storage, então passa direto, sem
+ * tentar assinar. A checagem é sobre uma coisa técnica e estável (é ou não é
+ * um identificador do nosso próprio storage) — diferente da checagem de UI
+ * que existia em biblioteca.tsx (que tentava adivinhar em qual MODO a pessoa
+ * editou o material, e essa foi substituída pela coluna `arquivo_proprio`).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -41,12 +51,16 @@ export const TTL_MARCA_SEGUNDOS = 60 * 60;
 export const TTL_LOGO_EMAIL_SEGUNDOS = 30 * 24 * 60 * 60;
 
 const PADRAO_NOSSO_STORAGE = /\/storage\/v1\/object\/public\/(biblioteca|avatares|marca|eventos|comunidade)\/(.+)$/;
+/** #282 — o formato novo: só `bucket/caminho`, sem domínio nem prefixo nenhum. */
+const PADRAO_CAMINHO_INTERNO = /^(biblioteca|avatares|marca|eventos|comunidade)\/(.+)$/;
 
 /** Exportada para quem precisa decidir algo sobre bucket+caminho antes de assinar (ex.: checar dono). */
 export function partirUrl(url: string): { bucket: BucketAssinavel; caminho: string } | null {
-  const m = url.match(PADRAO_NOSSO_STORAGE);
-  if (!m) return null;
-  return { bucket: m[1] as BucketAssinavel, caminho: decodeURIComponent(m[2]) };
+  const antiga = url.match(PADRAO_NOSSO_STORAGE);
+  if (antiga) return { bucket: antiga[1] as BucketAssinavel, caminho: decodeURIComponent(antiga[2]) };
+  const nova = url.match(PADRAO_CAMINHO_INTERNO);
+  if (nova) return { bucket: nova[1] as BucketAssinavel, caminho: nova[2] };
+  return null;
 }
 
 /**

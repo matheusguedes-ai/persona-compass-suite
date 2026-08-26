@@ -444,6 +444,19 @@ export const updateTreinamento = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { id, ...rest } = data;
+    // #281/#282 — mesma trava de learning_tracks.cover_url e
+    // biblioteca_materiais/pastas.capa_url: se algum dia a tela de editar
+    // treinamento passar a carregar a capa já ASSINADA (hoje não carrega),
+    // reenviar o formulário sem trocar a capa não pode persistir esse link
+    // temporário no lugar do identificador certo.
+    if (typeof rest.capa_url === "string") {
+      const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+      if (ehUrlAssinadaNossa(rest.capa_url)) {
+        const { data: atual } = await context.supabase
+          .from("treinamentos").select("capa_url").eq("id", id).maybeSingle();
+        rest.capa_url = atual?.capa_url ?? null;
+      }
+    }
     const { data: row, error } = await context.supabase
       .from("treinamentos").update(rest).eq("id", id).select().single();
     if (error) throw new Error(error.message);

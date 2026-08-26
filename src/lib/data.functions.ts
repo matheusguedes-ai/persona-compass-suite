@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { urlOpcional } from "@/lib/url-segura";
+import { urlOpcional, urlOuCaminhoInterno } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao, exigirPermissaoOuMentor, exigirAcessoAoGrupo } from "@/lib/permissao.server";
 import { exigirDono, membershipDoUsuario } from "@/lib/team.functions";
@@ -535,7 +535,9 @@ const profileSchema = z.object({
  */
 const perfilPessoalSchema = z.object({
   full_name: z.string().trim().max(160).optional().nullable(),
-  avatar_url: urlOpcional,
+  // #282 — mesmo AvatarUpload do lado do aluno: chega como identificador
+  // interno (bucket/caminho), não URL.
+  avatar_url: urlOuCaminhoInterno,
 });
 
 export const getMyProfile = createServerFn({ method: "GET" })
