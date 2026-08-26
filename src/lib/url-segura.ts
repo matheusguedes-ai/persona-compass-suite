@@ -44,12 +44,14 @@ export const urlOpcional = z
 /**
  * #282 — igual a `urlOpcional`, mas também aceita o identificador interno do
  * NOSSO storage (`bucket/caminho`, sem domínio — ver storage-assinado.server.ts)
- * além de um link http(s) de verdade. Só para os campos que o formulário de
- * avatar/banner grava — `avatar_url`/`banner_url` de `people` e de `profiles`
- * (o componente de upload é o mesmo para os dois). Os demais campos de link
- * (site, LinkedIn, Instagram, capa por URL colada à mão…) continuam em
- * `urlOpcional`: eles nunca recebem o identificador interno, só endereço
- * externo digitado pela própria pessoa.
+ * além de um link http(s) de verdade. Para os campos que podem nascer de um
+ * upload nosso — `avatar_url`/`banner_url` de `people`/`profiles` (#282) e
+ * `treinamentos.capa_url` (#283, que ganhou upload por arquivo ao lado do link
+ * já existente). Os demais campos de link (site, LinkedIn, Instagram, capa de
+ * trilha/material/evento/marca…) continuam em `urlOpcional`: só recebem
+ * endereço externo digitado pela própria pessoa, nunca o identificador interno
+ * — aqueles uploads ainda gravam o formato antigo (`getPublicUrl()`), fora do
+ * escopo da #283.
  *
  * Mesma lista de buckets de `storage-assinado.server.ts`, repetida aqui (não
  * importada) de propósito: aquele arquivo é `.server.ts`, e este precisa

@@ -38,7 +38,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
-import { erroDeUpload } from "@/lib/erro-de-upload";
+import { CAMPOS, avisoDoCampo, erroDeArquivo, erroDeUpload } from "@/lib/erro-de-upload";
 import { bloqueadoNoPreview } from "@/lib/preview-mode";
 
 type Material = { id: string; title: string; url: string; kind: string };
@@ -768,7 +768,8 @@ function TrilhaDialog({
   const previaFn = useServerFn(assinarMeuEnvio);
 
   async function enviarCapa(f: File) {
-    if (f.size > 3 * 1024 * 1024) return toast.error("Imagem muito grande (máximo 3 MB).");
+    const erroTamanho = erroDeArquivo(f, "capa_trilha");
+    if (erroTamanho) return toast.error(erroTamanho);
     setEnviandoCapa(true);
     try {
       const { data: sessao } = await supabase.auth.getUser();
@@ -870,8 +871,8 @@ function TrilhaDialog({
               ) : (
                 <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                   <ImageIcon className="size-4" />
-                  {enviandoCapa ? "Enviando…" : "JPG ou PNG (até 3 MB)"}
-                  <input type="file" accept="image/jpeg,image/png" className="hidden"
+                  {enviandoCapa ? "Enviando…" : "Escolher arquivo"}
+                  <input type="file" accept={CAMPOS.capa_trilha.accept} className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) setParaRecortar(f);
@@ -879,7 +880,7 @@ function TrilhaDialog({
                     }} />
                 </label>
               )}
-              <p className="text-[11px] text-muted-foreground">Opcional. Sem capa, a trilha ganha uma cor própria.</p>
+              <p className="text-[11px] text-muted-foreground">{avisoDoCampo("capa_trilha")} Sem capa, a trilha ganha uma cor própria.</p>
             </div>
             <div className="space-y-2">
               <Label>Quem vai assistir</Label>

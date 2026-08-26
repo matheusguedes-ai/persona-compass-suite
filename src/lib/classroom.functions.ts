@@ -12,7 +12,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { urlOpcional } from "@/lib/url-segura";
+import { urlOpcional, urlOuCaminhoInterno } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -393,8 +393,16 @@ export const getTreinamento = createServerFn({ method: "GET" })
       }
     }
 
+    // #283 — a capa agora também pode nascer de upload (bucket privado), e o
+    // diálogo de editar passou a MOSTRAR essa imagem (antes só guardava o link
+    // em texto, que não precisava de assinatura para isso). `updateTreinamento`
+    // já tem a trava `ehUrlAssinadaNossa` desde a #281/#282: reenviar o
+    // formulário sem trocar a capa não persiste este link temporário no lugar
+    // do identificador certo.
+    const [capaAssinada] = await assinarUrls(supabaseAdmin, [treinamento.capa_url], TTL_ARQUIVO_SEGUNDOS);
+
     return {
-      treinamento,
+      treinamento: { ...treinamento, capa_url: capaAssinada ?? null },
       modules,
       grupos: (grupos.data ?? []).map((g) => ({
         id: g.group_id,
@@ -433,7 +441,9 @@ export const updateTreinamento = createServerFn({ method: "POST" })
       id: z.string().uuid(),
       titulo: z.string().trim().min(2).max(200).optional(),
       descricao: z.string().trim().max(2000).optional().nullable(),
-      capa_url: urlOpcional,
+      // #283 — desde que a capa também pode nascer de upload (padrão da #282,
+      // caminho interno), não é mais só link externo.
+      capa_url: urlOuCaminhoInterno,
       publicado: z.boolean().optional(),
       // O mesmo intervalo do CHECK do banco. Validar aqui também dá mensagem
       // legível em vez de erro cru do Postgres.

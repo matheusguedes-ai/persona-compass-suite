@@ -28,7 +28,7 @@ import { Heart, MessageCircle, Paperclip, Trash2, FileText, X, Send, BarChart3, 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { youtubeId } from "@/lib/learning.functions";
-import { ACCEPT, LIMITES, erroDeUpload } from "@/lib/erro-de-upload";
+import { ACCEPT, avisoDoCampo, erroDeArquivo, erroDeUpload } from "@/lib/erro-de-upload";
 
 /**
  * Marcações @[Nome](person_id) viram texto destacado e clicável — abre o
@@ -66,10 +66,6 @@ type MencaoAlvo =
   | { tipo: "post"; inicio: number; termo: string }
   | { tipo: "comentario"; postId: string; inicio: number; termo: string };
 
-// O MESMO numero do bucket. Antes era 8 aqui e 5 la: toda foto de celular
-// entre 5 e 8 MB passava pela mensagem amigavel da tela, subia pela rede
-// inteira e voltava com o erro cru do Supabase.
-const LIMITE_MB = LIMITES.comunidade.tamanhoMb;
 
 function quando(iso: string) {
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -187,7 +183,8 @@ export function Comunidade({
     const ehImagem = f.type.startsWith("image/");
     const ehPdf = f.type === "application/pdf";
     if (!ehImagem && !ehPdf) return toast.error("Só imagem ou PDF, por enquanto.");
-    if (f.size > LIMITE_MB * 1024 * 1024) return toast.error(`O arquivo passa de ${LIMITE_MB} MB.`);
+    const erroTamanho = erroDeArquivo(f, "imagem_post");
+    if (erroTamanho) return toast.error(erroTamanho);
     setEnviandoArquivo(true);
     const { data: sess } = await supabase.auth.getUser();
     const uid = sess.user?.id;
@@ -535,7 +532,10 @@ export function Comunidade({
         )}
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()} disabled={enviandoArquivo}>
+            <Button
+              variant="ghost" size="sm" onClick={() => fileRef.current?.click()} disabled={enviandoArquivo}
+              title={avisoDoCampo("imagem_post")}
+            >
               <Paperclip className="size-3.5" /> {enviandoArquivo ? "Enviando…" : "Imagem ou PDF"}
             </Button>
             <Button
@@ -574,6 +574,7 @@ export function Comunidade({
             <Send className="size-3.5" /> {publicar.isPending ? "Publicando…" : "Publicar"}
           </Button>
         </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">Anexo: {avisoDoCampo("imagem_post")}</p>
       </div>
       )}
 

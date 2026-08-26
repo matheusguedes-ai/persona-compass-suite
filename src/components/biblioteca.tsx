@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { ACCEPT, erroDeUpload } from "@/lib/erro-de-upload";
+import { ACCEPT, CAMPOS, avisoDoCampo, erroDeArquivo, erroDeUpload } from "@/lib/erro-de-upload";
 import { supabase } from "@/integrations/supabase/client";
 
 const ICONE = {
@@ -127,9 +127,14 @@ export function Biblioteca({
   const inv = () => qc.invalidateQueries({ queryKey: ["biblioteca"] });
 
   async function enviar(f: File, alvo: "arquivo" | "capa" | "capaPasta") {
-    const limite = alvo === "arquivo" ? 25 : 3;
-    if (f.size > limite * 1024 * 1024) {
-      return toast.error(`Arquivo muito grande (máximo ${limite} MB).`);
+    if (alvo === "arquivo") {
+      const limite = 25;
+      if (f.size > limite * 1024 * 1024) {
+        return toast.error(`Arquivo muito grande (máximo ${limite} MB).`);
+      }
+    } else {
+      const erroTamanho = erroDeArquivo(f, "capa_material");
+      if (erroTamanho) return toast.error(erroTamanho);
     }
     setEnviando(alvo);
     try {
@@ -423,8 +428,8 @@ export function Biblioteca({
               ) : (
                 <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                   <ImageIcon className="size-4" />
-                  {enviando === "capa" ? "Enviando…" : "JPG ou PNG (até 3 MB)"}
-                  <input type="file" accept="image/jpeg,image/png" className="hidden"
+                  {enviando === "capa" ? "Enviando…" : "Escolher arquivo"}
+                  <input type="file" accept={CAMPOS.capa_material.accept} className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) setParaRecortar({ arquivo: f, alvo: "capa" });
@@ -432,6 +437,7 @@ export function Biblioteca({
                     }} />
                 </label>
               )}
+              <p className="mt-1 text-[11px] text-muted-foreground">{avisoDoCampo("capa_material")}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -526,8 +532,8 @@ export function Biblioteca({
               ) : (
                 <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                   <ImageIcon className="size-4" />
-                  {enviando === "capaPasta" ? "Enviando…" : "JPG ou PNG (até 3 MB)"}
-                  <input type="file" accept="image/jpeg,image/png" className="hidden"
+                  {enviando === "capaPasta" ? "Enviando…" : "Escolher arquivo"}
+                  <input type="file" accept={CAMPOS.capa_material.accept} className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) setParaRecortar({ arquivo: f, alvo: "capaPasta" });
@@ -535,6 +541,7 @@ export function Biblioteca({
                     }} />
                 </label>
               )}
+              <p className="mt-1 text-[11px] text-muted-foreground">{avisoDoCampo("capa_material")}</p>
             </div>
             {formPasta.id ? (
               <Destinos alvo="pasta" id={formPasta.id} />

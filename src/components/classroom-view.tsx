@@ -37,8 +37,9 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft, Award, CalendarClock, CalendarOff, CircleCheck, Eye, EyeOff, ExternalLink, FileText, FolderKanban, Lock,
-  MapPin, NotebookPen, Paperclip, Pencil, Plus, Presentation, Printer, QrCode, Star, Trash2, Upload, Video, X,
+  ArrowLeft, Award, CalendarClock, CalendarOff, CircleCheck, Eye, EyeOff, ExternalLink, FileText, FolderKanban,
+  Image as ImageIcon, ImageUp, Loader2, Lock, MapPin, NotebookPen, Paperclip, Pencil, Plus, Presentation, Printer,
+  QrCode, Star, Trash2, Upload, Video, X,
 } from "lucide-react";
 import { CheckinDialog } from "@/components/checkin-professor";
 import { ListaDePresenca } from "@/components/lista-de-presenca";
@@ -46,8 +47,10 @@ import { ListaDeConcluidosTreinamento } from "@/components/lista-de-concluidos";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ACCEPT, erroDeUpload } from "@/lib/erro-de-upload";
+import { ACCEPT, CAMPOS, avisoDoCampo, erroDeArquivo, erroDeUpload } from "@/lib/erro-de-upload";
 import { bloqueadoNoPreview } from "@/lib/preview-mode";
+import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
+import { RecortarImagem } from "@/components/recorte-imagem";
 
 type MaterialT = { id: string; titulo: string; url: string; kind: string; visivel_aluno: boolean };
 type AulaT = {
@@ -1220,6 +1223,15 @@ function TreinamentoDialog({
   const [titulo, setTitulo] = useState(treinamento.titulo);
   const [descricao, setDescricao] = useState(treinamento.descricao ?? "");
   const [capaUrl, setCapaUrl] = useState(treinamento.capa_url ?? "");
+  // `capaPreview` guarda a versão ASSINADA de um upload feito NESTA sessão, só
+  // para o <img> ter o que mostrar antes de salvar — mesmo padrão do avatar e
+  // da capa de trilha. `null` cai no fallback: o que `getTreinamento` já
+  // devolveu assinado (capa que já existia) ou um link externo colado à mão.
+  const [capaPreview, setCapaPreview] = useState<string | null>(null);
+  const [enviandoCapa, setEnviandoCapa] = useState(false);
+  const [paraRecortarCapa, setParaRecortarCapa] = useState<File | null>(null);
+  const [linkCapa, setLinkCapa] = useState("");
+  const previaFn = useServerFn(assinarMeuEnvio);
   const [publicado, setPublicado] = useState(treinamento.publicado);
   // Texto, não número, no estado: com `useState<number>` o campo não deixa
   // apagar o "1" de "10" para digitar "5" — vira 0 no meio do caminho.
@@ -1227,6 +1239,36 @@ function TreinamentoDialog({
   // #221 F1 — a régua de conclusão. Mesmo motivo do texto acima.
   const [percentualMinimo, setPercentualMinimo] = useState(String(treinamento.percentual_minimo ?? 100));
   const [grupos, setGrupos] = useState<string[]>(gruposAtuais);
+
+  // #283 — envio de arquivo para a capa, ao lado do link que já existia.
+  // Mesmo mecanismo do avatar/capa de trilha: envia pro storage, guarda o
+  // IDENTIFICADOR interno (padrão da #282 — nunca link público, mesmo o
+  // bucket sendo o mesmo 'biblioteca' que a capa de trilha ainda usa no
+  // formato antigo), pede ao servidor uma versão assinada só para o preview
+  // imediato.
+  async function enviarCapa(recortado: File) {
+    const erroTamanho = erroDeArquivo(recortado, "capa_treinamento");
+    if (erroTamanho) { toast.error(erroTamanho); return; }
+    setEnviandoCapa(true);
+    try {
+      const { data: sessao } = await supabase.auth.getUser();
+      const uid = sessao.user?.id;
+      if (!uid) throw new Error("Sessão expirada. Entre de novo.");
+      const ext = (recortado.name.split(".").pop() || "jpg").toLowerCase();
+      const caminho = `${uid}/capa-treinamento-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("biblioteca").upload(caminho, recortado);
+      if (error) throw new Error(erroDeUpload(error, "biblioteca"));
+      const identificador = `biblioteca/${caminho}`;
+      try {
+        setCapaPreview((await previaFn({ data: { url: identificador } })).url);
+      } catch { /* sem preview agora — não impede salvar */ }
+      setCapaUrl(identificador);
+    } catch (e) {
+      toast.error(mensagemDeErro(e, undefined, "Falha ao enviar a capa."));
+    } finally {
+      setEnviandoCapa(false);
+    }
+  }
 
   const gruposFn = useServerFn(meusGrupos);
   const { data: dg } = useQuery({ queryKey: ["grupos"], queryFn: () => gruposFn() });
@@ -1278,9 +1320,50 @@ function TreinamentoDialog({
             <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3} maxLength={2000} />
           </div>
           <div className="space-y-2">
-            <Label>Imagem de capa (link)</Label>
-            <Input value={capaUrl} onChange={(e) => setCapaUrl(e.target.value)} maxLength={600} placeholder="https://..." />
-            <p className="text-[11px] text-muted-foreground">Opcional. Sem capa, o treinamento ganha uma cor própria.</p>
+            <Label>Imagem de capa</Label>
+            {capaUrl ? (
+              <div className="relative overflow-hidden rounded-lg">
+                <img src={capaPreview ?? capaUrl} alt="" className="h-28 w-full object-cover" />
+                <button type="button"
+                  onClick={() => { setCapaUrl(""); setCapaPreview(null); }}
+                  className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white"
+                  title="Remover capa">
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+                  <ImageIcon className="size-4" />
+                  {enviandoCapa
+                    ? <><Loader2 className="size-4 animate-spin" /> Enviando…</>
+                    : "Enviar arquivo do computador"}
+                  <input type="file" accept={CAMPOS.capa_treinamento.accept} className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setParaRecortarCapa(f);
+                      e.target.value = "";
+                    }} />
+                </label>
+                <div className="flex items-center gap-2">
+                  <Input value={linkCapa} onChange={(e) => setLinkCapa(e.target.value)}
+                    maxLength={600} placeholder="Ou cole um link (https://...)" className="flex-1" />
+                  <Button type="button" variant="outline" size="sm" disabled={!linkCapa.trim()}
+                    onClick={() => { setCapaUrl(linkCapa.trim()); setLinkCapa(""); }}>
+                    Usar link
+                  </Button>
+                </div>
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              {avisoDoCampo("capa_treinamento")} Opcional — sem capa, o treinamento ganha uma cor própria.
+            </p>
+            <RecortarImagem
+              arquivo={paraRecortarCapa}
+              aspecto={2}
+              onCancelar={() => setParaRecortarCapa(null)}
+              onConcluir={(recortado) => { setParaRecortarCapa(null); enviarCapa(recortado); }}
+            />
           </div>
           <div className="space-y-2">
             <Label>Grupos com acesso</Label>
@@ -1362,7 +1445,7 @@ function TreinamentoDialog({
           </AlertDialog>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={onFechar}>Cancelar</Button>
-            <Button type="submit" form="form-trein-edit" disabled={salvar.isPending}>
+            <Button type="submit" form="form-trein-edit" disabled={salvar.isPending || enviandoCapa}>
               {salvar.isPending ? "Salvando…" : "Salvar"}
             </Button>
           </div>

@@ -10,7 +10,7 @@ import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { RecortarImagem } from "@/components/recorte-imagem";
-import { erroDeUpload } from "@/lib/erro-de-upload";
+import { CAMPOS, avisoDoCampo, erroDeArquivo, erroDeUpload } from "@/lib/erro-de-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +80,8 @@ function PerfilAluno() {
 
   async function enviarBanner(recortado: File) {
     if (!data?.user_id) return;
+    const erroTamanho = erroDeArquivo(recortado, "banner_perfil");
+    if (erroTamanho) { toast.error(erroTamanho); return; }
     setEnviandoBanner(true);
     try {
       const caminho = `${data.user_id}/banner-${crypto.randomUUID()}.jpg`;
@@ -228,7 +230,7 @@ function PerfilAluno() {
             )}
           </div>
           <input
-            ref={bannerInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+            ref={bannerInputRef} type="file" accept={CAMPOS.banner_perfil.accept} className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) setParaRecortar(f);
@@ -246,7 +248,7 @@ function PerfilAluno() {
             )}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Imagem horizontal, PNG, JPG ou WEBP. Sem banner, aparece um fundo neutro no seu lugar.
+            {avisoDoCampo("banner_perfil")} Sem banner, aparece um fundo neutro no seu lugar.
           </p>
           <RecortarImagem
             arquivo={paraRecortar}
@@ -258,7 +260,7 @@ function PerfilAluno() {
         <div className="space-y-2">
           <Label>Foto</Label>
           <AvatarUpload url={foto} nome={nome} userId={data.user_id} onChange={setFoto} />
-          <p className="text-[11px] text-muted-foreground">PNG, JPG ou WEBP, até 2 MB.</p>
+          <p className="text-[11px] text-muted-foreground">{avisoDoCampo("avatar")}</p>
         </div>
         <div className="space-y-2">
           <Label>Nome completo</Label>

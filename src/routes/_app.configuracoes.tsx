@@ -10,6 +10,7 @@ import { BrandMark, MARCA_PADRAO } from "@/lib/brand";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { RecortarImagem } from "@/components/recorte-imagem";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
+import { CAMPOS, avisoDoCampo, erroDeArquivo, erroDeUpload } from "@/lib/erro-de-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -179,8 +180,9 @@ function ConfiguracoesPage() {
   async function enviarLogo(file: File) {
     const userId = data?.user_id;
     if (!userId) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("A imagem precisa ter no máximo 2 MB.");
+    const erroTamanho = erroDeArquivo(file, "logo_marca");
+    if (erroTamanho) {
+      toast.error(erroTamanho);
       return;
     }
     setEnviando(true);
@@ -191,7 +193,7 @@ function ConfiguracoesPage() {
         cacheControl: "3600",
         upsert: true,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(erroDeUpload(error, "marca"));
       const { data: pub } = supabase.storage.from("marca").getPublicUrl(caminho);
       // Pede ao servidor a versão assinada deste MESMO arquivo que acabei de
       // enviar, só para o preview — o bucket privado não deixa o navegador
@@ -218,6 +220,11 @@ function ConfiguracoesPage() {
   async function enviarIcone(file: File) {
     const userId = data?.user_id;
     if (!userId) return;
+    const erroTamanho = erroDeArquivo(file, "icone_marca");
+    if (erroTamanho) {
+      toast.error(erroTamanho);
+      return;
+    }
     setEnviandoIcone(true);
     try {
       const caminho = `${userId}/icone-${Date.now()}.jpg`;
@@ -225,7 +232,7 @@ function ConfiguracoesPage() {
         cacheControl: "3600",
         upsert: true,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(erroDeUpload(error, "marca"));
       const { data: pub } = supabase.storage.from("marca").getPublicUrl(caminho);
       try {
         setIconPreview((await previaLogoFn({ data: { url: pub.publicUrl } })).url);
@@ -247,6 +254,11 @@ function ConfiguracoesPage() {
   async function enviarLoginImagem(file: File) {
     const userId = data?.user_id;
     if (!userId) return;
+    const erroTamanho = erroDeArquivo(file, "imagem_login");
+    if (erroTamanho) {
+      toast.error(erroTamanho);
+      return;
+    }
     setEnviandoLoginImagem(true);
     try {
       const caminho = `${userId}/login-${Date.now()}.jpg`;
@@ -254,7 +266,7 @@ function ConfiguracoesPage() {
         cacheControl: "3600",
         upsert: true,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(erroDeUpload(error, "marca"));
       const { data: pub } = supabase.storage.from("marca").getPublicUrl(caminho);
       try {
         setLoginImagemPreview((await previaLogoFn({ data: { url: pub.publicUrl } })).url);
@@ -313,7 +325,7 @@ function ConfiguracoesPage() {
                 onChange={(u) => { setAvatarUrl(u); save.mutate({ avatar_url: u }); }}
               />
               <p className="text-[11px] text-muted-foreground">
-                Aparece no menu e para a sua equipe. PNG, JPG ou WEBP, até 2 MB.
+                Aparece no menu e para a sua equipe. {avisoDoCampo("avatar")}
               </p>
             </div>
             <div className="space-y-2">
@@ -382,7 +394,7 @@ function ConfiguracoesPage() {
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  accept={CAMPOS.logo_marca.accept}
                   className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarLogo(f); }}
                 />
@@ -395,7 +407,7 @@ function ConfiguracoesPage() {
                   </Button>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">PNG, JPG, WEBP ou SVG, até 2 MB. Fundo transparente fica melhor.</p>
+              <p className="text-[11px] text-muted-foreground">{avisoDoCampo("logo_marca")} Fundo transparente fica melhor.</p>
             </div>
 
             <div className="space-y-2">
@@ -410,7 +422,7 @@ function ConfiguracoesPage() {
                 <input
                   ref={iconFileRef}
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept={CAMPOS.icone_marca.accept}
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
@@ -428,8 +440,9 @@ function ConfiguracoesPage() {
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Diferente da logo: precisa ser quadrado e continuar legível bem pequeno. É o que aparece
-                na aba do navegador e na tela do celular de quem instalar a plataforma como aplicativo.
+                {avisoDoCampo("icone_marca")} Diferente da logo: precisa ser quadrado e continuar legível
+                bem pequeno. É o que aparece na aba do navegador e na tela do celular de quem instalar a
+                plataforma como aplicativo.
               </p>
             </div>
 
@@ -445,7 +458,7 @@ function ConfiguracoesPage() {
                 <input
                   ref={loginImagemFileRef}
                   type="file"
-                  accept="image/png,image/jpeg,image/webp"
+                  accept={CAMPOS.imagem_login.accept}
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
@@ -463,7 +476,8 @@ function ConfiguracoesPage() {
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                O painel ao lado do formulário de entrada. Sem imagem, fica sólido na cor principal.
+                {avisoDoCampo("imagem_login")} O painel ao lado do formulário de entrada. Sem imagem, fica
+                sólido na cor principal.
               </p>
             </div>
 

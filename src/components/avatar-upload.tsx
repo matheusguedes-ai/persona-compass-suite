@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ImageUp, Loader2, Trash2, UserRound } from "lucide-react";
 import { toast } from "sonner";
-import { erroDeUpload } from "@/lib/erro-de-upload";
+import { CAMPOS, erroDeArquivo, erroDeUpload } from "@/lib/erro-de-upload";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
 
 /** Iniciais do nome, para quando não há foto. */
@@ -65,8 +65,9 @@ export function AvatarUpload({
 
   async function enviar(file: File) {
     if (!userId) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("A imagem precisa ter no máximo 2 MB.");
+    const erroTamanho = erroDeArquivo(file, "avatar");
+    if (erroTamanho) {
+      toast.error(erroTamanho);
       return;
     }
     setEnviando(true);
@@ -111,7 +112,7 @@ export function AvatarUpload({
     <div className="flex flex-wrap items-center gap-4">
       <Avatar url={preview ?? url} nome={nome} size={size} />
       <input
-        ref={ref} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+        ref={ref} type="file" accept={CAMPOS.avatar.accept} className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) enviar(f); }}
       />
       <div className="flex flex-wrap gap-2">

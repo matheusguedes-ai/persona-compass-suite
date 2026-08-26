@@ -58,7 +58,106 @@ export const ACCEPT: Record<string, string> = {
     "text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
     "application/msword,application/vnd.openxmlformats-officedocument.presentationml.presentation," +
     "application/vnd.ms-powerpoint,text/plain",
+  avatares: "image/png,image/jpeg,image/webp",
+  marca: "image/png,image/jpeg,image/webp,image/svg+xml",
 };
+
+/**
+ * #283 — um lugar só para declarar o que cada TELA de envio de imagem aceita e
+ * exibe, para não repetir "PNG ou JPEG, até 3 MB" à mão em dez componentes.
+ *
+ * O tamanho e o formato aqui não são inventados: `tamanhoMb`, quando presente,
+ * é o mesmo número que a tela já aplicava antes desta config existir (a #283
+ * pediu para INFORMAR os limites, não mudá-los); ausente, cai no limite do
+ * bucket inteiro (`LIMITES`). `formatos` é só a mesma lista em português —
+ * várias telas aceitam apenas uma FATIA do que o bucket permite (ex.: o bucket
+ * 'biblioteca' também guarda PDF e planilha, que não servem como capa).
+ *
+ * `pixels` existe só nos três campos com medida recomendada pelo dono do
+ * produto (26/08) — os demais ficam sem, e o aviso sai só com formato e
+ * tamanho.
+ */
+export type CampoDeImagem =
+  | "avatar" | "banner_perfil" | "capa_treinamento" | "capa_trilha" | "capa_material"
+  | "banner_evento" | "logo_marca" | "icone_marca" | "imagem_login" | "imagem_post"
+  | "banner_academy";
+
+type ConfigDoCampo = {
+  bucket: keyof typeof LIMITES;
+  tamanhoMb?: number;
+  formatos: string;
+  accept: string;
+  pixels?: { largura: number; altura: number };
+};
+
+export const CAMPOS: Record<CampoDeImagem, ConfigDoCampo> = {
+  avatar: {
+    bucket: "avatares", formatos: "PNG, JPEG ou WEBP", accept: ACCEPT.avatares,
+    pixels: { largura: 400, altura: 400 },
+  },
+  banner_perfil: {
+    bucket: "avatares", formatos: "PNG, JPEG ou WEBP", accept: ACCEPT.avatares,
+    pixels: { largura: 1200, altura: 300 },
+  },
+  capa_treinamento: {
+    bucket: "biblioteca", tamanhoMb: 3, formatos: "PNG ou JPEG", accept: "image/png,image/jpeg",
+    pixels: { largura: 1200, altura: 600 },
+  },
+  capa_trilha: {
+    bucket: "biblioteca", tamanhoMb: 3, formatos: "PNG ou JPEG", accept: "image/png,image/jpeg",
+    pixels: { largura: 1200, altura: 600 },
+  },
+  capa_material: {
+    bucket: "biblioteca", tamanhoMb: 3, formatos: "PNG ou JPEG", accept: "image/png,image/jpeg",
+  },
+  banner_evento: {
+    bucket: "eventos", tamanhoMb: 3, formatos: "PNG ou JPEG", accept: "image/png,image/jpeg",
+  },
+  logo_marca: { bucket: "marca", formatos: "PNG, JPEG, WEBP ou SVG", accept: ACCEPT.marca },
+  icone_marca: {
+    bucket: "marca", formatos: "PNG, JPEG ou WEBP", accept: "image/png,image/jpeg,image/webp",
+  },
+  imagem_login: {
+    bucket: "marca", formatos: "PNG, JPEG ou WEBP", accept: "image/png,image/jpeg,image/webp",
+  },
+  imagem_post: {
+    bucket: "comunidade", formatos: "imagem (JPG, PNG, WEBP, GIF, HEIC) ou PDF", accept: ACCEPT.comunidade,
+  },
+  // Não citado nos 8 pontos da demanda, mas é envio de imagem como qualquer
+  // outro (banner promocional da Academy) — incluído para "TODOS os pontos"
+  // valer de verdade. Registrado no relatório final.
+  banner_academy: {
+    bucket: "biblioteca", tamanhoMb: 3, formatos: "PNG ou JPEG", accept: "image/png,image/jpeg",
+  },
+};
+
+/** O tamanho que de fato se aplica ao campo — o dele, se a tela já tinha um; senão o do bucket. */
+export function limiteEfetivoMb(campo: CampoDeImagem): number {
+  const cfg = CAMPOS[campo];
+  return cfg.tamanhoMb ?? LIMITES[cfg.bucket].tamanhoMb;
+}
+
+/** A frase para mostrar ANTES do envio, ex.: "PNG ou JPEG, até 3 MB. Ideal: 1200x600 pixels." */
+export function avisoDoCampo(campo: CampoDeImagem): string {
+  const cfg = CAMPOS[campo];
+  const base = `${cfg.formatos}, até ${limiteEfetivoMb(campo)} MB.`;
+  return cfg.pixels ? `${base} Ideal: ${cfg.pixels.largura}x${cfg.pixels.altura} pixels.` : base;
+}
+
+/**
+ * Checagem no navegador, antes de sequer tentar o envio — é o que permite
+ * dizer o tamanho do ARQUIVO ESCOLHIDO, não só o limite (o erro do próprio
+ * Storage, traduzido por `erroDeUpload`, não sabe esse número). `null` quando
+ * o arquivo passa.
+ */
+export function erroDeArquivo(arquivo: File, campo: CampoDeImagem): string | null {
+  const mb = limiteEfetivoMb(campo);
+  if (arquivo.size > mb * 1024 * 1024) {
+    const atual = (arquivo.size / (1024 * 1024)).toFixed(1).replace(".", ",");
+    return `Este arquivo tem ${atual} MB e o limite é ${mb} MB. Reduza o tamanho e tente de novo.`;
+  }
+  return null;
+}
 
 /**
  * Traduz. Recebe o erro do storage e o bucket, devolve a frase para o toast.

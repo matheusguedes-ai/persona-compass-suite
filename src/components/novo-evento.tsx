@@ -28,7 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ImagePlus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { erroDeUpload } from "@/lib/erro-de-upload";
+import { CAMPOS, avisoDoCampo, erroDeArquivo, erroDeUpload } from "@/lib/erro-de-upload";
 
 /**
  * O diálogo é controlado de fora: desde a #251, o gatilho é um item dentro
@@ -56,7 +56,8 @@ export function NovoEvento({ open, onOpenChange }: { open: boolean; onOpenChange
   async function enviarImagem(f: File) {
     // O limite existe para o celular: banner de 8 MB trava a agenda de quem
     // abre no 4G, e ninguém liga a lentidão à imagem que subiu semana passada.
-    if (f.size > 3 * 1024 * 1024) return toast.error("Imagem muito grande (máximo 3 MB).");
+    const erroTamanho = erroDeArquivo(f, "banner_evento");
+    if (erroTamanho) return toast.error(erroTamanho);
     setEnviando(true);
     try {
       const { data: sessao } = await supabase.auth.getUser();
@@ -178,13 +179,14 @@ export function NovoEvento({ open, onOpenChange }: { open: boolean; onOpenChange
             ) : (
               <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                 <ImagePlus className="size-4" />
-                {enviando ? "Enviando…" : "Escolher JPG ou PNG (até 3 MB)"}
+                {enviando ? "Enviando…" : "Escolher arquivo"}
                 <input
-                  type="file" accept="image/jpeg,image/png" className="hidden"
+                  type="file" accept={CAMPOS.banner_evento.accept} className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) enviarImagem(f); }}
                 />
               </label>
             )}
+            <p className="mt-1 text-[11px] text-muted-foreground">{avisoDoCampo("banner_evento")}</p>
           </div>
           <div>
             <Label htmlFor="ev-desc">Descrição (opcional)</Label>
