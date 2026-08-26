@@ -1103,17 +1103,25 @@ export const getResponsesSummary = createServerFn({ method: "GET" })
     // #212 F2 item 3 — lista de respondentes só existe em teste
     // IDENTIFICADO: sem person_id gravado, não há "abrir a resposta de
     // fulano" pra oferecer.
+    const identificados = version.is_anonymous
+      ? []
+      : submetidas.filter((r) => r.person_id);
+    // #281 — bucket 'avatares' é privado: sem assinar, o círculo de foto vira
+    // sempre a inicial, mesmo para quem já subiu a foto.
+    const { assinarUrls, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const avataresRespondentes = await assinarUrls(
+      supabaseAdmin, identificados.map((r) => r.people?.avatar_url ?? null), TTL_AVATAR_SEGUNDOS,
+    );
     const respondents = version.is_anonymous
       ? null
-      : submetidas
-          .filter((r) => r.person_id)
-          .map((r) => ({
-            response_id: r.id,
-            person_id: r.person_id as string,
-            full_name: r.people?.full_name ?? "—",
-            avatar_url: r.people?.avatar_url ?? null,
-            submitted_at: r.submitted_at as string,
-          }));
+      : identificados.map((r, i) => ({
+          response_id: r.id,
+          person_id: r.person_id as string,
+          full_name: r.people?.full_name ?? "—",
+          avatar_url: avataresRespondentes[i],
+          submitted_at: r.submitted_at as string,
+        }));
 
     return { ...base, aggregates, respondents };
   });
@@ -1146,6 +1154,15 @@ export async function carregarRespostaIndividual(supabase: SupabaseClient<Databa
     .from("test_answers").select("question_id, payload").eq("response_id", responseId);
   if (aErr) throw new Error(aErr.message);
   const porPergunta = new Map((answers ?? []).map((a) => [a.question_id, a.payload]));
+
+  // #281 — mesma trava dos outros leitores de people.avatar_url: bucket
+  // privado, identificador cru só vira imagem assinando na hora.
+  const pessoa = response.people;
+  if (pessoa?.avatar_url) {
+    const { assinarUrl, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    pessoa.avatar_url = await assinarUrl(supabaseAdmin, pessoa.avatar_url, TTL_AVATAR_SEGUNDOS);
+  }
 
   return {
     person: response.people,

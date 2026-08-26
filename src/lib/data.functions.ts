@@ -43,7 +43,17 @@ export const listPeople = createServerFn({ method: "GET" })
       .select("*")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const lista = data ?? [];
+    // #281 — bucket 'avatares' é privado: o identificador gravado só vira
+    // imagem de verdade assinado na hora, igual já acontece no próprio
+    // perfil (getMyProfile) e na lista de membros da Comunidade.
+    const { assinarUrls, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [avatares, banners] = await Promise.all([
+      assinarUrls(supabaseAdmin, lista.map((p) => p.avatar_url), TTL_AVATAR_SEGUNDOS),
+      assinarUrls(supabaseAdmin, lista.map((p) => p.banner_url), TTL_AVATAR_SEGUNDOS),
+    ]);
+    return lista.map((p, i) => ({ ...p, avatar_url: avatares[i], banner_url: banners[i] }));
   });
 
 /**
@@ -115,6 +125,7 @@ export const getPerson = createServerFn({ method: "GET" })
     const { assinarUrl, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     person.avatar_url = await assinarUrl(supabaseAdmin, person.avatar_url, TTL_AVATAR_SEGUNDOS);
+    person.banner_url = await assinarUrl(supabaseAdmin, person.banner_url, TTL_AVATAR_SEGUNDOS);
 
     return { person, groups: groups ?? [], responses: responses ?? [] };
   });

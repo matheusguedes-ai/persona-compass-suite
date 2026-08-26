@@ -132,13 +132,22 @@ export const listRespondentesDoTeste = createServerFn({ method: "GET" })
       .order("submitted_at", { ascending: false });
     if (error) throw new Error(error.message);
 
+    // #281 — bucket 'avatares' é privado: sem assinar, o círculo de foto vira
+    // sempre a inicial, mesmo para quem já subiu a foto.
+    const linhas = rows ?? [];
+    const { assinarUrls, TTL_AVATAR_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const avatares = await assinarUrls(
+      supabaseAdmin, linhas.map((r) => r.people?.avatar_url ?? null), TTL_AVATAR_SEGUNDOS,
+    );
+
     return {
       title: version.title,
-      respondentes: (rows ?? []).map((r) => ({
+      respondentes: linhas.map((r, i) => ({
         response_id: r.id,
         assessment_response_id: r.assessment_response_id,
         full_name: r.people?.full_name ?? "—",
-        avatar_url: r.people?.avatar_url ?? null,
+        avatar_url: avatares[i],
         submitted_at: r.submitted_at as string,
       })),
     };

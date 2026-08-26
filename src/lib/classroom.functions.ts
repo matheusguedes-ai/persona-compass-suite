@@ -66,13 +66,23 @@ export const listTreinamentos = createServerFn({ method: "GET" })
       liberados = new Set((tg ?? []).map((t) => t.treinamento_id));
     }
 
-    return (data ?? []).filter((t) => !liberados || liberados.has(t.id)).map((t) => {
+    const todos = data ?? [];
+    // #281 — bucket 'avatares' é privado: sem assinar, a capa não carrega no
+    // catálogo. Assina ANTES do filtro/map por id (não por índice), porque o
+    // filtro de `liberados` pode tirar itens do meio da lista.
+    const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const capasAssinadas = await assinarUrls(supabaseAdmin, todos.map((t) => t.capa_url), TTL_ARQUIVO_SEGUNDOS);
+    const capaPorId = new Map(todos.map((t, i) => [t.id, capasAssinadas[i]]));
+
+    return todos.filter((t) => !liberados || liberados.has(t.id)).map((t) => {
       const grupos = t.treinamento_grupos as unknown as Array<{ count: number }>;
       const modulos = t.treinamento_modulos as unknown as Array<{
         treinamento_aulas: Array<{ count: number }>;
       }>;
       return {
         ...t,
+        capa_url: capaPorId.get(t.id) ?? null,
         treinamento_grupos: undefined,
         treinamento_modulos: undefined,
         grupos_count: grupos?.[0]?.count ?? 0,

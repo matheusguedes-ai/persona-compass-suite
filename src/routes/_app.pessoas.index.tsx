@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search } from "lucide-react";
 import { ImportarPlanilha } from "@/components/importar-planilha";
 import { ExportarPessoas } from "@/components/exportar-pessoas";
+import { Avatar } from "@/components/avatar-upload";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -169,9 +170,7 @@ function PessoasPage() {
               <tr key={p.id} className="hover:bg-muted/40">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="grid size-8 place-items-center rounded-full bg-zinc-200 text-[11px] font-semibold text-zinc-600 ring-1 ring-black/5">
-                      {p.full_name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                    </div>
+                    <Avatar url={p.avatar_url} nome={p.full_name} size={32} />
                     <span className="font-medium">{p.full_name}</span>
                   </div>
                 </td>
