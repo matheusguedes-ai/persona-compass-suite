@@ -61,18 +61,35 @@ function Checkin() {
   // sempre gastaria a permissão — negada uma vez, o navegador não pergunta de
   // novo — em aulas que nem usam, e aí a trava nasceria quebrada no dia em que
   // o professor a ligasse.
+  //
+  // #284 — se o aparelho negar ou o sinal não chegar, isto nunca pode virar um
+  // beco sem saída: o servidor recusa com "sem_localizacao" sem gravar nada, a
+  // tela explica o motivo guardado aqui, e um segundo toque em "Registrar
+  // assim mesmo" manda `semLocalizacao: true` para seguir — sem pular a
+  // localização de cara, só depois de a pessoa escolher isso vendo por quê.
+  const [motivoLocalizacao, setMotivoLocalizacao] = useState<
+    "negada" | "indisponivel" | "tempo_esgotado" | "sem_suporte" | null
+  >(null);
+
   const confirmar = useMutation({
-    mutationFn: async () => {
-      let onde: { lat?: number; lng?: number; precisao_m?: number } = {};
+    mutationFn: async (opts?: { semLocalizacao?: boolean }) => {
+      let onde: { lat?: number; lng?: number; precisao_m?: number; sem_localizacao?: boolean } = {};
       if (data?.exige_local) {
-        const { posicaoAtual } = await import("@/lib/geo");
-        const p = await posicaoAtual();
-        if (p) {
-          onde = {
-            lat: p.coords.latitude,
-            lng: p.coords.longitude,
-            precisao_m: p.coords.accuracy,
-          };
+        if (opts?.semLocalizacao) {
+          onde = { sem_localizacao: true };
+        } else {
+          const { posicaoAtual } = await import("@/lib/geo");
+          const r = await posicaoAtual();
+          if (r.ok) {
+            setMotivoLocalizacao(null);
+            onde = {
+              lat: r.posicao.coords.latitude,
+              lng: r.posicao.coords.longitude,
+              precisao_m: r.posicao.coords.accuracy,
+            };
+          } else {
+            setMotivoLocalizacao(r.motivo);
+          }
         }
       }
       return confirmarFn({ data: { aula_id: aulaId, ...onde } });
@@ -125,6 +142,12 @@ function Checkin() {
         {presenca.origem === "manual" && (
           <p className="mt-3 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
             Esta presença foi registrada pelo professor.
+          </p>
+        )}
+        {presenca.origem === "qr_sem_local" && (
+          <p className="mt-3 rounded-lg bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
+            Sua localização não pôde ser conferida neste check-in. Se for preciso, o professor
+            confirma com você.
           </p>
         )}
         <p className="mt-3 rounded-lg bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
@@ -199,13 +222,15 @@ function Checkin() {
       <Button
         className="mt-5 w-full"
         disabled={confirmar.isPending}
-        onClick={() => confirmar.mutate()}
+        onClick={() => confirmar.mutate(undefined)}
       >
         {confirmar.isPending
           ? data?.exige_local
             ? "Conferindo o local…"
             : "Confirmando…"
-          : "Estou presente"}
+          : motivo === "sem_localizacao"
+            ? "Tentar de novo"
+            : "Estou presente"}
       </Button>
 
       {confirmar.isError && (
@@ -251,9 +276,27 @@ function Checkin() {
       )}
       {motivo === "sem_localizacao" && (
         <Recado>
-          <MapPin className="mb-1 inline size-4" /> <strong>Falta liberar a localização.</strong>{" "}
-          Esta aula confere se você está no encontro. Toque em “Estou presente” de novo e permita o
-          acesso quando o celular perguntar — ou peça ao professor para registrar a sua presença.
+          <MapPin className="mb-1 inline size-4" />{" "}
+          <strong>
+            {motivoLocalizacao === "negada" && "Você não permitiu o acesso à localização deste aparelho."}
+            {motivoLocalizacao === "tempo_esgotado" && "O sinal de localização não chegou a tempo."}
+            {motivoLocalizacao === "indisponivel" && "Não consegui captar a localização deste aparelho agora."}
+            {motivoLocalizacao === "sem_suporte" && "Este navegador não oferece localização."}
+            {!motivoLocalizacao && "Não consegui conferir a sua localização."}
+          </strong>{" "}
+          Esta aula confere se você está no encontro.
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-3 w-full"
+            disabled={confirmar.isPending}
+            onClick={() => confirmar.mutate({ semLocalizacao: true })}
+          >
+            Registrar assim mesmo, sem localização
+          </Button>
+          <p className="mt-2">
+            O professor vê que este check-in não pôde ser conferido e decide se confirma.
+          </p>
         </Recado>
       )}
       {motivo === "longe" && (

@@ -46,21 +46,36 @@ export function distanciaLegivel(metros: number): string {
 }
 
 /**
- * Pede a posição ao navegador. Devolve `null` em vez de estourar: a tela do
- * aluno precisa distinguir "recusou/não pegou" de "pegou e está longe", e as
- * duas mensagens são diferentes.
+ * Pede a posição ao navegador.
+ *
+ * #284 — devolve o MOTIVO da falha, não só um `null` genérico: a tela do
+ * aluno precisa dizer o que aconteceu (negou permissão × sinal não chegou ×
+ * aparelho sem suporte), não só "não deu". Importa porque uma negação
+ * EXPLÍCITA não faz o navegador perguntar de novo sozinho — só se a pessoa
+ * mudar a permissão nas configurações — então quem usa isto nunca pode
+ * depender só de "tente de novo" como única saída daqui.
  *
  * `enableHighAccuracy` liga o GPS de verdade (o padrão é a triangulação por
  * wifi, que erra quarteirões). 15 s de teto porque o aluno está em pé na porta.
  */
-export function posicaoAtual(): Promise<GeolocationPosition | null> {
+export type ResultadoLocalizacao =
+  | { ok: true; posicao: GeolocationPosition }
+  | { ok: false; motivo: "negada" | "indisponivel" | "tempo_esgotado" | "sem_suporte" };
+
+export function posicaoAtual(): Promise<ResultadoLocalizacao> {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
-    return Promise.resolve(null);
+    return Promise.resolve({ ok: false, motivo: "sem_suporte" });
   }
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve(p),
-      () => resolve(null),
+      (posicao) => resolve({ ok: true, posicao }),
+      (erro) => {
+        const motivo =
+          erro.code === erro.PERMISSION_DENIED ? "negada"
+          : erro.code === erro.TIMEOUT ? "tempo_esgotado"
+          : "indisponivel";
+        resolve({ ok: false, motivo });
+      },
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
     );
   });

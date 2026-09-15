@@ -273,6 +273,11 @@ export function textoAtraso(reg: Registro | undefined, aula: AulaPresenca): stri
 export function textoOrigem(reg: Registro | undefined): string {
   if (!reg) return "";
   if (reg.origem === "qr") return "Confirmada pelo aluno (QR)";
+  // #284 — o aluno confirmou pelo QR, mas a aula exigia local e o aparelho
+  // negou/não respondeu; ele registrou mesmo assim. Ainda foi ELE quem
+  // confirmou — rotular como "registrada pelo professor" atribuiria a ação
+  // errada a quem não fez.
+  if (reg.origem === "qr_sem_local") return "Confirmada pelo aluno (QR, sem localização)";
   return "Registrada pelo professor";
 }
 

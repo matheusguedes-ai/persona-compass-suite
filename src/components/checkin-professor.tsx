@@ -230,16 +230,16 @@ function TravaDeLocal({
       setPegando(true);
       try {
         const { posicaoAtual } = await import("@/lib/geo");
-        const p = await posicaoAtual();
-        if (!p) throw new Error("SEM_GPS");
+        const r = await posicaoAtual();
+        if (!r.ok) throw new Error("SEM_GPS");
         return await travarFn({
           data: {
             aula_id: aulaId,
-            lat: p.coords.latitude,
-            lng: p.coords.longitude,
+            lat: r.posicao.coords.latitude,
+            lng: r.posicao.coords.longitude,
             // O raio absorve a imprecisão do próprio aparelho do professor: se o
             // GPS dele erra 200 m, travar em 300 m reprovaria a turma inteira.
-            raio_m: Math.min(5000, Math.max(300, Math.round((p.coords.accuracy || 0) * 2))),
+            raio_m: Math.min(5000, Math.max(300, Math.round((r.posicao.coords.accuracy || 0) * 2))),
           },
         });
       } finally {
@@ -390,7 +390,11 @@ function Turma({
                 {p ? (
                   <p className="text-[11px] text-muted-foreground">
                     {p.escaneado_em ? hhmm(p.escaneado_em) : `lançado ${hhmm(p.registrado_em)}`}
-                    {p.origem === "manual" ? " · marcado pelo professor" : " · pelo QR"}
+                    {p.origem === "manual"
+                      ? " · marcado pelo professor"
+                      : p.origem === "qr_sem_local"
+                        ? " · pelo QR, sem localização conferida"
+                        : " · pelo QR"}
                     {atraso(p.escaneado_em) ? ` · ${atraso(p.escaneado_em)}` : ""}
                     {p.situacao === "justificado" ? " · falta justificada" : ""}
                     {typeof p.distancia_m === "number" ? ` · a ${distanciaLegivel(p.distancia_m)}` : ""}

@@ -1041,6 +1041,12 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
         lat: z.number().min(-90).max(90).nullable().optional(),
         lng: z.number().min(-180).max(180).nullable().optional(),
         precisao_m: z.number().nonnegative().nullable().optional(),
+        // #284 — a pessoa viu a tela explicar que a localização falhou e
+        // escolheu registrar mesmo assim. Só a TELA manda isto depois de
+        // mostrar o motivo e oferecer tentar de novo — nunca é o primeiro
+        // pedido silencioso, para não virar um jeito fácil de burlar a trava
+        // por engano (um cliente que simplesmente não manda lat/lng).
+        sem_localizacao: z.boolean().optional(),
       })
       .parse(d),
   )
@@ -1077,25 +1083,33 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
     // nada aqui reprova ninguém — o comportamento de antes, intacto.
     const travada = aula.local_lat !== null && aula.local_lng !== null;
     let distancia: number | null = null;
+    // 'qr' no caminho normal; 'qr_sem_local' só quando a aula exigia local e a
+    // pessoa registrou mesmo assim, depois de a tela explicar o motivo — nunca
+    // no primeiro pedido silencioso. É o que #284 acrescenta: antes, negar a
+    // permissão de localização (ou o sinal não chegar) travava aqui sem
+    // nenhuma saída além de pedir ao professor para marcar à mão.
+    let origem: "qr" | "qr_sem_local" = "qr";
     if (travada) {
       if (typeof data.lat !== "number" || typeof data.lng !== "number") {
-        // Recusa explícita, e não silenciosa: sem esta porta, negar a permissão
-        // de localização viraria o jeito mais fácil de burlar a trava.
-        return { ok: false as const, motivo: "sem_localizacao" as const };
-      }
-      const { distanciaEmMetros, folgaDaPrecisao } = await import("@/lib/geo");
-      distancia = distanciaEmMetros(
-        { lat: aula.local_lat as number, lng: aula.local_lng as number },
-        { lat: data.lat, lng: data.lng },
-      );
-      const limite = (aula.local_raio_m ?? 300) + folgaDaPrecisao(data.precisao_m);
-      if (distancia > limite) {
-        return {
-          ok: false as const,
-          motivo: "longe" as const,
-          distancia_m: distancia,
-          raio_m: aula.local_raio_m ?? 300,
-        };
+        if (!data.sem_localizacao) {
+          return { ok: false as const, motivo: "sem_localizacao" as const };
+        }
+        origem = "qr_sem_local";
+      } else {
+        const { distanciaEmMetros, folgaDaPrecisao } = await import("@/lib/geo");
+        distancia = distanciaEmMetros(
+          { lat: aula.local_lat as number, lng: aula.local_lng as number },
+          { lat: data.lat, lng: data.lng },
+        );
+        const limite = (aula.local_raio_m ?? 300) + folgaDaPrecisao(data.precisao_m);
+        if (distancia > limite) {
+          return {
+            ok: false as const,
+            motivo: "longe" as const,
+            distancia_m: distancia,
+            raio_m: aula.local_raio_m ?? 300,
+          };
+        }
       }
     }
 
@@ -1161,7 +1175,7 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
         // reescrever uma lista já emitida, e apagar o grupo não pode esvaziar a
         // célula de um documento de arquivo.
         group_nome: grupos[0]?.nome || null,
-        origem: "qr",
+        origem,
         escaneado_em: escaneadoEm,
         passe_nonce: passe.nonce,
         // A DISTÂNCIA, não a coordenada. Guardar onde cada aluno estava seria
@@ -1200,7 +1214,7 @@ export const confirmarPresenca = createServerFn({ method: "POST" })
         const { error: eUp } = await supabaseAdmin
           .from("treinamento_presencas")
           .update({
-            origem: "qr",
+            origem,
             escaneado_em: escaneadoEm,
             passe_nonce: passe.nonce,
             distancia_m: distancia,
