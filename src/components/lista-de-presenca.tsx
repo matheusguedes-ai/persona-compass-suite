@@ -31,7 +31,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ClipboardList, Clock, Download, FileSpreadsheet, FileText, Info, Lock,
+  ClipboardList, Clock, Copy, Download, FileSpreadsheet, FileText, Info, Lock,
   LockOpen, MessageSquare, RotateCcw, TriangleAlert, Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -173,13 +173,29 @@ export function ListaDePresenca({ treinamentoId }: { treinamentoId: string }) {
                       })}
                       . As ausências desta aula estão afirmadas e ela entra na conta da frequência.
                     </span>
-                    <Button
-                      variant="ghost" size="sm" className="ml-auto text-xs"
-                      disabled={fechar.isPending}
-                      onClick={() => fechar.mutate(false)}
-                    >
-                      <LockOpen className="size-3" /> reabrir
-                    </Button>
+                    <div className="ml-auto flex items-center gap-1">
+                      {/* #286 — só aula COM HORÁRIO usa este link; aula
+                          gravada não tem essa tela (avalia pela conclusão,
+                          dentro do treinamento). */}
+                      {atual.comeca_em && (
+                        <Button
+                          variant="ghost" size="sm" className="text-xs"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/avaliar/${atual.id}`);
+                            toast.success("Link copiado");
+                          }}
+                        >
+                          <Copy className="size-3" /> Copiar link de avaliação
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost" size="sm" className="text-xs"
+                        disabled={fechar.isPending}
+                        onClick={() => fechar.mutate(false)}
+                      >
+                        <LockOpen className="size-3" /> reabrir
+                      </Button>
+                    </div>
                   </>
                 ) : (
                   <>

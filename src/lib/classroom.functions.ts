@@ -236,7 +236,6 @@ export const getTreinamento = createServerFn({ method: "GET" })
     // precisa apontar explicitamente para quem está sendo pré-visualizado.
     // Fora da prévia, a RLS já entregou só a linha do aluno de verdade.
     const minhaPessoaId = data.preview_person_id ?? null;
-    const agoraMs = Date.now();
 
     // #256 — conclusão de aula gravada. Mesma leitura de dois lados que a
     // avaliação: aluno recebe só a própria linha (RLS), dono recebe todas
@@ -262,12 +261,11 @@ export const getTreinamento = createServerFn({ method: "GET" })
       treinamento_aulas: undefined,
       aulas: porOrdem(
         ((m.treinamento_aulas as unknown as Array<Record<string, unknown>>) ?? []).map((a) => {
-          const aula = a as { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; local: string | null; ordem: number; cancelada: boolean; treinamento_presencas?: Array<{ count: number }> };
+          const aula = a as { id: string; modulo_id: string; titulo: string; descricao: string | null; comeca_em: string | null; termina_em: string | null; fechada_em: string | null; local: string | null; ordem: number; cancelada: boolean; treinamento_presencas?: Array<{ count: number }> };
           const avaliacoesDaAula = avaliacoesPorAula.get(aula.id) ?? [];
           const minhaAvaliacao = minhaPessoaId
             ? avaliacoesDaAula.find((av) => av.person_id === minhaPessoaId)
             : avaliacoesDaAula[0];
-          const aulaTerminou = !!aula.termina_em && new Date(aula.termina_em).getTime() <= agoraMs;
           const notasDaTurma = avaliacoesDaAula.map((av) => av.estrelas);
           // #256 — aula GRAVADA é a que nunca teve horário marcado. Aula com
           // horário continua exatamente na regra da #231, abaixo.
@@ -295,18 +293,19 @@ export const getTreinamento = createServerFn({ method: "GET" })
                 visivel_aluno: boolean;
               }>) ?? [],
             ),
-            // #231/#256 — lado do aluno: a própria nota, se já enviou; senão,
-            // se o convite "Avalie esta aula" deve aparecer. As MESMAS regras
-            // da função avaliar_aula — repetidas aqui só para a TELA não
-            // oferecer o que o banco recusaria, nunca como a trava de
-            // verdade. Aula gravada libera por conclusão; aula com horário
-            // continua exatamente como na #231 (presença + término).
+            // #231/#256/#286 — lado do aluno: a própria nota, se já enviou;
+            // senão, se o convite "Avalie esta aula" deve aparecer. As
+            // MESMAS regras da função avaliar_aula — repetidas aqui só para
+            // a TELA não oferecer o que o banco recusaria, nunca como a
+            // trava de verdade. Aula gravada libera por conclusão; aula com
+            // horário passou a liberar pela lista FECHADA (fechada_em), não
+            // mais pelo relógio (termina_em) — #286.
             minha_avaliacao: minhaAvaliacao
               ? { estrelas: minhaAvaliacao.estrelas, comentario: minhaAvaliacao.comentario }
               : null,
             pode_avaliar: gravada
               ? !!minhaConclusao && !aula.cancelada && !minhaAvaliacao
-              : estive.has(aula.id) && aulaTerminou && !aula.cancelada && !minhaAvaliacao,
+              : estive.has(aula.id) && !!aula.fechada_em && !aula.cancelada && !minhaAvaliacao,
             // #256 — lado do aluno, só em aula gravada: a própria conclusão,
             // e se o botão de marcar/desmarcar deve aparecer. Desmarcar só é
             // oferecido enquanto não avaliou — a MESMA trava que
@@ -1388,6 +1387,68 @@ export const minhaPresenca = createServerFn({ method: "GET" })
             local: aula.local,
           }
         : null,
+    };
+  });
+
+/**
+ * #286 — dados mínimos para a tela de avaliação de UMA aula, aberta por link
+ * direto (o mentor copia e manda pelo grupo). Não a árvore inteira do
+ * treinamento — só o necessário para a tela escolher o recado certo: nome da
+ * aula/treinamento, se está cancelada/gravada/fechada, se eu tenho presença
+ * válida nela e se já avaliei. Mesmo espírito de `minhaPresenca`: a RLS já
+ * decide o que aparece, sem checagem de permissão extra aqui — quem trava de
+ * verdade é a RPC `avaliar_aula`, chamada por `avaliarAula` (abaixo).
+ *
+ * "Presença válida" repete a MESMA regra que `avaliar_aula` usa — não a de
+ * `presenca.ts` (que calcula atraso por horário, outra pergunta) — de
+ * propósito: aqui é só para a TELA escolher a mensagem certa, nunca a trava.
+ */
+export const dadosParaAvaliarAula = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ aula_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: aula, error: eA } = await supabase
+      .from("treinamento_aulas")
+      .select("id, titulo, cancelada, comeca_em, fechada_em, modulo_id")
+      .eq("id", data.aula_id)
+      .maybeSingle();
+    if (eA) throw new Error(eA.message);
+    if (!aula) return { aula: null, presenca_valida: false, minha_avaliacao: null };
+
+    const { data: modulo } = await supabase
+      .from("treinamento_modulos").select("treinamento_id").eq("id", aula.modulo_id).maybeSingle();
+    const { data: trein } = modulo
+      ? await supabase.from("treinamentos").select("titulo").eq("id", modulo.treinamento_id).maybeSingle()
+      : { data: null };
+
+    const { data: presenca } = await supabase
+      .from("treinamento_presencas")
+      .select("situacao, people!inner(user_id)")
+      .eq("aula_id", data.aula_id)
+      .eq("people.user_id", userId)
+      .maybeSingle();
+    const presencaValida =
+      !!presenca && (presenca.situacao === null || presenca.situacao === "presente" || presenca.situacao === "atrasado");
+
+    const { data: avaliacao } = await supabase
+      .from("treinamento_avaliacoes")
+      .select("estrelas, comentario, people!inner(user_id)")
+      .eq("aula_id", data.aula_id)
+      .eq("people.user_id", userId)
+      .maybeSingle();
+
+    return {
+      aula: {
+        titulo: aula.titulo,
+        treinamento_titulo: trein?.titulo ?? null,
+        cancelada: aula.cancelada,
+        gravada: !aula.comeca_em,
+        fechada: !!aula.fechada_em,
+      },
+      presenca_valida: presencaValida,
+      minha_avaliacao: avaliacao ? { estrelas: avaliacao.estrelas, comentario: avaliacao.comentario } : null,
     };
   });
 

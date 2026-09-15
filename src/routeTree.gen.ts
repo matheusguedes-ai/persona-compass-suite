@@ -40,6 +40,7 @@ import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
 import { Route as AlunoRankingRouteImport } from './routes/aluno.ranking'
 import { Route as ApiManifestRouteImport } from './routes/api.manifest'
 import { Route as ApiMarcaRouteImport } from './routes/api.marca'
+import { Route as AvaliarAulaIdRouteImport } from './routes/avaliar.$aulaId'
 import { Route as BateriaAssessmentIdRouteImport } from './routes/bateria.$assessmentId'
 import { Route as CertificadoCertificadoIdRouteImport } from './routes/certificado.$certificadoId'
 import { Route as CheckinAulaIdRouteImport } from './routes/checkin.$aulaId'
@@ -241,6 +242,11 @@ const ApiManifestRoute = ApiManifestRouteImport.update({
 const ApiMarcaRoute = ApiMarcaRouteImport.update({
   id: '/api/marca',
   path: '/api/marca',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AvaliarAulaIdRoute = AvaliarAulaIdRouteImport.update({
+  id: '/avaliar/$aulaId',
+  path: '/avaliar/$aulaId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BateriaAssessmentIdRoute = BateriaAssessmentIdRouteImport.update({
@@ -513,6 +519,7 @@ export interface FileRoutesByFullPath {
   '/aluno/ranking': typeof AlunoRankingRoute
   '/api/manifest': typeof ApiManifestRoute
   '/api/marca': typeof ApiMarcaRoute
+  '/avaliar/$aulaId': typeof AvaliarAulaIdRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/certificado/$certificadoId': typeof CertificadoCertificadoIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
@@ -582,6 +589,7 @@ export interface FileRoutesByTo {
   '/aluno/ranking': typeof AlunoRankingRoute
   '/api/manifest': typeof ApiManifestRoute
   '/api/marca': typeof ApiMarcaRoute
+  '/avaliar/$aulaId': typeof AvaliarAulaIdRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/certificado/$certificadoId': typeof CertificadoCertificadoIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
@@ -662,6 +670,7 @@ export interface FileRoutesById {
   '/aluno/ranking': typeof AlunoRankingRoute
   '/api/manifest': typeof ApiManifestRoute
   '/api/marca': typeof ApiMarcaRoute
+  '/avaliar/$aulaId': typeof AvaliarAulaIdRoute
   '/bateria/$assessmentId': typeof BateriaAssessmentIdRoute
   '/certificado/$certificadoId': typeof CertificadoCertificadoIdRoute
   '/checkin/$aulaId': typeof CheckinAulaIdRoute
@@ -743,6 +752,7 @@ export interface FileRouteTypes {
     | '/aluno/ranking'
     | '/api/manifest'
     | '/api/marca'
+    | '/avaliar/$aulaId'
     | '/bateria/$assessmentId'
     | '/certificado/$certificadoId'
     | '/checkin/$aulaId'
@@ -812,6 +822,7 @@ export interface FileRouteTypes {
     | '/aluno/ranking'
     | '/api/manifest'
     | '/api/marca'
+    | '/avaliar/$aulaId'
     | '/bateria/$assessmentId'
     | '/certificado/$certificadoId'
     | '/checkin/$aulaId'
@@ -891,6 +902,7 @@ export interface FileRouteTypes {
     | '/aluno/ranking'
     | '/api/manifest'
     | '/api/marca'
+    | '/avaliar/$aulaId'
     | '/bateria/$assessmentId'
     | '/certificado/$certificadoId'
     | '/checkin/$aulaId'
@@ -953,6 +965,7 @@ export interface RootRouteChildren {
   AgendarSlugRoute: typeof AgendarSlugRoute
   ApiManifestRoute: typeof ApiManifestRoute
   ApiMarcaRoute: typeof ApiMarcaRoute
+  AvaliarAulaIdRoute: typeof AvaliarAulaIdRoute
   BateriaAssessmentIdRoute: typeof BateriaAssessmentIdRoute
   CertificadoCertificadoIdRoute: typeof CertificadoCertificadoIdRoute
   CheckinAulaIdRoute: typeof CheckinAulaIdRoute
@@ -1194,6 +1207,13 @@ declare module '@tanstack/react-router' {
       path: '/api/marca'
       fullPath: '/api/marca'
       preLoaderRoute: typeof ApiMarcaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/avaliar/$aulaId': {
+      id: '/avaliar/$aulaId'
+      path: '/avaliar/$aulaId'
+      fullPath: '/avaliar/$aulaId'
+      preLoaderRoute: typeof AvaliarAulaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bateria/$assessmentId': {
@@ -1708,6 +1728,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgendarSlugRoute: AgendarSlugRoute,
   ApiManifestRoute: ApiManifestRoute,
   ApiMarcaRoute: ApiMarcaRoute,
+  AvaliarAulaIdRoute: AvaliarAulaIdRoute,
   BateriaAssessmentIdRoute: BateriaAssessmentIdRoute,
   CertificadoCertificadoIdRoute: CertificadoCertificadoIdRoute,
   CheckinAulaIdRoute: CheckinAulaIdRoute,
