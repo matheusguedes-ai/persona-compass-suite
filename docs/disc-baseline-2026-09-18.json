@@ -1,0 +1,653 @@
+{
+  "demanda": "#288 — Etapa 0 do sprint 'DISC impecável': fotografia congelada (o 'antes')",
+  "gerado_em_utc": "2026-09-18T15:36:16+00:00",
+  "somente_leitura": "Gerado por consultas GET ao banco; nada foi gravado. Sem nome, e-mail, person_id ou mentor_id.",
+  "banco": "Supabase ycprhrbotcyrewewbwvm (o mesmo de produção e de local — #217)",
+  "motor_de_referencia": {
+    "arquivo": "src/routes/api.public.response.$id.ts",
+    "git_head_no_momento": "97211bf42e7e6551078a0512d2e82964fad03b68",
+    "ultimo_commit_que_tocou_o_arquivo": "5384fbc2a74eb907994109bf01b1b7d5df636f6d 2026-08-22T11:59:43-03:00 #263: erro de validação em português em toda a plataforma",
+    "sha256_do_arquivo_no_momento": "3b2de8dbc6e8e8f9bd0cdddd08fa2ac35c1de6340de55c0cf5e81fb05742872c",
+    "aviso": "Os valores 'registrado_no_banco' foram produzidos pelo motor vigente NA DATA DE ENVIO de cada resposta, que pode ser mais antigo que o arquivo acima. Ver 'qualidade_diferencas_vs_registrado' em cada resposta."
+  },
+  "convencao_atual": {
+    "natural_bruto": "soma dos pontos das opções marcadas MAIS",
+    "adaptado_bruto": "soma dos pontos das opções MAIS menos soma dos pontos das opções MENOS",
+    "total_bruto": "igual ao natural no DISC (só as opções MAIS entram em 'total')",
+    "natural_normalizado": "natural / (soma dos máximos possíveis por bloco) × 100  → 0 a 100",
+    "adaptado_normalizado": "(adaptado + máximo) / (2 × máximo) × 100  → -máx..+máx vira 0..100",
+    "dominante": "maior 'total' (só Mais); comparação estrita '>' — em empate vence a dimensão que entrou primeiro em 'total'",
+    "faixa": "compara o BRUTO de Mais da dominante com faixas cadastradas em escala 0–100 (sem filtrar por mode)"
+  },
+  "como_usar_na_etapa_3": [
+    "Cada resposta enviada traz 'registrado_no_banco' (o que o motor gravou NA ÉPOCA do envio) e 'recontagem_independente' (o que a regra vigente nesta foto produz a partir das mesmas escolhas, listadas em 'escolhas_por_bloco').",
+    "Para comparar: rode o motor novo sobre 'escolhas_por_bloco' (ou sobre test_answers, que continuam no banco) e confronte com 'registrado_no_banco'. Toda diferença tem de ser explicável por uma mudança aprovada; qualquer outra é regressão.",
+    "'conteudo_perguntas_opcoes_pontos_sha256' identifica o conteúdo do teste desta foto: se a versão for editada, o hash muda.",
+    "Só há UMA resposta DISC enviada. Ela serve de caso de referência, não de amostra: nenhuma faixa ou limite deve ser calibrado em cima dela."
+  ],
+  "leituras_do_motor_atual_verificadas_na_etapa_0": [
+    "FAIXA: 'faixa_registrada' sai sempre como a faixa 'baixa' da dominante. O motor compara o bruto de Mais (0 a 28) com faixas cadastradas em 0–100 (baixa = 0 a 33,99). É efeito de escala, não medida da pessoa. A faixa que o relatório mostra vem do normalizado natural, por isso pode divergir da registrada.",
+    "DESEMPATE: a dominante é a primeira dimensão, na ordem em que o banco devolve as perguntas (a leitura não tem ORDER BY), que recebeu um 'Mais'. Empate no topo não é sinalizado no dado gravado.",
+    "CENTROS: por construção (1 Mais e 1 Menos por bloco, 4 dimensões), a média entre as 4 dimensões é 25 no natural normalizado e 50 no adaptado normalizado. Os dois não estão na mesma régua.",
+    "SELO: 'qualidade' foi gravado pela regra vigente no momento do envio. A regra de contradição mudou em 28/07/2026 às 15h01 (commit 34ced7a, 'Selo deixa de punir quem tem perfil equilibrado'); a resposta enviada às 14h09 do mesmo dia é anterior a essa mudança e por isso guarda o texto e o valor da regra antiga."
+  ],
+  "resumo": {
+    "total_de_respostas_disc": 3,
+    "por_status": {
+      "submitted": 1,
+      "pending": 2
+    },
+    "com_pontuacao_registrada": 1,
+    "recontagem_confere_em_todos_os_campos_de_pontuacao": true
+  },
+  "versoes_disc": [
+    {
+      "id": "507bdcc1-c22e-40ae-a507-a45a38a9ebaa",
+      "titulo": "DISC — Template Padrão",
+      "is_template": true,
+      "is_published": true,
+      "criada_em": "2026-07-24T19:41:14.579456+00:00",
+      "atualizada_em": "2026-08-21T14:58:28.463606+00:00",
+      "forked_from_id": null,
+      "has_interpretation": true,
+      "is_anonymous": false,
+      "derived_config": null,
+      "n_perguntas": 28,
+      "dimensoes": [
+        {
+          "id": "d9cc9210-0a11-4491-952c-4fdffa8045b2",
+          "key": "D",
+          "label": "Dominância",
+          "sort_order": 1
+        },
+        {
+          "id": "8171b75f-46f4-403d-9a8a-e9f6bb89172d",
+          "key": "I",
+          "label": "Influência",
+          "sort_order": 2
+        },
+        {
+          "id": "3194da7d-4885-4773-a338-999a5cea2c6e",
+          "key": "S",
+          "label": "Estabilidade",
+          "sort_order": 3
+        },
+        {
+          "id": "b6b37f04-3bdf-48b5-aee6-be0fcec5bb5d",
+          "key": "C",
+          "label": "Conformidade",
+          "sort_order": 4
+        }
+      ],
+      "faixas": [
+        {
+          "id": "2941e09f-32de-4a4b-be8d-d4af27aec913",
+          "dimensao": "D",
+          "mode": "natural",
+          "min_score": 67.0,
+          "max_score": 100.0,
+          "titulo": "Dominância alta",
+          "sort_order": 1
+        },
+        {
+          "id": "26c3343e-8f4b-4932-bcea-859fa8e23a6f",
+          "dimensao": "D",
+          "mode": "natural",
+          "min_score": 34.0,
+          "max_score": 66.99,
+          "titulo": "Dominância moderada",
+          "sort_order": 2
+        },
+        {
+          "id": "4a8a2763-b68d-4fad-a8a4-2ae20e3e6e1a",
+          "dimensao": "D",
+          "mode": "natural",
+          "min_score": 0.0,
+          "max_score": 33.99,
+          "titulo": "Dominância baixa",
+          "sort_order": 3
+        },
+        {
+          "id": "6371b247-256f-4d62-af10-e621c5d1d475",
+          "dimensao": "I",
+          "mode": "natural",
+          "min_score": 67.0,
+          "max_score": 100.0,
+          "titulo": "Influência alta",
+          "sort_order": 4
+        },
+        {
+          "id": "c2495499-9441-413c-a567-f3306e9dd614",
+          "dimensao": "I",
+          "mode": "natural",
+          "min_score": 34.0,
+          "max_score": 66.99,
+          "titulo": "Influência moderada",
+          "sort_order": 5
+        },
+        {
+          "id": "f32a9aec-74b8-480d-968d-64d8a1e49022",
+          "dimensao": "I",
+          "mode": "natural",
+          "min_score": 0.0,
+          "max_score": 33.99,
+          "titulo": "Influência baixa",
+          "sort_order": 6
+        },
+        {
+          "id": "2097273e-d887-441d-bef5-73476e65be9b",
+          "dimensao": "S",
+          "mode": "natural",
+          "min_score": 67.0,
+          "max_score": 100.0,
+          "titulo": "Estabilidade alta",
+          "sort_order": 7
+        },
+        {
+          "id": "5cc6e8af-7afc-46a8-9feb-d64f1892b378",
+          "dimensao": "S",
+          "mode": "natural",
+          "min_score": 34.0,
+          "max_score": 66.99,
+          "titulo": "Estabilidade moderada",
+          "sort_order": 8
+        },
+        {
+          "id": "affff67c-95c4-4a00-b2da-36ecdb24562f",
+          "dimensao": "S",
+          "mode": "natural",
+          "min_score": 0.0,
+          "max_score": 33.99,
+          "titulo": "Estabilidade baixa",
+          "sort_order": 9
+        },
+        {
+          "id": "bc388173-a178-4dcf-b939-49bebdcd9a9e",
+          "dimensao": "C",
+          "mode": "natural",
+          "min_score": 67.0,
+          "max_score": 100.0,
+          "titulo": "Conformidade alta",
+          "sort_order": 10
+        },
+        {
+          "id": "f298c155-3eaf-4f04-9691-a96bf0f4b438",
+          "dimensao": "C",
+          "mode": "natural",
+          "min_score": 34.0,
+          "max_score": 66.99,
+          "titulo": "Conformidade moderada",
+          "sort_order": 11
+        },
+        {
+          "id": "04d85053-b452-4cee-9d55-4c5ce9728c9f",
+          "dimensao": "C",
+          "mode": "natural",
+          "min_score": 0.0,
+          "max_score": 33.99,
+          "titulo": "Conformidade baixa",
+          "sort_order": 12
+        }
+      ],
+      "conteudo_perguntas_opcoes_pontos_sha256": "ca32ec84887dc273b69bb861f2d31ec74fca7fd18cdc2bbed361516ac1e44960",
+      "n_opcoes": 112,
+      "n_linhas_de_pontuacao_por_opcao": [
+        1
+      ]
+    }
+  ],
+  "respostas": [
+    {
+      "id": "b87530ab-6241-45c0-8e1f-5e2785aa0dff",
+      "versao_id": "507bdcc1-c22e-40ae-a507-a45a38a9ebaa",
+      "versao_titulo": "DISC — Template Padrão",
+      "status": "submitted",
+      "kind": "self",
+      "attempt": 1,
+      "em_bateria": true,
+      "assessment_response_id": "cceac7d1-d3be-4717-b2d7-4cb36b3491f7",
+      "cancelada": false,
+      "criada_em": "2026-07-28T16:06:36.568106+00:00",
+      "iniciada_em": "2026-07-28T16:54:29.452+00:00",
+      "enviada_em": "2026-07-28T17:09:48.568+00:00",
+      "observacao": null,
+      "registrado_no_banco": {
+        "dominante_id": "3194da7d-4885-4773-a338-999a5cea2c6e",
+        "dominante_key": "S",
+        "dominante_label": "Estabilidade",
+        "faixa_id": "affff67c-95c4-4a00-b2da-36ecdb24562f",
+        "faixa_titulo": "Estabilidade baixa",
+        "faixa_mode": "natural",
+        "faixa_min_score": 0.0,
+        "faixa_max_score": 33.99,
+        "total_bruto_por_dimensao": {
+          "D": 1,
+          "I": 5,
+          "S": 11,
+          "C": 11
+        },
+        "natural_bruto_por_dimensao": {
+          "D": 1,
+          "I": 5,
+          "S": 11,
+          "C": 11
+        },
+        "adaptado_bruto_por_dimensao": {
+          "D": -13,
+          "I": -6,
+          "S": 11,
+          "C": 8
+        },
+        "natural_normalizado_0_100": {
+          "D": 3.571428571428571,
+          "I": 17.857142857142858,
+          "S": 39.285714285714285,
+          "C": 39.285714285714285
+        },
+        "adaptado_normalizado_0_100": {
+          "D": 26.785714285714285,
+          "I": 39.285714285714285,
+          "S": 69.64285714285714,
+          "C": 64.28571428571429
+        },
+        "qualidade": {
+          "nivel": "media",
+          "motivos": [
+            "escolhas opostas em blocos que descrevem a mesma coisa"
+          ],
+          "variacao": null,
+          "consistencia": null,
+          "contradicoes": 0.8,
+          "posicao_repetida": 0.29,
+          "segundos_por_item": 32.8
+        }
+      },
+      "computed_scores_original_verbatim": {
+        "total": {
+          "3194da7d-4885-4773-a338-999a5cea2c6e": 11,
+          "8171b75f-46f4-403d-9a8a-e9f6bb89172d": 5,
+          "b6b37f04-3bdf-48b5-aee6-be0fcec5bb5d": 11,
+          "d9cc9210-0a11-4491-952c-4fdffa8045b2": 1
+        },
+        "natural": {
+          "3194da7d-4885-4773-a338-999a5cea2c6e": 11,
+          "8171b75f-46f4-403d-9a8a-e9f6bb89172d": 5,
+          "b6b37f04-3bdf-48b5-aee6-be0fcec5bb5d": 11,
+          "d9cc9210-0a11-4491-952c-4fdffa8045b2": 1
+        },
+        "adaptado": {
+          "3194da7d-4885-4773-a338-999a5cea2c6e": 11,
+          "8171b75f-46f4-403d-9a8a-e9f6bb89172d": -6,
+          "b6b37f04-3bdf-48b5-aee6-be0fcec5bb5d": 8,
+          "d9cc9210-0a11-4491-952c-4fdffa8045b2": -13
+        },
+        "qualidade": {
+          "nivel": "media",
+          "motivos": [
+            "escolhas opostas em blocos que descrevem a mesma coisa"
+          ],
+          "variacao": null,
+          "consistencia": null,
+          "contradicoes": 0.8,
+          "posicao_repetida": 0.29,
+          "segundos_por_item": 32.8
+        },
+        "normalized": {
+          "3194da7d-4885-4773-a338-999a5cea2c6e": {
+            "natural": 39.285714285714285,
+            "adaptado": 69.64285714285714
+          },
+          "8171b75f-46f4-403d-9a8a-e9f6bb89172d": {
+            "natural": 17.857142857142858,
+            "adaptado": 39.285714285714285
+          },
+          "b6b37f04-3bdf-48b5-aee6-be0fcec5bb5d": {
+            "natural": 39.285714285714285,
+            "adaptado": 64.28571428571429
+          },
+          "d9cc9210-0a11-4491-952c-4fdffa8045b2": {
+            "natural": 3.571428571428571,
+            "adaptado": 26.785714285714285
+          }
+        }
+      },
+      "recontagem_independente": {
+        "fonte": "test_answers da resposta + option_scores/test_options da versão (recontado em 2026-09-18; NÃO é o campo gravado)",
+        "n_blocos_respondidos": 28,
+        "mais_por_dimensao": {
+          "D": 1,
+          "I": 5,
+          "S": 11,
+          "C": 11
+        },
+        "menos_por_dimensao": {
+          "D": 14,
+          "I": 11,
+          "S": 0,
+          "C": 3
+        },
+        "ordem_de_insercao_em_total__define_o_desempate": [
+          "S",
+          "C",
+          "I",
+          "D"
+        ],
+        "sort_order_do_primeiro_bloco_em_que_cada_dimensao_foi_Mais": {
+          "D": 10,
+          "I": 7,
+          "S": 1,
+          "C": 3
+        },
+        "empate_no_topo_do_total": [
+          "C",
+          "S"
+        ],
+        "dominante_pela_regra_do_motor": "S",
+        "faixa_pela_regra_do_motor": "affff67c-95c4-4a00-b2da-36ecdb24562f",
+        "confere_com_registrado": true,
+        "diferencas_nos_campos_de_pontuacao": [],
+        "qualidade_regra_atual_do_motor": {
+          "contradicoes": 0.0,
+          "posicao_repetida": 0.29,
+          "limite_posicao": 0.7,
+          "pares_validos": 5,
+          "pares_com_inversao": 0
+        },
+        "posicao_repetida_na_tela": 0.29,
+        "qualidade_diferencas_vs_registrado": [
+          "contradicoes registrado=0.8 recomputado-regra-atual=0.0"
+        ],
+        "escolhas_por_bloco": [
+          {
+            "bloco": 1,
+            "mais": "S",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 3,
+            "posicao_do_mais_para_o_selo_do_motor": 3,
+            "n_opcoes": 4,
+            "check_group": "decisao"
+          },
+          {
+            "bloco": 2,
+            "mais": "S",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 4,
+            "posicao_do_mais_para_o_selo_do_motor": 4,
+            "n_opcoes": 4,
+            "check_group": "cobranca"
+          },
+          {
+            "bloco": 3,
+            "mais": "C",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 4,
+            "posicao_do_mais_para_o_selo_do_motor": 4,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 4,
+            "mais": "S",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 3,
+            "posicao_do_mais_para_o_selo_do_motor": 3,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 5,
+            "mais": "S",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 4,
+            "posicao_do_mais_para_o_selo_do_motor": 4,
+            "n_opcoes": 4,
+            "check_group": "conflito"
+          },
+          {
+            "bloco": 6,
+            "mais": "C",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 2,
+            "posicao_do_mais_para_o_selo_do_motor": 2,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 7,
+            "mais": "I",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 3,
+            "posicao_do_mais_para_o_selo_do_motor": 3,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 8,
+            "mais": "C",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 3,
+            "posicao_do_mais_para_o_selo_do_motor": 3,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 9,
+            "mais": "S",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 2,
+            "posicao_do_mais_para_o_selo_do_motor": 2,
+            "n_opcoes": 4,
+            "check_group": "imagem"
+          },
+          {
+            "bloco": 10,
+            "mais": "D",
+            "menos": "C",
+            "posicao_do_mais_na_tela": 4,
+            "posicao_do_mais_para_o_selo_do_motor": 4,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 11,
+            "mais": "S",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 2,
+            "posicao_do_mais_para_o_selo_do_motor": 2,
+            "n_opcoes": 4,
+            "check_group": "destravar"
+          },
+          {
+            "bloco": 12,
+            "mais": "S",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 3,
+            "posicao_do_mais_para_o_selo_do_motor": 3,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 13,
+            "mais": "C",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 4,
+            "posicao_do_mais_para_o_selo_do_motor": 4,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 14,
+            "mais": "C",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 3,
+            "posicao_do_mais_para_o_selo_do_motor": 3,
+            "n_opcoes": 4,
+            "check_group": "conflito"
+          },
+          {
+            "bloco": 15,
+            "mais": "S",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 1,
+            "posicao_do_mais_para_o_selo_do_motor": 1,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 16,
+            "mais": "C",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 1,
+            "posicao_do_mais_para_o_selo_do_motor": 1,
+            "n_opcoes": 4,
+            "check_group": "decisao"
+          },
+          {
+            "bloco": 17,
+            "mais": "C",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 4,
+            "posicao_do_mais_para_o_selo_do_motor": 1,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 18,
+            "mais": "S",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 2,
+            "posicao_do_mais_para_o_selo_do_motor": 2,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 19,
+            "mais": "I",
+            "menos": "C",
+            "posicao_do_mais_na_tela": 4,
+            "posicao_do_mais_para_o_selo_do_motor": 4,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 20,
+            "mais": "C",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 1,
+            "posicao_do_mais_para_o_selo_do_motor": 1,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 21,
+            "mais": "S",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 1,
+            "posicao_do_mais_para_o_selo_do_motor": 1,
+            "n_opcoes": 4,
+            "check_group": "imagem"
+          },
+          {
+            "bloco": 22,
+            "mais": "C",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 3,
+            "posicao_do_mais_para_o_selo_do_motor": 3,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 23,
+            "mais": "I",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 2,
+            "posicao_do_mais_para_o_selo_do_motor": 2,
+            "n_opcoes": 4,
+            "check_group": "cobranca"
+          },
+          {
+            "bloco": 24,
+            "mais": "I",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 4,
+            "posicao_do_mais_para_o_selo_do_motor": 4,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 25,
+            "mais": "C",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 2,
+            "posicao_do_mais_para_o_selo_do_motor": 2,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 26,
+            "mais": "C",
+            "menos": "I",
+            "posicao_do_mais_na_tela": 1,
+            "posicao_do_mais_para_o_selo_do_motor": 1,
+            "n_opcoes": 4,
+            "check_group": null
+          },
+          {
+            "bloco": 27,
+            "mais": "I",
+            "menos": "C",
+            "posicao_do_mais_na_tela": 1,
+            "posicao_do_mais_para_o_selo_do_motor": 1,
+            "n_opcoes": 4,
+            "check_group": "destravar"
+          },
+          {
+            "bloco": 28,
+            "mais": "S",
+            "menos": "D",
+            "posicao_do_mais_na_tela": 1,
+            "posicao_do_mais_para_o_selo_do_motor": 1,
+            "n_opcoes": 4,
+            "check_group": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "19bf9acd-1105-4cf0-9caf-6caf96314884",
+      "versao_id": "507bdcc1-c22e-40ae-a507-a45a38a9ebaa",
+      "versao_titulo": "DISC — Template Padrão",
+      "status": "pending",
+      "kind": "self",
+      "attempt": 1,
+      "em_bateria": true,
+      "assessment_response_id": "f75b6ede-397f-49b0-81a5-159b371472f9",
+      "cancelada": false,
+      "criada_em": "2026-07-28T18:06:36.002569+00:00",
+      "iniciada_em": null,
+      "enviada_em": null,
+      "observacao": "Resposta ainda não enviada: não há pontuação, dominante nem faixa a fotografar.",
+      "registrado_no_banco": null,
+      "computed_scores_original_verbatim": null,
+      "recontagem_independente": null
+    },
+    {
+      "id": "cb40ab30-3695-49f6-8d3c-8fcb15d44e8b",
+      "versao_id": "507bdcc1-c22e-40ae-a507-a45a38a9ebaa",
+      "versao_titulo": "DISC — Template Padrão",
+      "status": "pending",
+      "kind": "self",
+      "attempt": 1,
+      "em_bateria": false,
+      "assessment_response_id": null,
+      "cancelada": false,
+      "criada_em": "2026-09-16T19:31:46.378027+00:00",
+      "iniciada_em": null,
+      "enviada_em": null,
+      "observacao": "Resposta ainda não enviada: não há pontuação, dominante nem faixa a fotografar.",
+      "registrado_no_banco": null,
+      "computed_scores_original_verbatim": null,
+      "recontagem_independente": null
+    }
+  ]
+}
