@@ -1,0 +1,1584 @@
+{
+  "demanda": "#288 — Etapa 1 do sprint 'DISC impecável': fotografia da ESTRUTURA da versão nova (o 'depois' do conteúdo)",
+  "gerado_em_utc": "2026-09-18T18:11:30+00:00",
+  "somente_leitura": "Gerado por consultas GET ao banco; nada foi gravado. Sem nome, e-mail, person_id ou mentor_id.",
+  "banco": "Supabase ycprhrbotcyrewewbwvm (o mesmo de produção e de local — #217)",
+  "motor_de_referencia": {
+    "arquivo": "src/routes/api.public.response.$id.ts",
+    "git_head_no_momento": "72feeb7b62be5a1d20baf9454eb2de8721531378",
+    "ultimo_commit_que_tocou_o_arquivo": "5384fbc2a74eb907994109bf01b1b7d5df636f6d 2026-08-22T11:59:43-03:00 #263: erro de validação em português em toda a plataforma",
+    "sha256_do_arquivo_no_momento": "3b2de8dbc6e8e8f9bd0cdddd08fa2ac35c1de6340de55c0cf5e81fb05742872c",
+    "aviso": "O motor de pontuação NÃO foi alterado na Etapa 1 (mesmo arquivo da fotografia da Etapa 0). Só o conteúdo da versão nova mudou."
+  },
+  "convencao_atual": {
+    "natural_bruto": "soma dos pontos das opções marcadas MAIS",
+    "adaptado_bruto": "soma dos pontos das opções MAIS menos soma dos pontos das opções MENOS",
+    "total_bruto": "igual ao natural no DISC (só as opções MAIS entram em 'total')",
+    "natural_normalizado": "natural / (soma dos máximos possíveis por bloco) × 100  → 0 a 100",
+    "adaptado_normalizado": "(adaptado + máximo) / (2 × máximo) × 100  → -máx..+máx vira 0..100",
+    "dominante": "maior 'total' (só Mais); comparação estrita '>' — em empate vence a dimensão que entrou primeiro em 'total'",
+    "faixa": "compara o BRUTO de Mais da dominante com faixas cadastradas em escala 0–100 (sem filtrar por mode)"
+  },
+  "como_usar_na_etapa_3": [
+    "Esta é a estrutura da versão NOVA, vazia de resposta. As respostas existentes continuam na versão antiga (ver docs/disc-baseline-2026-09-18.json).",
+    "Cada alternativa traz 'letra' e 'pontos': é o que o motor soma ao ser marcada MAIS (natural e adaptado) ou MENOS (só adaptado).",
+    "'bloco_sha256' identifica cada bloco; 'conteudo_perguntas_opcoes_pontos_sha256' identifica o conjunto (mesma receita da Etapa 0, portanto comparável com a versão antiga).",
+    "'diferencas_contra_a_versao_anterior' lista tudo o que mudou de texto; posição, letra, pontos, tipo e configuração de todos os blocos são idênticos à versão anterior."
+  ],
+  "resumo": {
+    "versao_nova": "f9c6aba8-115b-4c59-9d35-9c1f995b3eb9",
+    "total_de_respostas_disc": 0,
+    "por_status": {},
+    "com_pontuacao_registrada": 0,
+    "recontagem_confere_em_todos_os_campos_de_pontuacao": null,
+    "observacao": "Versão nova vazia de resposta: só estrutura. Não há dominante, faixa nem qualidade a fotografar."
+  },
+  "versoes_disc": [
+    {
+      "id": "f9c6aba8-115b-4c59-9d35-9c1f995b3eb9",
+      "titulo": "DISC — Template Padrão",
+      "is_template": false,
+      "is_published": true,
+      "criada_em": "2026-09-18T18:01:31.40057+00:00",
+      "atualizada_em": "2026-09-18T18:05:33.95912+00:00",
+      "forked_from_id": "507bdcc1-c22e-40ae-a507-a45a38a9ebaa",
+      "has_interpretation": true,
+      "is_anonymous": false,
+      "derived_config": null,
+      "n_perguntas": 28,
+      "dimensoes": [
+        {
+          "id": "b766de6c-24b6-4a93-9072-98cc6b662793",
+          "key": "D",
+          "label": "Dominância",
+          "sort_order": 1
+        },
+        {
+          "id": "49003b86-bb0a-4d47-aca4-79248b32805c",
+          "key": "I",
+          "label": "Influência",
+          "sort_order": 2
+        },
+        {
+          "id": "cbe793f9-e166-4aa7-bffa-261cc15eaf18",
+          "key": "S",
+          "label": "Estabilidade",
+          "sort_order": 3
+        },
+        {
+          "id": "b72b2261-65c7-47a4-87ab-7003d660f6ec",
+          "key": "C",
+          "label": "Conformidade",
+          "sort_order": 4
+        }
+      ],
+      "faixas": [
+        {
+          "id": "97182d7c-c13d-4452-a0f4-dc69511e9cd9",
+          "dimensao": "D",
+          "mode": "natural",
+          "min_score": 67.0,
+          "max_score": 100.0,
+          "titulo": "Dominância alta",
+          "sort_order": 1
+        },
+        {
+          "id": "728fd3eb-237b-4a31-b759-cc25d6cbbac1",
+          "dimensao": "D",
+          "mode": "natural",
+          "min_score": 34.0,
+          "max_score": 66.99,
+          "titulo": "Dominância moderada",
+          "sort_order": 2
+        },
+        {
+          "id": "974a34f0-7574-42bb-8f63-7a7b4db1c59e",
+          "dimensao": "D",
+          "mode": "natural",
+          "min_score": 0.0,
+          "max_score": 33.99,
+          "titulo": "Dominância baixa",
+          "sort_order": 3
+        },
+        {
+          "id": "d0841b26-ce96-4100-b41e-93efabd1639e",
+          "dimensao": "I",
+          "mode": "natural",
+          "min_score": 67.0,
+          "max_score": 100.0,
+          "titulo": "Influência alta",
+          "sort_order": 4
+        },
+        {
+          "id": "433e9ddf-73c0-4a75-868d-0091d5bb2912",
+          "dimensao": "I",
+          "mode": "natural",
+          "min_score": 34.0,
+          "max_score": 66.99,
+          "titulo": "Influência moderada",
+          "sort_order": 5
+        },
+        {
+          "id": "52da0468-a472-4f94-a92e-ec587ca83280",
+          "dimensao": "I",
+          "mode": "natural",
+          "min_score": 0.0,
+          "max_score": 33.99,
+          "titulo": "Influência baixa",
+          "sort_order": 6
+        },
+        {
+          "id": "59412533-d25f-4f2c-a9b1-71d92cc75623",
+          "dimensao": "S",
+          "mode": "natural",
+          "min_score": 67.0,
+          "max_score": 100.0,
+          "titulo": "Estabilidade alta",
+          "sort_order": 7
+        },
+        {
+          "id": "2f1c4a69-0ea4-4cf1-9174-c5f8adc7b9a5",
+          "dimensao": "S",
+          "mode": "natural",
+          "min_score": 34.0,
+          "max_score": 66.99,
+          "titulo": "Estabilidade moderada",
+          "sort_order": 8
+        },
+        {
+          "id": "36f02858-b8ca-4fcc-8d0a-6e990f923b5f",
+          "dimensao": "S",
+          "mode": "natural",
+          "min_score": 0.0,
+          "max_score": 33.99,
+          "titulo": "Estabilidade baixa",
+          "sort_order": 9
+        },
+        {
+          "id": "2aedf97e-2577-420c-b4fd-a52497334c7d",
+          "dimensao": "C",
+          "mode": "natural",
+          "min_score": 67.0,
+          "max_score": 100.0,
+          "titulo": "Conformidade alta",
+          "sort_order": 10
+        },
+        {
+          "id": "4036e738-a28f-45e8-a949-aed0cd41d6de",
+          "dimensao": "C",
+          "mode": "natural",
+          "min_score": 34.0,
+          "max_score": 66.99,
+          "titulo": "Conformidade moderada",
+          "sort_order": 11
+        },
+        {
+          "id": "9817b898-3320-4796-b42a-a7c394fbd799",
+          "dimensao": "C",
+          "mode": "natural",
+          "min_score": 0.0,
+          "max_score": 33.99,
+          "titulo": "Conformidade baixa",
+          "sort_order": 12
+        }
+      ],
+      "conteudo_perguntas_opcoes_pontos_sha256": "deee35ae8855496040617a6584731ef30c504209a8ee4b27f7713e3d24d9edb5",
+      "n_opcoes": 112,
+      "n_linhas_de_pontuacao_por_opcao": [
+        1
+      ],
+      "perguntas": [
+        {
+          "bloco": 1,
+          "id": "b4a0e4f0-0d07-4f58-ae46-5435f299691f",
+          "tipo": "forced_choice",
+          "enunciado": "O prazo apertou e a decisão precisa sair hoje.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "decisao"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "d6ea6b59-7c00-4321-bc3e-e1e15b97ca21",
+              "texto": "Decido e assumo o risco de estar errado.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "44c7e99b-a0ec-48fc-9511-6af5470d3ef8",
+              "texto": "Defendo a saída que me empolga e trago o grupo junto.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "1b931052-72e0-4776-a920-0e85d3f04f59",
+              "texto": "Fico com a opção que causa menos ruptura para a equipe.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "8db50a52-c2ca-46b5-88bf-c317db7c95bc",
+              "texto": "Fecho quando os dados sustentam a decisão.",
+              "letra": "C",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "bc400ff93c86d1e494bdd4c515c88aa9fbeef977f4532426e009effad7525b8a"
+        },
+        {
+          "bloco": 2,
+          "id": "869d1639-a0f2-4226-9aad-417a137b82a7",
+          "tipo": "forced_choice",
+          "enunciado": "Alguém entrega um trabalho abaixo do que foi combinado.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "cobranca"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "3734a1c8-ee38-4aa5-a1f9-9de7eb09dd03",
+              "texto": "Puxo uma conversa leve e tento reanimar a pessoa.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "c16886b7-7b95-4f48-9aec-7f3b3b121d1d",
+              "texto": "Sou direto: mostro o que faltou e peço para refazer.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "226e93c2-b838-44a8-b175-55fad27cfc52",
+              "texto": "Aponto item por item o que ficou fora do padrão.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "d3009992-8ce4-4591-ba74-9d6fc5bb9688",
+              "texto": "Ofereço ajuda para a pessoa refazer com apoio.",
+              "letra": "S",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "448c147d6d642aae51dfc9f65c3445d0637d97ea3537ae8332b8d5ce19947d58"
+        },
+        {
+          "bloco": 3,
+          "id": "eea93f30-646c-4fbe-b0c9-af635f24a698",
+          "tipo": "forced_choice",
+          "enunciado": "Você entra numa sala onde não conhece ninguém.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "9b6a7060-0bcb-4840-be4f-edd38b2b49cf",
+              "texto": "Puxo conversa com quem estiver mais perto.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "b9c84e1a-8eea-4238-95c3-e68bf7ed903d",
+              "texto": "Vou direto a quem parece decidir as coisas.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "612a01f9-bc36-4bd4-9771-8f427ad23ff1",
+              "texto": "Me aproximo aos poucos e crio vínculo com calma.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "fd4e5930-1964-40e2-b101-97ce51d5c8b8",
+              "texto": "Observo primeiro para entender como funciona ali.",
+              "letra": "C",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "5f213c6c295df0056ea02b2ab89a3c939faffa13117bc43ca178cda167f6adca"
+        },
+        {
+          "bloco": 4,
+          "id": "86a3d608-f2f1-4d2a-9acb-8a29898475be",
+          "tipo": "forced_choice",
+          "enunciado": "O que mais te incomoda no dia a dia de trabalho:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "6839a7f9-0595-42bd-82d4-9545c4b5d1e3",
+              "texto": "Gente que decide no achismo.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "e8bd6c0b-5a4a-45ed-adcc-46b92a8932e9",
+              "texto": "Ambiente calado, sem troca entre as pessoas.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "100f9851-846f-44c6-b5a5-0302fd282983",
+              "texto": "Mudança de rumo em cima da hora.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "cee73415-e0ce-4578-aa7f-26b71301e358",
+              "texto": "Esperar consenso quando a decisão já está clara.",
+              "letra": "D",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "871095fd5fffdf4e39dbc51908c487798f6acc57559cbdf26cc162c635657101"
+        },
+        {
+          "bloco": 5,
+          "id": "0419acfd-747a-44ef-9098-61a2f90d44c4",
+          "tipo": "forced_choice",
+          "enunciado": "Numa negociação difícil, o seu instinto é:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "conflito"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "22304cd9-3c1f-489b-8602-a69324243fc3",
+              "texto": "Marcar posição logo no começo.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "a5513352-7909-4925-9532-64edbc483450",
+              "texto": "Chegar com tudo levantado e deixar os dados falarem.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "01bebb15-8a76-4c2c-bb68-1b40cf21e62c",
+              "texto": "Quebrar o gelo e criar clima antes de falar de números.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "8200ac67-9534-434b-aa4a-8c169faf0fc9",
+              "texto": "Ouvir bastante antes de me posicionar.",
+              "letra": "S",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "574cff9cfbf627a2f369875e025d8848a00e1ba49935adecbc2407b2f6b7b834"
+        },
+        {
+          "bloco": 6,
+          "id": "db707c3a-6a63-4259-ae53-6d48d18cb9e7",
+          "tipo": "forced_choice",
+          "enunciado": "O plano muda no meio do caminho.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "e7f0d0c2-6d2e-48be-967f-e66b65523f88",
+              "texto": "Vou junto na empolgação do que vem.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "c4a9d33d-ff29-4bdf-b4f9-caf737d4bcd3",
+              "texto": "Quero entender o porquê antes de mudar.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "3f0f39f6-f015-49e6-b3df-b8de5a2322fe",
+              "texto": "Custo a largar o jeito antigo.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "54c69814-b053-4de0-8024-d99e9f928387",
+              "texto": "Assumo o rumo novo e toco.",
+              "letra": "D",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "7368a1673a4207f7cc52bee6852c16647de0f79fd1b5f280e5b27c3cede282ba"
+        },
+        {
+          "bloco": 7,
+          "id": "be938e17-bd0e-49bd-97c1-0f9278a2b726",
+          "tipo": "forced_choice",
+          "enunciado": "A crítica que você já ouviu sobre si:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "edcc2f37-2043-4a15-b19b-4af58c4b1748",
+              "texto": "Que trava tudo no detalhe e é difícil me agradar.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "e887cc90-66b2-4cc9-a403-bf2fa12cbbb1",
+              "texto": "Que passo por cima dos outros quando quero resultado.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "2fdfc044-e7a6-4fbe-9e8b-6ad21fe6d096",
+              "texto": "Que falo demais e prometo o que nem sempre dá para cumprir.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "396a674d-3803-421b-a2b9-77feb91b34b9",
+              "texto": "Que demoro a me posicionar e fujo do embate.",
+              "letra": "S",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "532db19f02596bc13a7ed2b9e10101aa42a7977c2ee45638c9c60b09fae82724"
+        },
+        {
+          "bloco": 8,
+          "id": "51fb13dd-6a70-4622-bfb8-5d3b32ff1410",
+          "tipo": "forced_choice",
+          "enunciado": "Como você prefere que te cobrem:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "77b0780b-49f4-451b-8fe2-b359eacc2c44",
+              "texto": "Direto ao ponto, sem rodeio.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "db39d1df-317a-4b7e-a12f-fe8283f7547f",
+              "texto": "Numa conversa, olho no olho.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "dd16eec9-f07e-4ad5-9a7e-6f15504bba32",
+              "texto": "Com o critério claro do que é certo e do que não é.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "a22cc8b6-ceeb-4dca-a78c-08d3ecfcb8f2",
+              "texto": "Com tempo e sem susto.",
+              "letra": "S",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "4da2beaf2dccbc4f2f1fb98fa590c16f349555a6b1af09ef4b302474f890b8b3"
+        },
+        {
+          "bloco": 9,
+          "id": "e332c302-0e1a-4829-83e5-68c05e7c70ff",
+          "tipo": "forced_choice",
+          "enunciado": "O reconhecimento que mais faz sentido para você:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "imagem"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "5dd5a3bb-37ef-4fd5-8f2d-1f814844c7cc",
+              "texto": "Ser lembrado como quem anima o time.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "58003d3a-88ae-45d3-9650-90dbb4413d54",
+              "texto": "Ser reconhecido por quem sempre pode contar comigo.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "7216bede-a713-4c2d-a93a-c04530c6b281",
+              "texto": "Ser reconhecido pelo resultado que entreguei.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "57545772-dec8-4fdc-8e4d-20ea2905c902",
+              "texto": "Ser reconhecido pela qualidade do que faço.",
+              "letra": "C",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "655c7880278e7418ff179f9e8a6eaca4d4bd86a02522b64ec8ff15f54629d989"
+        },
+        {
+          "bloco": 10,
+          "id": "bf3f0f49-e88f-4188-8708-d70e15ea9b1b",
+          "tipo": "forced_choice",
+          "enunciado": "Numa reunião em que ninguém se entende:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "68a58c38-19d6-412e-a6f8-ba8caec975d1",
+              "texto": "Procuro o ponto em comum entre os lados.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "f0b8394b-7e26-49c4-85ab-1c972261ab86",
+              "texto": "Uso o humor e o clima para destravar.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "64a63459-31b5-406b-9da2-9cc376899c3d",
+              "texto": "Trago o dado que encerra a discussão.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "d1cb4ff0-21c7-4f10-8604-618ab4ce47f0",
+              "texto": "Corto a discussão e proponho o encaminhamento.",
+              "letra": "D",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "a70365d117d9902803ae1aedf77d41fc5c7cbea5d26168dabb68d986322e2f3a"
+        },
+        {
+          "bloco": 11,
+          "id": "968069f0-1a3b-45e8-9fdc-8fe2622f7149",
+          "tipo": "forced_choice",
+          "enunciado": "Você recebe uma tarefa nova, sem instrução nenhuma.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "destravar"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "6543bf30-f31e-46db-9ffc-e99212ef6f55",
+              "texto": "Procuro um modelo ou um padrão antes de começar.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "fe739143-6500-49c3-85d3-94ee4d5652e6",
+              "texto": "Pergunto a quem já fez, para não errar.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "e277780b-e94f-45fa-88e6-0d78d15d2c6e",
+              "texto": "Começo do meu jeito e ajusto no caminho.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "56f065f1-0e54-470e-8d25-96b3f8b3146b",
+              "texto": "Chamo alguém para pensar junto.",
+              "letra": "I",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "45d43dcf607a617b5d63bbe4308e49bbddf11468b533afdc5f0023912d147ac6"
+        },
+        {
+          "bloco": 12,
+          "id": "722d451d-4bf6-419a-bc49-295b3d862417",
+          "tipo": "forced_choice",
+          "enunciado": "Sobre prazos e combinados:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "a8d31038-8154-432d-9da8-8111910d7cb4",
+              "texto": "Corto escopo para entregar no prazo.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "ead025a8-839c-4865-83cd-ff764d4c6272",
+              "texto": "Negocio o prazo se for para entregar sem falha.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "4fdbc306-c946-44a8-a7e2-f8af2165404b",
+              "texto": "Aviso com antecedência e renegocio.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "15859bae-a9c0-4589-8519-0e82ff0cfdab",
+              "texto": "Puxo gente para ajudar e viro a noite se precisar.",
+              "letra": "I",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "974b4dfabf83f07c7c85d1c89aeb519c46c45b8d632d6baeb885fd33f576718b"
+        },
+        {
+          "bloco": 13,
+          "id": "448212f8-479f-40da-b53b-6f6583dabd00",
+          "tipo": "forced_choice",
+          "enunciado": "O tipo de chefe com quem você trabalha melhor:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "ae67931f-4391-4002-9c51-6c3f1d6669cd",
+              "texto": "Que dá autonomia e cobra resultado.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "5c53e90d-429f-40ec-b5fc-2212dfd539a0",
+              "texto": "Que é aberto e conversa fácil.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "f19d744c-f7be-405f-bcca-9156648d7c7b",
+              "texto": "Que dá segurança e não muda o rumo toda hora.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "f55e3762-49dc-4a95-a5db-79e6c5a5804c",
+              "texto": "Que explica o critério das decisões.",
+              "letra": "C",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "cb8e1f682585092b96f52b680c87ea9000fb9831c996b2001f17849c9eeeefe9"
+        },
+        {
+          "bloco": 14,
+          "id": "85494ebc-330f-4771-a55f-82f0336b15e3",
+          "tipo": "forced_choice",
+          "enunciado": "Alguém discorda de você numa reunião cheia.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "conflito"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "9e30a31c-ae34-438a-a839-b1904d78cf7b",
+              "texto": "Levo na leveza para não esfriar a sala.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "1b56106f-967f-4f8d-8cfc-08c1279ca19c",
+              "texto": "Mantenho o clima e retomo depois, com calma.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "86e6b063-73a2-4b6b-90a0-975e2c8fb5da",
+              "texto": "Peço o argumento e comparo com o que eu tenho.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "a4297ae9-7f59-4814-bd5d-d756fc3c0dec",
+              "texto": "Defendo meu ponto ali mesmo.",
+              "letra": "D",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "78feb0845e6dc75789c7f640a44e124fe343d11ec5ab3b4e38aba6d1150bf769"
+        },
+        {
+          "bloco": 15,
+          "id": "5aaac5b6-d4cd-4ba9-a21e-0921cd2eb333",
+          "tipo": "forced_choice",
+          "enunciado": "Do que você tem mais receio no trabalho:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "a14cbd68-b94c-4502-8416-0c47040b6912",
+              "texto": "De um conflito aberto com alguém do time.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "9eb62ad8-e446-4963-9f58-a095151ae8db",
+              "texto": "De perder o controle da situação.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "e2a1e81a-0e4d-43a7-88a2-726927a254b9",
+              "texto": "De ser ignorado ou deixado de fora.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "4d587bba-9d3a-4bad-8f5a-b78431f075cd",
+              "texto": "De entregar alguma coisa com erro.",
+              "letra": "C",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "911aedf63e64d4411fa6c7fa1992dc9d4a192e2571b49753f33c58eaa9e26227"
+        },
+        {
+          "bloco": 16,
+          "id": "9a2d8d54-ecbe-43ae-ba54-7a4a2fcfd972",
+          "tipo": "forced_choice",
+          "enunciado": "Como você toma uma decisão importante:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "decisao"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "5a8249f7-6ac2-4087-9dc3-f346216db4b7",
+              "texto": "Levanto tudo o que der e comparo.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "3b993a60-1d2d-47e4-95c4-d068f962a337",
+              "texto": "Bato o martelo rápido e sigo.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "7fa6a3b6-0bac-4a4a-903b-fea1904df3b2",
+              "texto": "Consulto quem vai ser afetado.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "7a1b0246-73a8-45b4-baa3-f2d5a14f946b",
+              "texto": "Vou pelo que me entusiasma e converso enquanto decido.",
+              "letra": "I",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "e87d309bfca1fc5fb06e46d61368407f227bf4cf89e952a91a4ca464b50da9b0"
+        },
+        {
+          "bloco": 17,
+          "id": "e9999bc9-6be1-4dd9-9b4f-4608585f7e8f",
+          "tipo": "forced_choice",
+          "enunciado": "Numa apresentação para muita gente:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "0cfabb37-4369-4781-9d2f-2fe4f93b9a51",
+              "texto": "Vou direto ao ponto principal.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "d1de59bb-a1c8-471c-b68c-4861bdc06939",
+              "texto": "Apresento no meu ritmo, com o que preparei.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "5cfa898d-4351-44d1-a795-c95b25e4526b",
+              "texto": "Me solto e improviso.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "e9411891-5102-4c1a-b491-e6d0ce3829cb",
+              "texto": "Ensaio antes e sigo o roteiro.",
+              "letra": "C",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "d517b0efeab5b5c557692e0afeffa3249a5a38a95430a8ef897cb38f649e8e61"
+        },
+        {
+          "bloco": 18,
+          "id": "84219c83-5233-4088-af32-7760d04d883e",
+          "tipo": "forced_choice",
+          "enunciado": "O que costuma te fazer perder a paciência:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "0812d634-2d61-42e5-ba26-8403578a7dc4",
+              "texto": "Gente fechada, que não se abre.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "2ec68dd6-6fa5-4f31-afb2-29f39468658c",
+              "texto": "Pressão e clima tenso.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "6952b9e5-b0c2-4226-9a6e-2cfb3f1b82d0",
+              "texto": "Trabalho malfeito.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "1053daad-9335-442c-9730-edca05e83d3b",
+              "texto": "Lentidão para decidir.",
+              "letra": "D",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "cbeac210bbe928120826df21c1c0d0ee2e6f36f854248275310a408c879bdae7"
+        },
+        {
+          "bloco": 19,
+          "id": "ae7704d7-c42c-439d-aed0-4132843a2ba4",
+          "tipo": "forced_choice",
+          "enunciado": "O time está desanimado.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "270c0f00-5c10-4d74-85ff-f94220c8472d",
+              "texto": "Ouço um a um para entender o que houve.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "8bd244e9-3fca-43f4-b85a-410b74b06d8f",
+              "texto": "Mostro onde está o problema e o caminho de saída.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "1fdf5896-eb2b-4c11-b16d-509dbb8c564b",
+              "texto": "Redefino a meta e puxo o time.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "1df0989d-e20a-4942-8b57-1af0fa0e1b99",
+              "texto": "Levanto o astral e chamo para cima.",
+              "letra": "I",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "c171c327e6efde6eb4fc2d217d77715d5c12782061a13895f56c6dc078d16ab1"
+        },
+        {
+          "bloco": 20,
+          "id": "91645019-9331-43b9-84ef-4ff83e437570",
+          "tipo": "forced_choice",
+          "enunciado": "Você discorda de uma decisão que o grupo já tomou.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "9f8972c8-d1e3-472f-99ea-c15d2c61c49b",
+              "texto": "Registro minha ressalva e cumpro.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "ad42d4a0-7359-4db0-a1da-36724e765b09",
+              "texto": "Apoio a decisão do grupo e ajudo a dar certo.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "5413fb80-83ac-469f-ad62-aa25c18c7e3c",
+              "texto": "Converso nos bastidores para sentir quem pensa igual.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "ffd7fe0d-56da-4e0e-b260-8485292afcae",
+              "texto": "Falo que discordo e proponho outra coisa.",
+              "letra": "D",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "178cb19ff47320b25513f6d32a3aa14c8826bc6deb804aab465c062f50245ad0"
+        },
+        {
+          "bloco": 21,
+          "id": "ae68c236-1ffe-4006-b83b-1541ab13d5dd",
+          "tipo": "forced_choice",
+          "enunciado": "Você prefere ser visto como:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "imagem"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "6096f198-92b3-473c-989f-e4c92ae41306",
+              "texto": "Alguém que mantém o rumo.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "2ce46410-d348-48a0-b800-ae6a75b4600b",
+              "texto": "Alguém empolgante.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "c817c10a-90ee-4b26-9524-427e2ba2aa49",
+              "texto": "Alguém firme.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "603e568f-423b-4f91-b20f-cfc721b525a4",
+              "texto": "Alguém correto.",
+              "letra": "C",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "ec2278fec478959e1cbd06030a9d22ae9eebe39e05887db080f75ca825c0fbca"
+        },
+        {
+          "bloco": 22,
+          "id": "10d3c6ce-53d3-4bfd-8501-6dede57f8321",
+          "tipo": "forced_choice",
+          "enunciado": "No fim de um projeto puxado, o que te deixa satisfeito:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "8d21a4df-a9d4-4a51-b7cb-5bc874edf848",
+              "texto": "Ter mantido o time inteiro até o fim.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "650ee513-4724-4839-bd76-7ba552f02889",
+              "texto": "Ter batido a meta.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "ef1e077b-9b26-4c40-a3f4-676dce436bcc",
+              "texto": "Ter feito certo.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "3be92dfb-751c-4f15-a84f-ac8521376968",
+              "texto": "Ter sido uma boa experiência para todo mundo.",
+              "letra": "I",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "537aa433cae0291aacb40b2a6d521e8c0331d7857ed9f6a7c97b656fbb7b3962"
+        },
+        {
+          "bloco": 23,
+          "id": "40d04fbc-6b88-4647-be4b-f372e75f17d0",
+          "tipo": "forced_choice",
+          "enunciado": "Quando você precisa cobrar alguém:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "cobranca"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "a2bd666c-bc0b-47d3-beb8-052db1b0952b",
+              "texto": "Mostro o que foi combinado, por escrito.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "b169b169-c0f3-4194-bb3b-babcbd102de9",
+              "texto": "Faço da conversa algo leve.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "b2b19e90-11a3-42f2-a705-f2eed1490c66",
+              "texto": "Cobro direto, assim que percebo.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "b92070ba-c5e1-4351-8661-4d94fa5bea5d",
+              "texto": "Escolho o momento certo e cobro com calma.",
+              "letra": "S",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "3c3e2880e3b35b83aabcf6fc5516155724c1319b330b780e586a9cd16d2347f0"
+        },
+        {
+          "bloco": 24,
+          "id": "81923903-f799-4e6f-8cae-d640d57fbaf8",
+          "tipo": "forced_choice",
+          "enunciado": "Uma regra da empresa está atrapalhando o resultado.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "72f24e7e-d731-4e03-8fba-fa54060258b4",
+              "texto": "Resolvo primeiro e explico depois.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "eeca69c3-e8ba-4c0c-bba1-ff1f515ffa94",
+              "texto": "Sigo a regra para não criar problema.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "4de6929a-d867-437f-bd0b-e445ebbf3333",
+              "texto": "Sigo a regra e proponho mudá-la.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "2ded2764-84a8-4c43-bc9c-8285aa725c9f",
+              "texto": "Falo com quem pode abrir uma exceção.",
+              "letra": "I",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "57730b7b492ed79b50aef3b1d4ee7ae371e6494d717534a9eddde6707b92bf95"
+        },
+        {
+          "bloco": 25,
+          "id": "6ab9f338-73d0-4d9c-96ee-129bb5918772",
+          "tipo": "forced_choice",
+          "enunciado": "Como você lida com risco:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "5096fb2d-977b-4519-91fa-a15654413580",
+              "texto": "Prefiro o caminho seguro.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "0ea76b87-f862-4361-ab2f-6c2ec3ba50af",
+              "texto": "Só avanço com o risco medido.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "58c94b1b-f695-4bf0-ba60-fb96724313da",
+              "texto": "Aceito o risco quando o ganho é grande.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "7b814aaf-6fcb-4e93-9f75-c8a8e98c7520",
+              "texto": "Vou pelo entusiasmo e aposto.",
+              "letra": "I",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "15557f4ee965b4ad7c09d7f58694956cf928d13aad24df617aa3c7e040bd83b2"
+        },
+        {
+          "bloco": 26,
+          "id": "2baf8c6d-97b4-4d20-8bb2-2893626ad157",
+          "tipo": "forced_choice",
+          "enunciado": "Uma mudança grande é anunciada. Sua primeira pergunta:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "a1802a4b-0f22-4b5b-9739-84399c803c93",
+              "texto": "Qual foi o critério para decidir isso?",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "c29ce2b3-cb6f-4af4-aca9-b38558a98368",
+              "texto": "O que eu preciso fazer, e até quando?",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "52619d28-77ac-4582-8747-2f0ad108ba08",
+              "texto": "Quem vai comigo nessa?",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "6023dc98-08dd-4202-b942-46b0e950c958",
+              "texto": "O que muda para quem já estava aqui?",
+              "letra": "S",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "87912d63020fd2f20547734d081bc5b4808c5c7c302271514c196e320da6a130"
+        },
+        {
+          "bloco": 27,
+          "id": "94b8786d-a98d-4650-9645-2b529dbcc58b",
+          "tipo": "forced_choice",
+          "enunciado": "Você travou num problema.",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você.",
+            "check_group": "destravar"
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "803a1fd1-9347-4c1e-8a75-ef097911708f",
+              "texto": "Falo com alguém para destravar.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "aa21ee50-c5bb-4824-bea7-f7d929efe012",
+              "texto": "Volto ao começo e refaço passo a passo.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "2e12c38a-4460-4262-afa2-b450624fc6f3",
+              "texto": "Tento outra saída e forço até sair.",
+              "letra": "D",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "3e4929e4-115d-47a2-83a0-f59696c9b81d",
+              "texto": "Deixo descansar e volto depois.",
+              "letra": "S",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "910c75a4947fa7faebedf6293c697a6fa841e431f25604fa7d65e2e924b7a736"
+        },
+        {
+          "bloco": 28,
+          "id": "b33c1cc9-447d-4d47-8f4d-5987426a3419",
+          "tipo": "forced_choice",
+          "enunciado": "Entre estas coisas, a que você mais preserva no trabalho, mesmo sob pressão:",
+          "obrigatoria": true,
+          "config": {
+            "hint": "Escolha a que MAIS e a que MENOS tem a ver com você."
+          },
+          "alternativas": [
+            {
+              "posicao": 1,
+              "id": "d1845628-a45c-4207-8897-467cd1ab6807",
+              "texto": "Meu ritmo e minha estabilidade.",
+              "letra": "S",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 2,
+              "id": "b8ed17af-1d03-4cd9-b994-3bf6a42d0095",
+              "texto": "O padrão e a qualidade do que entrego.",
+              "letra": "C",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 3,
+              "id": "78db770a-ff0e-4f34-afcf-af742008de8b",
+              "texto": "O bom clima com as pessoas.",
+              "letra": "I",
+              "pontos": 1.0
+            },
+            {
+              "posicao": 4,
+              "id": "b7a0d690-73b9-421b-aec5-bf31deb3c34d",
+              "texto": "O controle da situação.",
+              "letra": "D",
+              "pontos": 1.0
+            }
+          ],
+          "bloco_sha256": "daecedadd8868bf11cfcc489e267cf251630f3e0c9c3491080cf8674e63ba568"
+        }
+      ]
+    }
+  ],
+  "versao_anterior": {
+    "id": "507bdcc1-c22e-40ae-a507-a45a38a9ebaa",
+    "is_published": false,
+    "is_template": true,
+    "respostas_na_versao": 3,
+    "conteudo_perguntas_opcoes_pontos_sha256_agora": "ca32ec84887dc273b69bb861f2d31ec74fca7fd18cdc2bbed361516ac1e44960",
+    "identica_a_fotografia_da_etapa_0": true,
+    "arquivo_de_referencia": "docs/disc-baseline-2026-09-18.json"
+  },
+  "diferencas_contra_a_versao_anterior": {
+    "total_de_mudancas_de_texto": 18,
+    "blocos_tocados": [
+      1,
+      2,
+      3,
+      4,
+      12,
+      14,
+      17,
+      20,
+      21,
+      23,
+      24,
+      28
+    ],
+    "blocos_identicos": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      13,
+      15,
+      16,
+      18,
+      19,
+      22,
+      25,
+      26,
+      27
+    ],
+    "so_o_texto_mudou_posicao_letra_pontos_tipo_e_config_identicos": true,
+    "mudancas": [
+      {
+        "bloco": 1,
+        "item": "alternativa",
+        "posicao": 4,
+        "letra": "C",
+        "de": "Peço mais dados antes de fechar, mesmo que atrase.",
+        "para": "Fecho quando os dados sustentam a decisão."
+      },
+      {
+        "bloco": 2,
+        "item": "alternativa",
+        "posicao": 2,
+        "letra": "D",
+        "de": "Digo na hora que não serve e peço para refazer.",
+        "para": "Sou direto: mostro o que faltou e peço para refazer."
+      },
+      {
+        "bloco": 2,
+        "item": "alternativa",
+        "posicao": 4,
+        "letra": "S",
+        "de": "Deixo passar dessa vez e ofereço ajuda.",
+        "para": "Ofereço ajuda para a pessoa refazer com apoio."
+      },
+      {
+        "bloco": 3,
+        "item": "alternativa",
+        "posicao": 3,
+        "letra": "S",
+        "de": "Espero alguém me incluir e vou me soltando aos poucos.",
+        "para": "Me aproximo aos poucos e crio vínculo com calma."
+      },
+      {
+        "bloco": 4,
+        "item": "alternativa",
+        "posicao": 4,
+        "letra": "D",
+        "de": "Reunião longa que não chega a lugar nenhum.",
+        "para": "Esperar consenso quando a decisão já está clara."
+      },
+      {
+        "bloco": 12,
+        "item": "alternativa",
+        "posicao": 2,
+        "letra": "C",
+        "de": "Prefiro atrasar a entregar com falha.",
+        "para": "Negocio o prazo se for para entregar sem falha."
+      },
+      {
+        "bloco": 14,
+        "item": "alternativa",
+        "posicao": 2,
+        "letra": "S",
+        "de": "Deixo passar e converso depois em particular.",
+        "para": "Mantenho o clima e retomo depois, com calma."
+      },
+      {
+        "bloco": 14,
+        "item": "alternativa",
+        "posicao": 4,
+        "letra": "D",
+        "de": "Rebato ali mesmo.",
+        "para": "Defendo meu ponto ali mesmo."
+      },
+      {
+        "bloco": 17,
+        "item": "alternativa",
+        "posicao": 2,
+        "letra": "S",
+        "de": "Prefiro que outra pessoa apresente.",
+        "para": "Apresento no meu ritmo, com o que preparei."
+      },
+      {
+        "bloco": 20,
+        "item": "alternativa",
+        "posicao": 2,
+        "letra": "S",
+        "de": "Sigo junto para não dividir o time.",
+        "para": "Apoio a decisão do grupo e ajudo a dar certo."
+      },
+      {
+        "bloco": 21,
+        "item": "alternativa",
+        "posicao": 1,
+        "letra": "S",
+        "de": "Alguém confiável.",
+        "para": "Alguém que mantém o rumo."
+      },
+      {
+        "bloco": 23,
+        "item": "alternativa",
+        "posicao": 4,
+        "letra": "S",
+        "de": "Adio até não dar mais.",
+        "para": "Escolho o momento certo e cobro com calma."
+      },
+      {
+        "bloco": 24,
+        "item": "alternativa",
+        "posicao": 1,
+        "letra": "D",
+        "de": "Passo por cima e resolvo.",
+        "para": "Resolvo primeiro e explico depois."
+      },
+      {
+        "bloco": 28,
+        "item": "enunciado",
+        "de": "Se tivesse que abrir mão de uma coisa no trabalho:",
+        "para": "Entre estas coisas, a que você mais preserva no trabalho, mesmo sob pressão:"
+      },
+      {
+        "bloco": 28,
+        "item": "alternativa",
+        "posicao": 1,
+        "letra": "S",
+        "de": "Abriria mão da estabilidade.",
+        "para": "Meu ritmo e minha estabilidade."
+      },
+      {
+        "bloco": 28,
+        "item": "alternativa",
+        "posicao": 2,
+        "letra": "C",
+        "de": "Abriria mão do capricho.",
+        "para": "O padrão e a qualidade do que entrego."
+      },
+      {
+        "bloco": 28,
+        "item": "alternativa",
+        "posicao": 3,
+        "letra": "I",
+        "de": "Abriria mão do convívio.",
+        "para": "O bom clima com as pessoas."
+      },
+      {
+        "bloco": 28,
+        "item": "alternativa",
+        "posicao": 4,
+        "letra": "D",
+        "de": "Abriria mão do controle.",
+        "para": "O controle da situação."
+      }
+    ]
+  },
+  "conferencias_de_pontuacao": {
+    "todos_os_28_blocos_tem_4_alternativas_uma_por_letra_com_1_ponto": true,
+    "linhas_de_pontuacao_por_alternativa": [
+      1
+    ],
+    "bloco_28_enunciado_e_letras_como_combinado": true,
+    "bloco_28": [
+      {
+        "posicao": 1,
+        "letra": "S",
+        "pontos": 1.0,
+        "texto": "Meu ritmo e minha estabilidade."
+      },
+      {
+        "posicao": 2,
+        "letra": "C",
+        "pontos": 1.0,
+        "texto": "O padrão e a qualidade do que entrego."
+      },
+      {
+        "posicao": 3,
+        "letra": "I",
+        "pontos": 1.0,
+        "texto": "O bom clima com as pessoas."
+      },
+      {
+        "posicao": 4,
+        "letra": "D",
+        "pontos": 1.0,
+        "texto": "O controle da situação."
+      }
+    ]
+  },
+  "pendencias_conhecidas_no_momento": {
+    "links_abertos_ativos_que_ainda_apontam_para_a_versao_antiga": [
+      "9b2eef2e-9244-43fc-a024-18d59e1de6e1",
+      "4df14574-98c4-4507-a151-060622ac0774",
+      "f3c41c61-968a-43cd-ab2c-dab0045812b3",
+      "25509b87-39fe-4c78-ae47-91de8eeea845"
+    ],
+    "observacao": "Despublicar a versão antiga não desliga links abertos (/convite): eles guardam os ids das versões e criam a resposta sem checar publicação. Nada foi alterado nesses links."
+  },
+  "respostas": []
+}
