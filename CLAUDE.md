@@ -288,7 +288,20 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
   −pontos do `least`. Gera `natural` (só most) e `adaptado` (most − least).
 - Demais tipos: `adaptado = natural`.
 - `normalized` 0–100 por dimensão, com mín/máx teóricos derivados das perguntas.
-- Persistido em `computed_scores`: `{ total, natural, adaptado, normalized }`.
+- Persistido em `computed_scores`: `{ total, natural, adaptado, normalized }` — o **formato
+  antigo**, mantido só porque o relatório atual o lê (sai na Etapa 2b). ⚠️ Ali `natural` = só os
+  MAIS, e `normalized.natural`/`.adaptado` estão em réguas diferentes (média 25 × 50): nunca
+  comparar um com o outro.
+- **Escolha forçada é medida IPSATIVA** (#288, Etapa 2a; DISC, Temperamentos e VAK — lista em
+  `INSTRUMENTOS_IPSATIVOS`, `src/lib/escolha-forcada.ts`): só vale a posição relativa entre as
+  letras da mesma pessoa. A conta é uma função pura e fica em `computed_scores.ipsativo`
+  (ranking + distância entre 1º e 2º; `adaptado` = vezes MAIS, `natural` = n − vezes MENOS,
+  `expressao` = MAIS − MENOS; perfil combinado quando a distância é ≤ 2). Contrato completo em
+  `docs/motor-ipsativo.md`. **Valores usa o mesmo tipo de pergunta e ficou de fora** (decisão
+  pendente).
+- Todo empate se decide pela **ordem da letra no instrumento**, nunca pela ordem em que o banco
+  devolveu as linhas, e toda leitura do motor tem `.order()` explícito — editar uma linha muda a
+  posição física dela (já aconteceu no DISC novo). Testes: `scripts/testar_ipsativo.py`.
 
 ## Relatórios
 

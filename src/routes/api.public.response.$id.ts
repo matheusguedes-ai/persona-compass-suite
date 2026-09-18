@@ -2,6 +2,13 @@ import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { loadBrandAndSettings } from "@/lib/brand.server";
+import {
+  calcularIpsativo,
+  escolherDominante,
+  usaMotorIpsativo,
+  type BlocoRespondido,
+  type DimensaoIpsativa,
+} from "@/lib/escolha-forcada";
 
 type Json = { [k: string]: unknown };
 
@@ -190,14 +197,18 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   }
 
   const versionId = response.version_id;
-  const [{ data: questions }, { data: dims }, { data: bands }] = await Promise.all([
-    supabase.from("test_questions").select("*").eq("version_id", versionId),
-    supabase.from("test_dimensions").select("*").eq("version_id", versionId),
-    supabase.from("test_result_bands").select("*").eq("version_id", versionId).order("sort_order"),
+  // ORDEM EXPLÍCITA em toda leitura (#288 Etapa 2a). Sem `.order()` o Postgres devolve as linhas na
+  // ordem física, que muda quando uma linha é editada — e todo empate decidido "pelo primeiro que
+  // chegou" passava a depender disso. `sort_order` + `id` dá uma ordem total e estável.
+  const [{ data: questions }, { data: dims }, { data: bands }, { data: versao }] = await Promise.all([
+    supabase.from("test_questions").select("*").eq("version_id", versionId).order("sort_order").order("id"),
+    supabase.from("test_dimensions").select("*").eq("version_id", versionId).order("sort_order").order("id"),
+    supabase.from("test_result_bands").select("*").eq("version_id", versionId).order("sort_order").order("id"),
+    supabase.from("test_versions").select("instrument_id").eq("id", versionId).maybeSingle(),
   ]);
   const qIds = (questions ?? []).map((q) => q.id);
   const { data: options } = qIds.length
-    ? await supabase.from("test_options").select("*").in("question_id", qIds)
+    ? await supabase.from("test_options").select("*").in("question_id", qIds).order("sort_order").order("id")
     : { data: [] };
   const optIds = (options ?? []).map((o) => o.id);
   const { data: scores } = optIds.length
@@ -262,6 +273,9 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     questionId: string; dimMais: string | null; dimMenos: string | null;
     posicaoMais: number; nOpcoes: number; cfg: Json;
   }> = [];
+
+  /** Os mesmos blocos, no formato que o motor ipsativo consome (#288 Etapa 2a). */
+  const blocosForcados: BlocoRespondido[] = [];
 
   for (const q of questions ?? []) {
     const payload = givenMap.get(q.id);
@@ -347,6 +361,12 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
         nOpcoes: daPergunta.length,
         cfg: (q.config ?? {}) as Json,
       });
+      blocosForcados.push({
+        id: q.id,
+        opcoes: daPergunta.map((o) => ({ id: o.id, pontos: scoresByOpt.get(o.id) ?? [] })),
+        mais: most,
+        menos: least,
+      });
       mostScores.forEach((s) => {
         addPoints(s.dimension_id, s.points);
         addNatural(s.dimension_id, s.points);
@@ -364,12 +384,17 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     }
   }
 
-  // Resolve dominant + result band
-  let dominantDimId: string | null = null;
-  let dominantScore = -Infinity;
-  Object.entries(totals).forEach(([dimId, pts]) => {
-    if (pts > dominantScore) { dominantScore = pts; dominantDimId = dimId; }
-  });
+  // Resolve dominant + result band — FORMATO ANTIGO, mantido até a Etapa 2b porque a tela
+  // pós-envio (/responder) ainda lê os dois. O desempate era "a primeira letra que recebeu um
+  // MAIS", ou seja, a ordem em que as perguntas chegavam do banco; agora é a ordem da letra no
+  // instrumento — a mesma regra do motor ipsativo, e nada depende de ordem de leitura.
+  const dimensoesDoInstrumento: DimensaoIpsativa[] = (dims ?? []).map((d) => ({
+    id: d.id, key: d.key, sort_order: d.sort_order,
+  }));
+  const ordemDaLetra = new Map(dimensoesDoInstrumento.map((d, i) => [d.id, i]));
+  const dominante = escolherDominante(totals, dimensoesDoInstrumento);
+  const dominantDimId: string | null = dominante?.id ?? null;
+  const dominantScore = dominante?.valor ?? -Infinity;
 
   let bandId: string | null = null;
   if (dominantDimId != null) {
@@ -478,6 +503,22 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
     normalized[dimId] = { natural: nPct, adaptado: forcedQs.length > 0 ? aPct : nPct };
   });
   const hasNormalized = normDimIds.size > 0;
+
+  // ------------------------------------------------------------------
+  // Motor IPSATIVO (#288 Etapa 2a) — DISC, Temperamentos, VAK.
+  //
+  // Escolha forçada só mede POSIÇÃO RELATIVA entre as letras da mesma pessoa (cada bloco reparte
+  // um MAIS e um MENOS, então as pontuações sempre somam o mesmo total). O resultado é ranking +
+  // distância entre 1º e 2º, calculado numa função pura (`escolha-forcada.ts`) e gravado em
+  // `computed_scores.ipsativo` — a FONTE ÚNICA que as telas devem ler, sem recalcular nada.
+  //
+  // Valores usa o mesmo tipo de pergunta e ficou FORA de propósito (decisão pendente):
+  // `usaMotorIpsativo` só liga para os instrumentos listados em `INSTRUMENTOS_IPSATIVOS`.
+  // ------------------------------------------------------------------
+  const usaIpsativo = forcedQs.length > 0 && usaMotorIpsativo(versao?.instrument_id);
+  const ipsativo = usaIpsativo
+    ? calcularIpsativo({ dimensoes: dimensoesDoInstrumento, blocos: blocosForcados })
+    : null;
 
   // Persist answers (upsert) + response
   if (sanitized.size > 0) {
@@ -649,16 +690,25 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   const computed: Record<string, unknown> = { total: totals };
   const qualidade = medirQualidade();
   if (qualidade) computed.qualidade = qualidade;
+  // FORMATO ANTIGO (`total`, `natural`, `adaptado`, `normalized`): fica gravado só porque o
+  // relatório atual ainda os lê; sai na Etapa 2b. Cuidado com o nome: aqui `natural` é "só os
+  // MAIS" — no `ipsativo` (abaixo) essa conta se chama `adaptado`, e `natural` é 28 − MENOS.
   if (hasNormalized) {
     computed.natural = rawNatural;
     computed.adaptado = rawAdaptado;
     computed.normalized = normalized;
   }
+  // FONTE ÚNICA do resultado de escolha forçada. Não tem nenhum campo que compare natural com
+  // adaptado — são conjuntos independentes, cada um somando 100 dentro de si.
+  if (ipsativo) computed.ipsativo = ipsativo;
   const { data: updated, error } = await supabase.from("test_responses").update({
     status: "submitted",
     computed_scores: computed as never,
-    dominant_dimension_id: dominantDimId,
-    result_band_id: bandId,
+    // Nos instrumentos ipsativos o perfil mora em `computed_scores.ipsativo`, e ninguém lia estas
+    // duas colunas (Etapa 0) — deixam de ser gravadas para não sobrar campo órfão. Os demais
+    // instrumentos seguem exatamente como sempre.
+    dominant_dimension_id: ipsativo ? null : dominantDimId,
+    result_band_id: ipsativo ? null : bandId,
     submitted_at: new Date().toISOString(),
     ...(input.rater_name ? { rater_name: input.rater_name } : {}),
   }).eq("id", id).select().single();
@@ -689,7 +739,7 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   const byDimension = Object.entries(totals).map(([dimId, points]) => {
     const d = dimById.get(dimId);
     return { id: dimId, key: d?.key ?? "", label: d?.label ?? dimId, color: d?.color ?? null, points };
-  }).sort((a, b) => b.points - a.points);
+  }).sort((a, b) => b.points - a.points || (ordemDaLetra.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (ordemDaLetra.get(b.id) ?? Number.MAX_SAFE_INTEGER));
 
   // Per-dimension bands, keyed by normalized (0-100). Fallback to raw if no normalized.
   const perDimBands: Array<{ dimension_id: string; label: string; color: string | null; mode: "natural" | "adaptado"; points: number; normalized: number | null; band: { title: string; description: string | null } | null }> = [];
@@ -724,6 +774,8 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
       adaptado: hasNormalized ? rawAdaptado : undefined,
       normalized: hasNormalized ? normalized : undefined,
       per_dimension_bands: perDimBands.filter((p) => p.band != null),
+      /** Resultado ipsativo (Etapa 2a) — o mesmo que ficou em `computed_scores.ipsativo`. */
+      ipsativo: ipsativo ?? undefined,
       by_dimension: byDimension,
       dominant: dominantDim ? { key: dominantDim.key, label: dominantDim.label, color: dominantDim.color } : null,
       band: band ? { title: band.title, description: band.description } : null,
