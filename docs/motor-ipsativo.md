@@ -101,10 +101,38 @@ já vêm prontos: quem lê **não recalcula nada** (recalcular é como nascem du
 `codigo` junta as chaves sem separador quando todas têm 1 caractere (`SC`) e com `+` nos demais
 (`SAN+COL`, Temperamentos).
 
-## O que continua gravado do formato antigo — e sai na Etapa 2b
+## Quem lê o `ipsativo` (Etapa 2b-i)
 
-O relatório atual (`report.server.ts`, **não tocado** na 2a) lê estes campos, então o motor
-continua gravando, com a fórmula antiga, exatamente como antes:
+O **relatório** (`report.server.ts`) de **DISC, Temperamentos e VAK** lê o `ipsativo` e **não lê
+mais** `total`/`natural`/`adaptado`/`normalized` — nem os do avaliado nem os dos observadores 360°.
+Prova: apagar esses campos de uma resposta de teste não muda o relatório (nem com o `ipsativo`
+gravado, nem com ele apagado também). Valores, Big Five, MBTI, QI e testes personalizados **não**
+passam pelo motor ipsativo e continuam lendo o formato antigo (por isso ele ainda é gravado).
+
+- **De onde vem o resultado** (`src/lib/ipsativo.server.ts`): do campo gravado; ou, para respostas
+  **anteriores à 2a** (as reais de Temperamentos e VAK não têm o campo), **derivado em memória** das
+  respostas cruas (`test_answers`) pela MESMA função `calcularIpsativo`. Nada é gravado: resposta
+  existente não se altera. Se as respostas cruas estiverem incompletas, o resultado é `null` e o
+  relatório diz "não gera relatório detalhado" — não inventa.
+- **A ordem do ranking é a do motor.** O perfil é a **1ª letra do ranking Adaptado**. Perfil
+  combinado e empate ainda **não têm apresentação própria** (Etapa 2c): mostram a 1ª letra, sem
+  texto novo. Única diferença visível em relação a antes: exatamente 14 × 14 (as duas letras acima
+  de 50%) deixa de mostrar duas letras. O aviso "sem predominância clara" (menos de 10 pontos entre
+  a maior e a menor) continua como sempre — é regra de honestidade do relatório, não do motor.
+- **⚠️ PONTE TEMPORÁRIA** (`numerosDaTelaAtual`): a tela de hoje foi desenhada com o formato antigo
+  — a barra "Natural" é MAIS ÷ máximo (no motor novo, o conjunto **adaptado**) e a barra "Adaptado"
+  é (MAIS − MENOS + máximo) ÷ (2 × máximo) (não existe no motor novo). Para o relatório continuar
+  **idêntico** enquanto a fonte migra, essa função reexpressa os dois números a partir dos
+  contadores do `ipsativo` (`mais`, `menos`, `maximo`). É o ÚNICO lugar em que o vocabulário antigo
+  sobrevive, e ele mantém as duas barras na mesma régua (a diferença tem viés fixo de +25). A
+  Etapa 2c troca a apresentação e a função some.
+- Antes × depois, campo a campo: `python3 scripts/comparar_relatorios.py capturar|comparar`.
+
+## O que continua gravado do formato antigo — e quando sai
+
+Ainda gravado, com a fórmula antiga, exatamente como antes — só para quem ainda o lê (relatórios de
+Valores, Big Five, MBTI, QI e personalizados, e a tela pós-envio `/responder`). Sai quando o último
+leitor migrar; enquanto Valores não entrar no motor, o formato antigo continua existindo para ele:
 
 - `computed_scores.total`, `.natural`, `.adaptado`, `.normalized` (0–100).
   ⚠️ **Nome enganoso:** aqui `natural` = só os MAIS (a conta que o `ipsativo` chama de

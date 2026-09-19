@@ -289,9 +289,11 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
 - Demais tipos: `adaptado = natural`.
 - `normalized` 0–100 por dimensão, com mín/máx teóricos derivados das perguntas.
 - Persistido em `computed_scores`: `{ total, natural, adaptado, normalized }` — o **formato
-  antigo**, mantido só porque o relatório atual o lê (sai na Etapa 2b). ⚠️ Ali `natural` = só os
-  MAIS, e `normalized.natural`/`.adaptado` estão em réguas diferentes (média 25 × 50): nunca
-  comparar um com o outro.
+  antigo**, mantido porque ainda há leitores: o relatório de Valores, Big Five, MBTI, QI e
+  personalizados, e a tela pós-envio (`/responder`); o relatório de DISC/Temperamentos/VAK já não
+  o lê (Etapa 2b-i). Sai quando o último leitor migrar. ⚠️ Ali `natural` = só os MAIS, e
+  `normalized.natural`/`.adaptado` estão em réguas diferentes (média 25 × 50): nunca comparar um
+  com o outro.
 - **Escolha forçada é medida IPSATIVA** (#288, Etapa 2a; DISC, Temperamentos e VAK — lista em
   `INSTRUMENTOS_IPSATIVOS`, `src/lib/escolha-forcada.ts`): só vale a posição relativa entre as
   letras da mesma pessoa. A conta é uma função pura e fica em `computed_scores.ipsativo`
@@ -308,6 +310,10 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
 - `src/lib/report.server.ts` — `buildReport(responseId)`, compartilhado.
   Três montadores: DISC (seções por perfil composto), MBTI (por eixo) e
   dimensional (Valores/Temperamentos/VAK/Big Five, 9 seções).
+  **DISC, Temperamentos e VAK leem `computed_scores.ipsativo`** (#288, Etapa 2b-i) — ou o
+  derivam das respostas cruas quando a resposta é anterior à 2a (`src/lib/ipsativo.server.ts`,
+  sem gravar nada); os demais instrumentos ainda leem o formato antigo. A tela é a mesma de
+  antes (a Etapa 2c redesenha). Antes × depois: `scripts/comparar_relatorios.py`.
 - `src/lib/derivations.ts` — pesos das derivações do DISC (Jung, 4 estilos de
   liderança, 16 competências, 4 índices), sobrescritíveis por `derived_config`.
 - `src/components/report/sections.tsx` — blocos visuais compartilhados.

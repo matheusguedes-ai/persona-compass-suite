@@ -140,6 +140,15 @@ CASOS = {
         desc="a letra I nunca é MAIS nem MENOS",
         mais={"S": 12, "C": 10, "D": 6, "I": 0}, menos={"D": 12, "S": 10, "C": 6, "I": 0},
         espera={"adaptado": ("combinado", "combinado", ["S", "C"], 2), "natural": ("predominante", "clara", ["I"], 6)}),
+    # casos de fronteira do RELATÓRIO (Etapa 2b-i): onde o perfil de hoje difere do "1ª letra do ranking"
+    "i_catorze_catorze": dict(
+        desc="exatamente 14 × 14 (as duas letras passam de 50%: o relatório de hoje mostra duas letras)",
+        mais={"S": 14, "C": 14, "I": 0, "D": 0}, menos={"I": 14, "D": 14, "S": 0, "C": 0},
+        espera={"adaptado": ("combinado", "combinado", ["S", "C"], 0), "natural": ("combinado", "combinado", ["S", "C"], 0)}),
+    "j_quase_plano": dict(
+        desc="8-7-7-6: amplitude < 10 pontos (o relatório de hoje diz 'sem predominância clara')",
+        mais={"S": 8, "C": 7, "I": 7, "D": 6}, menos={"D": 8, "I": 7, "C": 7, "S": 6},
+        espera={"adaptado": ("combinado", "combinado", ["S", "I"], 1), "natural": ("combinado", "combinado", ["S", "I"], 1)}),
     # casos-limite dos limiares (2 → combinado · 3 e 5 → moderada · 6 → clara)
     "f_distancia_3": dict(
         desc="limite: distância 3 = moderada",
@@ -369,6 +378,22 @@ def _posicao_repetida_na_tela(est, mais_ids):
     return int(max(cont.values()) / len(mais_ids) * 100 + 0.5) / 100  # arredonda como o motor (Math.round)
 
 
+VOLATIL = ("response_id", "submitted_at", "started_at", "duration")
+
+
+def relatorio_comparavel(rel):
+    """Relatório inteiro, menos o que muda de uma resposta para outra e o token da URL assinada do logo."""
+    r = {k: v for k, v in rel.items() if k not in VOLATIL}
+    b = dict(r.get("brand") or {})
+    if isinstance(b.get("logo_url"), str):
+        b["logo_url"] = b["logo_url"].split("?token=")[0] + "?token=X"
+    r["brand"] = b
+    ext = r.get("external")
+    if isinstance(ext, dict) and isinstance(ext.get("respondents"), list):
+        r["external"] = {**ext, "respondents": sorted(ext["respondents"])}  # o banco não garante a ordem dos nomes
+    return r
+
+
 def _sem_volatil(rel):
     """Recorte do relatório que não muda de uma resposta para outra com as mesmas escolhas."""
     return {k: rel.get(k) for k in ("is_disc", "is_mbti", "profile", "profile_labels", "perfil_indefinido", "factors", "sections", "derived", "external", "test_title", "instrument_id")}
@@ -408,6 +433,8 @@ def cmd_vivo(args):
     ok_geral = True
     empates_diferentes = 0
     posicoes_diferentes = [0]
+    relatorios_iguais = [0]
+    provas_sem_legado = [0]
     try:
         for i, (nome, mais, menos, espera) in enumerate(_casos_vivos(est, args)):
             pessoa = rest("POST", "people", corpo=[{"full_name": f"{PREFIXO} {nome}", "email": f"sim-etapa2a-{i}@exemplo.invalido", "mentor_id": v["mentor_id"]}])[0]
@@ -430,6 +457,20 @@ def cmd_vivo(args):
             gravado = rest("GET", "test_responses", {"id": f"eq.{resp['id']}", "select": "computed_scores,dominant_dimension_id,result_band_id,status,version_id"})[0]
             cs = gravado["computed_scores"] or {}
             problemas = []
+            observadores = {}  # id do observador -> computed_scores gravado
+            for j in range(args.com_observadores):
+                obs = rest("POST", "test_responses", corpo=[{**base, "status": "pending", "kind": "observer",
+                                                             "parent_response_id": resp["id"], "assessment_sort": 10 + j}])[0]
+                criados["respostas"].append(obs["id"])
+                est_json = {"letra_da_opcao": est["letra_da_opcao"], "blocos": est["blocos"]}
+                mo, no = sortear_escolhas(est_json, random.Random(f"{args.versao}-{nome}-obs-{j}"), None)
+                corpo_o = {"rater_name": f"Observador teste {j}",
+                           "answers": [{"question_id": b["id"], "payload": {"most_option_id": mo[k], "least_option_id": no[k]}} for k, b in enumerate(est["blocos"])]}
+                ho, _ = _post_app(args.app, f"/api/public/response/{obs['id']}", corpo_o)
+                if ho != 200:
+                    problemas.append(f"observador {j}: POST falhou (HTTP {ho})")
+                    continue
+                observadores[obs["id"]] = rest("GET", "test_responses", {"id": f"eq.{obs['id']}", "select": "computed_scores"})[0]["computed_scores"] or {}
             if gravado["status"] != "submitted" or gravado["version_id"] != args.versao:
                 problemas.append("status/versão inesperados")
 
@@ -488,6 +529,45 @@ def cmd_vivo(args):
 
             # --- o relatório atual continua montando, e igual ao que o motor antigo produzia
             hrel, rel = _post_app(args.app, f"/api/public/report/{resp['id']}")
+            if hrel == 200 and isinstance(rel, dict):
+                rel_cmp = relatorio_comparavel(rel)
+                if args.salvar_relatorios:
+                    os.makedirs(args.salvar_relatorios, exist_ok=True)
+                    json.dump(rel_cmp, open(os.path.join(args.salvar_relatorios, f"{nome}.json"), "w"), ensure_ascii=False, indent=1)
+                if args.comparar_relatorios:
+                    ref = os.path.join(args.comparar_relatorios, f"{nome}.json")
+                    if os.path.exists(ref):
+                        d = comparar(rel_cmp, json.load(open(ref)), "relatorio", 0)
+                        if d:
+                            problemas.append(f"RELATÓRIO COMPLETO difere do de antes em {len(d)} campo(s): {d[:5]}")
+                        else:
+                            relatorios_iguais[0] += 1
+                # prova de que o relatório NÃO lê mais os campos antigos: apago-os desta resposta de teste
+                if args.prova_sem_legado:
+                    cs_a = {k: v_ for k, v_ in cs.items() if k not in ("total", "natural", "adaptado", "normalized")}
+                    rest("PATCH", "test_responses", {"id": f"eq.{resp['id']}"}, corpo={"computed_scores": cs_a}, retorno=False)
+                    for oid, ocs in observadores.items():
+                        oa = {k: v_ for k, v_ in ocs.items() if k not in ("total", "natural", "adaptado", "normalized")}
+                        rest("PATCH", "test_responses", {"id": f"eq.{oid}"}, corpo={"computed_scores": oa}, retorno=False)
+                    ha, ra = _post_app(args.app, f"/api/public/report/{resp['id']}")
+                    if deve_ter_ipsativo:
+                        if ha != 200 or relatorio_comparavel(ra) != rel_cmp:
+                            problemas.append(f"sem os campos antigos (com ipsativo gravado) o relatório MUDOU (HTTP {ha})")
+                        cs_b = {k: v_ for k, v_ in cs_a.items() if k != "ipsativo"}
+                        rest("PATCH", "test_responses", {"id": f"eq.{resp['id']}"}, corpo={"computed_scores": cs_b}, retorno=False)
+                        for oid, ocs in observadores.items():
+                            ob = {k: v_ for k, v_ in ocs.items() if k not in ("total", "natural", "adaptado", "normalized", "ipsativo")}
+                            rest("PATCH", "test_responses", {"id": f"eq.{oid}"}, corpo={"computed_scores": ob}, retorno=False)
+                        hb, rb = _post_app(args.app, f"/api/public/report/{resp['id']}")
+                        if hb != 200 or relatorio_comparavel(rb) != rel_cmp:
+                            problemas.append(f"sem os campos antigos E sem ipsativo (derivado das respostas) o relatório MUDOU (HTTP {hb})")
+                        else:
+                            provas_sem_legado[0] += 1
+                    else:
+                        if ha != 404:
+                            problemas.append(f"instrumento fora do motor novo deveria continuar lendo o formato antigo (HTTP {ha} sem `normalized`, esperado 404)")
+                        else:
+                            provas_sem_legado[0] += 1
             if hrel != 200 or not isinstance(rel, dict):
                 problemas.append(f"relatório HTTP {hrel}")
             else:
@@ -536,6 +616,12 @@ def cmd_vivo(args):
         if saved:
             print(f"\nComparação com o motor antigo: colunas antigas que mudaram por causa de empate: {empates_diferentes}"
                   f" · respostas em que a mania de posição do selo mudou (ordem da tela × ordem física): {posicoes_diferentes[0]}")
+        if args.com_observadores:
+            print(f"Observadores (360°) descartáveis por caso: {args.com_observadores}")
+        if args.comparar_relatorios:
+            print(f"Relatórios COMPLETOS idênticos aos de antes: {relatorios_iguais[0]}")
+        if args.prova_sem_legado:
+            print(f"Prova 'sem os campos antigos': {provas_sem_legado[0]} casos (com ipsativo gravado, só com as respostas cruas; e Valores continua lendo o formato antigo)")
         if args.aleatorio:
             print(f"{args.aleatorio} respostas aleatórias conferidas.")
     finally:
@@ -593,6 +679,11 @@ def main():
     v.add_argument("--sem-ipsativo", action="store_true"); v.add_argument("--salvar-legado"); v.add_argument("--comparar-legado")
     v.add_argument("--aleatorio", type=int, default=0, help="em vez dos casos do produto, N respostas aleatórias (mesma semente em toda execução)")
     v.add_argument("--detalhe", action="store_true"); v.add_argument("--respostas-reais", type=int, default=0, help="respostas reais que a versão já tem (não são apagadas)")
+    v.add_argument("--com-observadores", type=int, default=0, help="cria N observadores (360°) descartáveis por caso, que respondem pelo endpoint público")
+    v.add_argument("--salvar-relatorios", help="guarda o relatório COMPLETO de cada caso nesta pasta (para comparar antes × depois)")
+    v.add_argument("--comparar-relatorios", help="compara o relatório COMPLETO de cada caso com o guardado nesta pasta")
+    v.add_argument("--prova-sem-legado", action="store_true",
+                   help="apaga os campos antigos da RESPOSTA DE TESTE e confere que o relatório não muda (e, em Valores, que continua lendo o formato antigo)")
     a = ap.parse_args()
     sys.exit({"puro": cmd_puro, "simular": cmd_simular, "vivo": cmd_vivo}[a.cmd](a))
 
