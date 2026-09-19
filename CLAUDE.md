@@ -312,8 +312,14 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
   dimensional (Valores/Temperamentos/VAK/Big Five, 9 seções).
   **DISC, Temperamentos e VAK leem `computed_scores.ipsativo`** (#288, Etapa 2b-i) — ou o
   derivam das respostas cruas quando a resposta é anterior à 2a (`src/lib/ipsativo.server.ts`,
-  sem gravar nada); os demais instrumentos ainda leem o formato antigo. A tela é a mesma de
-  antes (a Etapa 2c redesenha). Antes × depois: `scripts/comparar_relatorios.py`.
+  sem gravar nada); os demais instrumentos ainda leem o formato antigo e saem idênticos.
+  **Página de intensidade** (#288, Etapa 2c, `src/lib/intensidade.ts`): "PERFIL <sigla do
+  NATURAL>" (1 letra, ou 2 na ordem do ranking; empate múltiplo = "sem predominância clara"),
+  gráficos NATURAL e ADAPTADO separados com sigla própria — nunca comparados —, três índices e o
+  texto do perfil (cadastrável; pendente vira aviso). Estima e Flexibilidade estão "em revisão"
+  (eram constantes: 1,00 e 0,75 para todo mundo). O resto do relatório: seções por perfil (DISC)
+  pela letra que lidera o natural; leituras por fator no conjunto adaptado, como sempre. Detalhe
+  em `docs/motor-ipsativo.md`. Antes × depois: `scripts/comparar_relatorios.py`.
 - `src/lib/derivations.ts` — pesos das derivações do DISC (Jung, 4 estilos de
   liderança, 16 competências, 4 índices), sobrescritíveis por `derived_config`.
 - `src/components/report/sections.tsx` — blocos visuais compartilhados.
@@ -335,6 +341,13 @@ Tipos Psicológicos usam o MBTI real quando respondido; senão vão como
 Todo texto do relatório é **original** — as metodologias são de domínio público,
 mas os textos de relatórios comerciais (CIS Assessment etc.) são protegidos.
 Nunca copiar. Conteúdo vive em `report_content` e `test_result_bands`, não no código.
+`report_content.status` (`publicado` | `pendente`): linha pendente não aparece no relatório.
+
+Texto do perfil (página de intensidade, `<instrumento>_perfil_texto`, chave = sigla): fonte em
+`scripts/conteudo_perfil_texto.py`, com trava por `assert` contra frase copiada da referência.
+Em 19/09/2026: DISC S, CS e CI publicados (derivados da referência, com palavras nossas); as
+outras 13 siglas do DISC e todas as de Temperamentos (16) e VAK (9) **pendentes** — o dono do
+produto escreve ou aprova. Nada de inventar texto de personalidade para preencher.
 
 Templates populados (revisados em 28/07/2026, ver `scripts/conteudo_*.py`):
 DISC 28 blocos · Valores 30 · Temperamentos 28 · VAK 24 · MBTI 40 · Big Five 50

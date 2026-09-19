@@ -1524,6 +1524,7 @@ export type Database = {
           mode: string
           section: string
           sort_order: number
+          status: string
           title: string | null
           version_id: string | null
         }
@@ -1537,6 +1538,7 @@ export type Database = {
           mode?: string
           section: string
           sort_order?: number
+          status?: string
           title?: string | null
           version_id?: string | null
         }
@@ -1550,6 +1552,7 @@ export type Database = {
           mode?: string
           section?: string
           sort_order?: number
+          status?: string
           title?: string | null
           version_id?: string | null
         }

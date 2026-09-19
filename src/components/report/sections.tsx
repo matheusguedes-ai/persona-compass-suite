@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 import { fetchComSessao } from "@/lib/fetch-com-sessao";
+import type { GraficoDoConjunto, Intensidade } from "@/lib/intensidade";
 
 export type Descritor = { body: string; band_min: number | null; band_max: number | null; active: boolean };
 
@@ -16,8 +17,14 @@ export type Factor = {
   id: string; key: string; label: string; color: string | null;
   /** false = nenhuma pergunta pontua esta dimensão (dado ausente, não zero). */
   has_data?: boolean;
-  natural: number; adaptado: number; natural_norm: number; adaptado_norm: number;
-  gap: number; gap_mode: "gap_up" | "gap_down" | null;
+  /**
+   * Nos instrumentos do motor ipsativo (DISC, Temperamentos, VAK), `natural`/`natural_norm` guardam o
+   * número das leituras por fator — que na linguagem do motor é o conjunto ADAPTADO (vezes MAIS) — e
+   * `adaptado`/`adaptado_norm` vêm `null`: não há mais um segundo número na mesma régua. Os gráficos
+   * natural e adaptado de verdade estão em `Report.intensidade`.
+   */
+  natural: number; adaptado: number | null; natural_norm: number; adaptado_norm: number | null;
+  gap: number | null; gap_mode: "gap_up" | "gap_down" | null;
   band_natural: { title: string; description: string | null } | null;
   band_adaptado: { title: string; description: string | null } | null;
   adaptacao: { title: string | null; body: string } | null;
@@ -30,8 +37,10 @@ export type Derived = {
   jung: { tipo: string; pares: JungPares };
   leadership: Array<{ key: string; label: string; pct: number }>;
   dominant: { key: string; label: string; pct: number };
-  indices: Array<{ key: string; label: string; value: number }>;
-  competencias: Array<{ name: string; natural: number; adaptado: number; band: string; definition: string }>;
+  /** `value: null` = índice em revisão (Estima e Flexibilidade no motor ipsativo). */
+  indices: Array<{ key: string; label: string; value: number | null }>;
+  /** `adaptado: null` = só uma série (motor ipsativo: não há segundo conjunto na mesma régua). */
+  competencias: Array<{ name: string; natural: number; adaptado: number | null; band: string; definition: string }>;
   leadership_content: {
     strengths: { title: string | null; body: string } | null;
     attention: { title: string | null; body: string } | null;
@@ -93,6 +102,8 @@ export type Report = {
   sections: Array<{ section: string; title: string | null; body: string }>;
   derived?: Derived | null;
   external?: { count: number; respondents: string[]; scores: Record<string, number> } | null;
+  /** Página de intensidade (DISC, Temperamentos, VAK — motor ipsativo). Ausente nos demais. */
+  intensidade?: Intensidade | null;
 };
 
 export const SECTION_TITLES: Record<string, string> = {
@@ -197,7 +208,7 @@ function comNegrito(texto: string) {
   );
 }
 
-export function IntroSection({ isDisc, isMbti }: { isDisc: boolean; isMbti?: boolean }) {
+export function IntroSection({ isDisc, isMbti, ipsativo }: { isDisc: boolean; isMbti?: boolean; ipsativo?: boolean }) {
   if (isMbti) {
     return (
       <Section>
@@ -238,12 +249,23 @@ export function IntroSection({ isDisc, isMbti }: { isDisc: boolean; isMbti?: boo
             inteligência, caráter, competência técnica ou potencial de crescimento. O que o instrumento oferece é um
             vocabulário comum para conversar sobre estilos de agir e sobre os ajustes que cada contexto exige.
           </p>
-          <p>
-            Você verá dois conjuntos de resultados. O perfil <strong>natural</strong> descreve o comportamento mais
-            espontâneo, aquele que aparece quando não há pressão externa. O perfil <strong>adaptado</strong> descreve o
-            que você tem apresentado no ambiente atual. Diferenças relevantes entre os dois indicam esforço consciente
-            de ajuste — algo saudável em doses moderadas e desgastante quando prolongado.
-          </p>
+          {ipsativo ? (
+            // #288 Etapa 2c: natural e adaptado são medidos de formas diferentes e não se comparam — a frase
+            // antiga ("diferenças entre os dois indicam esforço de ajuste") nascia justamente dessa comparação.
+            <p>
+              Você verá dois conjuntos de resultados. O perfil <strong>natural</strong> descreve o comportamento mais
+              espontâneo, aquele que aparece quando não há pressão externa. O perfil <strong>adaptado</strong> descreve o
+              que você tem apresentado no ambiente atual. Cada um tem a sua própria sigla e se lê por si: os dois são
+              medidos de formas diferentes e não se comparam um com o outro.
+            </p>
+          ) : (
+            <p>
+              Você verá dois conjuntos de resultados. O perfil <strong>natural</strong> descreve o comportamento mais
+              espontâneo, aquele que aparece quando não há pressão externa. O perfil <strong>adaptado</strong> descreve o
+              que você tem apresentado no ambiente atual. Diferenças relevantes entre os dois indicam esforço consciente
+              de ajuste — algo saudável em doses moderadas e desgastante quando prolongado.
+            </p>
+          )}
         </div>
       </Section>
     );
@@ -262,6 +284,184 @@ export function IntroSection({ isDisc, isMbti }: { isDisc: boolean; isMbti?: boo
           escolhas e desconfortos com a mesma clareza.
         </p>
       </div>
+    </Section>
+  );
+}
+
+const COR_EXTERNO = "#8b5cf6";
+
+const FAIXA_DO_GRAFICO: Record<GraficoDoConjunto["faixa"], string> = {
+  clara: "predominância clara",
+  moderada: "predominância moderada",
+  combinado: "perfil combinado",
+};
+
+function BarraDoGrafico({ valor, cor, apagada, rotulo }: { valor: number; cor: string; apagada?: boolean; rotulo?: string }) {
+  const pct = Math.max(0, Math.min(100, valor));
+  return (
+    <div className="mt-1 flex items-center gap-2">
+      {rotulo && <span className="w-14 shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground">{rotulo}</span>}
+      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: cor, opacity: apagada ? 0.45 : 1 }} />
+      </div>
+      <span className="w-7 shrink-0 text-right text-xs font-medium tabular-nums">{Math.round(pct)}</span>
+    </div>
+  );
+}
+
+/**
+ * Um dos dois gráficos da página de intensidade, com a PRÓPRIA sigla. Nada aqui olha para o outro
+ * gráfico: cada um mostra o percentual da soma do seu conjunto (as letras de um gráfico somam 100).
+ */
+function GraficoDoPerfil({
+  titulo,
+  explica,
+  g,
+  externo,
+}: {
+  titulo: string;
+  explica: string;
+  g: GraficoDoConjunto;
+  externo?: Record<string, number> | null;
+}) {
+  const comExterno = !!externo && g.letras.some((l) => externo[l.key] != null);
+  return (
+    <div className="rounded-lg border border-input p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{titulo}</p>
+        <span className="rounded-md bg-muted px-2.5 py-0.5 text-sm font-semibold tracking-[0.15em]">{g.sigla ?? "—"}</span>
+      </div>
+      <p className="mt-1 text-right text-[11px] text-muted-foreground">
+        {g.sigla ? FAIXA_DO_GRAFICO[g.faixa] : "sem predominância clara"}
+      </p>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{explica}</p>
+      <div className="mt-4 space-y-3">
+        {g.letras.map((l) => (
+          <div key={l.key}>
+            <p className={`text-sm ${l.na_sigla ? "font-semibold" : "text-muted-foreground"}`}>
+              {l.label} <span className="text-xs font-normal text-muted-foreground">({l.key})</span>
+            </p>
+            <BarraDoGrafico
+              valor={l.percentual}
+              cor={l.color ?? "var(--primary)"}
+              apagada={!l.na_sigla}
+              rotulo={comExterno ? "Você" : undefined}
+            />
+            {comExterno && externo?.[l.key] != null && (
+              <BarraDoGrafico valor={externo[l.key]} cor={COR_EXTERNO} rotulo="Externo" />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * PÁGINA DE INTENSIDADE (#288, Etapa 2c) — DISC, Temperamentos e VAK, no padrão da referência que o
+ * dono do produto usa: "PERFIL <sigla do natural>", os três índices lado a lado (só DISC) e os gráficos
+ * NATURAL e ADAPTADO separados, cada um com a própria sigla. Depois, o texto do perfil — cadastrável em
+ * `report_content`; enquanto a sigla não tem texto aprovado, um aviso no lugar, nunca texto inventado.
+ */
+export function IntensidadeDoPerfil({
+  data,
+  intensidade,
+  mostrarIndices,
+}: {
+  data: Report;
+  intensidade: Intensidade;
+  mostrarIndices: boolean;
+}) {
+  const { perfil, natural, adaptado, texto } = intensidade;
+  const indices = mostrarIndices
+    ? ["positividade", "estima", "flexibilidade"]
+        .map((k) => data.derived?.indices.find((i) => i.key === k))
+        .filter((i): i is Derived["indices"][number] => i != null)
+    : [];
+  const ext = data.external ?? null;
+  const dimensional = data.is_disc === false;
+
+  return (
+    <Section>
+      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Intensidade do perfil</p>
+      <h2 className="mt-2 text-3xl font-semibold tracking-[0.08em]">
+        {perfil.sigla ? `PERFIL ${perfil.sigla}` : "Sem predominância clara"}
+      </h2>
+      {perfil.labels.length > 0 && <p className="mt-1 text-sm text-muted-foreground">{perfil.labels.join(" · ")}</p>}
+      {!perfil.sigla && (
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          As letras do seu gráfico natural ficaram muito próximas entre si — três ou mais praticamente empatadas —,
+          então nenhuma se destaca o bastante para virar o seu perfil. Os gráficos abaixo mostram essa distribuição.
+        </p>
+      )}
+
+      {indices.length > 0 && (
+        <>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            {indices.map((i) => (
+              <div key={i.key} className="rounded-lg border border-input p-3">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{i.label}</p>
+                {i.value == null ? (
+                  <p className="mt-1.5 text-sm text-muted-foreground">Em revisão</p>
+                ) : (
+                  <p className="mt-1 text-2xl font-medium tabular-nums">{i.value.toFixed(2)}</p>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Índices de 0 a 1, derivados do seu DISC (gráfico adaptado).
+            {indices.some((i) => i.value == null) && " Os marcados como em revisão voltam quando o novo cálculo estiver pronto."}
+          </p>
+        </>
+      )}
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <GraficoDoPerfil
+          titulo="Natural"
+          explica="Seu jeito espontâneo: quanto menos vezes você apontou um estilo como o que menos combina com você, mais alto ele fica."
+          g={natural}
+        />
+        <GraficoDoPerfil
+          titulo="Adaptado"
+          explica="O que você tem mostrado no ambiente atual: quanto mais vezes você apontou um estilo como o que mais combina com você, mais alto ele fica."
+          g={adaptado}
+          externo={ext?.scores ?? null}
+        />
+      </div>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+        Os dois gráficos são medidos de formas diferentes e não se comparam entre si: em cada um, as letras dividem
+        100 pontos, e o que vale é a ordem delas.
+      </p>
+      {ext && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          Percepção externa (em roxo, no gráfico adaptado) baseada em {ext.count} observador(es)
+          {ext.respondents.length > 0 && <>: {ext.respondents.join(", ")}</>}.
+        </p>
+      )}
+
+      {texto && perfil.sigla && (texto.estado === "publicado" ? (
+        <div className="mt-6 border-t border-black/5 pt-5">
+          <h3 className="text-base font-semibold">{texto.titulo ?? `Sobre o perfil ${perfil.sigla}`}</h3>
+          <div className="mt-2 space-y-3 text-sm leading-relaxed text-muted-foreground">
+            {texto.corpo.split(/\n{2,}/).map((p, i) => <p key={i}>{comNegrito(p)}</p>)}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-6 rounded-lg border border-dashed border-input p-4">
+          <p className="text-sm font-medium">Sobre o perfil {perfil.sigla}</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            A descrição detalhada deste perfil está sendo preparada e aparece aqui assim que estiver pronta. A sigla e
+            os gráficos acima já refletem as suas respostas.
+          </p>
+        </div>
+      ))}
+
+      {dimensional && (
+        <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
+          As leituras de cada dimensão, nas próximas seções, partem do gráfico adaptado — o que você mais escolheu.
+        </p>
+      )}
     </Section>
   );
 }
@@ -288,9 +488,16 @@ export function ReportBody({
 
   return (
     <>
-      {showIntro && <IntroSection isDisc={isDisc} isMbti={data.is_mbti} />}
+      {showIntro && <IntroSection isDisc={isDisc} isMbti={data.is_mbti} ipsativo={!!data.intensidade} />}
 
-      {mostrar("fatores") && (isDisc ? (
+      {mostrar("fatores") && (data.intensidade ? (
+        // DISC, Temperamentos e VAK (motor ipsativo): a página de intensidade no padrão da referência.
+        <IntensidadeDoPerfil
+          data={data}
+          intensidade={data.intensidade}
+          mostrarIndices={mostrar("derivados") && isDisc && !!data.derived}
+        />
+      ) : isDisc ? (
         <Section>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold">Natural × Adaptado</h2>
@@ -311,12 +518,12 @@ export function ReportBody({
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{f.label} <span className="text-xs text-muted-foreground">({f.key})</span></span>
                   <span className="text-xs text-muted-foreground">
-                    natural {Math.round(f.natural_norm)} · adaptado {Math.round(f.adaptado_norm)}
+                    natural {Math.round(f.natural_norm)} · adaptado {Math.round(f.adaptado_norm ?? 0)}
                     {data.external?.scores[f.key] != null && <> · externo {Math.round(data.external.scores[f.key])}</>}
                   </span>
                 </div>
                 <Bar value={f.natural_norm} color={f.color} label="Natural" />
-                <Bar value={f.adaptado_norm} color={f.color} label="Adaptado" faded />
+                <Bar value={f.adaptado_norm ?? 0} color={f.color} label="Adaptado" faded />
                 {data.external?.scores[f.key] != null && (
                   <Bar value={data.external.scores[f.key]} color="#8b5cf6" label="Percepção externa" />
                 )}
@@ -396,12 +603,20 @@ export function ReportBody({
             Média das respostas de {data.external.count} observador(es) comparada à sua autoimagem.
           </p>
           <div className="mt-5 overflow-x-auto rounded-lg ring-1 ring-black/5">
-            <table className="w-full min-w-[520px] text-left text-sm">
+            {/* Motor ipsativo (#288 Etapa 2c): você e os observadores no MESMO conjunto — o adaptado, que é o
+                que a pessoa mostra e quem convive observa. O natural não entra aqui: está em outra régua. */}
+            <table className={`w-full ${data.intensidade ? "min-w-[420px]" : "min-w-[520px]"} text-left text-sm`}>
               <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2 font-medium">Fator</th>
-                  <th className="px-4 py-2 font-medium">Natural</th>
-                  <th className="px-4 py-2 font-medium">Adaptado</th>
+                  {data.intensidade ? (
+                    <th className="px-4 py-2 font-medium">Você (adaptado)</th>
+                  ) : (
+                    <>
+                      <th className="px-4 py-2 font-medium">Natural</th>
+                      <th className="px-4 py-2 font-medium">Adaptado</th>
+                    </>
+                  )}
                   <th className="px-4 py-2 font-medium">Externo</th>
                   <th className="px-4 py-2 font-medium">Diferença</th>
                 </tr>
@@ -414,7 +629,7 @@ export function ReportBody({
                     <tr key={f.id}>
                       <td className="px-4 py-2 font-medium">{f.label} <span className="text-xs text-muted-foreground">({f.key})</span></td>
                       <td className="px-4 py-2">{Math.round(f.natural_norm)}</td>
-                      <td className="px-4 py-2">{Math.round(f.adaptado_norm)}</td>
+                      {!data.intensidade && <td className="px-4 py-2">{Math.round(f.adaptado_norm ?? 0)}</td>}
                       <td className="px-4 py-2">{ext == null ? "—" : Math.round(ext)}</td>
                       <td className="px-4 py-2">{diff == null ? "—" : `${diff > 0 ? "+" : ""}${diff}`}</td>
                     </tr>
@@ -431,9 +646,10 @@ export function ReportBody({
             </p>
             <p>
               Diferenças de até cerca de 10 pontos costumam ser ruído de leitura. Acima disso, vale investigar: quando
-              o externo está bem acima do natural em um fator, é provável que você venha entregando esse comportamento
-              com mais intensidade do que reconhece — às vezes por exigência do contexto. Quando está bem abaixo, um
-              traço que você considera evidente talvez não esteja chegando com clareza às pessoas.
+              o externo está bem acima {data.intensidade ? "do seu gráfico adaptado" : "do natural"} em um fator, é
+              provável que você venha entregando esse comportamento com mais intensidade do que reconhece — às vezes por
+              exigência do contexto. Quando está bem abaixo, um traço que você considera evidente talvez não esteja
+              chegando com clareza às pessoas.
             </p>
             <p>
               Use essas lacunas como pauta de conversa, não como veredito. Um número pequeno de observadores tende a
@@ -459,9 +675,22 @@ export function ReportBody({
         return (
           <Section key={theme.key}>
             <h2 className="text-lg font-semibold">{theme.title}</h2>
+            {data.intensidade && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Leitura do seu gráfico adaptado — o que você tem mostrado no ambiente atual.
+              </p>
+            )}
             <div className="mt-4">
-              <Bar value={f.natural_norm} color={f.color} label="Natural" />
-              <Bar value={f.adaptado_norm} color={f.color} label="Adaptado" faded />
+              {data.intensidade ? (
+                // Motor ipsativo: a leitura deste fator vem do gráfico adaptado (o número de sempre), e o
+                // natural não se põe ao lado dele — as duas barras juntas sugeriam a mesma régua.
+                <Bar value={f.natural_norm} color={f.color} label="Adaptado" />
+              ) : (
+                <>
+                  <Bar value={f.natural_norm} color={f.color} label="Natural" />
+                  <Bar value={f.adaptado_norm ?? 0} color={f.color} label="Adaptado" faded />
+                </>
+              )}
             </div>
             {f.band_natural && (
               <div className="mt-4">
@@ -475,7 +704,7 @@ export function ReportBody({
               <div className="mt-4 rounded-lg border border-input bg-muted/30 p-4">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
                   {f.adaptacao.title ?? (f.gap_mode === "gap_up" ? "Você tem elevado este fator" : "Você tem contido este fator")}
-                  {" "}({f.gap > 0 ? "+" : ""}{f.gap} pontos)
+                  {" "}({(f.gap ?? 0) > 0 ? "+" : ""}{f.gap ?? 0} pontos)
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.adaptacao.body}</p>
               </div>
@@ -487,7 +716,11 @@ export function ReportBody({
       {mostrar("narrativas") && isDisc && data.factors.some((f) => f.descritores.length > 0) && (
         <Section>
           <h2 className="text-lg font-semibold">Régua de descritores</h2>
-          <p className="mt-1 text-sm text-muted-foreground">A faixa destacada corresponde à sua intensidade natural em cada fator.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {data.intensidade
+              ? "A faixa destacada corresponde à intensidade de cada fator no seu gráfico adaptado."
+              : "A faixa destacada corresponde à sua intensidade natural em cada fator."}
+          </p>
           <div className="mt-5 grid gap-6 sm:grid-cols-2">
             {data.factors.map((f) => (
               <div key={f.id}>
@@ -515,7 +748,9 @@ export function ReportBody({
         </Section>
       )}
 
-      {mostrar("derivados") && isDisc && data.derived && <DerivedSections d={data.derived} mbtiReal={mbtiReal ?? null} />}
+      {mostrar("derivados") && isDisc && data.derived && (
+        <DerivedSections d={data.derived} mbtiReal={mbtiReal ?? null} graficoAdaptado={!!data.intensidade} />
+      )}
 
       {isDisc && (
         <Section>
@@ -775,14 +1010,23 @@ export function EixosMbti({
   );
 }
 
+/** Texto dos índices sem valor (motor ipsativo): Estima e Flexibilidade estão em revisão. */
+const INDICE_EM_REVISAO = "Em revisão — este índice volta a aparecer quando o novo cálculo estiver pronto.";
+
 export function DerivedSections({
   d,
   mbtiReal,
+  graficoAdaptado,
 }: {
   d: Derived;
   mbtiReal?: { tipo: string; pares: JungPares } | null;
+  /** Motor ipsativo: as derivações saem do gráfico adaptado, e o selo diz isso. */
+  graficoAdaptado?: boolean;
 }) {
   const jung = mbtiReal ?? d.jung;
+  const selo = graficoAdaptado ? "Derivado do seu DISC (gráfico adaptado)" : "Derivado do seu DISC";
+  // Uma série só quando não existe o segundo conjunto na mesma régua (motor ipsativo, #288 Etapa 2c).
+  const umaSerie = d.competencias.every((c) => c.adaptado == null);
 
   return (
     <>
@@ -796,7 +1040,7 @@ export function DerivedSections({
             Dominante: <strong className="text-foreground">{d.dominant.label}</strong> ({Math.round(d.dominant.pct)}%)
           </p>
         </div>
-        <div className="mt-2"><SourceBadge>Derivado do seu DISC</SourceBadge></div>
+        <div className="mt-2"><SourceBadge>{selo}</SourceBadge></div>
         <div className="mt-5 space-y-2">
           {d.leadership.map((s) => (
             <Bar key={s.key} value={s.pct} color={s.key === d.dominant.key ? NATURAL_COLOR : "var(--muted-foreground)"} label={s.label} faded={s.key !== d.dominant.key} />
@@ -823,23 +1067,34 @@ export function DerivedSections({
       {/* Mapa de competências */}
       <Section>
         <h2 className="text-lg font-semibold">Mapa de competências</h2>
-        <div className="mt-2"><SourceBadge>Derivado do seu DISC</SourceBadge></div>
+        <div className="mt-2"><SourceBadge>{selo}</SourceBadge></div>
         <p className="mt-3 text-sm text-muted-foreground">
-          Dezesseis competências calculadas a partir da combinação dos seus fatores. A linha sólida representa o perfil
-          natural; a tracejada, o adaptado.
+          {umaSerie
+            ? "Dezesseis competências calculadas a partir da combinação dos seus fatores no gráfico adaptado."
+            : "Dezesseis competências calculadas a partir da combinação dos seus fatores. A linha sólida representa o perfil natural; a tracejada, o adaptado."}
         </p>
-        <RadarChart items={d.competencias} />
+        <RadarChart items={d.competencias} rotuloUnico={umaSerie ? "Adaptado" : undefined} />
         <div className="mt-6 space-y-4">
           {d.competencias.map((c) => (
             <div key={c.name}>
               <div className="flex items-baseline justify-between gap-3">
                 <p className="text-sm font-medium">{c.name}</p>
                 <span className="text-xs text-muted-foreground">
-                  natural {Math.round(c.natural)} · adaptado {Math.round(c.adaptado)} · <strong className="text-foreground">{c.band}</strong>
+                  {umaSerie ? (
+                    <>{Math.round(c.natural)} · <strong className="text-foreground">{c.band}</strong></>
+                  ) : (
+                    <>natural {Math.round(c.natural)} · adaptado {Math.round(c.adaptado ?? 0)} · <strong className="text-foreground">{c.band}</strong></>
+                  )}
                 </span>
               </div>
-              <Bar value={c.natural} color={NATURAL_COLOR} label="Natural" />
-              <Bar value={c.adaptado} color={ADAPTADO_COLOR} label="Adaptado" faded />
+              {umaSerie ? (
+                <Bar value={c.natural} color={NATURAL_COLOR} label="Adaptado" />
+              ) : (
+                <>
+                  <Bar value={c.natural} color={NATURAL_COLOR} label="Natural" />
+                  <Bar value={c.adaptado ?? 0} color={ADAPTADO_COLOR} label="Adaptado" faded />
+                </>
+              )}
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{c.definition}</p>
             </div>
           ))}
@@ -849,19 +1104,25 @@ export function DerivedSections({
       {/* Índices comportamentais */}
       <Section>
         <h2 className="text-lg font-semibold">Índices comportamentais</h2>
-        <div className="mt-2"><SourceBadge>Derivado do seu DISC</SourceBadge></div>
+        <div className="mt-2"><SourceBadge>{selo}</SourceBadge></div>
         <p className="mt-3 text-sm text-muted-foreground">Valores de 0 a 1 que resumem tendências gerais do seu momento atual.</p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {d.indices.map((i) => (
             <div key={i.key} className="rounded-lg border border-input p-4">
               <div className="flex items-baseline justify-between">
                 <p className="text-sm font-semibold">{i.label}</p>
-                <span className="text-2xl font-medium tabular-nums">{i.value.toFixed(2)}</span>
+                {i.value != null && <span className="text-2xl font-medium tabular-nums">{i.value.toFixed(2)}</span>}
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full" style={{ width: `${i.value * 100}%`, background: NATURAL_COLOR }} />
-              </div>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{indexPhrase(i.key, i.value)}</p>
+              {i.value == null ? (
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{INDICE_EM_REVISAO}</p>
+              ) : (
+                <>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full" style={{ width: `${i.value * 100}%`, background: NATURAL_COLOR }} />
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{indexPhrase(i.key, i.value)}</p>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -870,7 +1131,8 @@ export function DerivedSections({
   );
 }
 
-export function RadarChart({ items }: { items: Derived["competencias"] }) {
+/** `rotuloUnico`: desenha só a série `natural` dos itens, com esse nome na legenda. */
+export function RadarChart({ items, rotuloUnico }: { items: Derived["competencias"]; rotuloUnico?: string }) {
   const size = 520;
   const cx = size / 2;
   const cy = size / 2;
@@ -882,7 +1144,7 @@ export function RadarChart({ items }: { items: Derived["competencias"] }) {
     return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)] as const;
   };
   const poly = (key: "natural" | "adaptado") =>
-    items.map((it, i) => point(i, it[key]).join(",")).join(" ");
+    items.map((it, i) => point(i, it[key] ?? 0).join(",")).join(" ");
 
   return (
     <div className="mt-5">
@@ -917,16 +1179,20 @@ export function RadarChart({ items }: { items: Derived["competencias"] }) {
             </g>
           );
         })}
-        <polygon points={poly("adaptado")} fill={ADAPTADO_COLOR} fillOpacity={0.18} stroke={ADAPTADO_COLOR} strokeWidth={2} strokeDasharray="6 4" />
+        {!rotuloUnico && (
+          <polygon points={poly("adaptado")} fill={ADAPTADO_COLOR} fillOpacity={0.18} stroke={ADAPTADO_COLOR} strokeWidth={2} strokeDasharray="6 4" />
+        )}
         <polygon points={poly("natural")} fill={NATURAL_COLOR} fillOpacity={0.22} stroke={NATURAL_COLOR} strokeWidth={2} />
       </svg>
       <div className="mt-2 flex justify-center gap-6 text-xs text-muted-foreground">
         <span className="flex items-center gap-2">
-          <span className="inline-block h-1 w-6 rounded" style={{ background: NATURAL_COLOR }} /> Natural
+          <span className="inline-block h-1 w-6 rounded" style={{ background: NATURAL_COLOR }} /> {rotuloUnico ?? "Natural"}
         </span>
-        <span className="flex items-center gap-2">
-          <span className="inline-block h-1 w-6 rounded" style={{ background: ADAPTADO_COLOR, opacity: 0.7 }} /> Adaptado
-        </span>
+        {!rotuloUnico && (
+          <span className="flex items-center gap-2">
+            <span className="inline-block h-1 w-6 rounded" style={{ background: ADAPTADO_COLOR, opacity: 0.7 }} /> Adaptado
+          </span>
+        )}
       </div>
     </div>
   );

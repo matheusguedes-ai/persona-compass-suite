@@ -90,10 +90,13 @@ function RelatorioPage() {
           <div>
             <dt className="text-xs uppercase text-muted-foreground">Perfil</dt>
             <dd className="font-medium">
-              {/* Empate técnico não vira letra: ver perfilIndefinido em report.server.ts */}
-              {data.perfil_indefinido
-                ? "Sem predominância clara"
-                : (data.profile ?? data.mbti?.tipo ?? rankedFactors[0]?.label ?? "—")}
+              {/* Empate técnico não vira letra: ver perfilIndefinido em report.server.ts. Nos testes do
+                  motor ipsativo, o mesmo perfil da página de intensidade (sigla do gráfico natural). */}
+              {data.intensidade
+                ? (data.intensidade.perfil.sigla ?? "Sem predominância clara")
+                : data.perfil_indefinido
+                  ? "Sem predominância clara"
+                  : (data.profile ?? data.mbti?.tipo ?? rankedFactors[0]?.label ?? "—")}
             </dd>
           </div>
         </dl>

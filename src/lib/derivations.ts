@@ -115,9 +115,16 @@ export const LEADERSHIP_STYLES = [
   { key: "sistematico", factor: "C" as FactorKey, label: "Sistemático" },
 ];
 
+/**
+ * `adaptado = null` (DISC pelo motor ipsativo, #288 Etapa 2c): não existe mais número "adaptado" na mesma
+ * régua do `natural` recebido aqui, e as duas contas que dependiam de subtrair um do outro saem sem valor:
+ * Estima e Flexibilidade. Com a régua antiga misturada elas nem mediam a pessoa — pela conta, davam 1,00 e
+ * 0,75 para QUALQUER resposta de DISC (verificado em 20 mil respostas). Voltam quando houver uma definição
+ * nova, decidida pelo dono do produto. As competências ficam só com a série recebida em `natural`.
+ */
 export function computeDerived(
   natural: FactorMap,
-  adaptado: FactorMap,
+  adaptado: FactorMap | null,
   config?: DerivedConfig | null,
 ) {
   const jungCfg = { ...DEFAULT_JUNG, ...(config?.jung ?? {}) };
@@ -150,33 +157,37 @@ export function computeDerived(
   const dominant = [...leadership].sort((a, b) => b.pct - a.pct)[0];
 
   const keys: FactorKey[] = ["D", "I", "S", "C"];
-  const diffs = keys.map((k) => Math.abs((adaptado[k] ?? 0) - (natural[k] ?? 0)));
-  const flexibilidade = r2(1 - diffs.reduce((a, b) => a + b, 0) / diffs.length / 100);
   const positividade = r2(w(natural, idxCfg.positividade) / 100);
   const energia = r2(w(natural, idxCfg.energia) / 100);
-  const highs = keys.filter((k) => (natural[k] ?? 0) >= 50);
-  const estima =
-    highs.length === 0
-      ? 1
-      : r2(
-          1 -
-            highs
-              .map((k) => Math.max(0, (natural[k] ?? 0) - (adaptado[k] ?? 0)))
-              .reduce((a, b) => a + b, 0) /
-              highs.length /
-              100,
-        );
-  const indices = [
+  let flexibilidade: number | null = null;
+  let estima: number | null = null;
+  if (adaptado) {
+    const diffs = keys.map((k) => Math.abs((adaptado[k] ?? 0) - (natural[k] ?? 0)));
+    flexibilidade = r2(1 - diffs.reduce((a, b) => a + b, 0) / diffs.length / 100);
+    const highs = keys.filter((k) => (natural[k] ?? 0) >= 50);
+    estima =
+      highs.length === 0
+        ? 1
+        : r2(
+            1 -
+              highs
+                .map((k) => Math.max(0, (natural[k] ?? 0) - (adaptado[k] ?? 0)))
+                .reduce((a, b) => a + b, 0) /
+                highs.length /
+                100,
+          );
+  }
+  const indices: Array<{ key: string; label: string; value: number | null }> = [
     { key: "positividade", label: "Positividade", value: clamp01(positividade) },
-    { key: "estima", label: "Estima", value: clamp01(estima) },
-    { key: "flexibilidade", label: "Flexibilidade", value: clamp01(flexibilidade) },
+    { key: "estima", label: "Estima", value: estima === null ? null : clamp01(estima) },
+    { key: "flexibilidade", label: "Flexibilidade", value: flexibilidade === null ? null : clamp01(flexibilidade) },
     { key: "energia", label: "Energia", value: clamp01(energia) },
   ];
 
   const competencias = COMPETENCIAS.map((c) => {
     const weights = config?.competencias?.[c.name] ?? c.weights;
     const nat = r1(w(natural, weights));
-    const adp = r1(w(adaptado, weights));
+    const adp = adaptado ? r1(w(adaptado, weights)) : null;
     return { name: c.name, natural: nat, adaptado: adp, band: bandOf(nat), definition: c.definition };
   });
 

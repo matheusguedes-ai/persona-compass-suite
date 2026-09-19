@@ -5,8 +5,9 @@
  */
 import { computeDerived, type DerivedConfig, type FactorMap } from "@/lib/derivations";
 import { loadBrandAndSettings } from "@/lib/brand.server";
-import { usaMotorIpsativo } from "@/lib/escolha-forcada";
-import { numerosDaTelaAtual, obterIpsativo } from "@/lib/ipsativo.server";
+import { usaMotorIpsativo, type ResultadoIpsativo } from "@/lib/escolha-forcada";
+import { montarIntensidade } from "@/lib/intensidade";
+import { obterIpsativo } from "@/lib/ipsativo.server";
 import { getRequest } from "@tanstack/react-start/server";
 
 async function getAdmin() {
@@ -170,7 +171,7 @@ export async function buildReport(id: string) {
   const instrumentId = response.test_versions?.instrument_id ?? null;
   const versionId = response.version_id;
 
-  // FONTE DOS NÚMEROS (#288 Etapa 2b-i).
+  // FONTE DOS NÚMEROS (#288 Etapas 2b-i e 2c).
   //
   // DISC, Temperamentos e VAK: o relatório lê a fonte única do motor (`computed_scores.ipsativo`,
   // ou o mesmo resultado derivado das respostas cruas quando a resposta é anterior à 2a) e NÃO lê
@@ -181,21 +182,23 @@ export async function buildReport(id: string) {
     return { status: 404 as const, error: "Este teste não gera relatório comportamental detalhado." };
   }
 
-  const [{ data: dims }, { data: bands }, { data: content }] = await Promise.all([
+  const [dimsRes, bandsRes, contentRes] = await Promise.all([
     supabase.from("test_dimensions").select("id, key, label, color, sort_order").eq("version_id", versionId).order("sort_order"),
     supabase.from("test_result_bands").select("id, dimension_id, mode, min_score, max_score, title, description").eq("version_id", versionId),
     supabase
       .from("report_content")
-      .select("section, dimension_key, mode, band_min, band_max, title, body, sort_order, version_id")
+      .select("section, dimension_key, mode, band_min, band_max, title, body, sort_order, version_id, status")
       .or(`version_id.is.null,version_id.eq.${versionId}`)
       .order("sort_order"),
   ]);
+  if (dimsRes.error) throw new Error(dimsRes.error.message);
+  if (bandsRes.error) throw new Error(bandsRes.error.message);
+  if (contentRes.error) throw new Error(contentRes.error.message);
+  const dims = dimsRes.data;
+  const bands = bandsRes.data;
+  const content = contentRes.data;
 
-  let normalized: NormMap;
-  let naturalBruto: Record<string, number> | undefined;
-  let adaptadoBruto: Record<string, number> | undefined;
-  /** Chaves das letras do 1º ao último, como o motor gravou. `null` fora do motor ipsativo. */
-  let rankingDoMotor: string[] | null = null;
+  let ips: ResultadoIpsativo | null = null;
   if (fonteIpsativa) {
     const obtido = await obterIpsativo(supabase, {
       responseId: id,
@@ -205,18 +208,39 @@ export async function buildReport(id: string) {
     if (!obtido) {
       return { status: 404 as const, error: "Este teste não gera relatório comportamental detalhado." };
     }
-    const numeros = numerosDaTelaAtual(obtido.ipsativo);
-    normalized = numeros.normalized;
-    naturalBruto = numeros.natural;
-    adaptadoBruto = numeros.adaptado;
-    rankingDoMotor = obtido.ipsativo.adaptado.ranking;
-  } else {
-    normalized = computed.normalized as NormMap;
-    naturalBruto = computed.natural;
-    adaptadoBruto = computed.adaptado;
+    ips = obtido.ipsativo;
   }
+  /**
+   * Leituras por fator (faixas, descritores, derivações, 360°, seções por dimensão). Com o motor
+   * ipsativo, seguem o ranking do conjunto ADAPTADO — o mesmo número de sempre (vezes MAIS ÷ soma).
+   * O PERFIL declarado é outra coisa: é o do NATURAL (ver `perfilNatural` abaixo).
+   * `null` fora do motor ipsativo.
+   */
+  const rankingDoMotor: string[] | null = ips ? ips.adaptado.ranking : null;
+  const letraPorDim = new Map((ips?.letras ?? []).map((l) => [l.dimension_id, l]));
+  const normalized = (computed.normalized ?? {}) as NormMap;
 
+  // A ordem dos campos é a de sempre: o relatório dos instrumentos fora do motor tem de sair
+  // idêntico, byte a byte.
   const dimList = (dims ?? []).map((d) => {
+    if (ips) {
+      const l = letraPorDim.get(d.id);
+      return {
+        id: d.id,
+        key: d.key,
+        label: d.label,
+        color: d.color ?? null,
+        has_data: l != null,
+        // Nome herdado do formato antigo, que chamava de "natural" o número das vezes MAIS. Na
+        // linguagem do motor (Etapa 2a) esse número é o do conjunto ADAPTADO — é ele que as leituras
+        // por fator sempre usaram. O gráfico NATURAL de verdade está em `intensidade.natural`.
+        natural: l?.adaptado.bruto ?? 0,
+        // Não existe mais um "adaptado" na mesma régua do número abaixo (Etapa 2c: a ponte morreu).
+        adaptado: null as number | null,
+        natural_norm: l?.adaptado.percentual ?? 0,
+        adaptado_norm: null as number | null,
+      };
+    }
     const norm = normalized[d.id];
     return {
       id: d.id,
@@ -226,10 +250,10 @@ export async function buildReport(id: string) {
       // Ausente de `normalized` = nenhuma pergunta pontua esta dimensão.
       // É falta de dado, não resultado zero — não pode virar "faixa baixa".
       has_data: norm != null,
-      natural: naturalBruto?.[d.id] ?? 0,
-      adaptado: adaptadoBruto?.[d.id] ?? 0,
+      natural: computed.natural?.[d.id] ?? 0,
+      adaptado: (computed.adaptado?.[d.id] ?? 0) as number | null,
       natural_norm: norm?.natural ?? 0,
-      adaptado_norm: norm?.adaptado ?? 0,
+      adaptado_norm: (norm?.adaptado ?? 0) as number | null,
     };
   });
 
@@ -238,18 +262,28 @@ export async function buildReport(id: string) {
   const isDisc = keySet.size === 4 && ["D", "I", "S", "C"].every((k) => keySet.has(k));
   const isMbti = isMbtiDims(dimList.map((d) => d.key));
 
-  // Perfil (só dimensões medidas). Com a fonte única, quem manda na ordem é o RANKING que o motor
-  // gravou — o relatório não reordena por conta própria. Fora do motor ipsativo, ordena por
-  // natural_norm como sempre.
+  // Dimensões medidas, na ordem das leituras por fator. Com a fonte única, quem manda na ordem é o
+  // RANKING que o motor gravou — o relatório não reordena por conta própria. Fora do motor ipsativo,
+  // ordena por natural_norm como sempre.
   const ranked = rankingDoMotor
     ? ordenarPeloRanking(dimList.filter((d) => d.has_data), rankingDoMotor)
     : dimList.filter((d) => d.has_data).sort((a, b) => b.natural_norm - a.natural_norm);
   const above = ranked.filter((d) => d.natural_norm >= 50).slice(0, 2);
-  // TEMPORÁRIO (2b-i): com a fonte única o perfil é a PRIMEIRA letra do ranking. Perfil combinado
-  // (ou empate) ainda não tem apresentação própria — a Etapa 2c cria; até lá mostra a 1ª letra, sem
-  // texto novo. Fora do motor ipsativo, a regra de sempre (até duas letras a partir de 50).
-  const profileDims = rankingDoMotor ? ranked.slice(0, 1) : above.length > 0 ? above : ranked.slice(0, 1);
-  const profile = profileDims.map((d) => d.key).join("");
+  /**
+   * PERFIL DECLARADO. Com o motor ipsativo (Etapa 2c) é a sigla do gráfico NATURAL que o motor
+   * gravou — uma letra, ou duas na ordem do ranking quando é perfil combinado —, como na referência
+   * que o dono do produto usa ("PERFIL CI" é a sigla do natural; o adaptado tem a dele). Fora do
+   * motor, a regra de sempre: até duas letras a partir de 50.
+   */
+  const perfilNatural = ips?.natural.perfil ?? null;
+  const profileDims = perfilNatural
+    ? perfilNatural.chaves
+        .map((k) => dimList.find((d) => d.key === k))
+        .filter((d): d is (typeof dimList)[number] => d != null)
+    : above.length > 0
+      ? above
+      : ranked.slice(0, 1);
+  const profile = perfilNatural ? perfilNatural.codigo : profileDims.map((d) => d.key).join("");
 
   /**
    * Resultado achatado não tem perfil, e dizer que tem é mentira.
@@ -261,14 +295,17 @@ export async function buildReport(id: string) {
    * abaixo disso o relatório passa a dizer que não há predominância, e as
    * seções escritas para um perfil específico saem de cena — as leituras por
    * dimensão continuam, porque essas são o dado de verdade.
+   *
+   * Com o motor ipsativo vale a regra dele, por decisão do dono do produto: EMPATE MÚLTIPLO no
+   * gráfico natural (três ou mais letras a até 2 pontos da primeira) é "sem predominância clara".
    */
   const amplitude = ranked.length > 1
     ? ranked[0].natural_norm - ranked[ranked.length - 1].natural_norm
     : 100;
-  const perfilIndefinido = ranked.length > 1 && amplitude < 10;
+  const perfilIndefinido = perfilNatural ? perfilNatural.empate_multiplo : ranked.length > 1 && amplitude < 10;
 
-  // Prefer version-specific content over global fallback.
-  const rows = content ?? [];
+  // Prefer version-specific content over global fallback. Texto marcado como pendente não aparece.
+  const rows = (content ?? []).filter((r) => r.status !== "pendente");
   const pick = (section: string, key: string, mode?: string) => {
     const candidates = rows.filter(
       (r) => r.section === section && r.dimension_key === key && (mode ? r.mode === mode : true),
@@ -480,9 +517,15 @@ export async function buildReport(id: string) {
     return out;
   };
 
+  // Seções escritas por perfil (DISC). Com o motor ipsativo, pela letra que LIDERA a sigla natural:
+  // os textos de combinação destas seções (CI, DS…) nunca foram revisados pelo dono do produto, e a
+  // descrição do perfil combinado é a da página de intensidade (`intensidade.texto`).
+  const chaveDasSecoes = perfilNatural ? perfilNatural.chaves[0] : null;
   const sections = isDisc && !perfilIndefinido
     ? COMPOSITE_SECTIONS.map((section) => {
-        const block = pick(section, profile) ?? pick(section, profile.slice(0, 1));
+        const block = chaveDasSecoes
+          ? pick(section, chaveDasSecoes)
+          : (pick(section, profile) ?? pick(section, profile.slice(0, 1)));
         return block ? { section, title: block.title, body: block.body } : { section, title: null, body: null };
       }).filter((s) => s.body != null)
     : isMbti
@@ -515,8 +558,10 @@ export async function buildReport(id: string) {
         descritores: [] as Array<{ body: string; band_min: number | null; band_max: number | null; active: boolean }>,
       };
     }
-    const gap = d.adaptado_norm - d.natural_norm;
-    const gapMode = gap >= 15 ? "gap_up" : gap <= -15 ? "gap_down" : null;
+    // Com o motor ipsativo não existe diferença natural × adaptado (Etapa 2a: réguas separadas), e com
+    // ela somem a "adaptação crescente/decrescente" e o texto que nascia dela.
+    const gap = d.adaptado_norm == null ? null : d.adaptado_norm - d.natural_norm;
+    const gapMode = gap == null ? null : gap >= 15 ? "gap_up" : gap <= -15 ? "gap_down" : null;
     const adaptacao = gapMode ? pick("adaptacao", d.key, gapMode) : null;
     const descritores = rows
       .filter((r) => r.section === "descritor" && r.dimension_key === d.key)
@@ -532,26 +577,28 @@ export async function buildReport(id: string) {
       }));
     return {
       ...d,
-      gap: Math.round(gap),
+      gap: gap == null ? null : Math.round(gap),
       gap_mode: gapMode,
       band_natural: bandFor(d.id, "natural", d.natural_norm),
-      band_adaptado: bandFor(d.id, "adaptado", d.adaptado_norm),
+      band_adaptado: d.adaptado_norm == null ? null : bandFor(d.id, "adaptado", d.adaptado_norm),
       adaptacao: adaptacao ? { title: adaptacao.title, body: adaptacao.body } : null,
       descritores,
     };
   });
 
   // --- Derivações calculadas sobre os normalizados por key (apenas DISC) ---
+  // Com o motor ipsativo, sobre o conjunto ADAPTADO (os mesmos números de sempre) e sem um segundo
+  // conjunto na mesma régua: Estima e Flexibilidade, que subtraíam um do outro, ficam sem valor.
   const naturalByKey: FactorMap = {};
   const adaptadoByKey: FactorMap = {};
   for (const d of dimList) {
     naturalByKey[d.key] = d.natural_norm;
-    adaptadoByKey[d.key] = d.adaptado_norm;
+    if (d.adaptado_norm != null) adaptadoByKey[d.key] = d.adaptado_norm;
   }
   const derivedConfig = (response.test_versions?.derived_config ?? null) as DerivedConfig | null;
   let derived: Record<string, unknown> | null = null;
   if (isDisc) {
-    const core = computeDerived(naturalByKey, adaptadoByKey, derivedConfig);
+    const core = computeDerived(naturalByKey, ips ? null : adaptadoByKey, derivedConfig);
     const leadershipContent = rows
       .filter((r) => r.section === "lideranca" && r.dimension_key === core.dominant.key)
       .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));
@@ -580,22 +627,24 @@ export async function buildReport(id: string) {
     const sums: Record<string, number> = {};
     const counts: Record<string, number> = {};
     for (const o of obsList) {
-      // Mesma fonte dos números do avaliado: observador de DISC/Temperamentos/VAK também vem do
-      // `ipsativo` (gravado, ou derivado das respostas dele); os demais, do formato antigo.
-      let norm: NormMap | undefined;
+      // Mesma fonte e mesmo conjunto dos números do avaliado: observador de DISC/Temperamentos/VAK vem
+      // do `ipsativo` (gravado, ou derivado das respostas dele), conjunto ADAPTADO — o que a pessoa
+      // mostra, que é o que quem convive observa; os demais, do formato antigo.
+      let valorPorDim: Map<string, number | undefined> | null = null;
       if (fonteIpsativa) {
         const obs = await obterIpsativo(supabase, {
           responseId: o.id,
           versionId: o.version_id,
           computedScores: o.computed_scores,
         });
-        norm = obs ? numerosDaTelaAtual(obs.ipsativo).normalized : undefined;
+        if (obs) valorPorDim = new Map(obs.ipsativo.letras.map((l) => [l.dimension_id, l.adaptado.percentual]));
       } else {
-        norm = ((o.computed_scores ?? {}) as { normalized?: NormMap }).normalized;
+        const norm = ((o.computed_scores ?? {}) as { normalized?: NormMap }).normalized;
+        if (norm) valorPorDim = new Map(Object.entries(norm).map(([dimId, n]) => [dimId, n?.natural]));
       }
-      if (!norm) continue;
+      if (!valorPorDim) continue;
       for (const d of dimList) {
-        const v = norm[d.id]?.natural;
+        const v = valorPorDim.get(d.id);
         if (typeof v !== "number") continue;
         sums[d.key] = (sums[d.key] ?? 0) + v;
         counts[d.key] = (counts[d.key] ?? 0) + 1;
@@ -613,6 +662,18 @@ export async function buildReport(id: string) {
       };
     }
   }
+
+  // --- Página de intensidade (DISC, Temperamentos, VAK) — Etapa 2c ---
+  const intensidade =
+    ips && instrumentId
+      ? montarIntensidade({
+          ipsativo: ips,
+          dimensoes: (dims ?? []).map((d) => ({ id: d.id, key: d.key, label: d.label, color: d.color ?? null })),
+          instrumentId,
+          versionId,
+          linhas: content ?? [],
+        })
+      : null;
 
   const { brand, settings } = await loadBrandAndSettings(response.mentor_id);
 
@@ -641,6 +702,9 @@ export async function buildReport(id: string) {
       sections,
       derived,
       external,
+      // Só nos instrumentos do motor ipsativo. A chave nem aparece nos demais: o relatório deles sai
+      // idêntico ao de antes.
+      ...(intensidade ? { intensidade } : {}),
     },
   };
 }

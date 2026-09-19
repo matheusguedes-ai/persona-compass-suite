@@ -101,31 +101,58 @@ já vêm prontos: quem lê **não recalcula nada** (recalcular é como nascem du
 `codigo` junta as chaves sem separador quando todas têm 1 caractere (`SC`) e com `+` nos demais
 (`SAN+COL`, Temperamentos).
 
-## Quem lê o `ipsativo` (Etapa 2b-i)
+## Quem lê o `ipsativo` (Etapas 2b-i e 2c)
 
 O **relatório** (`report.server.ts`) de **DISC, Temperamentos e VAK** lê o `ipsativo` e **não lê
 mais** `total`/`natural`/`adaptado`/`normalized` — nem os do avaliado nem os dos observadores 360°.
 Prova: apagar esses campos de uma resposta de teste não muda o relatório (nem com o `ipsativo`
 gravado, nem com ele apagado também). Valores, Big Five, MBTI, QI e testes personalizados **não**
-passam pelo motor ipsativo e continuam lendo o formato antigo (por isso ele ainda é gravado).
+passam pelo motor ipsativo, continuam lendo o formato antigo (por isso ele ainda é gravado) e o
+relatório deles sai idêntico ao de antes, byte a byte.
 
 - **De onde vem o resultado** (`src/lib/ipsativo.server.ts`): do campo gravado; ou, para respostas
   **anteriores à 2a** (as reais de Temperamentos e VAK não têm o campo), **derivado em memória** das
   respostas cruas (`test_answers`) pela MESMA função `calcularIpsativo`. Nada é gravado: resposta
   existente não se altera. Se as respostas cruas estiverem incompletas, o resultado é `null` e o
   relatório diz "não gera relatório detalhado" — não inventa.
-- **A ordem do ranking é a do motor.** O perfil é a **1ª letra do ranking Adaptado**. Perfil
-  combinado e empate ainda **não têm apresentação própria** (Etapa 2c): mostram a 1ª letra, sem
-  texto novo. Única diferença visível em relação a antes: exatamente 14 × 14 (as duas letras acima
-  de 50%) deixa de mostrar duas letras. O aviso "sem predominância clara" (menos de 10 pontos entre
-  a maior e a menor) continua como sempre — é regra de honestidade do relatório, não do motor.
-- **⚠️ PONTE TEMPORÁRIA** (`numerosDaTelaAtual`): a tela de hoje foi desenhada com o formato antigo
-  — a barra "Natural" é MAIS ÷ máximo (no motor novo, o conjunto **adaptado**) e a barra "Adaptado"
-  é (MAIS − MENOS + máximo) ÷ (2 × máximo) (não existe no motor novo). Para o relatório continuar
-  **idêntico** enquanto a fonte migra, essa função reexpressa os dois números a partir dos
-  contadores do `ipsativo` (`mais`, `menos`, `maximo`). É o ÚNICO lugar em que o vocabulário antigo
-  sobrevive, e ele mantém as duas barras na mesma régua (a diferença tem viés fixo de +25). A
-  Etapa 2c troca a apresentação e a função some.
+- **A ponte temporária da 2b-i morreu na 2c.** Não existe mais, em lugar nenhum do relatório, o
+  "adaptado" antigo — (MAIS − MENOS + máximo) ÷ (2 × máximo) — nem a diferença natural × adaptado, a
+  "adaptação crescente/decrescente" e o texto que nascia dela.
+
+### A página de intensidade (Etapa 2c) — `src/lib/intensidade.ts`
+
+No padrão da referência que o dono do produto usa (cartão #288.3, relatórios CIS):
+
+- **"PERFIL <sigla>"** com a sigla do gráfico **NATURAL** (`natural.perfil.codigo`): uma letra quando
+  há predominância, duas na ordem do ranking quando é perfil combinado ("CI" ≠ "IC"). **Empate
+  múltiplo** no natural (três ou mais letras a até 2 pontos da 1ª) → "Sem predominância clara",
+  decisão do dono do produto. A capa, o painel do aluno e a bateria mostram o mesmo perfil.
+- **Dois gráficos separados**, NATURAL e ADAPTADO, cada um com a **própria sigla** e o **percentual da
+  soma do próprio conjunto** (as letras de um gráfico somam 100), letras na ordem do instrumento. Nada
+  compara um com o outro. Os observadores (360°) aparecem só no ADAPTADO: é o mesmo conjunto (vezes
+  MAIS), o que a pessoa mostra e quem convive observa.
+- **Os três índices lado a lado** (só DISC). Positividade segue calculada; **Estima e Flexibilidade
+  ficam "em revisão"**: as duas subtraíam o adaptado antigo do natural antigo — réguas misturadas — e,
+  pela conta, davam **1,00 e 0,75 para qualquer resposta de DISC** (verificado em 20 mil respostas).
+  Voltam quando o dono do produto definir um cálculo novo (`computeDerived(natural, null)`).
+- **Texto do perfil** — conteúdo cadastrável em `report_content`, seção `<instrumento>_perfil_texto`,
+  `dimension_key` = a sigla, `mode = 'natural'`, coluna `status` (`publicado` | `pendente`). Texto da
+  versão (`version_id`) vence o da plataforma. Sem linha, pendente ou com corpo vazio → **aviso** de
+  que a descrição está sendo preparada, nunca texto inventado. Fonte e travas (inclusive contra frase
+  copiada da referência): `scripts/conteudo_perfil_texto.py`. Padrão de redação: uma letra → descrição
+  corrida; duas compatíveis → integrada; duas em tensão (DISC: DS, SD, IC, CI) → anuncia a combinação e
+  diz quando cada lado aparece.
+
+### O resto do relatório depois da 2c (até a demanda do relatório completo)
+
+- **Seções escritas por perfil (DISC)**: pela **letra que lidera a sigla natural** — o relatório não
+  pode declarar "PERFIL CI" e descrever D logo abaixo. Os textos de combinação dessas seções (CI, DS…)
+  nunca foram revisados pelo dono e não são usados.
+- **Leituras por fator** (faixas, descritores, derivações, seções dimensionais de Temperamentos/VAK,
+  360°): seguem no **conjunto ADAPTADO**, com os mesmos números de sempre — as faixas e os pesos foram
+  calibrados para ele, e o natural (percentual comprimido: no DISC nunca passa de 33%) não cabe nelas.
+  A tela diz isso ("gráfico adaptado") onde mostra esses números. No payload, o campo continua se
+  chamando `natural_norm` (herança do formato antigo) e `adaptado`/`adaptado_norm`/`gap` vêm `null`.
 - Antes × depois, campo a campo: `python3 scripts/comparar_relatorios.py capturar|comparar`.
 
 ## O que continua gravado do formato antigo — e quando sai
@@ -160,8 +187,12 @@ letras e 3 alternativas por bloco o `maximo` de cada letra é ~15 e 2/5 pontos s
 ```
 python3 scripts/testar_ipsativo.py puro        # cálculo real × oráculo em Python: casos do produto + milhares de respostas aleatórias nas estruturas reais + determinismo (só lê o banco)
 python3 scripts/testar_ipsativo.py simular     # quem responde ao acaso: % em combinado / moderada / clara
-python3 scripts/testar_ipsativo.py vivo --app URL --versao ID [--aleatorio N]
+python3 scripts/testar_ipsativo.py vivo --app URL --versao ID [--aleatorio N] [--etapa2c]
                                                # pessoa descartável → endpoint público → confere → apaga tudo
+                                               # --etapa2c: confere a página de intensidade contra o que o motor gravou
+                                               # --manter ARQ: não apaga (conferir na tela); depois `limpar --arquivo ARQ`
+node scripts/testar_intensidade.mjs            # a função da página de intensidade sobre o motor real (só lê o banco)
+python3 scripts/conteudo_perfil_texto.py       # travas dos textos do perfil; `aplicar` grava o que falta
 ```
 
 `vivo` cria a resposta dentro de uma bateria com uma irmã pendente, o que impede o aviso "fulano

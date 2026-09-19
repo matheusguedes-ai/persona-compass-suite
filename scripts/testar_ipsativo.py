@@ -15,12 +15,17 @@ Testes do motor ipsativo da escolha forçada (#288, Etapa 2a).
       A resposta nasce dentro de uma bateria com uma irmã pendente: assim o envio NÃO gera o aviso
       "fulano respondeu" no sino do dono e da equipe (a bateria só notifica quando fecha).
 
+      --etapa2c  confere também a PÁGINA DE INTENSIDADE (#288 Etapa 2c) contra o que o motor gravou.
+      --manter ARQ  não apaga nada (para conferir na tela) e guarda os ids em ARQ; depois:
+  python3 scripts/testar_ipsativo.py limpar --arquivo ARQ
+      apaga os dados de teste guardados, citando os ids antes, e confere que não sobrou nada.
+
   python3 scripts/testar_ipsativo.py simular
       Monte Carlo de quem responde ao acaso: quanto cai em "combinado", "moderada" e "clara".
 
 Não importa nenhum script de conteúdo (nada de aplicar_conteudo.py). Nunca imprime chave nenhuma.
 """
-import argparse, json, os, random, shutil, subprocess, sys, urllib.error, urllib.parse, urllib.request
+import argparse, json, math, os, random, shutil, subprocess, sys, urllib.error, urllib.parse, urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ipsativo_oraculo import (LIMITE_COMBINADO, LIMITE_MODERADA, comparar, distribuir_pares,  # noqa: E402
@@ -34,7 +39,7 @@ VERSOES = {  # estruturas reais lidas do banco
     "vak": "fede7d5f-7344-4646-90bb-d4f5a35ec892",
     "valores": "facb3043-ae0a-4162-81da-1262680939f5",
 }
-PREFIXO = "Simulação Etapa2a"
+PREFIXO = "Simulação Etapa2c"
 
 
 def _env():
@@ -162,6 +167,19 @@ CASOS = {
         desc="limite: distância 6 = clara",
         mais={"S": 13, "C": 7, "I": 5, "D": 3}, menos={"D": 13, "I": 8, "C": 5, "S": 2},
         espera={"adaptado": ("predominante", "clara", ["S"], 6), "natural": ("predominante", "moderada", ["S"], 3)}),
+    # casos da PÁGINA DE INTENSIDADE (Etapa 2c): o título do relatório é a sigla do NATURAL
+    "k_natural_ci_adaptado_di": dict(
+        desc="natural CI e adaptado DI — o caso real da referência (cada gráfico com a sua sigla)",
+        mais={"D": 12, "I": 10, "C": 4, "S": 2}, menos={"C": 3, "I": 4, "S": 9, "D": 12},
+        espera={"adaptado": ("combinado", "combinado", ["D", "I"], 2), "natural": ("combinado", "combinado", ["C", "I"], 1)}),
+    "l_natural_cs": dict(
+        desc="natural CS — letras compatíveis, texto do perfil publicado",
+        mais={"C": 10, "S": 9, "I": 5, "D": 4}, menos={"D": 11, "I": 10, "S": 4, "C": 3},
+        espera={"adaptado": ("combinado", "combinado", ["C", "S"], 1), "natural": ("combinado", "combinado", ["C", "S"], 1)}),
+    "n_natural_di_pendente": dict(
+        desc="natural DI — sem texto aprovado: a tela mostra o aviso de pendente",
+        mais={"D": 10, "I": 9, "S": 5, "C": 4}, menos={"C": 12, "S": 11, "I": 3, "D": 2},
+        espera={"adaptado": ("combinado", "combinado", ["D", "I"], 1), "natural": ("combinado", "combinado", ["D", "I"], 1)}),
 }
 
 
@@ -384,6 +402,9 @@ VOLATIL = ("response_id", "submitted_at", "started_at", "duration")
 def relatorio_comparavel(rel):
     """Relatório inteiro, menos o que muda de uma resposta para outra e o token da URL assinada do logo."""
     r = {k: v for k, v in rel.items() if k not in VOLATIL}
+    nome = r.get("person_name")
+    if isinstance(nome, str) and nome.startswith("Simulação Etapa"):
+        r["person_name"] = nome.split(" ")[-1]  # o prefixo muda de etapa para etapa; o caso ("r00", "a_…") não
     b = dict(r.get("brand") or {})
     if isinstance(b.get("logo_url"), str):
         b["logo_url"] = b["logo_url"].split("?token=")[0] + "?token=X"
@@ -397,6 +418,110 @@ def relatorio_comparavel(rel):
 def _sem_volatil(rel):
     """Recorte do relatório que não muda de uma resposta para outra com as mesmas escolhas."""
     return {k: rel.get(k) for k in ("is_disc", "is_mbti", "profile", "profile_labels", "perfil_indefinido", "factors", "sections", "derived", "external", "test_title", "instrument_id")}
+
+
+SECOES_DISC = ["sintese", "potencialidades", "relacoes", "decisao", "motivador", "medos", "adequacao", "pontos_desenvolver"]
+
+
+def carregar_textos_2c():
+    """Textos que a Etapa 2c espera ver: o do perfil (por sigla) e os das seções por perfil do DISC."""
+    textos = {(r["section"], r["dimension_key"]): r for r in rest("GET", "report_content", {
+        "version_id": "is.null", "section": "like.*_perfil_texto", "select": "section,dimension_key,status,title,body"})}
+    compostas = {(r["section"], r["dimension_key"]): r["body"] for r in rest("GET", "report_content", {
+        "version_id": "is.null", "section": "in.(" + ",".join(SECOES_DISC) + ")", "select": "section,dimension_key,body"})}
+    return textos, compostas
+
+
+def conferir_relatorio_2c(rel, ips, instrumento, textos, compostas, ips_observadores):
+    """
+    O relatório da Etapa 2c, conferido contra o que o motor gravou (`ips`) — nunca contra ele mesmo.
+      - página de intensidade: título = sigla do NATURAL (empate múltiplo não vira sigla), cada gráfico com
+        a própria sigla e os percentuais do próprio conjunto, texto do perfil publicado ou aviso de pendente;
+      - nenhum resto do "adaptado" antigo (a ponte da 2b-i morreu): sem adaptado, sem gap, sem texto de adaptação;
+      - as leituras por fator seguem com o número de sempre (percentual do conjunto adaptado);
+      - DISC: perfil declarado = sigla do natural, seções por perfil pela letra que LIDERA essa sigla,
+        Estima e Flexibilidade sem valor, competências com uma série só;
+      - 360°: observadores no mesmo conjunto (adaptado) do avaliado.
+    """
+    p = []
+    it = rel.get("intensidade")
+    if ips is None:
+        if it is not None:
+            p.append("página de intensidade apareceu num instrumento fora do motor ipsativo")
+        return p
+    if not isinstance(it, dict):
+        return ["página de intensidade ausente"]
+    nat, adp = ips["natural"]["perfil"], ips["adaptado"]["perfil"]
+    sig_nat = None if nat["empate_multiplo"] else nat["codigo"]
+    sig_adp = None if adp["empate_multiplo"] else adp["codigo"]
+    rotulo = {f["key"]: f["label"] for f in rel["factors"]}
+    if it["perfil"]["sigla"] != sig_nat:
+        p.append(f"título PERFIL {it['perfil']['sigla']} ≠ sigla do natural gravada {sig_nat}")
+    if it["perfil"]["labels"] != ([] if sig_nat is None else [rotulo[k] for k in nat["chaves"]]):
+        p.append(f"nomes do perfil errados: {it['perfil']['labels']}")
+    for conj, sig in (("natural", sig_nat), ("adaptado", sig_adp)):
+        g = it[conj]
+        if g["sigla"] != sig:
+            p.append(f"sigla do gráfico {conj}: {g['sigla']} ≠ {sig}")
+        if [l["key"] for l in g["letras"]] != [l["chave"] for l in ips["letras"]]:
+            p.append(f"gráfico {conj}: letras fora da ordem do instrumento")
+        for l, lm in zip(g["letras"], ips["letras"]):
+            if l["percentual"] != lm[conj]["percentual"] or l["posicao"] != lm[conj]["posicao"]:
+                p.append(f"gráfico {conj}/{l['key']}: percentual/posição ≠ do motor")
+            if l["na_sigla"] != (sig is not None and l["key"] in ips[conj]["perfil"]["chaves"]):
+                p.append(f"gráfico {conj}/{l['key']}: marcação da sigla errada")
+    texto = it.get("texto")
+    if sig_nat is None:
+        if texto is not None:
+            p.append("sem sigla (empate múltiplo) não deveria ter texto do perfil")
+    else:
+        linha = textos.get((f"{instrumento}_perfil_texto", sig_nat))
+        publicado = bool(linha and linha["status"] == "publicado" and linha["body"].strip())
+        estado = (texto or {}).get("estado")
+        if publicado and (estado != "publicado" or texto.get("corpo") != linha["body"]):
+            p.append(f"texto do perfil {sig_nat} está publicado no banco e não apareceu igual")
+        if not publicado and estado != "pendente":
+            p.append(f"texto do perfil {sig_nat} não está publicado e a tela não mostra o aviso (estado {estado})")
+    por_dim = {l["dimension_id"]: l for l in ips["letras"]}
+    for f in rel["factors"]:
+        lm = por_dim.get(f["id"])
+        if lm and f["natural_norm"] != lm["adaptado"]["percentual"]:
+            p.append(f"leitura do fator {f['key']}: {f['natural_norm']} ≠ percentual do adaptado {lm['adaptado']['percentual']}")
+        for campo in ("adaptado", "adaptado_norm", "gap", "gap_mode", "band_adaptado", "adaptacao"):
+            if f.get(campo) is not None:
+                p.append(f"fator {f['key']}: sobrou '{campo}' = {f.get(campo)!r} (resto do adaptado antigo)")
+    if rel.get("is_disc"):
+        if rel.get("perfil_indefinido") != nat["empate_multiplo"]:
+            p.append("perfil_indefinido ≠ empate múltiplo do natural")
+        if rel.get("profile") != sig_nat:
+            p.append(f"profile {rel.get('profile')} ≠ sigla do natural {sig_nat}")
+        secoes = [(s["section"], s["body"]) for s in rel["sections"]]
+        if sig_nat is not None:
+            lider = nat["chaves"][0]
+            esperado = [(s, compostas[(s, lider)]) for s in SECOES_DISC if compostas.get((s, lider))]
+            if secoes != esperado:
+                p.append(f"seções por perfil não são as da letra que lidera o natural ({lider})")
+        elif any(s in SECOES_DISC for s, _ in secoes):
+            p.append("sem predominância clara, mas saiu seção escrita para um perfil")
+        d = rel.get("derived") or {}
+        idx = {i["key"]: i["value"] for i in d.get("indices", [])}
+        if idx.get("estima") is not None or idx.get("flexibilidade") is not None:
+            p.append(f"Estima/Flexibilidade deveriam estar sem valor: {idx}")
+        if not all(isinstance(idx.get(k), (int, float)) for k in ("positividade", "energia")):
+            p.append(f"Positividade/Energia deveriam ter valor: {idx}")
+        if any(c.get("adaptado") is not None for c in d.get("competencias", [])):
+            p.append("competências ainda com a série 'adaptado' antiga")
+    if ips_observadores:
+        somas, n = {}, {}
+        for oi in ips_observadores:
+            for l in oi["letras"]:
+                somas[l["chave"]] = somas.get(l["chave"], 0) + l["adaptado"]["percentual"]
+                n[l["chave"]] = n.get(l["chave"], 0) + 1
+        esperado = {k: math.floor(somas[k] / n[k] * 10 + 0.5) / 10 for k in somas}  # como o Math.round do app
+        obtido = (rel.get("external") or {}).get("scores") or {}
+        if any(abs(obtido.get(k, -1) - v) > 1e-9 for k, v in esperado.items()):
+            p.append(f"360°: externo {obtido} ≠ média dos observadores no conjunto adaptado {esperado}")
+    return p
 
 
 def _casos_vivos(est, args):
@@ -428,6 +553,8 @@ def cmd_vivo(args):
     print(f"versão {args.versao} · instrumento '{v['instrument_id']}' · o motor novo "
           f"{'DEVE' if deve_ter_ipsativo else 'NÃO deve'} gravar computed_scores.ipsativo")
     saved = json.load(open(args.comparar_legado, encoding="utf-8")) if args.comparar_legado else None
+    textos, compostas = carregar_textos_2c() if args.etapa2c else ({}, {})
+    rodada = os.urandom(3).hex()  # e-mail é único por conta: dados mantidos de outra rodada não podem colidir
     coletado = {}
     criados = {"pessoas": [], "respostas": [], "baterias": []}
     ok_geral = True
@@ -437,7 +564,7 @@ def cmd_vivo(args):
     provas_sem_legado = [0]
     try:
         for i, (nome, mais, menos, espera) in enumerate(_casos_vivos(est, args)):
-            pessoa = rest("POST", "people", corpo=[{"full_name": f"{PREFIXO} {nome}", "email": f"sim-etapa2a-{i}@exemplo.invalido", "mentor_id": v["mentor_id"]}])[0]
+            pessoa = rest("POST", "people", corpo=[{"full_name": f"{PREFIXO} {nome}", "email": f"sim-etapa2c-{rodada}-{i}@exemplo.invalido", "mentor_id": v["mentor_id"]}])[0]
             criados["pessoas"].append(pessoa["id"])
             bateria = rest("POST", "assessment_responses", corpo=[{"mentor_id": v["mentor_id"], "person_id": pessoa["id"], "status": "pending"}])[0]
             criados["baterias"].append(bateria["id"])
@@ -531,6 +658,11 @@ def cmd_vivo(args):
             hrel, rel = _post_app(args.app, f"/api/public/report/{resp['id']}")
             if hrel == 200 and isinstance(rel, dict):
                 rel_cmp = relatorio_comparavel(rel)
+                if args.etapa2c:
+                    problemas += conferir_relatorio_2c(rel, ips, v["instrument_id"], textos, compostas,
+                                                       [o["ipsativo"] for o in observadores.values() if o.get("ipsativo")])
+                if args.manter:
+                    print(f"      relatório para conferir na tela: {args.app}/relatorio/{resp['id']}")
                 if args.salvar_relatorios:
                     os.makedirs(args.salvar_relatorios, exist_ok=True)
                     json.dump(rel_cmp, open(os.path.join(args.salvar_relatorios, f"{nome}.json"), "w"), ensure_ascii=False, indent=1)
@@ -625,48 +757,70 @@ def cmd_vivo(args):
         if args.aleatorio:
             print(f"{args.aleatorio} respostas aleatórias conferidas.")
     finally:
-        print("\nLIMPEZA — ids que existiram e serão apagados:")
-        print("  respostas:", criados["respostas"])
-        print("  baterias :", criados["baterias"])
-        print("  pessoas  :", criados["pessoas"])
-
-        def tentar(desc, fn):
-            try:
-                return fn()
-            except BaseException as e:
-                print(f"  !! {desc} falhou: {e}")
-                return None
-
-        for rid in criados["respostas"]:
-            tentar(f"apagar resposta {rid}", lambda rid=rid: rest("DELETE", "test_responses", {"id": f"eq.{rid}"}, retorno=False))
-        for bid in criados["baterias"]:
-            tentar(f"apagar bateria {bid}", lambda bid=bid: rest("DELETE", "assessment_responses", {"id": f"eq.{bid}"}, retorno=False))
-        for pid in criados["pessoas"]:
-            tentar(f"apagar pessoa {pid}", lambda pid=pid: rest("DELETE", "people", {"id": f"eq.{pid}"}, retorno=False))
-        # a bateria impede o aviso "fulano respondeu"; conferimos e, se algum escapou, apagamos citando o id
-        achadas = tentar("procurar notificações", lambda: rest("GET", "notificacoes", {"titulo": f"like.{PREFIXO}*", "select": "id,titulo"})) or []
-        print("  notificações de teste encontradas (esperado: nenhuma):", [(n["id"], n["titulo"]) for n in achadas])
-        for n in achadas:
-            tentar(f"apagar notificação {n['id']}", lambda n=n: rest("DELETE", "notificacoes", {"id": f"eq.{n['id']}"}, retorno=False))
-
-        def contar(tabela, coluna, ids):
-            return len(rest("GET", tabela, {coluna: "in.(" + ",".join(ids) + ")", "select": coluna})) if ids else 0
-        sobras = {
-            "respostas": tentar("conferir respostas", lambda: contar("test_responses", "id", criados["respostas"])),
-            "baterias": tentar("conferir baterias", lambda: contar("assessment_responses", "id", criados["baterias"])),
-            "pessoas": tentar("conferir pessoas", lambda: contar("people", "id", criados["pessoas"])),
-            "answers_orfas": tentar("conferir answers", lambda: contar("test_answers", "response_id", criados["respostas"])),
-            "respostas_na_versao": tentar("conferir versão", lambda: len(rest("GET", "test_responses", {"version_id": f"eq.{args.versao}", "select": "id"}))),
-        }
-        print("SOBRAS após a limpeza (tudo deve ser 0, exceto respostas reais que a versão já tinha):", sobras)
-        limpo = all(v_ == 0 for k_, v_ in sobras.items() if k_ != "respostas_na_versao") and (sobras["respostas_na_versao"] or 0) == args.respostas_reais
-        ok_geral &= limpo and not achadas
+        if args.manter:
+            # Conferência na tela: os dados de teste ficam, e o arquivo guarda os ids para o `limpar`.
+            # A bateria segue com uma irmã pendente, então nada notifica ninguém enquanto isso.
+            json.dump({"versao": args.versao, "respostas_reais": args.respostas_reais, **criados},
+                      open(args.manter, "w", encoding="utf-8"), indent=1)
+            print(f"\nMANTIDOS para conferir na tela (apagar depois com: limpar --arquivo {args.manter}):")
+            for k_ in ("respostas", "baterias", "pessoas"):
+                print(f"  {k_:9}:", criados[k_])
+        else:
+            ok_geral &= _limpar(criados, args.versao, args.respostas_reais)
 
     if args.salvar_legado:
         json.dump(coletado, open(args.salvar_legado, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
         print("legado salvo em", args.salvar_legado)
     print("\nRESULTADO:", "TUDO CERTO" if ok_geral else "HÁ PROBLEMA")
     return 0 if ok_geral else 1
+
+
+def _limpar(criados, versao, respostas_reais):
+    """Apaga o que o teste criou, CITANDO os ids antes, e confere pelo banco que não sobrou nada."""
+    print("\nLIMPEZA — ids que existiram e serão apagados:")
+    print("  respostas:", criados["respostas"])
+    print("  baterias :", criados["baterias"])
+    print("  pessoas  :", criados["pessoas"])
+
+    def tentar(desc, fn):
+        try:
+            return fn()
+        except BaseException as e:
+            print(f"  !! {desc} falhou: {e}")
+            return None
+
+    for rid in criados["respostas"]:
+        tentar(f"apagar resposta {rid}", lambda rid=rid: rest("DELETE", "test_responses", {"id": f"eq.{rid}"}, retorno=False))
+    for bid in criados["baterias"]:
+        tentar(f"apagar bateria {bid}", lambda bid=bid: rest("DELETE", "assessment_responses", {"id": f"eq.{bid}"}, retorno=False))
+    for pid in criados["pessoas"]:
+        tentar(f"apagar pessoa {pid}", lambda pid=pid: rest("DELETE", "people", {"id": f"eq.{pid}"}, retorno=False))
+    # a bateria impede o aviso "fulano respondeu"; conferimos e, se algum escapou, apagamos citando o id
+    achadas = tentar("procurar notificações", lambda: rest("GET", "notificacoes", {"titulo": f"like.{PREFIXO}*", "select": "id,titulo"})) or []
+    print("  notificações de teste encontradas (esperado: nenhuma):", [(n["id"], n["titulo"]) for n in achadas])
+    for n in achadas:
+        tentar(f"apagar notificação {n['id']}", lambda n=n: rest("DELETE", "notificacoes", {"id": f"eq.{n['id']}"}, retorno=False))
+
+    def contar(tabela, coluna, ids):
+        return len(rest("GET", tabela, {coluna: "in.(" + ",".join(ids) + ")", "select": coluna})) if ids else 0
+    sobras = {
+        "respostas": tentar("conferir respostas", lambda: contar("test_responses", "id", criados["respostas"])),
+        "baterias": tentar("conferir baterias", lambda: contar("assessment_responses", "id", criados["baterias"])),
+        "pessoas": tentar("conferir pessoas", lambda: contar("people", "id", criados["pessoas"])),
+        "answers_orfas": tentar("conferir answers", lambda: contar("test_answers", "response_id", criados["respostas"])),
+        "respostas_na_versao": tentar("conferir versão", lambda: len(rest("GET", "test_responses", {"version_id": f"eq.{versao}", "select": "id"}))),
+    }
+    print("SOBRAS após a limpeza (tudo deve ser 0, exceto respostas reais que a versão já tinha):", sobras)
+    limpo = all(v_ == 0 for k_, v_ in sobras.items() if k_ != "respostas_na_versao") and (sobras["respostas_na_versao"] or 0) == respostas_reais
+    return limpo and not achadas
+
+
+def cmd_limpar(args):
+    """Apaga os dados de teste guardados por `vivo --manter ARQ`."""
+    d = json.load(open(args.arquivo, encoding="utf-8"))
+    ok = _limpar({k: d[k] for k in ("respostas", "baterias", "pessoas")}, d["versao"], d["respostas_reais"])
+    print("\nRESULTADO:", "TUDO LIMPO" if ok else "SOBROU ALGUMA COISA")
+    return 0 if ok else 1
 
 
 def main():
@@ -684,8 +838,12 @@ def main():
     v.add_argument("--comparar-relatorios", help="compara o relatório COMPLETO de cada caso com o guardado nesta pasta")
     v.add_argument("--prova-sem-legado", action="store_true",
                    help="apaga os campos antigos da RESPOSTA DE TESTE e confere que o relatório não muda (e, em Valores, que continua lendo o formato antigo)")
+    v.add_argument("--etapa2c", action="store_true",
+                   help="confere a página de intensidade (Etapa 2c) contra o que o motor gravou: siglas, gráficos, texto do perfil, fim do adaptado antigo")
+    v.add_argument("--manter", help="NÃO apaga os dados de teste (para conferir na tela); guarda os ids neste arquivo para o `limpar`")
+    li = sub.add_parser("limpar"); li.add_argument("--arquivo", required=True)
     a = ap.parse_args()
-    sys.exit({"puro": cmd_puro, "simular": cmd_simular, "vivo": cmd_vivo}[a.cmd](a))
+    sys.exit({"puro": cmd_puro, "simular": cmd_simular, "vivo": cmd_vivo, "limpar": cmd_limpar}[a.cmd](a))
 
 
 if __name__ == "__main__":

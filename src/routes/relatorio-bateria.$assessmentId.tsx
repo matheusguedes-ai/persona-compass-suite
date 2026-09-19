@@ -160,7 +160,7 @@ function RelatorioBateriaPage() {
           </Section>
 
           {/* Introdução metodológica só na primeira ocorrência de cada tipo */}
-          {idx === 0 ? <IntroSection isDisc={part.is_disc !== false} /> : null}
+          {idx === 0 ? <IntroSection isDisc={part.is_disc !== false} ipsativo={!!part.intensidade} /> : null}
 
           <ReportBody data={part} mbtiReal={part.is_disc ? data.mbti_real : null} showIntro={false} />
         </div>

@@ -377,17 +377,29 @@ export const getMeusResultados = createServerFn({ method: "GET" })
             da_bateria: minhas[i].assessment_response_id,
             is_mbti: !!r.is_mbti,
             tipo_mbti: r.mbti?.tipo ?? null,
-            perfil: r.perfil_indefinido ? null : r.profile,
-            fatores: r.factors
-              .filter((f) => f.has_data !== false)
-              .map((f) => ({
-                key: f.key,
-                label: f.label,
-                color: f.color,
-                valor: Math.round(f.natural_norm),
-                faixa: f.band_natural?.title ?? null,
-              }))
-              .sort((a, b2) => b2.valor - a.valor),
+            // Testes do motor ipsativo (#288 Etapa 2c): o mesmo retrato que abre o relatório — a sigla e
+            // o gráfico NATURAL. Sigla e barras vêm do mesmo gráfico, senão o cartão se contradiz.
+            perfil: r.intensidade ? r.intensidade.perfil.sigla : r.perfil_indefinido ? null : r.profile,
+            fatores: r.intensidade
+              ? r.intensidade.natural.letras
+                  .map((l) => ({
+                    key: l.key,
+                    label: l.label,
+                    color: l.color,
+                    valor: Math.round(l.percentual),
+                    faixa: null as string | null,
+                  }))
+                  .sort((a, b2) => b2.valor - a.valor)
+              : r.factors
+                  .filter((f) => f.has_data !== false)
+                  .map((f) => ({
+                    key: f.key,
+                    label: f.label,
+                    color: f.color,
+                    valor: Math.round(f.natural_norm),
+                    faixa: f.band_natural?.title ?? null,
+                  }))
+                  .sort((a, b2) => b2.valor - a.valor),
           };
         })
         .filter((x): x is NonNullable<typeof x> => x != null),
