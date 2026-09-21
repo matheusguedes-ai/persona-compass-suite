@@ -30,9 +30,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Fonte licenciada (Publica Sans Round, FaceType): NUNCA versionar nem publicar em public/.
-# Ela mora no bucket privado "fontes" do Supabase e só o servidor a lê — ver src/lib/pdf/marca.ts.
-public/marca/*.otf
-public/marca/*.ttf
-public/marca/*.woff*

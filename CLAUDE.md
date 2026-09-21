@@ -331,32 +331,6 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
 - `/relatorio/$responseId` — relatório de um teste.
 - `/relatorio-bateria/$assessmentId` — unificado: uma seção por teste respondido.
 
-**PDF gerado no SERVIDOR** (#293, fatia 1) — `src/lib/pdf/`, rotas `/api/pdf/relatorio/$id` e
-`/api/pdf/bateria/$id`. "Baixar PDF" não é mais `window.print()`: o arquivo é montado e diagramado
-no servidor, então a mesma entrada devolve sempre os MESMOS bytes, independente de navegador,
-sistema ou margens de quem baixa. A4, capa com a marca, cabeçalho repetido, numeração, e quebras
-controladas (bloco atômico não parte; título não fica órfão; parágrafo só parte deixando 2 linhas
-de cada lado). `doc.ts` é o motor (duas fases: medir, depois desenhar), `relatorio.ts` monta o
-conteúdo a partir do MESMO payload de `buildReport`, `marca.ts` carrega fonte e logo.
-⚠️ A fonte **Publica Sans Round** é LICENCIADA (FaceType), não livre. Ela mora no bucket **privado**
-`fontes` do Supabase (`publica-sans-round/`) e só é lida com a chave de serviço — nunca em
-`public/`, nunca versionada: este repositório é público, e servir o arquivo da fonte pelo site
-seria redistribuí-la. Embutir os glifos no PDF é uso normal de documento; servir o `.otf`, não.
-O `.gitignore` barra `public/marca/*.otf`. As logos, essas sim, ficam em `public/marca/` (são
-ativos do próprio método) — fora do bundle do Worker, que tem teto de tamanho. A fonte é embutida
-com
-`subset: false` **de propósito**: o subsetting do pdf-lib quebra as ligaduras `fi`/`fl` da família
-("perfil" saía "perfl"). Textos espaçados usam o operador `Tc`, não um `drawText` por letra, senão
-copiar do PDF devolve "I N T E N S I D A D E".
-Testes: `python3 scripts/testar_pdf.py tudo` (determinismo, A4, fonte embutida, numeração,
-conteúdo igual ao da tela, nada fora da área útil).
-O PDF individual da aba Respostas (#280) **continua na impressão do navegador** — o conteúdo dele
-não vem de `buildReport`, é outra fatia.
-
-⚠️ **Os textos fixos do relatório moram em `src/components/report/textos.ts`** — fonte única da
-tela e do PDF. Antes da #293 estavam dentro do JSX; duplicá-los para o servidor faria as duas
-versões divergirem no primeiro ajuste. Quem mexer no texto do relatório mexe ali.
-
 **Regra de honestidade (importante):** nada aparece a partir de teste não
 respondido. Empate também não vira resultado: com menos de 10 pontos entre a
 maior e a menor dimensão, o relatório diz "sem predominância clara" em vez de

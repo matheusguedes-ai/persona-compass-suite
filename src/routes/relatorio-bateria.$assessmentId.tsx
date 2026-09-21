@@ -1,6 +1,4 @@
 import { SeloEmpresa } from "@/components/selo-empresa";
-import { BATERIA } from "@/components/report/textos";
-import { baixarPdf } from "@/lib/baixar-pdf";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -84,41 +82,39 @@ function RelatorioBateriaPage() {
 
       {(podeBaixar ?? data.settings?.allow_pdf !== false) && (
         <div className="flex justify-end print:hidden">
-          <Button onClick={() => baixarPdf(`/api/pdf/bateria/${assessmentId}`, "relatorio-da-bateria")}>
-            <Printer className="size-4" /> Baixar PDF
-          </Button>
+          <Button onClick={() => window.print()}><Printer className="size-4" /> Baixar PDF</Button>
         </div>
       )}
 
       {/* Capa unificada */}
       <Section>
         <ReportBrandHeader brand={data.brand} />
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{BATERIA.rotulo}</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Relatório completo</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{data.person_name ?? "Avaliado"}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {data.parts.map((p) => p.test_title).filter(Boolean).join(" · ")}
         </p>
         <dl className="mt-6 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
           <div>
-            <dt className="text-xs uppercase text-muted-foreground">{BATERIA.concluidoEm}</dt>
+            <dt className="text-xs uppercase text-muted-foreground">Concluído em</dt>
             <dd className="font-medium">{new Date(data.submitted_at).toLocaleDateString("pt-BR")}</dd>
           </div>
           {data.duration && (
             <div>
-              <dt className="text-xs uppercase text-muted-foreground">{BATERIA.tempoTotal}</dt>
+              <dt className="text-xs uppercase text-muted-foreground">Tempo total</dt>
               <dd className="font-medium">{data.duration}</dd>
             </div>
           )}
           <div>
-            <dt className="text-xs uppercase text-muted-foreground">{BATERIA.inventarios}</dt>
+            <dt className="text-xs uppercase text-muted-foreground">Inventários</dt>
             <dd className="font-medium">{data.done_parts} de {data.total_parts}</dd>
           </div>
         </dl>
         {data.pending_titles.length > 0 && (
           <p className="mt-5 rounded-lg border border-input bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
-            {BATERIA.pendentesPrefixo}
-            <strong className="text-foreground">{data.pending_titles.join(", ")}</strong>
-            {BATERIA.pendentesSufixo}
+            Este relatório cobre apenas os inventários já concluídos. Ainda pendente(s):{" "}
+            <strong className="text-foreground">{data.pending_titles.join(", ")}</strong>. As seções correspondentes
+            aparecerão automaticamente quando forem respondidas.
           </p>
         )}
       </Section>
@@ -133,8 +129,10 @@ function RelatorioBateriaPage() {
 
       {/* Sumário do que foi respondido */}
       <Section>
-        <h2 className="text-lg font-semibold">{BATERIA.sumarioTitulo}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{BATERIA.sumarioIntro}</p>
+        <h2 className="text-lg font-semibold">O que foi avaliado</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Cada inventário abaixo foi respondido por você e gera uma seção própria neste relatório.
+        </p>
         <ol className="mt-4 space-y-2">
           {data.parts.map((p, i) => (
             <li key={p.response_id ?? i} className="flex items-baseline justify-between gap-3 rounded-lg border border-input p-3 text-sm">
@@ -153,7 +151,7 @@ function RelatorioBateriaPage() {
         <div key={part.response_id ?? idx} className="space-y-6">
           <Section className="border-l-4 border-primary">
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              {BATERIA.parte(idx + 1, data.parts.length)}
+              Parte {idx + 1} de {data.parts.length}
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight">{part.test_title}</h2>
             {part.test_description && (

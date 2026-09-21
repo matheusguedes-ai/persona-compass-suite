@@ -6,7 +6,6 @@ import { Printer } from "lucide-react";
 import { useApplyBrand } from "@/lib/brand";
 import { usePodeBaixar } from "@/lib/pode-baixar";
 import { fetchComSessao } from "@/lib/fetch-com-sessao";
-import { baixarPdf } from "@/lib/baixar-pdf";
 import {
   ActionPlanSection,
   PLANO_ACAO,
@@ -68,9 +67,7 @@ function RelatorioPage() {
 
       {(podeBaixar ?? data.settings?.allow_pdf !== false) && (
         <div className="flex justify-end print:hidden">
-          <Button onClick={() => baixarPdf(`/api/pdf/relatorio/${responseId}`, "relatorio")}>
-            <Printer className="size-4" /> Baixar PDF
-          </Button>
+          <Button onClick={() => window.print()}><Printer className="size-4" /> Baixar PDF</Button>
         </div>
       )}
 

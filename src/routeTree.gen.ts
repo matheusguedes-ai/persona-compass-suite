@@ -79,8 +79,6 @@ import { Route as ApiIconeTamanhoRouteImport } from './routes/api.icone.$tamanho
 import { Route as ApiMentorFotoSlugRouteImport } from './routes/api.mentor-foto.$slug'
 import { Route as AppTestesVersionIdEditarRouteImport } from './routes/_app.testes.$versionId.editar'
 import { Route as AppTestesVersionIdRespostasRouteImport } from './routes/_app.testes.$versionId.respostas'
-import { Route as ApiPdfBateriaAssessmentIdRouteImport } from './routes/api.pdf.bateria.$assessmentId'
-import { Route as ApiPdfRelatorioResponseIdRouteImport } from './routes/api.pdf.relatorio.$responseId'
 import { Route as ApiPublicActionPlanIdRouteImport } from './routes/api.public.action-plan.$id'
 import { Route as ApiPublicAssessmentIdRouteImport } from './routes/api.public.assessment.$id'
 import { Route as ApiPublicCheckinAulaIdRouteImport } from './routes/api.public.checkin.$aulaId'
@@ -448,18 +446,6 @@ const AppTestesVersionIdRespostasRoute =
     path: '/$versionId/respostas',
     getParentRoute: () => AppTestesRoute,
   } as any)
-const ApiPdfBateriaAssessmentIdRoute =
-  ApiPdfBateriaAssessmentIdRouteImport.update({
-    id: '/api/pdf/bateria/$assessmentId',
-    path: '/api/pdf/bateria/$assessmentId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPdfRelatorioResponseIdRoute =
-  ApiPdfRelatorioResponseIdRouteImport.update({
-    id: '/api/pdf/relatorio/$responseId',
-    path: '/api/pdf/relatorio/$responseId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicActionPlanIdRoute = ApiPublicActionPlanIdRouteImport.update({
   id: '/api/public/action-plan/$id',
   path: '/api/public/action-plan/$id',
@@ -573,8 +559,6 @@ export interface FileRoutesByFullPath {
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/testes/$versionId/respostas': typeof AppTestesVersionIdRespostasRoute
-  '/api/pdf/bateria/$assessmentId': typeof ApiPdfBateriaAssessmentIdRoute
-  '/api/pdf/relatorio/$responseId': typeof ApiPdfRelatorioResponseIdRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
   '/api/public/checkin/$aulaId': typeof ApiPublicCheckinAulaIdRoute
@@ -646,8 +630,6 @@ export interface FileRoutesByTo {
   '/aluno/educacao': typeof AlunoEducacaoIndexRoute
   '/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/testes/$versionId/respostas': typeof AppTestesVersionIdRespostasRoute
-  '/api/pdf/bateria/$assessmentId': typeof ApiPdfBateriaAssessmentIdRoute
-  '/api/pdf/relatorio/$responseId': typeof ApiPdfRelatorioResponseIdRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
   '/api/public/checkin/$aulaId': typeof ApiPublicCheckinAulaIdRoute
@@ -729,8 +711,6 @@ export interface FileRoutesById {
   '/aluno/educacao/': typeof AlunoEducacaoIndexRoute
   '/_app/testes/$versionId/editar': typeof AppTestesVersionIdEditarRoute
   '/_app/testes/$versionId/respostas': typeof AppTestesVersionIdRespostasRoute
-  '/api/pdf/bateria/$assessmentId': typeof ApiPdfBateriaAssessmentIdRoute
-  '/api/pdf/relatorio/$responseId': typeof ApiPdfRelatorioResponseIdRoute
   '/api/public/action-plan/$id': typeof ApiPublicActionPlanIdRoute
   '/api/public/assessment/$id': typeof ApiPublicAssessmentIdRoute
   '/api/public/checkin/$aulaId': typeof ApiPublicCheckinAulaIdRoute
@@ -812,8 +792,6 @@ export interface FileRouteTypes {
     | '/aluno/educacao/'
     | '/testes/$versionId/editar'
     | '/testes/$versionId/respostas'
-    | '/api/pdf/bateria/$assessmentId'
-    | '/api/pdf/relatorio/$responseId'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
     | '/api/public/checkin/$aulaId'
@@ -885,8 +863,6 @@ export interface FileRouteTypes {
     | '/aluno/educacao'
     | '/testes/$versionId/editar'
     | '/testes/$versionId/respostas'
-    | '/api/pdf/bateria/$assessmentId'
-    | '/api/pdf/relatorio/$responseId'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
     | '/api/public/checkin/$aulaId'
@@ -967,8 +943,6 @@ export interface FileRouteTypes {
     | '/aluno/educacao/'
     | '/_app/testes/$versionId/editar'
     | '/_app/testes/$versionId/respostas'
-    | '/api/pdf/bateria/$assessmentId'
-    | '/api/pdf/relatorio/$responseId'
     | '/api/public/action-plan/$id'
     | '/api/public/assessment/$id'
     | '/api/public/checkin/$aulaId'
@@ -1007,8 +981,6 @@ export interface RootRouteChildren {
   ApiGoogleCallbackRoute: typeof ApiGoogleCallbackRoute
   ApiIconeTamanhoRoute: typeof ApiIconeTamanhoRoute
   ApiMentorFotoSlugRoute: typeof ApiMentorFotoSlugRoute
-  ApiPdfBateriaAssessmentIdRoute: typeof ApiPdfBateriaAssessmentIdRoute
-  ApiPdfRelatorioResponseIdRoute: typeof ApiPdfRelatorioResponseIdRoute
   ApiPublicActionPlanIdRoute: typeof ApiPublicActionPlanIdRoute
   ApiPublicAssessmentIdRoute: typeof ApiPublicAssessmentIdRoute
   ApiPublicCheckinAulaIdRoute: typeof ApiPublicCheckinAulaIdRoute
@@ -1510,20 +1482,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTestesVersionIdRespostasRouteImport
       parentRoute: typeof AppTestesRoute
     }
-    '/api/pdf/bateria/$assessmentId': {
-      id: '/api/pdf/bateria/$assessmentId'
-      path: '/api/pdf/bateria/$assessmentId'
-      fullPath: '/api/pdf/bateria/$assessmentId'
-      preLoaderRoute: typeof ApiPdfBateriaAssessmentIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/pdf/relatorio/$responseId': {
-      id: '/api/pdf/relatorio/$responseId'
-      path: '/api/pdf/relatorio/$responseId'
-      fullPath: '/api/pdf/relatorio/$responseId'
-      preLoaderRoute: typeof ApiPdfRelatorioResponseIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/action-plan/$id': {
       id: '/api/public/action-plan/$id'
       path: '/api/public/action-plan/$id'
@@ -1786,8 +1744,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGoogleCallbackRoute: ApiGoogleCallbackRoute,
   ApiIconeTamanhoRoute: ApiIconeTamanhoRoute,
   ApiMentorFotoSlugRoute: ApiMentorFotoSlugRoute,
-  ApiPdfBateriaAssessmentIdRoute: ApiPdfBateriaAssessmentIdRoute,
-  ApiPdfRelatorioResponseIdRoute: ApiPdfRelatorioResponseIdRoute,
   ApiPublicActionPlanIdRoute: ApiPublicActionPlanIdRoute,
   ApiPublicAssessmentIdRoute: ApiPublicAssessmentIdRoute,
   ApiPublicCheckinAulaIdRoute: ApiPublicCheckinAulaIdRoute,
