@@ -10,6 +10,38 @@ import { toast } from "sonner";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 import { fetchComSessao } from "@/lib/fetch-com-sessao";
 import type { GraficoDoConjunto, Intensidade } from "@/lib/intensidade";
+import {
+  CONFIABILIDADE,
+  CORPO,
+  DERIVADOS,
+  INTENSIDADE,
+  INTRO,
+  JUNG,
+  OBSERVADORES,
+  RODAPE_LEGAL,
+  avisoDeSinal,
+} from "@/components/report/textos";
+
+// Os textos fixos do relatório moram em `textos.ts` desde a #293: o PDF é montado no servidor,
+// sem React, e precisa das MESMAS frases. Aqui eles só são reexportados para quem já os
+// importava deste arquivo.
+export {
+  COMUNICACAO,
+  FACTOR_THEMES,
+  FAIXA_DO_GRAFICO,
+  PLANO_ACAO,
+  PLANO_ACAO_GENERICO,
+  SECTION_TITLES,
+} from "@/components/report/textos";
+import {
+  COMUNICACAO,
+  FACTOR_THEMES,
+  FAIXA_DO_GRAFICO,
+  INDICE_EM_REVISAO,
+  PLANO_ACAO,
+  PLANO_ACAO_GENERICO,
+  SECTION_TITLES,
+} from "@/components/report/textos";
 
 export type Descritor = { body: string; band_min: number | null; band_max: number | null; active: boolean };
 
@@ -106,57 +138,6 @@ export type Report = {
   intensidade?: Intensidade | null;
 };
 
-export const SECTION_TITLES: Record<string, string> = {
-  sintese: "Síntese do perfil",
-  potencialidades: "Potencialidades",
-  relacoes: "Relações interpessoais",
-  decisao: "Tomada de decisão",
-  motivador: "Motivadores",
-  medos: "Medos e tensões",
-  adequacao: "Adequação profissional",
-  pontos_desenvolver: "Pontos a desenvolver",
-  perfil: "O que mais pesa em você",
-  trabalho: "Como isso aparece no trabalho",
-  pressao: "Como você fica sob pressão",
-  sombra: "O que menos aparece em você",
-  desenvolvimento: "Por onde começar",
-  equilibrio: "Nenhuma dimensão se destacou",
-  eixo: "O que cada preferência sua quer dizer",
-  atencao: "Pontos cegos de cada preferência",
-};
-
-const FACTOR_THEMES: Array<{ key: string; title: string }> = [
-  { key: "D", title: "Como você lida com problemas e desafios" },
-  { key: "I", title: "Como você lida com pessoas e influência" },
-  { key: "S", title: "Como você lida com ritmo e consistência" },
-  { key: "C", title: "Como você lida com regras e procedimentos" },
-];
-
-const COMUNICACAO: Array<{ key: string; label: string; body: string }> = [
-  { key: "D", label: "Com perfis de foco em resultado (D)", body: "Vá direto ao ponto. Comece pela conclusão, apresente opções objetivas e deixe a decisão nas mãos da pessoa. Evite rodeios, contexto excessivo e conversas paralelas antes do assunto principal." },
-  { key: "I", label: "Com perfis de foco em pessoas (I)", body: "Abra espaço para o diálogo e reconheça as ideias trazidas. Use exemplos, histórias e um tom entusiasmado, mas registre por escrito os combinados para que nada se perca no calor da conversa." },
-  { key: "S", label: "Com perfis de foco em estabilidade (S)", body: "Fale com calma, explique o porquê das mudanças e dê tempo para a assimilação. Garanta previsibilidade: combine prazos realistas e confirme que a pessoa se sente segura antes de avançar." },
-  { key: "C", label: "Com perfis de foco em precisão (C)", body: "Traga dados, critérios e fontes. Antecipe as perguntas sobre qualidade e risco, evite generalizações e permita tempo de análise antes de pedir um posicionamento." },
-];
-
-export const PLANO_ACAO: string[] = [
-  "Quais comportamentos deste relatório você reconhece com mais clareza no seu dia a dia?",
-  "Em quais situações o seu perfil adaptado se distancia mais do natural? O que costuma provocar esse esforço?",
-  "Qual característica do seu perfil tem gerado os melhores resultados e como ampliá-la de forma consciente?",
-  "Qual ponto a desenvolver traria maior impacto se você trabalhasse nele nos próximos 90 dias?",
-  "Que apoio (pessoas, rotinas, ferramentas) você precisa para sustentar essa mudança?",
-  "Como você vai medir o seu progresso e em que data pretende revisitar este plano?",
-];
-
-export const PLANO_ACAO_GENERICO: string[] = [
-  "Quais dimensões deste relatório descrevem bem o que você observa em si mesmo?",
-  "Alguma intensidade apresentada aqui te surpreendeu? O que pode explicar isso?",
-  "Qual dimensão mais alta você quer usar de forma mais consciente nos próximos meses?",
-  "Qual dimensão mais baixa merece atenção e por quê?",
-  "Que apoio (pessoas, rotinas, ferramentas) você precisa para avançar?",
-  "Como você vai acompanhar o progresso e quando pretende revisitar este plano?",
-];
-
 export const NATURAL_COLOR = "var(--primary)";
 export const ADAPTADO_COLOR = "oklch(0.62 0.14 40)";
 
@@ -208,93 +189,40 @@ function comNegrito(texto: string) {
   );
 }
 
+/**
+ * Igual ao `comNegrito`, mas o destaque HERDA a cor do parágrafo em vez de escurecer. Os textos que
+ * vieram do JSX para `textos.ts` na #293 tinham `<strong>` sem classe; este helper preserva isso,
+ * para a tela sair idêntica à de antes da mudança.
+ */
+function comNegritoHerdado(texto: string) {
+  return texto.split(/(\*\*[^*]+\*\*)/g).map((parte, i) =>
+    parte.startsWith("**") && parte.endsWith("**") ? (
+      <strong key={i}>{parte.slice(2, -2)}</strong>
+    ) : (
+      <span key={i}>{parte}</span>
+    ),
+  );
+}
+
 export function IntroSection({ isDisc, isMbti, ipsativo }: { isDisc: boolean; isMbti?: boolean; ipsativo?: boolean }) {
-  if (isMbti) {
-    return (
-      <Section>
-        <h2 className="text-lg font-semibold">Como ler este relatório</h2>
-        <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
-          <p>
-            Este inventário mede quatro preferências independentes, na tradição de Carl Jung (1921): para onde
-            você dirige a atenção (E/I), como capta informação (S/N), como decide (T/F) e como se organiza
-            diante do que está em aberto (J/P).
-          </p>
-          <p>
-            Os polos de cada eixo são complementares, não opostos excludentes. O percentual indica{" "}
-            <strong>ênfase</strong> — todo mundo usa os dois lados, e a preferência diz qual deles vem primeiro
-            e com menos esforço.
-          </p>
-          <p>
-            As quatro letras juntas formam um apelido para o conjunto. Quando um eixo fica perto de 50% a 50%,
-            aquela letra é praticamente sorteio, e este relatório diz isso em vez de fingir que decidiu. O que
-            vale a leitura são os eixos, um a um.
-          </p>
-        </div>
-      </Section>
-    );
-  }
-  if (isDisc) {
-    return (
-      <Section>
-        <h2 className="text-lg font-semibold">Como ler este relatório</h2>
-        <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
-          <p>
-            Este relatório organiza a leitura do seu comportamento em quatro fatores observáveis, derivados da tradição
-            iniciada por William Moulton Marston na década de 1920: a forma como você reage a problemas e desafios (D),
-            como se relaciona e influencia pessoas (I), o ritmo e a constância com que conduz suas atividades (S) e o
-            grau de apego a regras, critérios e procedimentos (C).
-          </p>
-          <p>
-            Não existem fatores melhores ou piores. Cada combinação descreve tendências de comportamento — não mede
-            inteligência, caráter, competência técnica ou potencial de crescimento. O que o instrumento oferece é um
-            vocabulário comum para conversar sobre estilos de agir e sobre os ajustes que cada contexto exige.
-          </p>
-          {ipsativo ? (
-            // #288 Etapa 2c: natural e adaptado são medidos de formas diferentes e não se comparam — a frase
-            // antiga ("diferenças entre os dois indicam esforço de ajuste") nascia justamente dessa comparação.
-            <p>
-              Você verá dois conjuntos de resultados. O perfil <strong>natural</strong> descreve o comportamento mais
-              espontâneo, aquele que aparece quando não há pressão externa. O perfil <strong>adaptado</strong> descreve o
-              que você tem apresentado no ambiente atual. Cada um tem a sua própria sigla e se lê por si: os dois são
-              medidos de formas diferentes e não se comparam um com o outro.
-            </p>
-          ) : (
-            <p>
-              Você verá dois conjuntos de resultados. O perfil <strong>natural</strong> descreve o comportamento mais
-              espontâneo, aquele que aparece quando não há pressão externa. O perfil <strong>adaptado</strong> descreve o
-              que você tem apresentado no ambiente atual. Diferenças relevantes entre os dois indicam esforço consciente
-              de ajuste — algo saudável em doses moderadas e desgastante quando prolongado.
-            </p>
-          )}
-        </div>
-      </Section>
-    );
-  }
+  const paragrafos = isMbti
+    ? INTRO.mbti
+    : isDisc
+      ? [...INTRO.disc, ipsativo ? INTRO.discIpsativo : INTRO.discClassico]
+      : INTRO.dimensional;
   return (
     <Section>
-      <h2 className="text-lg font-semibold">Como ler este relatório</h2>
+      <h2 className="text-lg font-semibold">{INTRO.titulo}</h2>
       <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
-        <p>
-          Este relatório apresenta a intensidade de cada dimensão avaliada, em uma escala comparável de 0 a 100.
-          Quanto maior o valor, maior o peso daquela dimensão nas suas respostas.
-        </p>
-        <p>
-          Não há dimensões certas ou erradas: o conjunto descreve ênfases e prioridades no momento em que você
-          respondeu. Leia primeiro as dimensões mais altas, depois observe as mais baixas — elas costumam explicar
-          escolhas e desconfortos com a mesma clareza.
-        </p>
+        {paragrafos.map((t, i) => (
+          <p key={i}>{comNegritoHerdado(t)}</p>
+        ))}
       </div>
     </Section>
   );
 }
 
 const COR_EXTERNO = "#8b5cf6";
-
-const FAIXA_DO_GRAFICO: Record<NonNullable<GraficoDoConjunto["faixa"]>, string> = {
-  clara: "predominância clara",
-  moderada: "predominância moderada",
-  combinado: "perfil combinado",
-};
 
 function BarraDoGrafico({ valor, cor, apagada, rotulo }: { valor: number; cor: string; apagada?: boolean; rotulo?: string }) {
   const pct = Math.max(0, Math.min(100, valor));
@@ -342,7 +270,7 @@ function GraficoDoPerfil({
               {l.label} <span className="text-xs font-normal text-muted-foreground">({l.key})</span>
               {l.pouca_informacao && (
                 <span className="ml-2 rounded-full border border-input px-2 py-0.5 text-[10px] font-normal uppercase tracking-wider text-muted-foreground">
-                  pouca informação
+                  {INTENSIDADE.poucaInformacao}
                 </span>
               )}
             </p>
@@ -362,23 +290,6 @@ function GraficoDoPerfil({
   );
 }
 
-/**
- * A explicação, para o aluno, de uma dimensão que ele quase não marcou (#292). Sem jargão e sem culpar
- * quem respondeu: o teste é que ficou sem informação sobre aquela dimensão.
- */
-function avisoDeSinal(letras: Intensidade["sinal_baixo"], marcacoes: number): string {
-  const partes = letras.map((l) => `${l.label} (${l.sinal} ${l.sinal === 1 ? "vez" : "vezes"})`);
-  const lista = partes.length === 1 ? partes[0] : `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}`;
-  const uma = letras.length === 1;
-  const fechamento = letras.some((l) => l.fora_do_titulo)
-    ? `${uma ? "ela continua" : "elas continuam"} nos gráficos, mas ${uma ? "fica" : "ficam"} fora do título do perfil.`
-    : `${uma ? "ela continua" : "elas continuam"} nos gráficos, e a posição ${uma ? "dela" : "delas"} merece ser lida com cuidado.`;
-  return (
-    `${lista} apareceu${uma ? "" : "ram"} poucas vezes nas suas escolhas, entre as ${marcacoes} marcações ` +
-    `que o teste pede. Com tão pouca informação, este teste não consegue posicionar ` +
-    `${uma ? "essa dimensão" : "essas dimensões"} com segurança — ${fechamento}`
-  );
-}
 
 /**
  * PÁGINA DE INTENSIDADE (#288, Etapa 2c) — DISC, Temperamentos e VAK, no padrão da referência que o
@@ -406,16 +317,16 @@ export function IntensidadeDoPerfil({
 
   return (
     <Section>
-      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Intensidade do perfil</p>
+      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{INTENSIDADE.rotulo}</p>
       <h2 className="mt-2 text-3xl font-semibold tracking-[0.08em]">
-        {perfil.sigla ? `PERFIL ${perfil.sigla}` : "Sem predominância clara"}
+        {perfil.sigla ? `PERFIL ${perfil.sigla}` : INTENSIDADE.semPredominancia}
       </h2>
       {perfil.labels.length > 0 && <p className="mt-1 text-sm text-muted-foreground">{perfil.labels.join(" · ")}</p>}
       {!perfil.sigla && (
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           {natural.tipo === "sem_sinal"
-            ? "Nenhuma das dimensões apareceu vezes suficientes nas suas escolhas para o teste posicioná-la com segurança, então este relatório não declara um perfil. Os gráficos abaixo mostram como as suas escolhas se distribuíram."
-            : "As letras do seu gráfico natural ficaram muito próximas entre si — três ou mais praticamente empatadas —, então nenhuma se destaca o bastante para virar o seu perfil. Os gráficos abaixo mostram essa distribuição."}
+            ? INTENSIDADE.semSinal
+            : INTENSIDADE.empateMultiplo}
         </p>
       )}
 
@@ -434,28 +345,27 @@ export function IntensidadeDoPerfil({
             ))}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Índices de 0 a 1, derivados do seu DISC (gráfico adaptado).
-            {indices.some((i) => i.value == null) && " Os marcados como em revisão voltam quando o novo cálculo estiver pronto."}
+            {INTENSIDADE.indicesRodape}
+            {indices.some((i) => i.value == null) && INTENSIDADE.indicesEmRevisao}
           </p>
         </>
       )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <GraficoDoPerfil
-          titulo="Natural"
-          explica="Seu jeito espontâneo: quanto menos vezes você apontou um estilo como o que menos combina com você, mais alto ele fica."
+          titulo={INTENSIDADE.naturalTitulo}
+          explica={INTENSIDADE.naturalExplica}
           g={natural}
         />
         <GraficoDoPerfil
-          titulo="Adaptado"
-          explica="O que você tem mostrado no ambiente atual: quanto mais vezes você apontou um estilo como o que mais combina com você, mais alto ele fica."
+          titulo={INTENSIDADE.adaptadoTitulo}
+          explica={INTENSIDADE.adaptadoExplica}
           g={adaptado}
           externo={ext?.scores ?? null}
         />
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        Os dois gráficos são medidos de formas diferentes e não se comparam entre si: em cada um, as letras dividem
-        100 pontos, e o que vale é a ordem delas.
+        {INTENSIDADE.reguasSeparadas}
       </p>
       {intensidade.sinal_baixo.length > 0 && (
         <p className="mt-3 rounded-lg border border-dashed border-input p-3 text-sm leading-relaxed text-muted-foreground">
@@ -480,15 +390,14 @@ export function IntensidadeDoPerfil({
         <div className="mt-6 rounded-lg border border-dashed border-input p-4">
           <p className="text-sm font-medium">Sobre o perfil {perfil.sigla}</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            A descrição detalhada deste perfil está sendo preparada e aparece aqui assim que estiver pronta. A sigla e
-            os gráficos acima já refletem as suas respostas.
+            {INTENSIDADE.textoPendente}
           </p>
         </div>
       ))}
 
       {dimensional && (
         <p className="mt-6 text-xs leading-relaxed text-muted-foreground">
-          As leituras de cada dimensão, nas próximas seções, partem do gráfico adaptado — o que você mais escolheu.
+          {INTENSIDADE.leiturasDoAdaptado}
         </p>
       )}
     </Section>
@@ -529,10 +438,10 @@ export function ReportBody({
       ) : isDisc ? (
         <Section>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-lg font-semibold">Natural × Adaptado</h2>
+            <h2 className="text-lg font-semibold">{CORPO.naturalAdaptado}</h2>
             <p className="text-sm text-muted-foreground">
               {data.perfil_indefinido ? (
-                <span>Sem predominância clara — os quatro fatores ficaram quase no mesmo nível</span>
+                <span>{CORPO.semPredominancia}</span>
               ) : (
                 <>
                   Perfil composto: <strong className="text-foreground">{data.profile}</strong>
@@ -572,8 +481,8 @@ export function ReportBody({
         <EixosMbti jung={data.mbti} origem="teste" />
       ) : (
         <Section>
-          <h2 className="text-lg font-semibold">Intensidade por dimensão</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Dimensões ordenadas da maior para a menor intensidade.</p>
+          <h2 className="text-lg font-semibold">{CORPO.intensidadePorDimensao}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{CORPO.intensidadeIntro}</p>
           <div className="mt-5 space-y-4">
             {rankedFactors.map((f) => (
               <div key={f.id}>
@@ -585,7 +494,7 @@ export function ReportBody({
                 </div>
                 {f.has_data === false ? (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Não medida — nenhuma pergunta deste inventário pontua esta dimensão.
+                    {CORPO.naoMedida}
                   </p>
                 ) : (
                   <>
@@ -603,7 +512,7 @@ export function ReportBody({
 
       {mostrar("fatores") && !isDisc && rankedFactors.some((f) => f.band_natural) && (
         <Section>
-          <h2 className="text-lg font-semibold">Leitura de cada dimensão</h2>
+          <h2 className="text-lg font-semibold">{CORPO.leituraDimensoes}</h2>
           <div className="mt-5 space-y-4">
             {rankedFactors.filter((f) => f.has_data !== false).map((f) => (
               <div key={f.id} className="rounded-lg border border-input p-4">
@@ -613,7 +522,7 @@ export function ReportBody({
                     {f.label}
                   </p>
                   <span className="text-xs text-muted-foreground">
-                    {Math.round(f.natural_norm)} · {f.band_natural?.title ?? "sem faixa definida"}
+                    {Math.round(f.natural_norm)} · {f.band_natural?.title ?? CORPO.semFaixa}
                   </span>
                 </div>
                 {f.band_natural?.description && (
@@ -627,7 +536,7 @@ export function ReportBody({
 
       {mostrar("observadores") && data.external && (
         <Section>
-          <h2 className="text-lg font-semibold">Como o meio percebe você</h2>
+          <h2 className="text-lg font-semibold">{OBSERVADORES.titulo}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Média das respostas de {data.external.count} observador(es) comparada à sua autoimagem.
           </p>
@@ -706,7 +615,7 @@ export function ReportBody({
             <h2 className="text-lg font-semibold">{theme.title}</h2>
             {data.intensidade && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Leitura do seu gráfico adaptado — o que você tem mostrado no ambiente atual.
+                {CORPO.leituraDoAdaptado}
               </p>
             )}
             <div className="mt-4">
@@ -732,7 +641,7 @@ export function ReportBody({
             {f.adaptacao && (
               <div className="mt-4 rounded-lg border border-input bg-muted/30 p-4">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {f.adaptacao.title ?? (f.gap_mode === "gap_up" ? "Você tem elevado este fator" : "Você tem contido este fator")}
+                  {f.adaptacao.title ?? (f.gap_mode === "gap_up" ? CORPO.elevou : CORPO.conteve)}
                   {" "}({(f.gap ?? 0) > 0 ? "+" : ""}{f.gap ?? 0} pontos)
                 </p>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.adaptacao.body}</p>
@@ -744,11 +653,11 @@ export function ReportBody({
 
       {mostrar("narrativas") && isDisc && data.factors.some((f) => f.descritores.length > 0) && (
         <Section>
-          <h2 className="text-lg font-semibold">Régua de descritores</h2>
+          <h2 className="text-lg font-semibold">{CORPO.reguaTitulo}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {data.intensidade
-              ? "A faixa destacada corresponde à intensidade de cada fator no seu gráfico adaptado."
-              : "A faixa destacada corresponde à sua intensidade natural em cada fator."}
+              ? CORPO.reguaAdaptado
+              : CORPO.reguaNatural}
           </p>
           <div className="mt-5 grid gap-6 sm:grid-cols-2">
             {data.factors.map((f) => (
@@ -783,8 +692,8 @@ export function ReportBody({
 
       {isDisc && (
         <Section>
-          <h2 className="text-lg font-semibold">Sugestões de comunicação</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Ajustes simples que aumentam a chance de ser compreendido por cada estilo.</p>
+          <h2 className="text-lg font-semibold">{CORPO.comunicacaoTitulo}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{CORPO.comunicacaoIntro}</p>
           <div className="mt-4 space-y-4">
             {COMUNICACAO.map((c) => (
               <div key={c.key} className="rounded-lg border border-input p-4">
@@ -850,9 +759,7 @@ export function ActionPlanSection({ responseId, questions }: { responseId: strin
           </span>
         )}
       </div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Responda com calma, salve suas anotações e revisite-as com seu mentor.
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">{CORPO.planoIntro}</p>
       <ol className="mt-4 space-y-4">
         {questions.map((q, i) => {
           const key = `q${i + 1}`;
@@ -899,12 +806,10 @@ export function AvisoDeConfiabilidade({ q }: { q?: QualidadeResposta | null }) {
   return (
     <div className={`report-section rounded-xl p-5 ring-1 ${grave ? "bg-amber-50 ring-amber-200" : "bg-muted/50 ring-black/5"}`}>
       <p className={`text-sm font-medium ${grave ? "text-amber-900" : "text-foreground"}`}>
-        {grave ? "Leia este relatório com cautela" : "Uma ressalva sobre a leitura"}
+        {grave ? CONFIABILIDADE.tituloGrave : CONFIABILIDADE.tituloLeve}
       </p>
       <p className={`mt-1 text-sm leading-relaxed ${grave ? "text-amber-800" : "text-muted-foreground"}`}>
-        O jeito como o inventário foi preenchido sugere {q.motivos.join(" e ")}. Isso não invalida o
-        resultado, mas reduz a confiança nele: o retrato pode estar mais borrado do que o normal.
-        Se algo aqui não fizer sentido, o melhor caminho é responder de novo com calma.
+        {CONFIABILIDADE.corpo(q.motivos)}
       </p>
     </div>
   );
@@ -917,9 +822,7 @@ export function ReportFooter({ brand }: { brand?: ReportBrand | null }) {
   return (
     <footer className="report-section space-y-3 px-2 pb-8 text-xs leading-relaxed text-muted-foreground">
       <p>
-        Este relatório é uma ferramenta de autoconhecimento e desenvolvimento. Ele descreve tendências de comportamento
-        autorrelatadas em um momento específico e não deve ser usado isoladamente para decisões de seleção, promoção ou
-        desligamento. Recomenda-se a leitura acompanhada por um mentor ou profissional qualificado.
+        {RODAPE_LEGAL}
       </p>
       {(nome || site || email) && (
         <p className="border-t border-black/5 pt-3">
@@ -973,37 +876,33 @@ export function EixosMbti({
   return (
     <Section>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">Tipos psicológicos</h2>
+        <h2 className="text-lg font-semibold">{JUNG.titulo}</h2>
         {siglaVale ? (
           <span className="rounded-md bg-muted px-3 py-1 text-sm font-semibold tracking-[0.2em]">{jung.tipo}</span>
         ) : (
           <span className="rounded-md bg-muted px-3 py-1 text-xs text-muted-foreground">
-            sem sigla definida
+            {JUNG.semSigla}
           </span>
         )}
       </div>
       <div className="mt-2">
         <SourceBadge>
-          {doTeste ? "Com base nas suas respostas do inventário MBTI" : "Estimativa derivada do seu DISC"}
+          {doTeste ? JUNG.seloTeste : JUNG.seloDisc}
         </SourceBadge>
       </div>
       <p className="mt-3 text-sm text-muted-foreground">
         {doTeste
-          ? "Leitura das preferências mentais a partir do inventário que você respondeu. Os polos são complementares: o percentual indica ênfase, não ausência do lado oposto."
-          : "Você não respondeu um inventário de tipos psicológicos nesta avaliação. Os percentuais abaixo são uma estimativa calculada a partir do seu perfil DISC — útil como hipótese de leitura, não como resultado de teste."}
+          ? JUNG.introTeste
+          : JUNG.introDisc}
       </p>
       {!doTeste && (
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          <strong>E uma ressalva que vale dizer inteira:</strong> o DISC mede quatro fatores, e os
-          eixos abaixo saem todos deles. Isso amarra os eixos entre si — na prática, a estimativa
-          distingue bem menos tipos do que um inventário respondido distinguiria. Leia os
-          percentuais, não a sigla.
+          {comNegritoHerdado(JUNG.ressalvaDisc)}
         </p>
       )}
       {!siglaVale && (
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          {noMuro} dos quatro eixos ficaram praticamente empatados, então a sigla de quatro letras
-          seria sorteio. Os eixos que se definiram continuam valendo — estão abaixo.
+          {JUNG.noMuro(noMuro)}
         </p>
       )}
       <div className="mt-5 space-y-5">
@@ -1019,8 +918,7 @@ export function EixosMbti({
             </div>
             {indeciso(p) ? (
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Praticamente empatado. Você transita pelos dois lados conforme a situação — a letra
-                correspondente do seu tipo, aqui, não diz grande coisa.
+                {JUNG.eixoEmpatado}
               </p>
             ) : (
               <ul className="mt-3 space-y-1.5">
@@ -1039,9 +937,6 @@ export function EixosMbti({
   );
 }
 
-/** Texto dos índices sem valor (motor ipsativo): Estima e Flexibilidade estão em revisão. */
-const INDICE_EM_REVISAO = "Em revisão — este índice volta a aparecer quando o novo cálculo estiver pronto.";
-
 export function DerivedSections({
   d,
   mbtiReal,
@@ -1053,7 +948,7 @@ export function DerivedSections({
   graficoAdaptado?: boolean;
 }) {
   const jung = mbtiReal ?? d.jung;
-  const selo = graficoAdaptado ? "Derivado do seu DISC (gráfico adaptado)" : "Derivado do seu DISC";
+  const selo = graficoAdaptado ? DERIVADOS.seloAdaptado : DERIVADOS.selo;
   // Uma série só quando não existe o segundo conjunto na mesma régua (motor ipsativo, #288 Etapa 2c).
   const umaSerie = d.competencias.every((c) => c.adaptado == null);
 
@@ -1064,7 +959,7 @@ export function DerivedSections({
       {/* Estilo de liderança */}
       <Section>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-semibold">Estilo de liderança</h2>
+          <h2 className="text-lg font-semibold">{DERIVADOS.liderancaTitulo}</h2>
           <p className="text-sm text-muted-foreground">
             Dominante: <strong className="text-foreground">{d.dominant.label}</strong> ({Math.round(d.dominant.pct)}%)
           </p>
@@ -1079,13 +974,13 @@ export function DerivedSections({
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             {d.leadership_content.strengths && (
               <div className="rounded-lg border border-input p-4">
-                <p className="text-sm font-semibold">{d.leadership_content.strengths.title ?? "Pontos fortes"}</p>
+                <p className="text-sm font-semibold">{d.leadership_content.strengths.title ?? DERIVADOS.pontosFortes}</p>
                 <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{d.leadership_content.strengths.body}</p>
               </div>
             )}
             {d.leadership_content.attention && (
               <div className="rounded-lg border border-input p-4">
-                <p className="text-sm font-semibold">{d.leadership_content.attention.title ?? "Pontos de atenção"}</p>
+                <p className="text-sm font-semibold">{d.leadership_content.attention.title ?? DERIVADOS.pontosAtencao}</p>
                 <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{d.leadership_content.attention.body}</p>
               </div>
             )}
@@ -1095,12 +990,12 @@ export function DerivedSections({
 
       {/* Mapa de competências */}
       <Section>
-        <h2 className="text-lg font-semibold">Mapa de competências</h2>
+        <h2 className="text-lg font-semibold">{DERIVADOS.competenciasTitulo}</h2>
         <div className="mt-2"><SourceBadge>{selo}</SourceBadge></div>
         <p className="mt-3 text-sm text-muted-foreground">
           {umaSerie
-            ? "Dezesseis competências calculadas a partir da combinação dos seus fatores no gráfico adaptado."
-            : "Dezesseis competências calculadas a partir da combinação dos seus fatores. A linha sólida representa o perfil natural; a tracejada, o adaptado."}
+            ? DERIVADOS.competenciasUmaSerie
+            : DERIVADOS.competenciasDuasSeries}
         </p>
         <RadarChart items={d.competencias} rotuloUnico={umaSerie ? "Adaptado" : undefined} />
         <div className="mt-6 space-y-4">
@@ -1132,9 +1027,9 @@ export function DerivedSections({
 
       {/* Índices comportamentais */}
       <Section>
-        <h2 className="text-lg font-semibold">Índices comportamentais</h2>
+        <h2 className="text-lg font-semibold">{DERIVADOS.indicesTitulo}</h2>
         <div className="mt-2"><SourceBadge>{selo}</SourceBadge></div>
-        <p className="mt-3 text-sm text-muted-foreground">Valores de 0 a 1 que resumem tendências gerais do seu momento atual.</p>
+        <p className="mt-3 text-sm text-muted-foreground">{DERIVADOS.indicesIntro}</p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {d.indices.map((i) => (
             <div key={i.key} className="rounded-lg border border-input p-4">
