@@ -23,13 +23,17 @@ Testes do motor ipsativo da escolha forçada (#288, Etapa 2a).
   python3 scripts/testar_ipsativo.py simular
       Monte Carlo de quem responde ao acaso: quanto cai em "combinado", "moderada" e "clara".
 
+  python3 scripts/testar_ipsativo.py sinal [-n 40000]
+      Calibração do SINAL MÍNIMO (#292): distribuição do sinal (MAIS + MENOS por letra) em respostas
+      ao acaso, por instrumento, e com que frequência a regra marcaria uma letra e mudaria o título.
+
 Não importa nenhum script de conteúdo (nada de aplicar_conteudo.py). Nunca imprime chave nenhuma.
 """
 import argparse, json, math, os, random, shutil, subprocess, sys, urllib.error, urllib.parse, urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ipsativo_oraculo import (LIMITE_COMBINADO, LIMITE_MODERADA, comparar, distribuir_pares,  # noqa: E402
-                              embaralhar_pares, oraculo, sortear_escolhas)
+from ipsativo_oraculo import (ALVO_SINAL_POR_LETRA, LIMITE_COMBINADO, LIMITE_MODERADA, comparar,  # noqa: E402
+                              distribuir_pares, embaralhar_pares, oraculo, sinal_minimo, sortear_escolhas)
 
 RAIZ = os.getcwd()
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
@@ -142,9 +146,9 @@ CASOS = {
         mais={"D": 7, "I": 7, "S": 7, "C": 7}, menos={"D": 7, "I": 7, "S": 7, "C": 7},
         espera={"adaptado": ("combinado", "combinado", ["D", "I"], 0), "natural": ("combinado", "combinado", ["D", "I"], 0)}),
     "e_letra_nunca_marcada": dict(
-        desc="a letra I nunca é MAIS nem MENOS",
+        desc="a letra I nunca é MAIS nem MENOS — sinal 0, não pode ocupar o título (#292)",
         mais={"S": 12, "C": 10, "D": 6, "I": 0}, menos={"D": 12, "S": 10, "C": 6, "I": 0},
-        espera={"adaptado": ("combinado", "combinado", ["S", "C"], 2), "natural": ("predominante", "clara", ["I"], 6)}),
+        espera={"adaptado": ("combinado", "combinado", ["S", "C"], 2), "natural": ("predominante", "moderada", ["C"], 4)}),
     # casos de fronteira do RELATÓRIO (Etapa 2b-i): onde o perfil de hoje difere do "1ª letra do ranking"
     "i_catorze_catorze": dict(
         desc="exatamente 14 × 14 (as duas letras passam de 50%: o relatório de hoje mostra duas letras)",
@@ -169,9 +173,17 @@ CASOS = {
         espera={"adaptado": ("predominante", "clara", ["S"], 6), "natural": ("predominante", "moderada", ["S"], 3)}),
     # casos da PÁGINA DE INTENSIDADE (Etapa 2c): o título do relatório é a sigla do NATURAL
     "k_natural_ci_adaptado_di": dict(
-        desc="natural CI e adaptado DI — o caso real da referência (cada gráfico com a sua sigla)",
+        desc="C lidera o natural com sinal 7 (4 MAIS, 3 MENOS): a regra do sinal o segura fora do título (#292)",
         mais={"D": 12, "I": 10, "C": 4, "S": 2}, menos={"C": 3, "I": 4, "S": 9, "D": 12},
-        espera={"adaptado": ("combinado", "combinado", ["D", "I"], 2), "natural": ("combinado", "combinado", ["C", "I"], 1)}),
+        espera={"adaptado": ("combinado", "combinado", ["D", "I"], 2), "natural": ("predominante", "moderada", ["I"], 5)}),
+    "p_natural_ci_com_sinal": dict(
+        desc="natural CI legítimo: C aparece o bastante (sinal 12) e fica no título",
+        mais={"C": 9, "I": 9, "D": 6, "S": 4}, menos={"C": 3, "I": 4, "S": 11, "D": 10},
+        espera={"adaptado": ("combinado", "combinado", ["I", "C"], 0), "natural": ("combinado", "combinado", ["C", "I"], 1)}),
+    "q_sinal_baixo_sem_mudar_titulo": dict(
+        desc="I com sinal 8 aparece marcado no gráfico, mas o título já era de outra letra e não muda",
+        mais={"S": 12, "C": 10, "D": 5, "I": 1}, menos={"S": 3, "C": 8, "D": 10, "I": 7},
+        espera={"adaptado": ("combinado", "combinado", ["S", "C"], 2), "natural": ("predominante", "moderada", ["S"], 5)}),
     "l_natural_cs": dict(
         desc="natural CS — letras compatíveis, texto do perfil publicado",
         mais={"C": 10, "S": 9, "I": 5, "D": 4}, menos={"D": 11, "I": 10, "S": 4, "C": 3},
@@ -358,6 +370,79 @@ def cmd_simular(args):
     return 0
 
 
+# --------------------------------------------------------------------------- comando: sinal
+def cmd_sinal(args):
+    """
+    #292 — de onde sai o limiar. Cada bloco só informa sobre DUAS letras (a marcada como mais e a
+    marcada como menos): uma letra quase nunca marcada sobe no ranking natural sem ter sido escolhida.
+    O limiar é o primeiro sinal que deixa de ser raro ao acaso (cauda de ALVO_SINAL_POR_LETRA por
+    letra) — e aqui ele é conferido contra respostas ao acaso nas estruturas REAIS.
+    """
+    print(f"SINAL de uma letra = quantas vezes foi marcada (MAIS + MENOS). Alvo por letra: cauda de "
+          f"{ALVO_SINAL_POR_LETRA * 100:.0f}% ao acaso.\n")
+    rng = random.Random(2909)
+    for nome, vid in VERSOES.items():
+        e = carregar_estrutura(vid)
+        est_json = {"letra_da_opcao": e["letra_da_opcao"], "blocos": e["blocos"]}
+        ordem = {d["id"]: (d["sort_order"], d["key"]) for d in e["dimensoes"]}
+        maximo, dims = e["maximo"], list(e["maximo"])
+        chances = {d: [] for d in dims}
+        for b in e["blocos"]:
+            quantas = {}
+            for o in b["opcoes"]:
+                for d_, p_ in b["pontos"][o]:
+                    if p_ > 0:
+                        quantas[d_] = quantas.get(d_, 0) + 1
+            for d_, q in quantas.items():
+                chances[d_].append(min(1.0, 2 * q / len(b["opcoes"])))
+        limiar = {d: sinal_minimo(chances[d]) for d in dims}
+        blocos_da_letra = {d: len(chances[d]) for d in dims}
+        hist, marca, muda_n, muda_a = {}, 0, 0, 0
+        for _ in range(args.n):
+            mais, menos = sortear_escolhas(est_json, rng)
+            m, n_ = {}, {}
+            for o in mais:
+                d_ = e["letra_da_opcao"][o]; m[d_] = m.get(d_, 0) + 1
+            for o in menos:
+                d_ = e["letra_da_opcao"][o]; n_[d_] = n_.get(d_, 0) + 1
+            sinal = {d: m.get(d, 0) + n_.get(d, 0) for d in dims}
+            for d in dims:
+                hist[sinal[d]] = hist.get(sinal[d], 0) + 1
+            baixas = [d for d in dims if sinal[d] < limiar[d]]
+            if baixas:
+                marca += 1
+            for conj, valores in (("natural", {d: maximo[d] - n_.get(d, 0) for d in dims}),
+                                  ("adaptado", {d: m.get(d, 0) for d in dims})):
+                ordenado = sorted(dims, key=lambda d: (-valores[d], ordem[d]))
+                def sigla(lista):
+                    if not lista:
+                        return None
+                    if len(lista) > 1 and valores[lista[0]] - valores[lista[1]] <= LIMITE_COMBINADO:
+                        return (lista[0], lista[1])
+                    return (lista[0],)
+                if sigla(ordenado) != sigla([d for d in ordenado if d not in baixas]):
+                    if conj == "natural":
+                        muda_n += 1
+                    else:
+                        muda_a += 1
+        total = args.n * len(dims)
+        media = sum(k * v for k, v in hist.items()) / total
+        lim = sorted(set(limiar.values()))
+        print(f"{nome} ({len(dims)} letras, {len(e['blocos'])} blocos, cada letra em "
+              f"{sorted(set(blocos_da_letra.values()))} deles) · sinal médio {media:.1f}")
+        acum = 0
+        linha = []
+        for k in sorted(hist):
+            acum += hist[k]
+            if k <= media:
+                linha.append(f"≤{k}: {acum / total * 100:.1f}%")
+        print("   distribuição do sinal ao acaso (acumulada, por letra):", " · ".join(linha))
+        print(f"   LIMIAR: sinal < {lim[0] if len(lim) == 1 else lim} · ao acaso, marca alguma letra em "
+              f"{marca / args.n * 100:.2f}% das respostas · muda o título do natural em {muda_n / args.n * 100:.2f}% "
+              f"· do adaptado em {muda_a / args.n * 100:.2f}%\n")
+    return 0
+
+
 # --------------------------------------------------------------------------- comando: vivo
 def _post_app(app, caminho, corpo=None):
     req = urllib.request.Request(f"{app}{caminho}", method="POST" if corpo is not None else "GET",
@@ -452,8 +537,9 @@ def conferir_relatorio_2c(rel, ips, instrumento, textos, compostas, ips_observad
     if not isinstance(it, dict):
         return ["página de intensidade ausente"]
     nat, adp = ips["natural"]["perfil"], ips["adaptado"]["perfil"]
-    sig_nat = None if nat["empate_multiplo"] else nat["codigo"]
-    sig_adp = None if adp["empate_multiplo"] else adp["codigo"]
+    sem_sigla = lambda perfil: perfil["empate_multiplo"] or perfil["tipo"] == "sem_sinal"  # noqa: E731
+    sig_nat = None if sem_sigla(nat) else nat["codigo"]
+    sig_adp = None if sem_sigla(adp) else adp["codigo"]
     rotulo = {f["key"]: f["label"] for f in rel["factors"]}
     if it["perfil"]["sigla"] != sig_nat:
         p.append(f"título PERFIL {it['perfil']['sigla']} ≠ sigla do natural gravada {sig_nat}")
@@ -470,6 +556,12 @@ def conferir_relatorio_2c(rel, ips, instrumento, textos, compostas, ips_observad
                 p.append(f"gráfico {conj}/{l['key']}: percentual/posição ≠ do motor")
             if l["na_sigla"] != (sig is not None and l["key"] in ips[conj]["perfil"]["chaves"]):
                 p.append(f"gráfico {conj}/{l['key']}: marcação da sigla errada")
+            # SINAL MÍNIMO (#292): o que a tela mostra tem de ser o que o motor gravou
+            if (l.get("sinal"), l.get("sinal_minimo"), l.get("pouca_informacao")) != (
+                    lm["sinal"], lm["sinal_minimo"], not lm["sinal_suficiente"]):
+                p.append(f"gráfico {conj}/{l['key']}: sinal na tela ≠ sinal do motor")
+            if l["na_sigla"] and not lm["sinal_suficiente"]:
+                p.append(f"gráfico {conj}/{l['key']}: letra sem sinal suficiente ocupando o título")
     texto = it.get("texto")
     if sig_nat is None:
         if texto is not None:
@@ -482,6 +574,17 @@ def conferir_relatorio_2c(rel, ips, instrumento, textos, compostas, ips_observad
             p.append(f"texto do perfil {sig_nat} está publicado no banco e não apareceu igual")
         if not publicado and estado != "pendente":
             p.append(f"texto do perfil {sig_nat} não está publicado e a tela não mostra o aviso (estado {estado})")
+    # a lista que a tela usa para explicar o sinal baixo
+    baixas = [l["chave"] for l in ips["letras"] if not l["sinal_suficiente"]]
+    seguradas = set(nat["fora_por_sinal"]) | set(adp["fora_por_sinal"])
+    na_tela = it.get("sinal_baixo") or []
+    if [x["key"] for x in na_tela] != baixas:
+        p.append(f"aviso de sinal: {[x['key'] for x in na_tela]} ≠ letras sem sinal {baixas}")
+    for x in na_tela:
+        if x["fora_do_titulo"] != (x["key"] in seguradas):
+            p.append(f"aviso de sinal/{x['key']}: 'fora do título' não bate com o motor")
+    if it.get("marcacoes_no_teste") != ips["n_blocos"] * 2:
+        p.append("marcações do teste ≠ blocos × 2")
     por_dim = {l["dimension_id"]: l for l in ips["letras"]}
     for f in rel["factors"]:
         lm = por_dim.get(f["id"])
@@ -828,6 +931,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("puro"); p.add_argument("--versao-disc"); p.add_argument("-n", type=int, default=1500)
     s = sub.add_parser("simular"); s.add_argument("-n", type=int, default=40000)
+    sn = sub.add_parser("sinal"); sn.add_argument("-n", type=int, default=40000)
     v = sub.add_parser("vivo")
     v.add_argument("--app", required=True); v.add_argument("--versao", required=True); v.add_argument("--casos")
     v.add_argument("--sem-ipsativo", action="store_true"); v.add_argument("--salvar-legado"); v.add_argument("--comparar-legado")
@@ -843,7 +947,8 @@ def main():
     v.add_argument("--manter", help="NÃO apaga os dados de teste (para conferir na tela); guarda os ids neste arquivo para o `limpar`")
     li = sub.add_parser("limpar"); li.add_argument("--arquivo", required=True)
     a = ap.parse_args()
-    sys.exit({"puro": cmd_puro, "simular": cmd_simular, "vivo": cmd_vivo, "limpar": cmd_limpar}[a.cmd](a))
+    sys.exit({"puro": cmd_puro, "simular": cmd_simular, "sinal": cmd_sinal, "vivo": cmd_vivo,
+              "limpar": cmd_limpar}[a.cmd](a))
 
 
 if __name__ == "__main__":

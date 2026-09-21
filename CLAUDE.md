@@ -301,6 +301,10 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
   `expressao` = MAIS − MENOS; perfil combinado quando a distância é ≤ 2). Contrato completo em
   `docs/motor-ipsativo.md`. **Valores usa o mesmo tipo de pergunta e ficou de fora** (decisão
   pendente).
+- **Sinal mínimo** (#292): sinal da letra = vezes que foi marcada (MAIS + MENOS). Abaixo do mínimo ela
+  não ocupa o título — o ranking não muda, ela fica marcada como "pouca informação" e o título passa
+  para a próxima. O limiar sai da estrutura do teste (cauda de 2% ao acaso por letra): 9 no DISC e no
+  Temperamentos, 11 no VAK, 6 em Valores. Calibração: `scripts/testar_ipsativo.py sinal`.
 - Todo empate se decide pela **ordem da letra no instrumento**, nunca pela ordem em que o banco
   devolveu as linhas, e toda leitura do motor tem `.order()` explícito — editar uma linha muda a
   posição física dela (já aconteceu no DISC novo). Testes: `scripts/testar_ipsativo.py`.
@@ -316,7 +320,8 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
   **Página de intensidade** (#288, Etapa 2c, `src/lib/intensidade.ts`): "PERFIL <sigla do
   NATURAL>" (1 letra, ou 2 na ordem do ranking; empate múltiplo = "sem predominância clara"),
   gráficos NATURAL e ADAPTADO separados com sigla própria — nunca comparados —, três índices e o
-  texto do perfil (cadastrável; pendente vira aviso). Estima e Flexibilidade estão "em revisão"
+  texto do perfil (cadastrável; pendente vira aviso). Letra quase não marcada sai do título com a
+  marca "pouca informação" e uma frase explicando (#292). Estima e Flexibilidade estão "em revisão"
   (eram constantes: 1,00 e 0,75 para todo mundo). O resto do relatório: seções por perfil (DISC)
   pela letra que lidera o natural; leituras por fator no conjunto adaptado, como sempre. Detalhe
   em `docs/motor-ipsativo.md`. Antes × depois: `scripts/comparar_relatorios.py`.

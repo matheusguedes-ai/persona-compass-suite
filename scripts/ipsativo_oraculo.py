@@ -14,27 +14,60 @@ A especificação (decisão do dono do produto, 18/09/2026):
           3 a 5 → predominância moderada · 6 ou mais → clara
   empate: sempre pela ordem da letra no instrumento (sort_order, chave, id)
 
+Sinal mínimo (#292, 21/09/2026): sinal(letra) = quantas vezes foi MARCADA (MAIS + MENOS). Letra com
+sinal abaixo do mínimo não ocupa o título — o ranking não muda, o título pula para a próxima com
+sinal suficiente; sem nenhuma, não há perfil. O mínimo sai da estrutura: em cada bloco em que a letra
+aparece o acaso a marca com chance 2 × alternativas dela ÷ alternativas do bloco, e o limiar é o
+primeiro sinal cuja cauda acumulada passa de 2%.
+
 Este módulo é só biblioteca (sem rede, sem banco). Quem o usa é `testar_ipsativo.py`.
 """
 import random
 
 LIMITE_COMBINADO = 2
 LIMITE_MODERADA = 5
+ALVO_SINAL_POR_LETRA = 0.02
 SEM_ORDEM = 10 ** 15
+
+
+def sinal_minimo(chances):
+    """Distribuição exata das marcações ao acaso (binomial-poisson); limiar = 1ª cauda acima do alvo."""
+    dist = [1.0]
+    for p in chances:
+        prox = [0.0] * (len(dist) + 1)
+        for i, v in enumerate(dist):
+            prox[i] += v * (1 - p)
+            prox[i + 1] += v * p
+        dist = prox
+    acumulado = 0.0
+    for k, v in enumerate(dist):
+        acumulado += v
+        if acumulado > ALVO_SINAL_POR_LETRA:
+            return k
+    return len(dist)
 
 
 def chave_da_letra(d):
     return (d["sort_order"] if d["sort_order"] is not None else SEM_ORDEM, d["key"], d["id"])
 
 
-def _perfil(ordenado):
-    primeira = ordenado[0]
-    segunda = ordenado[1] if len(ordenado) > 1 else None
+def _perfil(ordenado, tem_sinal):
+    elegiveis = [p for p in ordenado if tem_sinal(p[0]["id"])]
+    if not elegiveis:
+        return {
+            "tipo": "sem_sinal", "chaves": [], "codigo": "", "distancia": None, "faixa": None,
+            "grupo_da_frente": [], "empate_multiplo": False,
+            "fora_por_sinal": [d["key"] for d, _ in ordenado],
+        }
+    primeira = elegiveis[0]
+    segunda = elegiveis[1] if len(elegiveis) > 1 else None
     distancia = primeira[1] - segunda[1] if segunda else primeira[1]
     combinado = segunda is not None and distancia <= LIMITE_COMBINADO
     faixa = "combinado" if combinado else ("moderada" if distancia <= LIMITE_MODERADA else "clara")
     chaves = [primeira[0]["key"], segunda[0]["key"]] if combinado else [primeira[0]["key"]]
-    grupo = [d["key"] for d, b in ordenado if b >= primeira[1] - LIMITE_COMBINADO]
+    grupo = [d["key"] for d, b in elegiveis if b >= primeira[1] - LIMITE_COMBINADO]
+    ate = [d["key"] for d, _ in ordenado].index(chaves[-1])
+    fora = [d["key"] for d, _ in ordenado[:ate] if not tem_sinal(d["id"])]
     return {
         "tipo": "combinado" if combinado else "predominante",
         "chaves": chaves,
@@ -43,10 +76,11 @@ def _perfil(ordenado):
         "faixa": faixa,
         "grupo_da_frente": grupo,
         "empate_multiplo": len(grupo) > 2,
+        "fora_por_sinal": fora,
     }
 
 
-def _conjunto(pares):
+def _conjunto(pares, tem_sinal):
     """pares: lista de (dimensão, bruto). Devolve (conjunto, {dim_id: posição})."""
     ordenado = sorted(pares, key=lambda p: (-p[1], chave_da_letra(p[0])))
     soma = sum(b for _, b in ordenado)
@@ -58,7 +92,7 @@ def _conjunto(pares):
             "posicao": i + 1,
             "empate_com_anterior": i > 0 and ordenado[i - 1][1] == b,
         }
-    return {"soma_bruta": soma, "ranking": [d["key"] for d, _ in ordenado], "perfil": _perfil(ordenado)}, pos
+    return {"soma_bruta": soma, "ranking": [d["key"] for d, _ in ordenado], "perfil": _perfil(ordenado, tem_sinal)}, pos
 
 
 def oraculo(dimensoes, blocos):
@@ -68,7 +102,7 @@ def oraculo(dimensoes, blocos):
     """
     dims = sorted(dimensoes, key=chave_da_letra)
     ids = {d["id"] for d in dims}
-    maximo, mais, menos = {}, {}, {}
+    maximo, mais, menos, marcacoes, chances = {}, {}, {}, {}, {}
     for b in blocos:
         teto = {}
         for pts in b["opcoes"].values():
@@ -77,6 +111,15 @@ def oraculo(dimensoes, blocos):
                     teto[dim_id] = max(teto.get(dim_id, 0), p)
         for dim_id, t in teto.items():
             maximo[dim_id] = maximo.get(dim_id, 0) + max(t, 0)
+        alternativas = {}
+        for pts in b["opcoes"].values():
+            for dim_id in {d for d, p in pts if d in ids and p > 0}:
+                alternativas[dim_id] = alternativas.get(dim_id, 0) + 1
+        for dim_id, quantas in alternativas.items():
+            chances.setdefault(dim_id, []).append(min(1.0, 2 * quantas / max(len(b["opcoes"]), 1)))
+        for lado in (b["mais"], b["menos"]):
+            for dim_id in {d for d, p in b["opcoes"][lado] if d in ids and p > 0}:
+                marcacoes[dim_id] = marcacoes.get(dim_id, 0) + 1
         for dim_id, p in b["opcoes"][b["mais"]]:
             if dim_id in ids:
                 mais[dim_id] = mais.get(dim_id, 0) + p
@@ -86,17 +129,23 @@ def oraculo(dimensoes, blocos):
     letras = [d for d in dims if maximo.get(d["id"], 0) > 0]
     if not letras or not blocos:
         return None
-    adaptado, pos_a = _conjunto([(d, mais.get(d["id"], 0)) for d in letras])
-    natural, pos_n = _conjunto([(d, maximo[d["id"]] - menos.get(d["id"], 0)) for d in letras])
+    minimo = {d["id"]: sinal_minimo(chances.get(d["id"], [])) for d in letras}
+    sinal = {d["id"]: marcacoes.get(d["id"], 0) for d in letras}
+    tem_sinal = lambda dim_id: sinal[dim_id] >= minimo[dim_id]  # noqa: E731
+    adaptado, pos_a = _conjunto([(d, mais.get(d["id"], 0)) for d in letras], tem_sinal)
+    natural, pos_n = _conjunto([(d, maximo[d["id"]] - menos.get(d["id"], 0)) for d in letras], tem_sinal)
     return {
-        "versao": 1,
+        "versao": 2,
         "n_blocos": len(blocos),
-        "limiares": {"combinado_ate": LIMITE_COMBINADO, "moderada_ate": LIMITE_MODERADA},
+        "limiares": {"combinado_ate": LIMITE_COMBINADO, "moderada_ate": LIMITE_MODERADA,
+                     "sinal_alvo_por_letra": ALVO_SINAL_POR_LETRA},
         "letras": [{
             "dimension_id": d["id"], "chave": d["key"], "maximo": maximo[d["id"]],
             "mais": mais.get(d["id"], 0), "menos": menos.get(d["id"], 0),
             "adaptado": pos_a[d["id"]], "natural": pos_n[d["id"]],
             "expressao": mais.get(d["id"], 0) - menos.get(d["id"], 0),
+            "sinal": sinal[d["id"]], "sinal_minimo": minimo[d["id"]],
+            "sinal_suficiente": tem_sinal(d["id"]),
         } for d in letras],
         "adaptado": adaptado,
         "natural": natural,

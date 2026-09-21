@@ -297,12 +297,15 @@ export async function buildReport(id: string) {
    * dimensão continuam, porque essas são o dado de verdade.
    *
    * Com o motor ipsativo vale a regra dele, por decisão do dono do produto: EMPATE MÚLTIPLO no
-   * gráfico natural (três ou mais letras a até 2 pontos da primeira) é "sem predominância clara".
+   * gráfico natural (três ou mais letras a até 2 pontos da primeira) é "sem predominância clara" —
+   * e também quando nenhuma letra tem sinal suficiente para ocupar o título (#292).
    */
   const amplitude = ranked.length > 1
     ? ranked[0].natural_norm - ranked[ranked.length - 1].natural_norm
     : 100;
-  const perfilIndefinido = perfilNatural ? perfilNatural.empate_multiplo : ranked.length > 1 && amplitude < 10;
+  const perfilIndefinido = perfilNatural
+    ? perfilNatural.empate_multiplo || perfilNatural.tipo === "sem_sinal"
+    : ranked.length > 1 && amplitude < 10;
 
   // Prefer version-specific content over global fallback. Texto marcado como pendente não aparece.
   const rows = (content ?? []).filter((r) => r.status !== "pendente");

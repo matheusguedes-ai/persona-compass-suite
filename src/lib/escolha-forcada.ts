@@ -51,7 +51,21 @@ export const LIMITE_COMBINADO = 2;
 /** Acima do combinado e até aqui: predominância moderada. Acima: clara. */
 export const LIMITE_MODERADA = 5;
 /** Versão do formato gravado em `computed_scores.ipsativo`. */
-export const VERSAO_IPSATIVO = 1;
+export const VERSAO_IPSATIVO = 2;
+
+/**
+ * SINAL MÍNIMO (#292). O sinal de uma letra é quantas vezes ela foi marcada na resposta, somando MAIS
+ * e MENOS: o quanto a resposta fala dela. Cada bloco só informa sobre DUAS letras (a marcada como mais
+ * e a marcada como menos); as outras ficam mudas. Como `natural` = máximo − MENOS, uma letra quase
+ * nunca marcada sobe no ranking natural sem nunca ter sido escolhida — lidera por ser INVISÍVEL, não
+ * por ser forte. Abaixo do sinal mínimo a letra não pode ocupar o título; continua no gráfico, marcada.
+ *
+ * O limiar sai da PRÓPRIA estrutura do teste (ver `sinalMinimo`), não de tabela: é o primeiro valor de
+ * sinal que deixa de ser raro ao acaso, com esta cauda por letra. Calibrado com 40 mil respostas ao
+ * acaso por instrumento (`scripts/testar_ipsativo.py sinal`): dá 9 no DISC e no Temperamentos (de 28
+ * blocos), 11 no VAK (de 24) e 6 em Valores (cada valor aparece em 15 dos 30 blocos).
+ */
+export const ALVO_SINAL_POR_LETRA = 0.02;
 
 /**
  * Instrumentos cujo resultado usa este motor.
@@ -127,18 +141,27 @@ export type LetraIpsativa = {
   natural: PosicaoNoConjunto;
   /** mais − menos. Soma zero entre as letras. Não entra em nenhum ranking. */
   expressao: number;
+  /** Quantas vezes a letra foi MARCADA, somando MAIS e MENOS: o quanto a resposta fala dela (#292). */
+  sinal: number;
+  /** Abaixo disto o sinal é raro demais ao acaso para sustentar um título. Vem da estrutura do teste. */
+  sinal_minimo: number;
+  /** false = fica fora do título (mas continua no gráfico, marcada como "pouca informação"). */
+  sinal_suficiente: boolean;
 };
 
 export type PerfilIpsativo = {
-  /** "combinado" quando a distância entre 1º e 2º é ≤ LIMITE_COMBINADO. */
-  tipo: "predominante" | "combinado";
-  /** 1 letra (predominante) ou 2 (combinado), na ordem do ranking. */
+  /**
+   * "combinado" quando a distância entre 1º e 2º é ≤ LIMITE_COMBINADO.
+   * "sem_sinal" quando NENHUMA letra tem sinal suficiente para ocupar o título (#292).
+   */
+  tipo: "predominante" | "combinado" | "sem_sinal";
+  /** 1 letra (predominante) ou 2 (combinado), na ordem do ranking. Vazio em "sem_sinal". */
   chaves: string[];
   /** "S" | "SC". Se alguma chave tiver mais de um caractere (SAN, COL…), junta com "+". */
   codigo: string;
-  /** bruto(1º) − bruto(2º), em pontos brutos. */
-  distancia: number;
-  faixa: FaixaIpsativa;
+  /** bruto(1º) − bruto(2º) ENTRE AS ELEGÍVEIS, em pontos brutos. `null` em "sem_sinal". */
+  distancia: number | null;
+  faixa: FaixaIpsativa | null;
   /**
    * Letras a até LIMITE_COMBINADO pontos da 1ª (inclui a 1ª), na ordem do ranking.
    * Com mais de duas, o "perfil combinado" de duas letras esconde um empate maior
@@ -146,6 +169,11 @@ export type PerfilIpsativo = {
    */
   grupo_da_frente: string[];
   empate_multiplo: boolean;
+  /**
+   * Letras que o ranking traria para o título e que ficaram de fora por sinal baixo (#292), na ordem
+   * do ranking. O ranking em si NÃO muda: elas continuam onde estão, no gráfico.
+   */
+  fora_por_sinal: string[];
 };
 
 export type ConjuntoIpsativo = {
@@ -161,7 +189,7 @@ export type ResultadoIpsativo = {
   /** Blocos que entraram na conta. */
   n_blocos: number;
   /** Limiares usados, gravados junto para auditar respostas antigas se um dia mudarem. */
-  limiares: { combinado_ate: number; moderada_ate: number };
+  limiares: { combinado_ate: number; moderada_ate: number; sinal_alvo_por_letra: number };
   /** Uma entrada por letra, NA ORDEM DO INSTRUMENTO (não do ranking). */
   letras: LetraIpsativa[];
   adaptado: ConjuntoIpsativo;
@@ -220,9 +248,54 @@ function ordenarConjunto(linhas: Linha[]): Linha[] {
   return [...linhas].sort((a, b) => b.bruto - a.bruto || compararLetras(a.dim, b.dim));
 }
 
-function montarPerfil(ordenado: Linha[]): PerfilIpsativo {
-  const primeira = ordenado[0];
-  const segunda = ordenado[1];
+/**
+ * Sinal mínimo de UMA letra, a partir da estrutura do teste (#292).
+ *
+ * Em cada bloco em que a letra aparece, o acaso a marca com chance p = 2 × (alternativas dela no
+ * bloco) ÷ (alternativas do bloco) — uma chance de ser o MAIS, uma de ser o MENOS. Somando os blocos,
+ * o número de marcações ao acaso tem distribuição binomial-poisson, calculada aqui de forma exata.
+ * O limiar é o primeiro valor de sinal cuja cauda acumulada passa de `ALVO_SINAL_POR_LETRA`: dali para
+ * baixo, o sinal é raro demais ao acaso para sustentar o título.
+ */
+export function sinalMinimo(chances: number[]): number {
+  let dist = [1];
+  for (const p of chances) {
+    const prox = new Array(dist.length + 1).fill(0) as number[];
+    for (let i = 0; i < dist.length; i++) {
+      prox[i] += dist[i] * (1 - p);
+      prox[i + 1] += dist[i] * p;
+    }
+    dist = prox;
+  }
+  let acumulado = 0;
+  for (let k = 0; k < dist.length; k++) {
+    acumulado += dist[k];
+    if (acumulado > ALVO_SINAL_POR_LETRA) return k;
+  }
+  return dist.length;
+}
+
+/**
+ * Perfil de um conjunto. O RANKING não muda (`ordenado` inteiro); o que muda é quem pode ocupar o
+ * título: letra com sinal abaixo do mínimo é pulada, e o título passa para a próxima com sinal
+ * suficiente (#292). Sem nenhuma elegível, não há perfil a declarar.
+ */
+function montarPerfil(ordenado: Linha[], temSinal: (l: Linha) => boolean): PerfilIpsativo {
+  const elegiveis = ordenado.filter(temSinal);
+  if (elegiveis.length === 0) {
+    return {
+      tipo: "sem_sinal",
+      chaves: [],
+      codigo: "",
+      distancia: null,
+      faixa: null,
+      grupo_da_frente: [],
+      empate_multiplo: false,
+      fora_por_sinal: ordenado.map((l) => l.dim.key),
+    };
+  }
+  const primeira = elegiveis[0];
+  const segunda = elegiveis[1];
   // Sem 2ª letra não existe "distância"; nunca acontece nos instrumentos daqui
   // (mínimo 3 letras), mas a função não deve quebrar por isso.
   const distancia = segunda ? primeira.bruto - segunda.bruto : primeira.bruto;
@@ -233,8 +306,14 @@ function montarPerfil(ordenado: Linha[]): PerfilIpsativo {
       ? "moderada"
       : "clara";
   const chaves = combinado ? [primeira.dim.key, segunda.dim.key] : [primeira.dim.key];
-  const grupo = ordenado
+  const grupo = elegiveis
     .filter((l) => l.bruto >= primeira.bruto - LIMITE_COMBINADO)
+    .map((l) => l.dim.key);
+  // Quem o ranking traria para o título até a última letra usada, e ficou de fora por sinal baixo.
+  const ultima = ordenado.findIndex((l) => l.dim.key === chaves[chaves.length - 1]);
+  const fora = ordenado
+    .slice(0, ultima)
+    .filter((l) => !temSinal(l))
     .map((l) => l.dim.key);
   return {
     tipo: combinado ? "combinado" : "predominante",
@@ -244,10 +323,14 @@ function montarPerfil(ordenado: Linha[]): PerfilIpsativo {
     faixa,
     grupo_da_frente: grupo,
     empate_multiplo: grupo.length > 2,
+    fora_por_sinal: fora,
   };
 }
 
-function montarConjunto(linhas: Linha[]): {
+function montarConjunto(
+  linhas: Linha[],
+  temSinal: (l: Linha) => boolean,
+): {
   conjunto: ConjuntoIpsativo;
   porLetra: Map<string, PosicaoNoConjunto>;
 } {
@@ -266,7 +349,7 @@ function montarConjunto(linhas: Linha[]): {
     conjunto: {
       soma_bruta: soma,
       ranking: ordenado.map((l) => l.dim.key),
-      perfil: montarPerfil(ordenado),
+      perfil: montarPerfil(ordenado, temSinal),
     },
     porLetra,
   };
@@ -285,6 +368,10 @@ export function calcularIpsativo(entrada: EntradaIpsativo): ResultadoIpsativo | 
   const maximo = new Map<string, number>();
   const mais = new Map<string, number>();
   const menos = new Map<string, number>();
+  /** Quantas VEZES a letra foi marcada (não pontos): é isso que o sinal conta (#292). */
+  const marcacoes = new Map<string, number>();
+  /** Chance de o acaso marcar a letra em cada bloco onde ela aparece — base do sinal mínimo (#292). */
+  const chances = new Map<string, number[]>();
 
   for (const bloco of entrada.blocos) {
     // Teto de cada letra NESTE bloco: o maior valor que uma alternativa dá a ela.
@@ -297,6 +384,22 @@ export function calcularIpsativo(entrada: EntradaIpsativo): ResultadoIpsativo | 
     }
     for (const [dimId, teto] of tetoNoBloco)
       maximo.set(dimId, (maximo.get(dimId) ?? 0) + Math.max(teto, 0));
+
+    // Quantas alternativas do bloco pontuam cada letra: o acaso marca a letra (como MAIS ou como
+    // MENOS) com chance 2 × essas alternativas ÷ total de alternativas do bloco.
+    const alternativasDaLetra = new Map<string, number>();
+    for (const opcao of bloco.opcoes) {
+      const letrasDaOpcao = new Set(
+        opcao.pontos.filter((s) => ehDaVersao.has(s.dimension_id) && s.points > 0).map((s) => s.dimension_id),
+      );
+      for (const dimId of letrasDaOpcao)
+        alternativasDaLetra.set(dimId, (alternativasDaLetra.get(dimId) ?? 0) + 1);
+    }
+    for (const [dimId, quantas] of alternativasDaLetra) {
+      const lista = chances.get(dimId) ?? [];
+      lista.push(Math.min(1, (2 * quantas) / Math.max(bloco.opcoes.length, 1)));
+      chances.set(dimId, lista);
+    }
 
     const opcaoMais = bloco.opcoes.find((o) => o.id === bloco.mais);
     const opcaoMenos = bloco.opcoes.find((o) => o.id === bloco.menos);
@@ -311,6 +414,13 @@ export function calcularIpsativo(entrada: EntradaIpsativo): ResultadoIpsativo | 
       if (ehDaVersao.has(s.dimension_id))
         menos.set(s.dimension_id, (menos.get(s.dimension_id) ?? 0) + s.points);
     }
+    // Uma marcação por direção, por letra tocada — mesmo que a alternativa pontue mais de uma.
+    for (const opcao of [opcaoMais, opcaoMenos]) {
+      const tocadas = new Set(
+        opcao.pontos.filter((s) => ehDaVersao.has(s.dimension_id) && s.points > 0).map((s) => s.dimension_id),
+      );
+      for (const dimId of tocadas) marcacoes.set(dimId, (marcacoes.get(dimId) ?? 0) + 1);
+    }
   }
 
   // Só entram as letras que aparecem em algum bloco (dimensão sem pergunta não é
@@ -318,18 +428,31 @@ export function calcularIpsativo(entrada: EntradaIpsativo): ResultadoIpsativo | 
   const letras = dims.filter((d) => (maximo.get(d.id) ?? 0) > 0);
   if (letras.length === 0 || entrada.blocos.length === 0) return null;
 
+  // SINAL (#292): quantas vezes a letra foi marcada, e o mínimo que a estrutura do teste exige dela.
+  const sinal = new Map<string, number>();
+  const minimo = new Map<string, number>();
+  for (const dim of letras) {
+    sinal.set(dim.id, marcacoes.get(dim.id) ?? 0);
+    minimo.set(dim.id, sinalMinimo(chances.get(dim.id) ?? []));
+  }
+  const temSinal = (l: Linha) => (sinal.get(l.dim.id) ?? 0) >= (minimo.get(l.dim.id) ?? 0);
+
   const linhasAdaptado: Linha[] = letras.map((dim) => ({ dim, bruto: mais.get(dim.id) ?? 0 }));
   const linhasNatural: Linha[] = letras.map((dim) => ({
     dim,
     bruto: (maximo.get(dim.id) ?? 0) - (menos.get(dim.id) ?? 0),
   }));
-  const adaptado = montarConjunto(linhasAdaptado);
-  const natural = montarConjunto(linhasNatural);
+  const adaptado = montarConjunto(linhasAdaptado, temSinal);
+  const natural = montarConjunto(linhasNatural, temSinal);
 
   return {
     versao: VERSAO_IPSATIVO,
     n_blocos: entrada.blocos.length,
-    limiares: { combinado_ate: LIMITE_COMBINADO, moderada_ate: LIMITE_MODERADA },
+    limiares: {
+      combinado_ate: LIMITE_COMBINADO,
+      moderada_ate: LIMITE_MODERADA,
+      sinal_alvo_por_letra: ALVO_SINAL_POR_LETRA,
+    },
     letras: letras.map((dim) => ({
       dimension_id: dim.id,
       chave: dim.key,
@@ -339,6 +462,9 @@ export function calcularIpsativo(entrada: EntradaIpsativo): ResultadoIpsativo | 
       adaptado: adaptado.porLetra.get(dim.id)!,
       natural: natural.porLetra.get(dim.id)!,
       expressao: (mais.get(dim.id) ?? 0) - (menos.get(dim.id) ?? 0),
+      sinal: sinal.get(dim.id) ?? 0,
+      sinal_minimo: minimo.get(dim.id) ?? 0,
+      sinal_suficiente: (sinal.get(dim.id) ?? 0) >= (minimo.get(dim.id) ?? 0),
     })),
     adaptado: adaptado.conjunto,
     natural: natural.conjunto,

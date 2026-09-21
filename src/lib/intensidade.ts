@@ -28,13 +28,22 @@ export type LetraNaTela = {
   posicao: number;
   /** A letra faz parte da sigla deste gráfico. */
   na_sigla: boolean;
+  /** Quantas vezes a letra foi marcada na resposta, somando MAIS e MENOS (#292). */
+  sinal: number;
+  /** Abaixo disto o teste não consegue posicionar a letra com segurança. */
+  sinal_minimo: number;
+  /** true = pouca informação: a letra continua no gráfico, mas não ocupa o título (#292). */
+  pouca_informacao: boolean;
 };
 
 export type GraficoDoConjunto = {
-  /** `null` quando o motor marcou empate múltiplo (três ou mais letras a até 2 pontos da 1ª). */
+  /**
+   * `null` quando não há sigla a declarar: empate múltiplo (três ou mais letras a até 2 pontos da 1ª)
+   * ou nenhuma letra com sinal suficiente (#292).
+   */
   sigla: string | null;
-  tipo: "predominante" | "combinado";
-  faixa: "combinado" | "moderada" | "clara";
+  tipo: "predominante" | "combinado" | "sem_sinal";
+  faixa: "combinado" | "moderada" | "clara" | null;
   empate_multiplo: boolean;
   /** Na ORDEM DO INSTRUMENTO (o eixo do gráfico é fixo: D, I, S, C…). */
   letras: LetraNaTela[];
@@ -43,13 +52,26 @@ export type GraficoDoConjunto = {
 export type TextoDoPerfil =
   { estado: "publicado"; titulo: string | null; corpo: string } | { estado: "pendente" };
 
+export type LetraComPoucaInformacao = {
+  key: string;
+  label: string;
+  sinal: number;
+  sinal_minimo: number;
+  /** A letra estava na frente do ranking e a regra a segurou fora do título. */
+  fora_do_titulo: boolean;
+};
+
 export type Intensidade = {
   /** O perfil que o relatório declara: o do gráfico NATURAL, como na referência. */
   perfil: { sigla: string | null; labels: string[] };
   natural: GraficoDoConjunto;
   adaptado: GraficoDoConjunto;
-  /** `null` quando não há perfil a descrever (empate múltiplo no natural). */
+  /** `null` quando não há perfil a descrever (sem sigla no natural). */
   texto: TextoDoPerfil | null;
+  /** Letras que a resposta quase não tocou, para a tela explicar em português (#292). */
+  sinal_baixo: LetraComPoucaInformacao[];
+  /** Marcações que o teste inteiro pede: um MAIS e um MENOS por bloco. */
+  marcacoes_no_teste: number;
 };
 
 export type LinhaDeTexto = {
@@ -75,7 +97,7 @@ function grafico(
   dimPorId: Map<string, DimensaoNaTela>,
 ): GraficoDoConjunto {
   const perfil = ipsativo[conjunto].perfil;
-  const sigla = perfil.empate_multiplo ? null : perfil.codigo;
+  const sigla = perfil.empate_multiplo || perfil.tipo === "sem_sinal" ? null : perfil.codigo;
   return {
     sigla,
     tipo: perfil.tipo,
@@ -90,6 +112,9 @@ function grafico(
         percentual: l[conjunto].percentual,
         posicao: l[conjunto].posicao,
         na_sigla: sigla !== null && perfil.chaves.includes(l.chave),
+        sinal: l.sinal,
+        sinal_minimo: l.sinal_minimo,
+        pouca_informacao: !l.sinal_suficiente,
       };
     }),
   };
@@ -128,6 +153,20 @@ export function montarIntensidade(args: {
   const labelDaChave = new Map(args.dimensoes.map((d) => [d.key, d.label]));
   const natural = grafico(args.ipsativo, "natural", dimPorId);
   const adaptado = grafico(args.ipsativo, "adaptado", dimPorId);
+  // Letras que a resposta quase não tocou (#292), na ordem do instrumento.
+  const seguradas = new Set([
+    ...args.ipsativo.natural.perfil.fora_por_sinal,
+    ...args.ipsativo.adaptado.perfil.fora_por_sinal,
+  ]);
+  const sinal_baixo = args.ipsativo.letras
+    .filter((l) => !l.sinal_suficiente)
+    .map((l) => ({
+      key: l.chave,
+      label: labelDaChave.get(l.chave) ?? l.chave,
+      sinal: l.sinal,
+      sinal_minimo: l.sinal_minimo,
+      fora_do_titulo: seguradas.has(l.chave),
+    }));
   return {
     perfil: {
       sigla: natural.sigla,
@@ -139,5 +178,7 @@ export function montarIntensidade(args: {
     natural,
     adaptado,
     texto: natural.sigla === null ? null : textoDaSigla(natural.sigla, args),
+    sinal_baixo,
+    marcacoes_no_teste: args.ipsativo.n_blocos * 2,
   };
 }

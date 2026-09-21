@@ -10,6 +10,8 @@
 // múltiplo não vira sigla; cada gráfico traz a própria sigla e os percentuais do próprio conjunto (que
 // somam 100); texto publicado aparece, pendente/ausente/vazio vira aviso; o texto da versão vence o da
 // plataforma; Temperamentos (chaves de 3 letras, sigla com "+") e VAK (3 letras) seguem a mesma lógica.
+// E o SINAL MÍNIMO (#292): letra quase não marcada sai do título, continua no gráfico marcada, e a
+// tela recebe o que explicar.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -116,9 +118,22 @@ const corpoDoBanco = (inst, sigla) =>
 
 // --- casos -------------------------------------------------------------------------------------------
 const CASOS = [
-  { nome: "natural CI, adaptado DI (o caso real da referência)", inst: "disc",
+  { nome: "natural CI legítimo (C com sinal 12) e adaptado IC", inst: "disc",
+    mais: { C: 9, I: 9, D: 6, S: 4 }, menos: { C: 3, I: 4, S: 11, D: 10 },
+    espera: { titulo: "CI", labels: ["Conformidade", "Influência"], natural: "CI", adaptado: "IC", texto: "publicado",
+              sinal_baixo: [] } },
+  { nome: "#292: C lidera o natural com sinal 7 e é segurado fora do título", inst: "disc",
     mais: { D: 12, I: 10, C: 4, S: 2 }, menos: { C: 3, I: 4, S: 9, D: 12 },
-    espera: { titulo: "CI", labels: ["Conformidade", "Influência"], natural: "CI", adaptado: "DI", texto: "publicado" } },
+    espera: { titulo: "I", labels: ["Influência"], natural: "I", adaptado: "DI", texto: "pendente",
+              sinal_baixo: [{ key: "C", sinal: 7, fora_do_titulo: true }] } },
+  { nome: "#292: letra nunca marcada (sinal 0) liderava o natural e agora não ocupa o título", inst: "disc",
+    mais: { S: 12, C: 10, D: 6, I: 0 }, menos: { D: 12, S: 10, C: 6, I: 0 },
+    espera: { titulo: "C", labels: ["Conformidade"], natural: "C", adaptado: "SC", texto: "pendente",
+              sinal_baixo: [{ key: "I", sinal: 0, fora_do_titulo: true }] } },
+  { nome: "#292: letra com sinal baixo que não estava no título — marca, mas o título não muda", inst: "disc",
+    mais: { S: 12, C: 10, D: 5, I: 1 }, menos: { S: 3, C: 8, D: 10, I: 7 },
+    espera: { titulo: "S", labels: ["Estabilidade"], natural: "S", adaptado: "SC", texto: "publicado",
+              sinal_baixo: [{ key: "I", sinal: 8, fora_do_titulo: false }] } },
   { nome: "natural S, uma letra", inst: "disc",
     mais: { S: 16, C: 6, I: 4, D: 2 }, menos: { D: 14, I: 9, C: 4, S: 1 },
     espera: { titulo: "S", labels: ["Estabilidade"], natural: "S", adaptado: "S", texto: "publicado" } },
@@ -133,13 +148,15 @@ const CASOS = [
     espera: { titulo: "IC", labels: ["Influência", "Conformidade"], natural: "IC", adaptado: "IC", texto: "pendente" } },
   { nome: "empate múltiplo (7-7-7-7)", inst: "disc",
     mais: { D: 7, I: 7, S: 7, C: 7 }, menos: { D: 7, I: 7, S: 7, C: 7 },
-    espera: { titulo: null, labels: [], natural: null, adaptado: null, texto: null } },
-  { nome: "Temperamentos: a resposta real (natural COL+MEL, adaptado MEL+SAN)", inst: "temperamentos",
+    espera: { titulo: null, labels: [], natural: null, adaptado: null, texto: null, sinal_baixo: [] } },
+  { nome: "Temperamentos, a resposta real da Gabriela: Colérico tem sinal 8 e sai do título (#292)", inst: "temperamentos",
     mais: { SAN: 9, COL: 3, MEL: 10, FLE: 6 }, menos: { SAN: 9, COL: 5, MEL: 6, FLE: 8 },
-    espera: { titulo: "COL+MEL", labels: ["Colérico", "Melancólico"], natural: "COL+MEL", adaptado: "MEL+SAN", texto: "pendente" } },
+    espera: { titulo: "MEL+FLE", labels: ["Melancólico", "Fleumático"], natural: "MEL+FLE", adaptado: "MEL+SAN",
+              texto: "pendente", sinal_baixo: [{ key: "COL", sinal: 8, fora_do_titulo: true }] } },
   { nome: "VAK: a resposta real (natural AV, adaptado VA)", inst: "vak",
     mais: { V: 10, A: 8, K: 6 }, menos: { V: 6, A: 5, K: 13 },
-    espera: { titulo: "AV", labels: ["Auditivo", "Visual"], natural: "AV", adaptado: "VA", texto: "pendente" } },
+    espera: { titulo: "AV", labels: ["Auditivo", "Visual"], natural: "AV", adaptado: "VA", texto: "pendente",
+              sinal_baixo: [] } },
 ];
 
 for (const c of CASOS) {
@@ -165,18 +182,32 @@ for (const c of CASOS) {
     const soma = g.letras.reduce((a, l) => a + l.percentual, 0);
     confere(Math.abs(soma - 100) < 1e-9, `${conj}: percentuais somam ${soma}, não 100`);
   }
+  // SINAL MÍNIMO (#292)
+  const baixas = out.sinal_baixo.map((l) => ({ key: l.key, sinal: l.sinal, fora_do_titulo: l.fora_do_titulo }));
+  confere(JSON.stringify(baixas) === JSON.stringify(c.espera.sinal_baixo ?? []),
+    `sinal baixo: ${JSON.stringify(baixas)} ≠ ${JSON.stringify(c.espera.sinal_baixo ?? [])}`);
+  confere(out.marcacoes_no_teste === ips.n_blocos * 2, "marcações do teste ≠ blocos × 2");
+  for (const conj of ["natural", "adaptado"]) {
+    out[conj].letras.forEach((l, i) => {
+      const lm = ips.letras[i];
+      confere(l.sinal === lm.sinal && l.sinal_minimo === lm.sinal_minimo && l.pouca_informacao === !lm.sinal_suficiente,
+        `${conj}/${l.key}: sinal na tela ≠ sinal do motor`);
+      confere(!(l.na_sigla && !lm.sinal_suficiente), `${conj}/${l.key}: letra sem sinal ocupando o título`);
+    });
+  }
   const estado = out.texto?.estado ?? null;
   confere(estado === c.espera.texto, `texto: ${estado} ≠ ${c.espera.texto}`);
   if (estado === "publicado") confere(out.texto.corpo === corpoDoBanco(c.inst, out.perfil.sigla), "texto publicado ≠ corpo gravado no banco");
   // nada no resultado compara um gráfico com o outro
   const chaves = JSON.stringify(out).match(/"(\w+)":/g).map((k) => k.slice(1, -2));
   confere(!chaves.some((k) => /gap|diferen|delta|compar/i.test(k)), "apareceu campo de comparação entre natural e adaptado");
-  console.log(`${falhas === antes ? "✓" : "✗"} ${c.nome}: PERFIL ${out.perfil.sigla ?? "— sem predominância clara"} · natural ${out.natural.sigla ?? "—"} · adaptado ${out.adaptado.sigla ?? "—"} · texto ${estado ?? "(nenhum)"}`);
+  const marca = out.sinal_baixo.length ? ` · pouca informação: ${out.sinal_baixo.map((l) => `${l.key}(${l.sinal})`).join(", ")}` : "";
+  console.log(`${falhas === antes ? "✓" : "✗"} ${c.nome}: PERFIL ${out.perfil.sigla ?? "— sem predominância clara"} · natural ${out.natural.sigla ?? "—"} · adaptado ${out.adaptado.sigla ?? "—"} · texto ${estado ?? "(nenhum)"}${marca}`);
 }
 
 // --- o texto da versão vence o da plataforma; pendente e corpo vazio viram aviso ----------------------
 {
-  const { est, ips } = resultado("disc", { D: 12, I: 10, C: 4, S: 2 }, { C: 3, I: 4, S: 9, D: 12 }); // natural CI
+  const { est, ips } = resultado("disc", { C: 9, I: 9, D: 6, S: 4 }, { C: 3, I: 4, S: 11, D: 10 }); // natural CI, com sinal
   const monta = (linhas) =>
     montarIntensidade({ ipsativo: ips, dimensoes: est.dims, instrumentId: "disc", versionId: "v-dona", linhas });
   const global = linhasDoBanco;

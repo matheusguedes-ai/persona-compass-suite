@@ -32,7 +32,40 @@ Por isso o resultado **não tem nenhum campo de diferença** entre os dois.
 
 Propriedade a saber: uma letra que a pessoa **nunca** marcou (nem MAIS nem MENOS) fica com
 natural = n_blocos (a mais "natural", porque nunca rejeitada) e adaptado = 0. É consequência da
-definição, não bug.
+definição — e é por isso que existe o **sinal mínimo** abaixo.
+
+## Sinal mínimo: quem pode ocupar o título (#292)
+
+**sinal(letra) = quantas vezes ela foi MARCADA na resposta, somando MAIS e MENOS.**
+
+Cada bloco só informa sobre DUAS letras: a marcada como mais e a marcada como menos. As outras ficam
+mudas. Como `natural = máximo − MENOS`, uma letra quase nunca marcada sobe no ranking natural **sem
+nunca ter sido escolhida** — lidera por ser invisível, não por ser forte. Foi o que apareceu na
+resposta real de Temperamentos: Colérico marcado 8 vezes em 56 (3 como mais, 5 como menos) liderava o
+natural enquanto o mesmo relatório dizia, abaixo, que era "o que menos aparece".
+
+A regra: **letra com sinal abaixo do mínimo não ocupa o título**. O ranking NÃO muda — ela continua no
+gráfico, marcada como "pouca informação" —, o título passa para a próxima com sinal suficiente, e sem
+nenhuma elegível o perfil sai como "sem predominância clara" (`perfil.tipo = "sem_sinal"`). Vale nos
+DOIS conjuntos: o problema é da medida, não de um dos gráficos.
+
+O limiar sai da **própria estrutura do teste** (`sinalMinimo`), não de tabela: em cada bloco em que a
+letra aparece, o acaso a marca com chance 2 × (alternativas dela) ÷ (alternativas do bloco); a soma é
+uma binomial-poisson calculada exata, e o limiar é o primeiro sinal cuja cauda passa de
+`ALVO_SINAL_POR_LETRA` (2%). Conferido com 40 mil respostas ao acaso por instrumento
+(`python3 scripts/testar_ipsativo.py sinal`):
+
+| instrumento | letras × blocos | sinal médio | limiar | marca alguma letra | muda o título |
+|---|---|---|---|---|---|
+| DISC | 4 × 28 | 14 | < 9 | 7,2% | 6,9% (natural) · 0,1% (adaptado) |
+| Temperamentos | 4 × 28 | 14 | < 9 | 7,2% | 6,9% · 0,1% |
+| VAK | 3 × 24 | 16 | < 11 | 3,2% | 3,2% · 0,1% |
+| Valores | 6 × 30 (cada letra em 15) | 10 | < 6 | 5,0% | 4,5% · 0,0% |
+
+O alvo "menos de 5% ao acaso" fecha em VAK e Valores. No DISC e no Temperamentos ele cairia em 8, e aí
+o caso real (Colérico com sinal 8) escaparia: 9 é o limiar que atende os dois lados, com 6,9% ao acaso
+— e "ao acaso" é o pior caso, porque quem responde ao acaso não tem perfil mesmo. `sem_sinal` é
+inalcançável nos instrumentos de hoje (as marcações somam 2 × blocos, então alguma letra sempre passa).
 
 ## Perfil e intensidade (para cada conjunto, separadamente)
 
@@ -71,11 +104,12 @@ Só para os instrumentos em `INSTRUMENTOS_IPSATIVOS` (**DISC, Temperamentos, VAK
 
 ```jsonc
 "ipsativo": {
-  "versao": 1,
+  "versao": 2,
   "n_blocos": 28,
-  "limiares": { "combinado_ate": 2, "moderada_ate": 5 },
+  "limiares": { "combinado_ate": 2, "moderada_ate": 5, "sinal_alvo_por_letra": 0.02 },
   "letras": [                       // NA ORDEM DO INSTRUMENTO (D, I, S, C), não do ranking
     { "dimension_id": "…", "chave": "S", "maximo": 28, "mais": 12, "menos": 2,
+      "sinal": 14, "sinal_minimo": 9, "sinal_suficiente": true,
       "adaptado": { "bruto": 12, "percentual": 42.857, "posicao": 1, "empate_com_anterior": false },
       "natural":  { "bruto": 26, "percentual": 30.952, "posicao": 1, "empate_com_anterior": false },
       "expressao": 10 },
@@ -85,13 +119,15 @@ Só para os instrumentos em `INSTRUMENTOS_IPSATIVOS` (**DISC, Temperamentos, VAK
     "soma_bruta": 28,
     "ranking": ["S", "C", "I", "D"],
     "perfil": { "tipo": "predominante", "chaves": ["S"], "codigo": "S", "distancia": 3,
-                "faixa": "moderada", "grupo_da_frente": ["S"], "empate_multiplo": false }
+                "faixa": "moderada", "grupo_da_frente": ["S"], "empate_multiplo": false,
+                "fora_por_sinal": [] }
   },
   "natural": {
     "soma_bruta": 84,
     "ranking": ["S", "C", "I", "D"],
     "perfil": { "tipo": "combinado", "chaves": ["S", "C"], "codigo": "SC", "distancia": 2,
-                "faixa": "combinado", "grupo_da_frente": ["S", "C"], "empate_multiplo": false }
+                "faixa": "combinado", "grupo_da_frente": ["S", "C"], "empate_multiplo": false,
+                "fora_por_sinal": [] }   // letras que o ranking traria e o sinal segurou (#292)
   }
 }
 ```
@@ -127,6 +163,8 @@ No padrão da referência que o dono do produto usa (cartão #288.3, relatórios
   há predominância, duas na ordem do ranking quando é perfil combinado ("CI" ≠ "IC"). **Empate
   múltiplo** no natural (três ou mais letras a até 2 pontos da 1ª) → "Sem predominância clara",
   decisão do dono do produto. A capa, o painel do aluno e a bateria mostram o mesmo perfil.
+  Letra sem **sinal mínimo** (#292) não entra na sigla: sai marcada como "pouca informação" nos dois
+  gráficos, e a tela explica em uma frase por que aquela dimensão não dá para posicionar.
 - **Dois gráficos separados**, NATURAL e ADAPTADO, cada um com a **própria sigla** e o **percentual da
   soma do próprio conjunto** (as letras de um gráfico somam 100), letras na ordem do instrumento. Nada
   compara um com o outro. Os observadores (360°) aparecem só no ADAPTADO: é o mesmo conjunto (vezes
@@ -187,6 +225,7 @@ letras e 3 alternativas por bloco o `maximo` de cada letra é ~15 e 2/5 pontos s
 ```
 python3 scripts/testar_ipsativo.py puro        # cálculo real × oráculo em Python: casos do produto + milhares de respostas aleatórias nas estruturas reais + determinismo (só lê o banco)
 python3 scripts/testar_ipsativo.py simular     # quem responde ao acaso: % em combinado / moderada / clara
+python3 scripts/testar_ipsativo.py sinal       # calibração do sinal mínimo (#292): distribuição e limiar por instrumento
 python3 scripts/testar_ipsativo.py vivo --app URL --versao ID [--aleatorio N] [--etapa2c]
                                                # pessoa descartável → endpoint público → confere → apaga tudo
                                                # --etapa2c: confere a página de intensidade contra o que o motor gravou

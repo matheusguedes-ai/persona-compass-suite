@@ -290,7 +290,7 @@ export function IntroSection({ isDisc, isMbti, ipsativo }: { isDisc: boolean; is
 
 const COR_EXTERNO = "#8b5cf6";
 
-const FAIXA_DO_GRAFICO: Record<GraficoDoConjunto["faixa"], string> = {
+const FAIXA_DO_GRAFICO: Record<NonNullable<GraficoDoConjunto["faixa"]>, string> = {
   clara: "predominância clara",
   moderada: "predominância moderada",
   combinado: "perfil combinado",
@@ -332,7 +332,7 @@ function GraficoDoPerfil({
         <span className="rounded-md bg-muted px-2.5 py-0.5 text-sm font-semibold tracking-[0.15em]">{g.sigla ?? "—"}</span>
       </div>
       <p className="mt-1 text-right text-[11px] text-muted-foreground">
-        {g.sigla ? FAIXA_DO_GRAFICO[g.faixa] : "sem predominância clara"}
+        {g.sigla && g.faixa ? FAIXA_DO_GRAFICO[g.faixa] : "sem predominância clara"}
       </p>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{explica}</p>
       <div className="mt-4 space-y-3">
@@ -340,6 +340,11 @@ function GraficoDoPerfil({
           <div key={l.key}>
             <p className={`text-sm ${l.na_sigla ? "font-semibold" : "text-muted-foreground"}`}>
               {l.label} <span className="text-xs font-normal text-muted-foreground">({l.key})</span>
+              {l.pouca_informacao && (
+                <span className="ml-2 rounded-full border border-input px-2 py-0.5 text-[10px] font-normal uppercase tracking-wider text-muted-foreground">
+                  pouca informação
+                </span>
+              )}
             </p>
             <BarraDoGrafico
               valor={l.percentual}
@@ -354,6 +359,24 @@ function GraficoDoPerfil({
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * A explicação, para o aluno, de uma dimensão que ele quase não marcou (#292). Sem jargão e sem culpar
+ * quem respondeu: o teste é que ficou sem informação sobre aquela dimensão.
+ */
+function avisoDeSinal(letras: Intensidade["sinal_baixo"], marcacoes: number): string {
+  const partes = letras.map((l) => `${l.label} (${l.sinal} ${l.sinal === 1 ? "vez" : "vezes"})`);
+  const lista = partes.length === 1 ? partes[0] : `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}`;
+  const uma = letras.length === 1;
+  const fechamento = letras.some((l) => l.fora_do_titulo)
+    ? `${uma ? "ela continua" : "elas continuam"} nos gráficos, mas ${uma ? "fica" : "ficam"} fora do título do perfil.`
+    : `${uma ? "ela continua" : "elas continuam"} nos gráficos, e a posição ${uma ? "dela" : "delas"} merece ser lida com cuidado.`;
+  return (
+    `${lista} apareceu${uma ? "" : "ram"} poucas vezes nas suas escolhas, entre as ${marcacoes} marcações ` +
+    `que o teste pede. Com tão pouca informação, este teste não consegue posicionar ` +
+    `${uma ? "essa dimensão" : "essas dimensões"} com segurança — ${fechamento}`
   );
 }
 
@@ -390,8 +413,9 @@ export function IntensidadeDoPerfil({
       {perfil.labels.length > 0 && <p className="mt-1 text-sm text-muted-foreground">{perfil.labels.join(" · ")}</p>}
       {!perfil.sigla && (
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          As letras do seu gráfico natural ficaram muito próximas entre si — três ou mais praticamente empatadas —,
-          então nenhuma se destaca o bastante para virar o seu perfil. Os gráficos abaixo mostram essa distribuição.
+          {natural.tipo === "sem_sinal"
+            ? "Nenhuma das dimensões apareceu vezes suficientes nas suas escolhas para o teste posicioná-la com segurança, então este relatório não declara um perfil. Os gráficos abaixo mostram como as suas escolhas se distribuíram."
+            : "As letras do seu gráfico natural ficaram muito próximas entre si — três ou mais praticamente empatadas —, então nenhuma se destaca o bastante para virar o seu perfil. Os gráficos abaixo mostram essa distribuição."}
         </p>
       )}
 
@@ -433,6 +457,11 @@ export function IntensidadeDoPerfil({
         Os dois gráficos são medidos de formas diferentes e não se comparam entre si: em cada um, as letras dividem
         100 pontos, e o que vale é a ordem delas.
       </p>
+      {intensidade.sinal_baixo.length > 0 && (
+        <p className="mt-3 rounded-lg border border-dashed border-input p-3 text-sm leading-relaxed text-muted-foreground">
+          {avisoDeSinal(intensidade.sinal_baixo, intensidade.marcacoes_no_teste)}
+        </p>
+      )}
       {ext && (
         <p className="mt-1 text-xs text-muted-foreground">
           Percepção externa (em roxo, no gráfico adaptado) baseada em {ext.count} observador(es)
