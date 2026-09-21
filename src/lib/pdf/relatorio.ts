@@ -33,9 +33,17 @@ import {
   avisoDeSinal,
 } from "@/components/report/textos";
 import {
+  APOIO,
   AZUL,
+  AZUL_LEVE,
   BRANCO,
+  CARTAO,
   CIANO,
+  CIANO_FUNDO,
+  CIANO_TEXTO,
+  ESCURO,
+  FILETE,
+  NOTA,
   CINZA,
   CINZA_CLARO,
   FUNDO_SUAVE,
@@ -49,6 +57,24 @@ import {
   type Tipografia,
 } from "./marca";
 import {
+  MM,
+  cartao,
+  cartaoDoGrafico,
+  faixaDeIndices,
+  graficoDeTermometros,
+  marcaDagua,
+  notaDeLeitura,
+  pintarCabecalho,
+  pintarPilula,
+  pintarRodape,
+  rotuloDeSubsecao,
+  seloDoPerfil,
+  texturaDePontos,
+  tituloDeSecao as tituloGrande,
+  type Ornamento,
+  type Termometro,
+} from "./sistema";
+import {
   A4,
   Documento,
   LARGURA_UTIL,
@@ -58,6 +84,7 @@ import {
   desenhoLivre,
   espaco,
   imagem,
+  quebraDePagina,
   larguraEspacada,
   limpar,
   paragrafo,
@@ -80,10 +107,30 @@ export type Contexto = {
   marca: Color;
   /** Respostas já gravadas do plano de ação, por `q1`, `q2`… */
   plano: Record<string, string>;
+  /** O que assina o rodapé de cada página. */
+  assinatura: string;
 };
 
 const cor = (valor: string | null | undefined, padrao: Color) =>
   valor ? corDaMarca(valor) : padrao;
+
+/**
+ * A cor de uma dimensão no gráfico.
+ *
+ * O DISC tem cor cadastrada por dimensão; Temperamentos e VAK, não — e sem isso todas as colunas
+ * saíam do mesmo azul, o que apaga a leitura que a proposta pede. Quando falta a cor, as colunas
+ * recebem tons distribuídos entre o Cerúleo e o Ciano: continuam sendo a paleta da marca, e cada
+ * uma fica distinguível da vizinha. Cadastrar as cores nas Configurações passa a valer na hora.
+ */
+function corDaDimensao(valor: string | null | undefined, i: number, total: number): Color {
+  if (valor) return corDaMarca(valor);
+  const f = total <= 1 ? 0 : i / (total - 1);
+  return rgb(
+    0.02 + (0.004 - 0.02) * f,
+    0.37 + (0.65 - 0.37) * f,
+    0.77 + (0.99 - 0.77) * f,
+  );
+}
 
 const dataBR = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—";
@@ -222,7 +269,7 @@ function graficoDoConjunto(
       barras.push(barra({ nome: "", valor: o.externo[l.key], cor: EXTERNO, t, serie: "Externo", antes: 2 }));
     }
   }
-  return caixa(
+  return cartao(
     pilha([
       desenhoLivre(20, (p, x, yTopo, l) => {
         const tam = 7.6;
@@ -246,37 +293,31 @@ function graficoDoConjunto(
       paragrafo(o.explica, t, { tamanho: 8, cor: CINZA, entrelinha: 1.5, antes: 6 }),
       pilha(barras, { antes: 12 }),
     ]),
-    { borda: CINZA_CLARO, padding: 12 },
+    { padding: 14 },
   );
 }
 
 /** Caixinha com um número grande (os três índices da página de intensidade). */
 function cartaoIndice(i: { label: string; value: number | null }, t: Tipografia): Bloco {
-  return caixa(
+  return cartao(
     pilha([
       paragrafo(i.label, t, { tamanho: 7, peso: "md", cor: CINZA, maiusculas: true, entreletras: 1, entrelinha: 1.3 }),
       i.value == null
         ? paragrafo("Em revisão", t, { tamanho: 9.5, cor: CINZA, antes: 6 })
         : paragrafo(i.value.toFixed(2), t, { tamanho: 19, peso: "xbd", cor: PRETO, entrelinha: 1.15, antes: 4 }),
     ]),
-    { borda: CINZA_CLARO, padding: 10 },
+    { padding: 12 },
   );
 }
 
-/** Título de seção com uma régua fina da cor da marca por baixo. */
-function tituloDeSecao(texto: string, ctx: Contexto, antes = 26): Bloco {
-  return {
-    ...pilha(
-      [
-        desenhoLivre(4, (p, x, yTopo) =>
-          p.drawRectangle({ x, y: yTopo - 3.4, width: 26, height: 2.6, color: ctx.marca }),
-        ),
-        titulo(texto, ctx.tipo, { tamanho: 14.5, antes: 8 }),
-      ],
-      { antes },
-    ),
-    colaNoProximo: true,
-  };
+/**
+ * Título das seções do corpo — a MESMA peça do título de abertura, em corpo menor.
+ *
+ * Reusar em vez de inventar é regra da #294: a barra Ciano sangrando e o Cerúleo são o que
+ * identifica uma seção neste documento, e um segundo estilo de título diluiria isso.
+ */
+function tituloDeSecao(texto: string, ctx: Contexto, antes = 30): Bloco {
+  return tituloGrande(texto, null, ctx.tipo, antes, 17);
 }
 
 /**
@@ -298,44 +339,85 @@ function corpoTexto(texto: string, t: Tipografia, antes = 8): Bloco[] {
 // Capa
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * A CAPA como peça gráfica (#294, item 4).
+ *
+ * Segue as capas que o dono do produto usa nos materiais do método (pasta `capas/` do Desktop
+ * dele): azul profundo ocupando a folha inteira, a marca grande como ELEMENTO — não como
+ * carimbo —, o filete Ciano curto marcando o início do bloco de texto, e o nome em dois pesos,
+ * leve e forte, como o "Método **Intenção**" das capas. Os dados (instrumento, data, emissor)
+ * ficam pequenos e hierarquizados no pé, porque numa capa eles são legenda, não manchete.
+ *
+ * O degradê do fundo é feito em faixas horizontais: o pdf-lib não tem gradiente, e 120 retângulos
+ * de 7pt resolvem sem imagem externa nem perda de nitidez.
+ */
 export function desenharCapa(
   doc: Documento,
-  o: { pessoa: string; instrumento: string; data: string; subtitulo?: string; ctx: Contexto; marcaMentor: { nome: string | null } },
+  o: {
+    pessoa: string;
+    instrumento: string;
+    data: string;
+    subtitulo?: string;
+    ctx: Contexto;
+    marcaMentor: { nome: string | null };
+  },
 ) {
   const p: PDFPage = doc.novaPagina(false);
   const { tipo: t, arte } = o.ctx;
-  const alturaFaixa = A4.altura * 0.6;
 
-  p.drawRectangle({ x: 0, y: A4.altura - alturaFaixa, width: A4.largura, height: alturaFaixa, color: AZUL });
-  // Uma barra ciano na base da faixa amarra as duas cores da marca.
-  p.drawRectangle({ x: 0, y: A4.altura - alturaFaixa, width: A4.largura, height: 6, color: CIANO });
+  // Fundo: Cerúleo no alto à esquerda descendo para quase preto — o mesmo clima das capas do método.
+  const faixas = 130;
+  for (let i = 0; i < faixas; i++) {
+    const f = i / (faixas - 1);
+    const r = 0.012 + (0.02 - 0.012) * (1 - f);
+    const g = 0.14 + (0.30 - 0.14) * (1 - f);
+    const b = 0.30 + (0.62 - 0.30) * (1 - f);
+    p.drawRectangle({
+      x: 0,
+      y: A4.altura - (A4.altura / faixas) * (i + 1),
+      width: A4.largura,
+      height: A4.altura / faixas + 1,
+      color: rgb(r, g, b),
+    });
+  }
+  // Um halo Ciano no canto superior esquerdo dá profundidade ao degradê.
+  for (let i = 10; i >= 1; i--) {
+    p.drawCircle({ x: 40, y: A4.altura - 60, size: i * 34, color: CIANO, opacity: 0.018 });
+  }
 
-  const logoL = 168;
+  // A marca, grande, como elemento gráfico.
+  const logoL = 250;
   p.drawImage(arte.logoBranca, {
     x: MARGEM.esquerda,
-    y: A4.altura - 112,
+    y: A4.altura - 150,
     width: logoL,
     height: (arte.logoBranca.height / arte.logoBranca.width) * logoL,
   });
 
-  let y = A4.altura - alturaFaixa + 150;
+  // Bloco de texto, ancorado no terço inferior.
+  let y = 330;
+  p.drawRectangle({ x: MARGEM.esquerda, y, width: 62, height: 3, color: CIANO });
+
+  y -= 34;
   textoEspacado(p, {
-    texto: "RELATÓRIO COMPORTAMENTAL", x: MARGEM.esquerda, y,
-    tamanho: 9, fonte: t.bd, cor: CIANO, entreletras: 2.6,
+    texto: "RELATÓRIO COMPORTAMENTAL",
+    x: MARGEM.esquerda,
+    y,
+    tamanho: 9,
+    fonte: t.bd,
+    cor: CIANO,
+    entreletras: 2.8,
   });
 
-  // O NOME COMPLETO, inteiro. A capa reserva uma faixa de altura fixa e o corpo da fonte encolhe
-  // até o nome caber nela — nunca o contrário. Cortar o nome de alguém (e foi o que uma primeira
-  // versão fez, engolindo o último sobrenome) é o pior defeito possível no artefato que a pessoa
-  // mais olha.
+  // O NOME COMPLETO, inteiro: o corpo encolhe até caber na faixa reservada, nunca o contrário.
   const nome = limpar(o.pessoa) || "Avaliado";
-  const ALTURA_DO_NOME = 126;
+  const ALTURA_DO_NOME = 132;
   const quebrar = (corpo: number) => {
     const linhas: string[] = [];
     let atual = "";
     for (const palavra of nome.split(" ")) {
       const tentativa = atual ? `${atual} ${palavra}` : palavra;
-      if (atual && t.xbd.widthOfTextAtSize(tentativa, corpo) > LARGURA_UTIL) {
+      if (atual && t.lt.widthOfTextAtSize(tentativa, corpo) > LARGURA_UTIL) {
         linhas.push(atual);
         atual = palavra;
       } else atual = tentativa;
@@ -343,60 +425,75 @@ export function desenharCapa(
     if (atual) linhas.push(atual);
     return linhas;
   };
-  let corpoNome = 33;
+  let corpoNome = 34;
   let linhas = quebrar(corpoNome);
-  while (corpoNome > 11 && linhas.length * corpoNome * 1.12 > ALTURA_DO_NOME) {
+  while (corpoNome > 11 && linhas.length * corpoNome * 1.18 > ALTURA_DO_NOME) {
     corpoNome -= 0.5;
     linhas = quebrar(corpoNome);
   }
-  y -= 22;
-  for (const linha of linhas) {
-    y -= corpoNome * 1.12;
-    p.drawText(linha, { x: MARGEM.esquerda, y, size: corpoNome, font: t.xbd, color: BRANCO });
-  }
+  // Primeiro nome em Light, sobrenome em ExtraBold — a hierarquia das capas do método.
+  y -= 16;
+  linhas.forEach((linha, i) => {
+    y -= corpoNome * 1.18;
+    if (i === 0) {
+      const espaco = linha.indexOf(" ");
+      const leve = espaco > 0 ? linha.slice(0, espaco + 1) : linha;
+      const forte = espaco > 0 ? linha.slice(espaco + 1) : "";
+      p.drawText(leve, { x: MARGEM.esquerda, y, size: corpoNome, font: t.lt, color: BRANCO });
+      if (forte) {
+        p.drawText(forte, {
+          x: MARGEM.esquerda + t.lt.widthOfTextAtSize(leve, corpoNome),
+          y,
+          size: corpoNome,
+          font: t.xbd,
+          color: BRANCO,
+        });
+      }
+    } else {
+      p.drawText(linha, { x: MARGEM.esquerda, y, size: corpoNome, font: t.xbd, color: BRANCO });
+    }
+  });
 
-  // Bloco branco de baixo: instrumento e data de realização.
-  const yDados = A4.altura - alturaFaixa - 58;
+  // Legenda do pé: instrumento, data e quem emitiu — pequenos, em coluna, com filete acima.
+  const yPe = 150;
+  p.drawRectangle({ x: MARGEM.esquerda, y: yPe + 46, width: LARGURA_UTIL, height: 0.7, color: BRANCO, opacity: 0.18 });
   const campo = (rotuloTexto: string, valor: string, x: number, largura: number) => {
-    textoEspacado(p, { texto: rotuloTexto, x, y: yDados, tamanho: 7, fonte: t.bd, cor: CINZA, entreletras: 1.4 });
-    // O valor encolhe até caber na coluna — a lista de inventários de uma bateria é longa, e
-    // passar da margem seria pior do que ficar pequeno.
-    let tamanho = 12;
+    textoEspacado(p, {
+      texto: rotuloTexto,
+      x,
+      y: yPe + 26,
+      tamanho: 6.8,
+      fonte: t.bd,
+      cor: CIANO,
+      entreletras: 1.6,
+    });
+    let tamanho = 11;
     while (tamanho > 7 && t.md.widthOfTextAtSize(valor, tamanho) > largura) tamanho -= 0.5;
-    p.drawText(valor, { x, y: yDados - 20, size: tamanho, font: t.md, color: PRETO });
+    p.drawText(valor, { x, y: yPe + 6, size: tamanho, font: t.md, color: BRANCO });
   };
-  campo("INSTRUMENTO", limpar(o.instrumento) || "—", MARGEM.esquerda, LARGURA_UTIL * 0.62 - 12);
-  campo("DATA DE REALIZAÇÃO", o.data, MARGEM.esquerda + LARGURA_UTIL * 0.62, LARGURA_UTIL * 0.38);
+  campo("INSTRUMENTO", limpar(o.instrumento) || "—", MARGEM.esquerda, LARGURA_UTIL * 0.6 - 14);
+  campo("DATA DE REALIZAÇÃO", o.data, MARGEM.esquerda + LARGURA_UTIL * 0.6, LARGURA_UTIL * 0.4);
   if (o.subtitulo) {
     p.drawText(limpar(o.subtitulo), {
       x: MARGEM.esquerda,
-      y: yDados - 44,
-      size: 9,
+      y: yPe - 16,
+      size: 8.4,
       font: t.rg,
-      color: CINZA,
+      color: rgb(0.72, 0.8, 0.9),
     });
   }
 
-  // Rodapé da capa: quem emitiu. No SaaS cada mentor tem a sua marca; a capa continua sendo a do
-  // método, e o emissor aparece aqui.
   const emissor = o.marcaMentor.nome?.trim();
-  if (emissor || o.ctx.arte.logoMentor) {
-    p.drawRectangle({ x: MARGEM.esquerda, y: 108, width: LARGURA_UTIL, height: 0.6, color: CINZA_CLARO });
-    p.drawText("EMITIDO POR", { x: MARGEM.esquerda, y: 88, size: 6.8, font: t.bd, color: CINZA });
-    if (o.ctx.arte.logoMentor) {
-      const lm = 76;
-      p.drawImage(o.ctx.arte.logoMentor, {
-        x: MARGEM.esquerda,
-        y: 52,
-        width: lm,
-        height: Math.min(28, (o.ctx.arte.logoMentor.height / o.ctx.arte.logoMentor.width) * lm),
-      });
-      if (emissor) {
-        p.drawText(limpar(emissor), { x: MARGEM.esquerda + lm + 12, y: 62, size: 10, font: t.md, color: GRAFITE });
-      }
-    } else if (emissor) {
-      p.drawText(limpar(emissor), { x: MARGEM.esquerda, y: 66, size: 11, font: t.md, color: GRAFITE });
-    }
+  if (emissor) {
+    textoEspacado(p, {
+      texto: `EMITIDO POR ${limpar(emissor)}`,
+      x: MARGEM.esquerda,
+      y: 62,
+      tamanho: 7,
+      fonte: t.md,
+      cor: rgb(0.62, 0.72, 0.85),
+      entreletras: 1.2,
+    });
   }
 }
 
@@ -404,6 +501,16 @@ export function desenharCapa(
 // Corpo — a mesma ordem de ReportBody
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * A PÁGINA DE INTENSIDADE, no sistema visual aprovado (#294).
+ *
+ * É a página de referência do sistema: título de duas linhas com a barra Ciano sangrando, o selo
+ * escuro do perfil e os índices num cartão, os dois conjuntos em cartões próprios com termômetros,
+ * a nota de leitura e o texto do perfil. Todas as peças vêm de `sistema.ts` — nada aqui desenha
+ * retângulo na mão.
+ *
+ * O conteúdo é o mesmo de antes: mesmos números, mesmas frases, mesmas regras de honestidade.
+ */
 function blocosDaIntensidade(r: Report, ints: Intensidade, mostrarIndices: boolean, ctx: Contexto): Bloco[] {
   const t = ctx.tipo;
   const { perfil, natural, adaptado, texto } = ints;
@@ -413,97 +520,130 @@ function blocosDaIntensidade(r: Report, ints: Intensidade, mostrarIndices: boole
         .filter(Boolean) as Derived["indices"])
     : [];
   const ext = r.external ?? null;
-  const out: Bloco[] = [
-    rotulo(INTENSIDADE.rotulo, t, CINZA, 26),
-    paragrafo(perfil.sigla ? `PERFIL ${perfil.sigla}` : INTENSIDADE.semPredominancia, t, {
-      tamanho: 26,
-      peso: "xbd",
-      cor: PRETO,
-      entrelinha: 1.15,
-      entreletras: perfil.sigla ? 2.2 : 0,
-      antes: 6,
-    }),
-  ];
-  if (perfil.labels.length > 0) {
-    out.push(paragrafo(perfil.labels.join(" · "), t, { tamanho: 9.6, cor: CINZA, antes: 3 }));
-  }
-  if (!perfil.sigla) {
-    out.push(
+
+  /** Uma coluna por letra, na ordem do instrumento. */
+  const termometros = (g: GraficoDoConjunto, comExterno: boolean): Termometro[] =>
+    g.letras.map((l, i) => {
+      const c = corDaDimensao(l.color, i, g.letras.length);
+      return {
+        chave: l.key,
+        valor: l.percentual,
+        cor: l.na_sigla ? c : esmaecer(c, 0.62),
+        marca: l.pouca_informacao ? INTENSIDADE.poucaInformacao : null,
+        externo: comExterno ? (ext?.scores[l.key] ?? null) : null,
+        corExterno: EXTERNO,
+      };
+    });
+
+  // A página de intensidade é uma peça só — título, selo, gráficos e nota juntos, como na
+  // proposta aprovada. Parti-la ao meio desmonta a leitura, então ela abre folha nova.
+  const out: Bloco[] = [quebraDePagina(), tituloGrande("Intensidade", "do perfil", t, 0)];
+
+  // Cartão do topo: o selo do perfil e os três índices.
+  const topo: Bloco[] = [];
+  if (perfil.sigla) {
+    topo.push(seloDoPerfil(perfil.sigla, t));
+    if (perfil.labels.length > 0) {
+      topo.push(paragrafo(perfil.labels.join("  ·  "), t, { tamanho: 9, cor: APOIO, antes: 10 }));
+    }
+  } else {
+    topo.push(
+      paragrafo(INTENSIDADE.semPredominancia, t, { tamanho: 15, peso: "bd", cor: ESCURO, entrelinha: 1.2 }),
+    );
+    topo.push(
       paragrafo(natural.tipo === "sem_sinal" ? INTENSIDADE.semSinal : INTENSIDADE.empateMultiplo, t, {
-        tamanho: 9.6,
+        tamanho: 9.2,
+        cor: GRAFITE,
         entrelinha: 1.55,
-        antes: 10,
+        antes: 8,
       }),
     );
   }
   if (indices.length > 0) {
-    out.push(colunas(indices.map((i) => cartaoIndice(i, t)), { vao: 12, antes: 18 }));
-    out.push(
+    topo.push(
+      faixaDeIndices(
+        indices.map((i) => ({ label: i.label, valor: i.value == null ? "—" : i.value.toFixed(2) })),
+        t,
+        16,
+      ),
+    );
+    topo.push(
       paragrafo(
         INTENSIDADE.indicesRodape + (indices.some((i) => i.value == null) ? INTENSIDADE.indicesEmRevisao : ""),
         t,
-        { tamanho: 7.8, cor: CINZA, antes: 7 },
+        { tamanho: 7.6, cor: APOIO, entrelinha: 1.45, antes: 8 },
       ),
     );
   }
+  out.push(cartao(pilha(topo), { antes: 22 }));
+
+  // Os dois conjuntos, cada um no seu cartão, lado a lado.
   out.push(
     colunas(
       [
-        graficoDoConjunto(natural, {
-          titulo: INTENSIDADE.naturalTitulo,
+        cartaoDoGrafico({
+          rotulo: INTENSIDADE.naturalTitulo,
+          sigla: natural.sigla,
           explica: INTENSIDADE.naturalExplica,
-          ctx,
+          itens: termometros(natural, false),
+          cor: AZUL,
+          tipo: t,
         }),
-        graficoDoConjunto(adaptado, {
-          titulo: INTENSIDADE.adaptadoTitulo,
+        cartaoDoGrafico({
+          rotulo: INTENSIDADE.adaptadoTitulo,
+          sigla: adaptado.sigla,
           explica: INTENSIDADE.adaptadoExplica,
-          externo: ext?.scores ?? null,
-          ctx,
+          itens: termometros(adaptado, true),
+          // O Ciano puro não sustenta texto branco em cima: a pílula e o círculo usam o tom fechado.
+          cor: CIANO_FUNDO,
+          tipo: t,
         }),
       ],
-      { vao: 14, antes: 18 },
+      { vao: 14, antes: 16 },
     ),
   );
-  out.push(paragrafo(INTENSIDADE.reguasSeparadas, t, { tamanho: 8, cor: CINZA, entrelinha: 1.5, antes: 10 }));
+
+  out.push(notaDeLeitura(INTENSIDADE.reguasTitulo, INTENSIDADE.reguasSeparadas, t, 16));
+
   if (ints.sinal_baixo.length > 0) {
     out.push(
-      caixa(paragrafo(avisoDeSinal(ints.sinal_baixo, ints.marcacoes_no_teste), t, { tamanho: 9, entrelinha: 1.55 }), {
-        borda: CINZA_CLARO,
-        tracejada: true,
-        padding: 11,
-        antes: 10,
-      }),
+      notaDeLeitura(
+        INTENSIDADE.poucaInformacaoTitulo,
+        avisoDeSinal(ints.sinal_baixo, ints.marcacoes_no_teste),
+        t,
+        12,
+      ),
     );
   }
   if (ext) {
     out.push(
       paragrafo(
-        `Percepção externa (em roxo, no gráfico adaptado) baseada em ${ext.count} observador(es)` +
+        `Percepção externa (o traço roxo no gráfico adaptado) baseada em ${ext.count} observador(es)` +
           (ext.respondents.length > 0 ? `: ${ext.respondents.join(", ")}` : "") + ".",
         t,
-        { tamanho: 7.8, cor: CINZA, antes: 6 },
+        { tamanho: 7.8, cor: APOIO, antes: 10 },
       ),
     );
   }
+
   if (texto && perfil.sigla) {
+    out.push(rotuloDeSubsecao("O que este perfil diz", t, 26));
     if (texto.estado === "publicado") {
-      out.push(regua(CINZA_CLARO, 0.6, 20));
-      out.push(titulo(texto.titulo ?? `Sobre o perfil ${perfil.sigla}`, t, { tamanho: 12, antes: 14 }));
-      out.push(...corpoTexto(texto.corpo, t));
+      if (texto.titulo) {
+        out.push(paragrafo(texto.titulo, t, { tamanho: 11, peso: "bd", cor: ESCURO, antes: 12 }));
+      }
+      out.push(...corpoTexto(texto.corpo, t, texto.titulo ? 6 : 12));
     } else {
       out.push(
-        caixa(
-          pilha([
-            paragrafo(`Sobre o perfil ${perfil.sigla}`, t, { tamanho: 9.6, peso: "md", cor: PRETO }),
-            paragrafo(INTENSIDADE.textoPendente, t, { tamanho: 9.4, entrelinha: 1.55, antes: 5 }),
-          ]),
-          { borda: CINZA_CLARO, tracejada: true, padding: 12, antes: 20 },
-        ),
+        cartao(paragrafo(INTENSIDADE.textoPendente, t, { tamanho: 9.4, cor: GRAFITE, entrelinha: 1.55 }), {
+          antes: 12,
+          padding: 14,
+        }),
       );
     }
   }
   if (r.is_disc === false) {
-    out.push(paragrafo(INTENSIDADE.leiturasDoAdaptado, t, { tamanho: 8, cor: CINZA, entrelinha: 1.5, antes: 18 }));
+    out.push(paragrafo(INTENSIDADE.leiturasDoAdaptado, t, { tamanho: 8, cor: APOIO, entrelinha: 1.5, antes: 18 }));
   }
   return out;
 }
@@ -596,18 +736,21 @@ function blocosDerivados(d: Derived, mbtiReal: { tipo: string; pares: JungPares 
   const fortes = d.leadership_content.strengths;
   const atencao = d.leadership_content.attention;
   if (fortes || atencao) {
-    const cartao = (c: { title: string | null; body: string } | null, padraoTitulo: string) =>
+    const cartaoDeLideranca = (c: { title: string | null; body: string } | null, padraoTitulo: string) =>
       c
-        ? caixa(
+        ? cartao(
             pilha([
               paragrafo(c.title ?? padraoTitulo, t, { tamanho: 9.4, peso: "md", cor: PRETO }),
               ...corpoTexto(c.body, t, 5),
             ]),
-            { borda: CINZA_CLARO, padding: 11 },
+            { padding: 13 },
           )
         : espaco(0);
     out.push(
-      colunas([cartao(fortes, DERIVADOS.pontosFortes), cartao(atencao, DERIVADOS.pontosAtencao)], { vao: 14, antes: 16 }),
+      colunas(
+        [cartaoDeLideranca(fortes, DERIVADOS.pontosFortes), cartaoDeLideranca(atencao, DERIVADOS.pontosAtencao)],
+        { vao: 14, antes: 16 },
+      ),
     );
   }
 
@@ -648,7 +791,7 @@ function blocosDerivados(d: Derived, mbtiReal: { tipo: string; pares: JungPares 
   out.push(selo(seloTexto, t, 4));
   out.push(paragrafo(DERIVADOS.indicesIntro, t, { tamanho: 9.4, cor: CINZA, antes: 8 }));
   const cartoes = d.indices.map((i) =>
-    caixa(
+    cartao(
       pilha([
         desenhoLivre(20, (p, x, yTopo, l) => {
           p.drawText(limpar(i.label), { x, y: yTopo - 10, size: 9.4, font: t.bd, color: PRETO });
@@ -668,7 +811,7 @@ function blocosDerivados(d: Derived, mbtiReal: { tipo: string; pares: JungPares 
               { antes: 2 },
             ),
       ]),
-      { borda: CINZA_CLARO, padding: 11 },
+      { padding: 13 },
     ),
   );
   for (let i = 0; i < cartoes.length; i += 2) {
@@ -795,10 +938,10 @@ export function blocosDoRelatorio(
     out.push(tituloDeSecao(CORPO.leituraDimensoes, ctx));
     for (const f of ranked.filter((x) => x.has_data !== false)) {
       out.push(
-        caixa(
+        cartao(
           pilha([
             desenhoLivre(14, (p, x, yTopo, l) => {
-              p.drawCircle({ x: x + 3, y: yTopo - 6, size: 3, color: cor(f.color, CINZA) });
+              p.drawCircle({ x: x + 3, y: yTopo - 6, size: 3, color: corDaDimensao(f.color, ranked.indexOf(f), ranked.length) });
               p.drawText(limpar(f.label), { x: x + 11, y: yTopo - 9, size: 9.4, font: t.bd, color: PRETO });
               const nums = `${Math.round(f.natural_norm)} · ${f.band_natural?.title ?? CORPO.semFaixa}`;
               const nl = t.rg.widthOfTextAtSize(nums, 7.8);
@@ -806,7 +949,7 @@ export function blocosDoRelatorio(
             }),
             ...(f.band_natural?.description ? corpoTexto(f.band_natural.description, t, 6) : []),
           ]),
-          { borda: CINZA_CLARO, padding: 11, antes: 10 },
+          { padding: 13, antes: 10 },
         ),
       );
     }
@@ -880,7 +1023,7 @@ export function blocosDoRelatorio(
       }
       if (f.adaptacao) {
         out.push(
-          caixa(
+          cartao(
             pilha([
               rotulo(
                 `${f.adaptacao.title ?? (f.gap_mode === "gap_up" ? CORPO.elevou : CORPO.conteve)} (${(f.gap ?? 0) > 0 ? "+" : ""}${f.gap ?? 0} pontos)`,
@@ -889,7 +1032,7 @@ export function blocosDoRelatorio(
               ),
               ...corpoTexto(f.adaptacao.body, t, 6),
             ]),
-            { fundo: FUNDO_SUAVE, borda: CINZA_CLARO, padding: 11, antes: 12 },
+            { padding: 13, antes: 12 },
           ),
         );
       }
@@ -911,7 +1054,7 @@ export function blocosDoRelatorio(
       pilha(
         [
           desenhoLivre(14, (p, x, yTopo) => {
-            p.drawCircle({ x: x + 3, y: yTopo - 6, size: 3, color: cor(f.color, CINZA) });
+            p.drawCircle({ x: x + 3, y: yTopo - 6, size: 3, color: corDaDimensao(f.color, ranked.indexOf(f), ranked.length) });
             p.drawText(limpar(f.label), { x: x + 11, y: yTopo - 9, size: 9.2, font: t.md, color: PRETO });
           }),
           ...f.descritores.map((d) => {
@@ -922,8 +1065,8 @@ export function blocosDoRelatorio(
               { tamanho: 8.4, entrelinha: 1.45, peso: d.active ? "md" : "rg", cor: d.active ? PRETO : CINZA },
             );
             return d.active
-              ? caixa(corpoBloco, { fundo: FUNDO_SUAVE, borda: CINZA_CLARO, padding: 5, paddingX: 7, antes: 3 })
-              : caixa(corpoBloco, { padding: 5, paddingX: 7, antes: 3 });
+              ? cartao(corpoBloco, { padding: 6, paddingX: 8, antes: 3 })
+              : cartao(corpoBloco, { padding: 5, paddingX: 7, antes: 3 });
           }),
         ],
         { antes: 12 },
@@ -945,12 +1088,12 @@ export function blocosDoRelatorio(
     out.push(paragrafo(CORPO.comunicacaoIntro, t, { tamanho: 9.4, cor: CINZA, antes: 4 }));
     for (const c of COMUNICACAO) {
       out.push(
-        caixa(
+        cartao(
           pilha([
             paragrafo(c.label, t, { tamanho: 9.4, peso: "md", cor: PRETO }),
             paragrafo(c.body, t, { tamanho: 9.2, entrelinha: 1.55, antes: 4 }),
           ]),
-          { borda: CINZA_CLARO, padding: 11, antes: 10 },
+          { padding: 13, antes: 10 },
         ),
       );
     }
@@ -996,16 +1139,13 @@ function blocoDeConfiabilidade(r: Report, ctx: Contexto): Bloco | null {
   if (!q || q.nivel === "alta") return null;
   const grave = q.nivel === "baixa";
   const t = ctx.tipo;
-  return caixa(
-    pilha([
-      paragrafo(grave ? CONFIABILIDADE.tituloGrave : CONFIABILIDADE.tituloLeve, t, {
-        tamanho: 9.8,
-        peso: "md",
-        cor: PRETO,
-      }),
-      paragrafo(CONFIABILIDADE.corpo(q.motivos), t, { tamanho: 9.4, entrelinha: 1.55, antes: 5 }),
-    ]),
-    { fundo: FUNDO_SUAVE, tarja: grave ? rgb(0.85, 0.6, 0.12) : ctx.marca, padding: 12, antes: 0 },
+  // A ressalva usa a MESMA caixa de nota do resto do documento: um quarto estilo de aviso só
+  // diluiria o significado dos outros.
+  return notaDeLeitura(
+    grave ? CONFIABILIDADE.tituloGrave : CONFIABILIDADE.tituloLeve,
+    CONFIABILIDADE.corpo(q.motivos),
+    t,
+    0,
   );
 }
 
@@ -1023,12 +1163,12 @@ function blocosDoPlano(perguntas: string[], respostas: Record<string, string>, c
         [
           paragrafo(`${i + 1}. ${pergunta}`, t, { tamanho: 9.4, peso: "md", cor: PRETO, entrelinha: 1.5 }),
           resposta
-            ? caixa(paragrafo(resposta, t, { tamanho: 9.2, entrelinha: 1.55 }), {
+            ? cartao(paragrafo(resposta, t, { tamanho: 9.2, entrelinha: 1.55 }), {
                 fundo: FUNDO_SUAVE,
                 padding: 10,
                 antes: 6,
               })
-            : caixa(espaco(26), { borda: CINZA_CLARO, tracejada: true, padding: 4, antes: 6 }),
+            : caixa(espaco(26), { borda: FILETE, tracejada: true, padding: 4, antes: 6 }),
         ],
         { atomico: false, antes: 12 },
       ),
@@ -1076,7 +1216,13 @@ async function novoDocumento(origem: string, r: { brand?: Report["brand"]; submi
   pdf.setCreator("Método Intenção");
   pdf.setCreationDate(quando);
   pdf.setModificationDate(quando);
-  const ctx: Contexto = { tipo, arte, marca: corDaMarca(r.brand?.brand_color), plano: {} };
+  const ctx: Contexto = {
+    tipo,
+    arte,
+    marca: corDaMarca(r.brand?.brand_color),
+    plano: {},
+    assinatura: `Relatório comportamental · ${r.brand?.company_name?.trim() || "Método Intenção"}`,
+  };
   return { pdf, ctx };
 }
 
@@ -1101,6 +1247,11 @@ export async function pdfDoRelatorio(o: {
     marcaMentor: { nome: r.brand?.company_name ?? null },
   });
 
+  // Textura e marca d'água ficam ATRÁS do conteúdo: o fundo é pintado quando a página abre.
+  doc.usarFundo((p) => {
+    texturaDePontos(p, { yTopo: A4.altura - 170, altura: 400 });
+    marcaDagua(p, { cx: A4.largura - 62, cy: 128, raio: 46 });
+  });
   doc.quebrarPagina();
   const confiabilidade = blocoDeConfiabilidade(r, ctx);
   doc.fluir([
@@ -1110,8 +1261,25 @@ export async function pdfDoRelatorio(o: {
     ...blocosDoFim(r, ctx),
   ]);
 
-  doc.finalizar({ pessoa, data: dataBR(r.submitted_at), marca: ctx.marca, logo: ctx.arte.logoCor });
+  ornamentar(doc, ctx, { pessoa, data: dataBR(r.submitted_at) });
   return pdf.save();
+}
+
+/**
+ * Cabeçalho e rodapé em toda página de conteúdo, no padrão do sistema visual (#294).
+ * A assinatura do rodapé leva o nome do mentor quando houver — no SaaS cada um assina o seu.
+ */
+function ornamentar(doc: Documento, ctx: Contexto, o: { pessoa: string; data: string }) {
+  const orn: Ornamento = {
+    pessoa: o.pessoa,
+    data: o.data,
+    assinatura: ctx.assinatura,
+    arte: ctx.arte,
+  };
+  doc.finalizar((p, pagina) => {
+    pintarCabecalho(p, ctx.tipo, orn);
+    pintarRodape(p, ctx.tipo, { ...orn, pagina });
+  });
 }
 
 export type BateriaParte = Report & { assessment_sort: number };
@@ -1157,6 +1325,10 @@ export async function pdfDaBateria(o: {
     marcaMentor: { nome: b.brand?.company_name ?? null },
   });
 
+  doc.usarFundo((p) => {
+    texturaDePontos(p, { yTopo: A4.altura - 170, altura: 400 });
+    marcaDagua(p, { cx: A4.largura - 62, cy: 128, raio: 46 });
+  });
   doc.quebrarPagina();
 
   // Basta uma etapa preenchida no automático para valer a ressalva — a mesma escolha da tela.
@@ -1171,7 +1343,7 @@ export async function pdfDaBateria(o: {
     ...(confiabilidade ? [confiabilidade, espaco(10)] : []),
     ...(b.pending_titles.length > 0
       ? [
-          caixa(
+          cartao(
             paragrafo(
               [
                 { texto: BATERIA.pendentesPrefixo },
@@ -1181,7 +1353,7 @@ export async function pdfDaBateria(o: {
               t,
               { tamanho: 9, entrelinha: 1.5 },
             ),
-            { fundo: FUNDO_SUAVE, borda: CINZA_CLARO, padding: 11 },
+            { padding: 13 },
           ),
           espaco(8),
         ]
@@ -1195,7 +1367,7 @@ export async function pdfDaBateria(o: {
           : parte.factors[0]
             ? `${parte.factors.length} dimensões`
             : "") + (parte.duration ? ` · ${parte.duration}` : "");
-      return caixa(
+      return cartao(
         desenhoLivre(12, (p, x, yTopo, l) => {
           p.drawText(`${i + 1}. ${limpar(parte.test_title ?? "Inventário")}`, {
             x,
@@ -1209,7 +1381,7 @@ export async function pdfDaBateria(o: {
             p.drawText(detalhe, { x: x + l - dl, y: yTopo - 9, size: 7.8, font: t.rg, color: CINZA });
           }
         }),
-        { borda: CINZA_CLARO, padding: 9, antes: i === 0 ? 12 : 6 },
+        { padding: 11, antes: i === 0 ? 12 : 6 },
       );
     }),
   ]);
@@ -1246,6 +1418,6 @@ export async function pdfDaBateria(o: {
   }
 
   doc.fluir(blocosDoFim({ brand: b.brand } as Report, ctx));
-  doc.finalizar({ pessoa, data: dataBR(b.submitted_at), marca: ctx.marca, logo: ctx.arte.logoCor });
+  ornamentar(doc, ctx, { pessoa, data: dataBR(b.submitted_at) });
   return pdf.save();
 }

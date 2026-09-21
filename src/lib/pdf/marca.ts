@@ -21,23 +21,63 @@
  */
 import { ColorTypes, rgb, type Color, type PDFDocument, type PDFFont, type PDFImage } from "./pdf-lib";
 
-/** Ciano Claro — a cor primária da marca. */
+/**
+ * A PALETA DO SISTEMA VISUAL (#294), medida pixel a pixel na proposta aprovada.
+ *
+ * ⚠️ CONTRASTE É REQUISITO, NÃO ESTÉTICA — foi a queixa do dono do produto sobre a primeira
+ * versão do PDF. Cada cor daqui foi medida contra o fundo onde ela é usada, pelo cálculo de
+ * contraste do WCAG (4,5:1 para texto de corpo normal, 3:1 para texto grande). Cinco tons da
+ * proposta não passavam e foram ESCURECIDOS o mínimo necessário, mantendo matiz e saturação —
+ * a cor continua a mesma, só com força suficiente para ser lida no papel:
+ *
+ *   #7FA6D6 → #6A97CF   2ª linha do título          (2,52 → 3,03)
+ *   #6B7F93 → #617486   cinzas de apoio, unificados (3,67–4,13 → 4,5+)
+ *   #01A5FC → #017CBD   o Ciano quando vira TEXTO   (2,70 → 4,60)
+ *
+ * E uma correção de sentido oposto: onde o Ciano é FUNDO de texto branco (a pílula ADAPTADO, o
+ * círculo da sigla adaptada), quem escurece é o FUNDO, não a letra — texto cinza sobre ciano
+ * seria pior do que o problema. Daí `CIANO_FUNDO`.
+ *
+ * Reconferir depois de mexer: `python3 scripts/testar_pdf.py contraste`.
+ */
+
+/** Ciano Claro — a primária. Vale como MANCHA (barra, filete, preenchimento), não como texto. */
 export const CIANO = rgb(0x01 / 255, 0xa5 / 255, 0xfc / 255);
-/** Azul Cerúleo — a secundária. */
+/** O Ciano quando precisa ser LIDO sobre branco. */
+export const CIANO_TEXTO = rgb(0x01 / 255, 0x7c / 255, 0xbd / 255);
+/** O Ciano quando carrega texto branco em cima. */
+export const CIANO_FUNDO = rgb(0x01 / 255, 0x7c / 255, 0xbd / 255);
+/** Azul Cerúleo — a secundária. Títulos, valores e a sigla do gráfico natural. */
 export const AZUL = rgb(0x02 / 255, 0x5e / 255, 0xc4 / 255);
+/** O azul leve da segunda linha do título, já com contraste suficiente. */
+export const AZUL_LEVE = rgb(0x6a / 255, 0x97 / 255, 0xcf / 255);
+/** Azul quase preto — pílula do perfil, texto de corpo e o número acima da barra. */
+export const ESCURO = rgb(0x0b / 255, 0x22 / 255, 0x39 / 255);
 export const BRANCO = rgb(1, 1, 1);
-export const PRETO = rgb(0.07, 0.07, 0.09);
-/** Cinzas: são o preto em menos força, não cores novas da paleta. */
-export const GRAFITE = rgb(0.29, 0.29, 0.32);
-export const CINZA = rgb(0.45, 0.45, 0.49);
-export const CINZA_CLARO = rgb(0.84, 0.85, 0.87);
-export const FUNDO_SUAVE = rgb(0.965, 0.97, 0.98);
+export const PRETO = ESCURO;
+/** Cinza de apoio: cabeçalho, rótulos, escala do gráfico e assinatura do rodapé. */
+export const APOIO = rgb(0x61 / 255, 0x74 / 255, 0x86 / 255);
+/** Cinza de leitura: texto da nota e letra da dimensão. */
+export const GRAFITE = rgb(0x48 / 255, 0x60 / 255, 0x7a / 255);
+export const CINZA = APOIO;
+/** Filetes e bordas. */
+export const FILETE = rgb(0xd6 / 255, 0xe1 / 255, 0xea / 255);
+export const CINZA_CLARO = FILETE;
+/** Fundo dos cartões. */
+export const CARTAO = rgb(0xf4 / 255, 0xf8 / 255, 0xfb / 255);
+export const FUNDO_SUAVE = CARTAO;
+/** Trilho do termômetro — o máximo da escala. */
+export const TRILHO = rgb(0xdf / 255, 0xe8 / 255, 0xf0 / 255);
+/** Fundo da nota de leitura. */
+export const NOTA = rgb(0xe7 / 255, 0xf3 / 255, 0xfe / 255);
 
 /**
  * Os quatro pesos que o documento usa. Mais do que isso pesaria no asset sem ganho: o relatório é
  * texto corrido com títulos, não uma peça gráfica.
  */
 export type Tipografia = {
+  /** Títulos grandes de seção — o peso que a proposta aprovada usa no "INTENSIDADE DO PERFIL". */
+  lt: PDFFont;
   /** Corpo do texto. */
   rg: PDFFont;
   /** Rótulos, legendas e destaques dentro do parágrafo. */
@@ -51,13 +91,20 @@ export type Tipografia = {
 export type Ilustracoes = {
   /** Logo com a palavra "Intenção" em branco — para fundo colorido (a capa). */
   logoBranca: PDFImage;
-  /** Logo colorida com o texto em preto — para fundo claro (o cabeçalho). */
+  /** Logo colorida com o texto em preto — para fundo claro. */
   logoCor: PDFImage;
+  /**
+   * A mesma logo tingida de Azul Cerúleo, para o cabeçalho das páginas (#294).
+   * É a marca REAL: `scripts/gerar_logo_ceruleo.py` troca só o canal de cor do arquivo oficial
+   * "Logo Intensão Preto", preservando a forma exata — nada é redesenhado.
+   */
+  logoCeruleo: PDFImage;
   /** Logo do mentor (white label), quando houver e quando as Configurações mandarem mostrar. */
   logoMentor: PDFImage | null;
 };
 
 const ARQUIVOS = {
+  lt: "PublicaSansRound-Lt.otf",
   rg: "PublicaSansRound-Rg.otf",
   md: "PublicaSansRound-Md.otf",
   bd: "PublicaSansRound-Bd.otf",
@@ -131,7 +178,7 @@ export async function carregarTipografia(doc: PDFDocument): Promise<Tipografia> 
   // propósito: cada `embedFont` registra objetos dentro do PDF, e deixar a ordem depender de qual
   // download termina primeiro faz o mesmo relatório sair com bytes diferentes a cada geração.
   // Em Node isso não aparecia; no workerd, sim — e o critério (b) da demanda é exatamente este.
-  const [rgB, mdB, bdB, xbdB] = await Promise.all(
+  const [ltB, rgB, mdB, bdB, xbdB] = await Promise.all(
     (Object.keys(ARQUIVOS) as Array<keyof typeof ARQUIVOS>).map((k) => baixarFonte(ARQUIVOS[k])),
   );
   // ⚠️ `subset: false` é OBRIGATÓRIO aqui, não desleixo. A Publica Sans Round é uma fonte CFF com
@@ -140,11 +187,12 @@ export async function carregarTipografia(doc: PDFDocument): Promise<Tipografia> 
   // saía "confança". Num relatório sobre o comportamento de uma pessoa, texto corrompido é pior
   // do que arquivo grande. Embutir a família inteira custa ~57 KB por peso no PDF — e é o que
   // torna o documento legível em qualquer leitor, que é o ponto da demanda.
+  const lt = await doc.embedFont(ltB, { subset: false });
   const rg = await doc.embedFont(rgB, { subset: false });
   const md = await doc.embedFont(mdB, { subset: false });
   const bd = await doc.embedFont(bdB, { subset: false });
   const xbd = await doc.embedFont(xbdB, { subset: false });
-  return { rg, md, bd, xbd };
+  return { lt, rg, md, bd, xbd };
 }
 
 export async function carregarIlustracoes(
@@ -152,13 +200,15 @@ export async function carregarIlustracoes(
   origem: string,
   logoMentorUrl: string | null,
 ): Promise<Ilustracoes> {
-  const [branca, cor] = await Promise.all([
+  const [branca, cor, ceruleo] = await Promise.all([
     baixar(origem, "/marca/intencao-branco.png"),
     baixar(origem, "/marca/intencao-cor.png"),
+    baixar(origem, "/marca/intencao-ceruleo.png"),
   ]);
   // Mesma regra das fontes: o que ENTRA no documento entra em ordem fixa.
   const logoBranca = await doc.embedPng(branca);
   const logoCor = await doc.embedPng(cor);
+  const logoCeruleo = await doc.embedPng(ceruleo);
   let logoMentor: PDFImage | null = null;
   if (logoMentorUrl) {
     // A logo do mentor é arquivo de terceiro (upload dele): pode estar fora do ar, ter formato que
@@ -176,7 +226,7 @@ export async function carregarIlustracoes(
       logoMentor = null;
     }
   }
-  return { logoBranca, logoCor, logoMentor };
+  return { logoBranca, logoCor, logoCeruleo, logoMentor };
 }
 
 /**

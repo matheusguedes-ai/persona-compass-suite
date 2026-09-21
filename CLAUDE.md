@@ -331,6 +331,19 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
 - `/relatorio/$responseId` — relatório de um teste.
 - `/relatorio-bateria/$assessmentId` — unificado: uma seção por teste respondido.
 
+**SISTEMA VISUAL do PDF** (#294) — `src/lib/pdf/sistema.ts`. A proposta que o dono do produto
+aprovou em 21/09, virada em PEÇAS reutilizáveis: cabeçalho, rodapé, cartão, pílula, selo do
+perfil, faixa de índices, gráfico de termômetros, caixa de nota, textura e marca d'água. O módulo
+não sabe nada sobre relatório de propósito — as mesmas peças servem ao certificado (#221) e ao
+PDF individual (#280). Quem montar aquelas páginas monta com elas, não do zero.
+⚠️ **CONTRASTE É REQUISITO**, não estética: cinco tons da proposta não passavam no WCAG e foram
+escurecidos o mínimo (matiz preservada) — ver o aviso em `marca.ts`. O Ciano #01A5FC vale como
+MANCHA; como texto usa-se `CIANO_TEXTO`, e quando ele é FUNDO de texto branco, `CIANO_FUNDO`.
+Conferir com `python3 scripts/testar_pdf.py contraste` antes de introduzir qualquer tom novo.
+A escala do termômetro é FIXA em 0–100 porque é a régua verdadeira do motor ipsativo (as letras
+dividem 100 entre si); esticar até o maior valor deixaria o gráfico bonito e mentiria sobre a
+distância entre as letras.
+
 **PDF gerado no SERVIDOR** (#293, fatia 1) — `src/lib/pdf/`, rotas `/api/pdf/relatorio/$id` e
 `/api/pdf/bateria/$id`. "Baixar PDF" não é mais `window.print()`: o arquivo é montado e diagramado
 no servidor, então a mesma entrada devolve sempre os MESMOS bytes, independente de navegador,

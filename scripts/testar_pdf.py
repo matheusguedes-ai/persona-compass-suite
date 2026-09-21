@@ -4,6 +4,7 @@
     python3 scripts/testar_pdf.py reais          # os relatórios reais que existem no banco
     python3 scripts/testar_pdf.py disc           # cria um DISC descartável (com 360°) e confere
     python3 scripts/testar_pdf.py tudo           # os dois
+    python3 scripts/testar_pdf.py contraste    # a paleta do sistema visual é legível? (#294)
     python3 scripts/testar_pdf.py worker         # ⚠️ OBRIGATÓRIO antes de publicar (ver abaixo)
     python3 scripts/testar_pdf.py limpar         # remove sobras de execuções anteriores
 
@@ -89,8 +90,10 @@ def texto_do_pdf(doc):
 
 
 # O ornamento é desenhado por último, então vem no FIM do texto extraído de cada página:
-# "<nome da pessoa> <data>" e, embaixo, "<n> / <total>".
-CAUDA = re.compile(r"\s*[^\r\n]{0,80}\d{2}/\d{2}/\d{4}\s*\r?\n\s*\d+ / \d+\s*$")
+# "<NOME> <dd / mm / aaaa>" e, embaixo, "<assinatura> <NN>" (o formato do sistema visual, #294).
+CAUDA = re.compile(
+    r"\s*[^\r\n]{0,120}\d{2}\s*/\s*\d{2}\s*/\s*\d{4}\s*\r?\n[^\r\n]{0,120}?\s\d{2}\s*$"
+)
 
 
 def normalizar(t):
@@ -277,12 +280,13 @@ def conferir(nome, app, caminho, pasta, manter_arquivo=True):
             continue
         break
 
-    # 5. numeração em toda página de conteúdo, e capa sem ela
-    if re.search(r"\b1 / \d+\b", paginas[0]):
-        falhas.append(f"{nome}: a CAPA está numerada (deveria ficar fora da contagem)")
+    # 5. numeração em toda página de conteúdo, e capa sem ela.
+    #    Desde a #294 o número sai com dois dígitos e sem o total ("01"), como na proposta.
+    if CAUDA.search(paginas[0]):
+        falhas.append(f"{nome}: a CAPA tem cabeçalho/numeração (deveria ficar fora da contagem)")
     for i in range(1, n):
-        if not re.search(rf"\b{i} / {n - 1}\b", paginas[i]):
-            falhas.append(f"{nome}: página {i + 1} sem a numeração '{i} / {n - 1}'")
+        if not re.search(rf"\s{i:02d}\s*$", paginas[i]):
+            falhas.append(f"{nome}: página {i + 1} sem a numeração '{i:02d}' no rodapé")
             break
 
     return falhas, {"bytes": bytes1, "paginas": paginas, "n": n, "arquivo": arq, "cabecalhos": cab}
@@ -437,6 +441,68 @@ def baixar_post(app, caminho, corpo):
         return e.code, e.read(), dict(e.headers)
 
 
+# Cada par (texto, fundo) que o sistema visual (#294) realmente usa, e se o corpo conta como
+# "grande" pelo WCAG (>= 18pt, ou >= 14pt em negrito).
+PARES_DO_SISTEMA = [
+    ("título de seção, 1ª linha", "#025EC4", "#FFFFFF", True),
+    ("título de seção, 2ª linha", "#6A97CF", "#FFFFFF", True),
+    ("nome e data no cabeçalho", "#617486", "#FFFFFF", False),
+    ("assinatura do rodapé", "#617486", "#FFFFFF", False),
+    ("número da página", "#025EC4", "#FFFFFF", True),
+    ("rótulo de subseção", "#017CBD", "#FFFFFF", False),
+    ("texto de corpo", "#0B2239", "#FFFFFF", False),
+    ("rótulo do índice", "#617486", "#F4F8FB", False),
+    ("valor do índice", "#025EC4", "#F4F8FB", True),
+    ("explicação do gráfico", "#617486", "#F4F8FB", False),
+    ("escala do termômetro", "#617486", "#F4F8FB", False),
+    ("número acima da barra", "#0B2239", "#F4F8FB", False),
+    ("letra da dimensão", "#48607A", "#F4F8FB", False),
+    ("texto dentro do cartão", "#48607A", "#F4F8FB", False),
+    ("título da nota de leitura", "#025EC4", "#E7F3FE", False),
+    ("texto da nota de leitura", "#48607A", "#E7F3FE", False),
+    ("PERFIL na pílula escura", "#FFFFFF", "#0B2239", False),
+    ("sigla na pílula escura", "#01A5FC", "#0B2239", True),
+    ("pílula NATURAL (texto branco)", "#FFFFFF", "#025EC4", False),
+    ("pílula ADAPTADO (texto branco)", "#FFFFFF", "#017CBD", False),
+    ("sigla no círculo natural", "#FFFFFF", "#025EC4", True),
+    ("sigla no círculo adaptado", "#FFFFFF", "#017CBD", True),
+    ("rótulos da capa", "#01A5FC", "#062038", False),
+    ("nome na capa", "#FFFFFF", "#062038", True),
+    ("dados da capa", "#FFFFFF", "#062038", False),
+]
+
+
+def _luminancia(h):
+    h = h.lstrip("#")
+
+    def canal(v):
+        v = int(v, 16) / 255
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+
+    return 0.2126 * canal(h[0:2]) + 0.7152 * canal(h[2:4]) + 0.0722 * canal(h[4:6])
+
+
+def cmd_contraste(_args):
+    """
+    CONTRASTE É REQUISITO, NÃO ESTÉTICA (#294, item 1).
+
+    "Alguns textos somem" foi a queixa do dono do produto sobre a primeira versão. Aqui cada par
+    texto/fundo do sistema é medido pelo cálculo do WCAG; abaixo do mínimo, falha. Um tom novo só
+    entra na paleta depois de passar por aqui.
+    """
+    falhas = []
+    print("  par (texto sobre fundo)                    contraste  mínimo")
+    for nome, fg, bg, grande in PARES_DO_SISTEMA:
+        la, lb = _luminancia(fg), _luminancia(bg)
+        c = (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+        minimo = 3.0 if grande else 4.5
+        marca = "ok " if c >= minimo else "FALHA"
+        print(f"  {marca} {nome:40} {c:5.2f}    {minimo}")
+        if c < minimo:
+            falhas.append(f"contraste insuficiente em {nome}: {c:.2f}, precisa de {minimo} ({fg} sobre {bg})")
+    return falhas
+
+
 def cmd_worker(args):
     """
     Sobe o build no RUNTIME REAL do Cloudflare (workerd, via wrangler) e confere que o site
@@ -522,7 +588,7 @@ def cmd_limpar(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("comando", choices=["reais", "disc", "tudo", "worker", "limpar"])
+    ap.add_argument("comando", choices=["reais", "disc", "tudo", "worker", "contraste", "limpar"])
     ap.add_argument("--app", default="http://localhost:8080")
     ap.add_argument("--pasta", default="/tmp/pdf-293")
     ap.add_argument("--manter", action="store_true")
@@ -535,6 +601,9 @@ def main():
     if args.comando in ("disc", "tudo"):
         print("DISC descartável com 360°:")
         falhas += cmd_disc(args)
+    if args.comando == "contraste":
+        print("Contraste da paleta do sistema visual (#294):")
+        falhas += cmd_contraste(args)
     if args.comando == "worker":
         falhas += cmd_worker(args)
     if args.comando == "limpar":

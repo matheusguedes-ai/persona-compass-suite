@@ -30,7 +30,12 @@ import { CINZA, CINZA_CLARO, GRAFITE, PRETO, type Tipografia } from "./marca";
 
 /** A4 em pontos (1 pt = 1/72"). 210 × 297 mm. */
 export const A4 = { largura: 595.28, altura: 841.89 };
-export const MARGEM = { topo: 62, base: 52, esquerda: 51, direita: 51 };
+/**
+ * ⚠️ O topo e a base precisam caber o ORNAMENTO do sistema visual (#294): o cabeçalho ocupa até
+ * ~60pt do alto e o rodapé ~46pt do pé. Margens menores fazem o conteúdo encostar no filete — foi
+ * o que aconteceu na primeira montagem, com a ressalva colada no cabeçalho.
+ */
+export const MARGEM = { topo: 92, base: 78, esquerda: 51, direita: 51 };
 export const LARGURA_UTIL = A4.largura - MARGEM.esquerda - MARGEM.direita;
 
 /** Um pedaço de texto com peso próprio — é assim que o **negrito** do conteúdo sobrevive. */
@@ -239,6 +244,19 @@ export function titulo(texto: string, tipo: Tipografia, e: EstiloTexto = {}): Bl
   };
 }
 
+/**
+ * Marcador de quebra de página dentro de uma lista de blocos.
+ *
+ * O fluxo empilha blocos; às vezes uma SEÇÃO inteira precisa começar na folha seguinte — a
+ * página de intensidade é uma peça só, e parti-la ao meio desmonta a leitura que a proposta
+ * desenhou. O `fluir` reconhece este marcador e vira a página.
+ */
+export const QUEBRA_DE_PAGINA: unique symbol = Symbol("quebra");
+
+export function quebraDePagina(): Bloco {
+  return { altura: () => 0, desenhar: () => {}, [QUEBRA_DE_PAGINA]: true } as Bloco;
+}
+
 export function espaco(h: number): Bloco {
   return { altura: () => h, desenhar: () => {} };
 }
@@ -363,32 +381,32 @@ export function desenhoLivre(
   return { antes, atomico: true, altura: () => altura, desenhar: pintar };
 }
 
-export type Ornamento = {
-  /** Texto curto à esquerda do cabeçalho — o nome de quem respondeu. */
-  pessoa: string;
-  /** Texto à direita do cabeçalho — a data de realização. */
-  data: string;
-  marca: Color;
-  logo: PDFImage | null;
-};
-
 /**
- * O documento: carrega páginas, conduz o fluxo e, no fim, escreve cabeçalho e numeração em todas
- * as páginas de conteúdo — a numeração só pode ser escrita no fim, porque "página 3 de 14" precisa
+ * O documento: carrega páginas, conduz o fluxo e, no fim, manda ornamentar todas as páginas de
+ * conteúdo — o cabeçalho e a numeração só podem ser escritos no fim, porque "página 3" precisa
  * saber quantas são.
+ *
+ * ⚠️ O motor não conhece o sistema visual: quem sabe desenhar cabeçalho, rodapé e fundo é
+ * `sistema.ts`, e ele entra aqui como FUNÇÃO. Assim o mesmo motor serve ao relatório, ao
+ * certificado (#221) e ao PDF individual (#280), cada um com o seu ornamento.
  */
 export class Documento {
   readonly pdf: PDFDocument;
-  private tipo: Tipografia;
   private paginas: PDFPage[] = [];
   /** Páginas que não levam cabeçalho nem número (a capa). */
   private semOrnamento = new Set<PDFPage>();
   private atual: PDFPage | null = null;
   private y = 0;
+  /** Desenhado ASSIM QUE a página abre, para ficar atrás do conteúdo (textura, marca d'água). */
+  private fundo: ((p: PDFPage) => void) | null = null;
 
-  constructor(pdf: PDFDocument, tipo: Tipografia) {
+  constructor(pdf: PDFDocument, _tipo?: unknown) {
     this.pdf = pdf;
-    this.tipo = tipo;
+  }
+
+  /** Define o fundo das próximas páginas. `null` desliga. */
+  usarFundo(pintor: ((p: PDFPage) => void) | null) {
+    this.fundo = pintor;
   }
 
   get pagina(): PDFPage {
@@ -403,6 +421,7 @@ export class Documento {
     if (!ornamentada) this.semOrnamento.add(p);
     this.atual = p;
     this.y = A4.altura - MARGEM.topo;
+    if (ornamentada && this.fundo) this.fundo(p);
     return p;
   }
 
@@ -431,6 +450,10 @@ export class Documento {
     const fila = blocos.filter((b): b is Bloco => !!b);
     for (let i = 0; i < fila.length; i++) {
       let b = fila[i];
+      if ((b as unknown as Record<symbol, boolean>)[QUEBRA_DE_PAGINA]) {
+        this.quebrarPagina();
+        continue;
+      }
       if (!this.atual) this.novaPagina();
       const espacoAntes = this.noTopo ? 0 : (b.antes ?? 0);
       let h = b.altura(l);
@@ -467,58 +490,15 @@ export class Documento {
     if (!this.atual || !this.noTopo || this.semOrnamento.has(this.atual)) this.novaPagina();
   }
 
-  /**
-   * Cabeçalho discreto e numeração, repetidos em toda página de conteúdo. Roda por último: antes
-   * disso o documento ainda não sabe o total de páginas.
-   */
-  finalizar(o: Ornamento) {
-    const contam = this.paginas.filter((p) => !this.semOrnamento.has(p));
-    const total = contam.length;
-    contam.forEach((p, i) => {
-      const yCab = A4.altura - 36;
-      let xTexto = MARGEM.esquerda;
-      if (o.logo) {
-        const lg = 52;
-        const lh = (o.logo.height / o.logo.width) * lg;
-        p.drawImage(o.logo, { x: MARGEM.esquerda, y: yCab - lh / 2 + 3, width: lg, height: lh });
-        xTexto += lg + 12;
-      }
-      p.drawText(limpar(o.pessoa), { x: xTexto, y: yCab, size: 7.6, font: this.tipo.md, color: CINZA });
-      const dataL = this.tipo.rg.widthOfTextAtSize(o.data, 7.6);
-      p.drawText(o.data, {
-        x: A4.largura - MARGEM.direita - dataL,
-        y: yCab,
-        size: 7.6,
-        font: this.tipo.rg,
-        color: CINZA,
-      });
-      p.drawRectangle({
-        x: MARGEM.esquerda,
-        y: yCab - 9,
-        width: LARGURA_UTIL,
-        height: 0.6,
-        color: CINZA_CLARO,
-      });
+  /** Quanto ainda cabe na página atual — para decidir se vale abrir uma seção aqui. */
+  get espacoRestante() {
+    return this.sobra;
+  }
 
-      const num = `${i + 1} / ${total}`;
-      const numL = this.tipo.rg.widthOfTextAtSize(num, 8);
-      p.drawRectangle({
-        x: MARGEM.esquerda,
-        y: MARGEM.base - 20,
-        width: LARGURA_UTIL,
-        height: 0.6,
-        color: CINZA_CLARO,
-      });
-      p.drawText(num, {
-        x: A4.largura - MARGEM.direita - numL,
-        y: MARGEM.base - 33,
-        size: 8,
-        font: this.tipo.rg,
-        color: CINZA,
-      });
-      // Um traço curto da cor da marca ancora o pé da página sem competir com o conteúdo.
-      p.drawRectangle({ x: MARGEM.esquerda, y: MARGEM.base - 32, width: 22, height: 2.2, color: o.marca });
-    });
+  /** Ornamenta cada página de conteúdo. Roda por último: antes disso não se sabe o total. */
+  finalizar(pintar: (p: PDFPage, pagina: number, total: number) => void) {
+    const contam = this.paginas.filter((p) => !this.semOrnamento.has(p));
+    contam.forEach((p, i) => pintar(p, i + 1, contam.length));
   }
 }
 

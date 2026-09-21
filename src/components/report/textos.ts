@@ -113,9 +113,13 @@ export const INTENSIDADE = {
   adaptadoTitulo: "Adaptado",
   adaptadoExplica:
     "O que você tem mostrado no ambiente atual: quanto mais vezes você apontou um estilo como o que mais combina com você, mais alto ele fica.",
+  /** Título da caixa de leitura, como na proposta visual aprovada em 21/09 (#294). */
+  reguasTitulo: "Cada gráfico tem a sua própria régua",
   reguasSeparadas:
     "Os dois gráficos são medidos de formas diferentes e não se comparam entre si: em cada um, as letras dividem 100 pontos, e o que vale é a ordem delas.",
   poucaInformacao: "pouca informação",
+  /** Título da caixa que explica a etiqueta acima — rótulo de interface, não conteúdo novo. */
+  poucaInformacaoTitulo: "Uma dimensão com pouca informação",
   textoPendente:
     "A descrição detalhada deste perfil está sendo preparada e aparece aqui assim que estiver pronta. A sigla e os gráficos acima já refletem as suas respostas.",
   leiturasDoAdaptado:
