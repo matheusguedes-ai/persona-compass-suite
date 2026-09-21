@@ -4,6 +4,7 @@
     python3 scripts/testar_pdf.py reais          # os relatórios reais que existem no banco
     python3 scripts/testar_pdf.py disc           # cria um DISC descartável (com 360°) e confere
     python3 scripts/testar_pdf.py tudo           # os dois
+    python3 scripts/testar_pdf.py capa         # a capa aguenta 1 e 10 inventários? (#295)
     python3 scripts/testar_pdf.py contraste    # a paleta do sistema visual é legível? (#294)
     python3 scripts/testar_pdf.py worker         # ⚠️ OBRIGATÓRIO antes de publicar (ver abaixo)
     python3 scripts/testar_pdf.py limpar         # remove sobras de execuções anteriores
@@ -79,6 +80,44 @@ def fonte_embutida(b):
         tem_arquivo = tem_arquivo or bool(re.search(rb"/FontFile\d?", d))
         tem_nome = tem_nome or b"PublicaSansRound" in d
     return tem_arquivo and tem_nome
+
+
+def sobreposicoes(pagina):
+    """
+    Trechos de texto que se atravessam na página (#295).
+
+    A capa da bateria trazia a lista de inventários POR CIMA da data, e as duas ficavam
+    ilegíveis. Nenhum layout deste documento empilha texto de propósito, então glifo sobre glifo
+    é sempre defeito.
+
+    ⚠️ A detecção olha caractere a caractere DENTRO de cada faixa de altura, não linha contra
+    linha: uma primeira versão agrupava tudo que estava na mesma altura num retângulo só — e com
+    isso juntava justamente os dois textos colididos, concluindo que não havia colisão nenhuma.
+    """
+    tp = pagina.get_textpage()
+    chars = []
+    for i in range(tp.count_chars()):
+        try:
+            x0, y0, x1, y1 = tp.get_charbox(i)
+        except Exception:
+            continue
+        if x1 - x0 <= 0.2 or y1 - y0 <= 0.2:
+            continue  # espaço
+        chars.append((x0, y0, x1, y1, tp.get_text_range(i, 1)))
+
+    # Agrupa por linha de base e, dentro dela, procura glifos que invadem o anterior.
+    faixas = {}
+    for c in chars:
+        faixas.setdefault(round(c[1] / 3), []).append(c)
+
+    achados = []
+    for _, grupo in faixas.items():
+        grupo.sort(key=lambda c: c[0])
+        for a, b in zip(grupo, grupo[1:]):
+            # Glifos vizinhos encostam; o que denuncia colisão é um invadir o corpo do outro.
+            if b[0] < a[2] - 1.5 and min(a[3], b[3]) - max(a[1], b[1]) > 2:
+                achados.append((a[4], b[4], round(a[0]), round(a[1])))
+    return achados
 
 
 def texto_do_pdf(doc):
@@ -482,6 +521,82 @@ def _luminancia(h):
     return 0.2126 * canal(h[0:2]) + 0.7152 * canal(h[2:4]) + 0.0722 * canal(h[4:6])
 
 
+def cmd_capa(args):
+    """
+    A CAPA COM QUALQUER QUANTIDADE DE INVENTÁRIOS (#295).
+
+    A lista de inventários de uma bateria crescia numa linha só e atravessava a data: os dois
+    ficavam ilegíveis. O conserto tem de valer para 1 como para 10, então é isso que se testa —
+    os dois extremos, não o caso do meio que já se viu funcionando.
+    """
+    falhas = []
+    est = carregar_estrutura(VERSAO_DISC)
+    v = rest("GET", "test_versions", {"id": f"eq.{VERSAO_DISC}", "select": "id,mentor_id"})[0]
+    rodada = os.urandom(3).hex()
+    criados = {"pessoas": [], "respostas": [], "baterias": []}
+    try:
+        for quantos in (1, 10):
+            pessoa = rest("POST", "people", corpo=[{
+                "full_name": f"{PREFIXO} Capa {quantos}",
+                "email": f"sim-capa-{rodada}-{quantos}@exemplo.invalido",
+                "mentor_id": v["mentor_id"],
+            }])[0]
+            criados["pessoas"].append(pessoa["id"])
+            bateria = rest("POST", "assessment_responses", corpo=[{
+                "mentor_id": v["mentor_id"], "person_id": pessoa["id"], "status": "pending",
+            }])[0]
+            criados["baterias"].append(bateria["id"])
+            print(f"  fixture {quantos} inventário(s): pessoa={pessoa['id']} bateria={bateria['id']}")
+
+            # O MESMO teste repetido N vezes: o que se exercita aqui é o COMPRIMENTO da lista de
+            # títulos na capa, não o conteúdo de cada etapa.
+            for k in range(quantos):
+                resp = rest("POST", "test_responses", corpo=[{
+                    "version_id": VERSAO_DISC, "person_id": pessoa["id"], "mentor_id": v["mentor_id"],
+                    "kind": "self", "assessment_response_id": bateria["id"],
+                    "status": "in_progress", "assessment_sort": k,
+                }])[0]
+                criados["respostas"].append(resp["id"])
+                mais, menos = sortear_escolhas(
+                    {"letra_da_opcao": est["letra_da_opcao"], "blocos": est["blocos"]},
+                    random.Random(f"capa-{quantos}-{k}"), None,
+                )
+                baixar_post(args.app, f"/api/public/response/{resp['id']}", {
+                    "answers": [
+                        {"question_id": b["id"], "payload": {"most_option_id": mais[i], "least_option_id": menos[i]}}
+                        for i, b in enumerate(est["blocos"])
+                    ],
+                })
+
+            st, bytes_, _ = baixar(args.app, f"/api/pdf/bateria/{bateria['id']}")
+            if st != 200:
+                falhas.append(f"capa com {quantos}: HTTP {st}")
+                continue
+            arq = os.path.join(args.pasta, f"capa-{quantos}.pdf")
+            os.makedirs(args.pasta, exist_ok=True)
+            with open(arq, "wb") as f:
+                f.write(bytes_)
+            doc = pdfium.PdfDocument(arq)
+            colisoes = sobreposicoes(doc[0])
+            if colisoes:
+                a, b, x, y = colisoes[0]
+                falhas.append(f"capa com {quantos} inventário(s): {a!r} e {b!r} se atravessam em (x={x}, y={y})")
+            else:
+                print(f"  capa com {quantos:2} inventário(s): sem sobreposição")
+    finally:
+        if args.manter:
+            print("  --manter: fixtures PRESERVADAS (ids acima)")
+        else:
+            for t, ids in (("test_responses", criados["respostas"]),
+                           ("assessment_responses", criados["baterias"]),
+                           ("people", criados["pessoas"])):
+                for i in ids:
+                    rest("DELETE", t, {"id": f"eq.{i}"}, retorno=False)
+            print(f"  limpeza: {len(criados['respostas'])} respostas, {len(criados['baterias'])} baterias, "
+                  f"{len(criados['pessoas'])} pessoas removidas")
+    return falhas
+
+
 def cmd_contraste(_args):
     """
     CONTRASTE É REQUISITO, NÃO ESTÉTICA (#294, item 1).
@@ -588,7 +703,7 @@ def cmd_limpar(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("comando", choices=["reais", "disc", "tudo", "worker", "contraste", "limpar"])
+    ap.add_argument("comando", choices=["reais", "disc", "tudo", "capa", "worker", "contraste", "limpar"])
     ap.add_argument("--app", default="http://localhost:8080")
     ap.add_argument("--pasta", default="/tmp/pdf-293")
     ap.add_argument("--manter", action="store_true")
@@ -601,6 +716,9 @@ def main():
     if args.comando in ("disc", "tudo"):
         print("DISC descartável com 360°:")
         falhas += cmd_disc(args)
+    if args.comando in ("capa", "tudo"):
+        print("Capa com 1 e com 10 inventários:")
+        falhas += cmd_capa(args)
     if args.comando == "contraste":
         print("Contraste da paleta do sistema visual (#294):")
         falhas += cmd_contraste(args)

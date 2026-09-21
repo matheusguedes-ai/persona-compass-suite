@@ -252,9 +252,28 @@ export function titulo(texto: string, tipo: Tipografia, e: EstiloTexto = {}): Bl
  * desenhou. O `fluir` reconhece este marcador e vira a página.
  */
 export const QUEBRA_DE_PAGINA: unique symbol = Symbol("quebra");
+/** Quando presente, a quebra só acontece se faltar este tanto de espaço na página atual. */
+export const QUEBRA_SE_MENOS_QUE: unique symbol = Symbol("quebraSe");
 
 export function quebraDePagina(): Bloco {
   return { altura: () => 0, desenhar: () => {}, [QUEBRA_DE_PAGINA]: true } as Bloco;
+}
+
+/**
+ * Quebra CONDICIONAL: vira a página só se o que resta nela for menor que `minimo`.
+ *
+ * A quebra incondicional criava o defeito oposto ao que resolvia. Na bateria, a abertura de cada
+ * parte ("PARTE 2 DE 5", título, descrição) caía numa página, e a página de intensidade — que
+ * pedia folha nova — empurrava tudo para a seguinte: sobrava uma folha com três linhas no alto e
+ * o resto branco. Com a condicional, a seção só pula quando realmente não cabe.
+ */
+export function quebraSeFaltarEspaco(minimo: number): Bloco {
+  return {
+    altura: () => 0,
+    desenhar: () => {},
+    [QUEBRA_DE_PAGINA]: true,
+    [QUEBRA_SE_MENOS_QUE]: minimo,
+  } as Bloco;
 }
 
 export function espaco(h: number): Bloco {
@@ -450,8 +469,10 @@ export class Documento {
     const fila = blocos.filter((b): b is Bloco => !!b);
     for (let i = 0; i < fila.length; i++) {
       let b = fila[i];
-      if ((b as unknown as Record<symbol, boolean>)[QUEBRA_DE_PAGINA]) {
-        this.quebrarPagina();
+      const marcas = b as unknown as Record<symbol, number | boolean | undefined>;
+      if (marcas[QUEBRA_DE_PAGINA]) {
+        const minimo = marcas[QUEBRA_SE_MENOS_QUE];
+        if (typeof minimo !== "number" || this.espacoRestante < minimo) this.quebrarPagina();
         continue;
       }
       if (!this.atual) this.novaPagina();

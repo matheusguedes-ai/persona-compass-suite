@@ -84,7 +84,7 @@ import {
   desenhoLivre,
   espaco,
   imagem,
-  quebraDePagina,
+  quebraSeFaltarEspaco,
   larguraEspacada,
   limpar,
   paragrafo,
@@ -316,7 +316,7 @@ function cartaoIndice(i: { label: string; value: number | null }, t: Tipografia)
  * Reusar em vez de inventar é regra da #294: a barra Ciano sangrando e o Cerúleo são o que
  * identifica uma seção neste documento, e um segundo estilo de título diluiria isso.
  */
-function tituloDeSecao(texto: string, ctx: Contexto, antes = 30): Bloco {
+function tituloDeSecao(texto: string, ctx: Contexto, antes = 24): Bloco {
   return tituloGrande(texto, null, ctx.tipo, antes, 17);
 }
 
@@ -357,6 +357,8 @@ export function desenharCapa(
     pessoa: string;
     instrumento: string;
     data: string;
+    /** Lista longa (os inventários de uma bateria): vai abaixo, na largura inteira. */
+    detalhe?: string;
     subtitulo?: string;
     ctx: Contexto;
     marcaMentor: { nome: string | null };
@@ -457,7 +459,15 @@ export function desenharCapa(
   // Legenda do pé: instrumento, data e quem emitiu — pequenos, em coluna, com filete acima.
   const yPe = 150;
   p.drawRectangle({ x: MARGEM.esquerda, y: yPe + 46, width: LARGURA_UTIL, height: 0.7, color: BRANCO, opacity: 0.18 });
-  const campo = (rotuloTexto: string, valor: string, x: number, largura: number) => {
+  /**
+   * Um campo da legenda: rótulo em Ciano e valor em branco, QUEBRANDO DENTRO da própria coluna.
+   *
+   * ⚠️ Antes o valor era uma linha só que encolhia até 7pt e, não cabendo, seguia em frente e
+   * atravessava a coluna vizinha: a lista de inventários de uma bateria passava por cima da data
+   * e as duas ficavam ilegíveis. Agora o texto quebra em linhas dentro da largura recebida, e a
+   * função devolve quantas linhas usou — quem chama posiciona o que vem abaixo a partir disso.
+   */
+  const campo = (rotuloTexto: string, valor: string, x: number, largura: number, corpo = 11) => {
     textoEspacado(p, {
       texto: rotuloTexto,
       x,
@@ -467,16 +477,52 @@ export function desenharCapa(
       cor: CIANO,
       entreletras: 1.6,
     });
-    let tamanho = 11;
-    while (tamanho > 7 && t.md.widthOfTextAtSize(valor, tamanho) > largura) tamanho -= 0.5;
-    p.drawText(valor, { x, y: yPe + 6, size: tamanho, font: t.md, color: BRANCO });
+    const palavras = limpar(valor).split(" ");
+    const linhas: string[] = [];
+    let atual = "";
+    for (const palavra of palavras) {
+      const tentativa = atual ? `${atual} ${palavra}` : palavra;
+      if (atual && t.md.widthOfTextAtSize(tentativa, corpo) > largura) {
+        linhas.push(atual);
+        atual = palavra;
+      } else atual = tentativa;
+    }
+    if (atual) linhas.push(atual);
+    linhas.forEach((linha, i) => {
+      p.drawText(linha, { x, y: yPe + 6 - i * corpo * 1.3, size: corpo, font: t.md, color: BRANCO });
+    });
+    return linhas.length;
   };
-  campo("INSTRUMENTO", limpar(o.instrumento) || "—", MARGEM.esquerda, LARGURA_UTIL * 0.6 - 14);
+
+  const instrumento = limpar(o.instrumento) || "—";
   campo("DATA DE REALIZAÇÃO", o.data, MARGEM.esquerda + LARGURA_UTIL * 0.6, LARGURA_UTIL * 0.4);
+  const linhasInstrumento = campo("INSTRUMENTO", instrumento, MARGEM.esquerda, LARGURA_UTIL * 0.6 - 18);
+
+  // A lista de inventários de uma bateria é longa e fica ABAIXO dos dois campos, na largura
+  // inteira — não espremida na coluna da esquerda, onde não cabe com mais de dois títulos.
+  let yAbaixo = yPe + 6 - linhasInstrumento * 11 * 1.3 - 8;
+  if (o.detalhe) {
+    const palavras = limpar(o.detalhe).split(" ");
+    const linhas: string[] = [];
+    let atual = "";
+    for (const palavra of palavras) {
+      const tentativa = atual ? `${atual} ${palavra}` : palavra;
+      if (atual && t.rg.widthOfTextAtSize(tentativa, 8.4) > LARGURA_UTIL) {
+        linhas.push(atual);
+        atual = palavra;
+      } else atual = tentativa;
+    }
+    if (atual) linhas.push(atual);
+    for (const linha of linhas) {
+      p.drawText(linha, { x: MARGEM.esquerda, y: yAbaixo, size: 8.4, font: t.rg, color: rgb(0.72, 0.8, 0.9) });
+      yAbaixo -= 8.4 * 1.4;
+    }
+    yAbaixo -= 4;
+  }
   if (o.subtitulo) {
     p.drawText(limpar(o.subtitulo), {
       x: MARGEM.esquerda,
-      y: yPe - 16,
+      y: yAbaixo,
       size: 8.4,
       font: t.rg,
       color: rgb(0.72, 0.8, 0.9),
@@ -536,8 +582,9 @@ function blocosDaIntensidade(r: Report, ints: Intensidade, mostrarIndices: boole
     });
 
   // A página de intensidade é uma peça só — título, selo, gráficos e nota juntos, como na
-  // proposta aprovada. Parti-la ao meio desmonta a leitura, então ela abre folha nova.
-  const out: Bloco[] = [quebraDePagina(), tituloGrande("Intensidade", "do perfil", t, 0)];
+  // proposta aprovada. Ela pede folha nova, mas só quando o que resta na atual não a comporta:
+  // quebrar sempre deixava a abertura de cada parte da bateria sozinha numa página em branco.
+  const out: Bloco[] = [tituloGrande("Intensidade", "do perfil", t, 0)];
 
   // Cartão do topo: o selo do perfil e os três índices.
   const topo: Bloco[] = [];
@@ -575,7 +622,7 @@ function blocosDaIntensidade(r: Report, ints: Intensidade, mostrarIndices: boole
       ),
     );
   }
-  out.push(cartao(pilha(topo), { antes: 22 }));
+  out.push(cartao(pilha(topo), { antes: 16 }));
 
   // Os dois conjuntos, cada um no seu cartão, lado a lado.
   out.push(
@@ -599,11 +646,12 @@ function blocosDaIntensidade(r: Report, ints: Intensidade, mostrarIndices: boole
           tipo: t,
         }),
       ],
-      { vao: 14, antes: 16 },
+      { vao: 14, antes: 12 },
     ),
   );
 
-  out.push(notaDeLeitura(INTENSIDADE.reguasTitulo, INTENSIDADE.reguasSeparadas, t, 16));
+  const notaFinalDaIntensidade = notaDeLeitura(INTENSIDADE.reguasTitulo, INTENSIDADE.reguasSeparadas, t, 12);
+  out.push(notaFinalDaIntensidade);
 
   if (ints.sinal_baixo.length > 0) {
     out.push(
@@ -645,7 +693,15 @@ function blocosDaIntensidade(r: Report, ints: Intensidade, mostrarIndices: boole
   if (r.is_disc === false) {
     out.push(paragrafo(INTENSIDADE.leiturasDoAdaptado, t, { tamanho: 8, cor: APOIO, entrelinha: 1.5, antes: 18 }));
   }
-  return out;
+
+  // A página de intensidade é uma peça só — título, selo, gráficos e nota juntos, como na proposta
+  // aprovada. Ela pede folha nova, mas só quando o que resta na atual NÃO A COMPORTA: pedir folha
+  // sempre deixava a abertura de cada parte da bateria sozinha, com três linhas no alto e o resto
+  // branco. O mínimo é a altura real do bloco visual (até a nota de leitura), medida aqui — um
+  // número fixo erraria para mais ou para menos conforme o instrumento.
+  const ateANota = out.slice(0, out.findIndex((b) => b === notaFinalDaIntensidade) + 1 || undefined);
+  const alturaDaPeca = ateANota.reduce((soma, b) => soma + (b.antes ?? 0) + b.altura(LARGURA_UTIL), 0);
+  return [quebraSeFaltarEspaco(alturaDaPeca), ...out];
 }
 
 function blocosDosEixos(jung: { tipo: string; pares: JungPares }, doTeste: boolean, ctx: Contexto): Bloco[] {
@@ -1314,12 +1370,19 @@ export async function pdfDaBateria(o: {
   const doc = new Documento(pdf, ctx.tipo);
   const t = ctx.tipo;
 
+  const titulos = b.parts.map((p) => p.test_title).filter(Boolean) as string[];
   desenharCapa(doc, {
     pessoa,
-    instrumento: b.parts.map((p) => p.test_title).filter(Boolean).join(" · ") || "Bateria de inventários",
+    // Com um inventário só, o nome dele é o instrumento; com vários, o campo resume e a lista
+    // completa desce para a linha de baixo, onde cabe qualquer quantidade.
+    instrumento:
+      titulos.length === 1
+        ? titulos[0]
+        : `Bateria de ${b.done_parts} ${b.done_parts === 1 ? "inventário" : "inventários"}`,
+    detalhe: titulos.length > 1 ? titulos.join("  ·  ") : undefined,
     data: dataBR(b.submitted_at),
     subtitulo:
-      `${b.done_parts} de ${b.total_parts} ${b.total_parts === 1 ? "inventário" : "inventários"}` +
+      `${b.done_parts} de ${b.total_parts} ${b.total_parts === 1 ? "inventário respondido" : "inventários respondidos"}` +
       (b.duration ? `  ·  Tempo total: ${b.duration}` : ""),
     ctx,
     marcaMentor: { nome: b.brand?.company_name ?? null },

@@ -412,7 +412,10 @@ export function graficoDeTermometros(
   tipo: Tipografia,
   o: { alturaTrilho?: number; antes?: number } = {},
 ): Bloco {
-  const alturaTrilho = o.alturaTrilho ?? 150;
+  // 126pt (era 150) — a peça da intensidade precisava caber na MESMA página que a abertura de
+  // cada parte da bateria, e sobravam ~30pt. O trilho é o que dá para encolher sem tocar em
+  // nenhum elemento do sistema: mesma escala, mesmas cores, mesmo marcador.
+  const alturaTrilho = o.alturaTrilho ?? 126;
   const espacoNumero = 20;
   const espacoLetra = 22;
   const alturaMarca = itens.some((i) => i.marca) ? 13 : 0;

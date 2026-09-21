@@ -343,6 +343,13 @@ Conferir com `python3 scripts/testar_pdf.py contraste` antes de introduzir qualq
 A escala do termômetro é FIXA em 0–100 porque é a régua verdadeira do motor ipsativo (as letras
 dividem 100 entre si); esticar até o maior valor deixaria o gráfico bonito e mentiria sobre a
 distância entre as letras.
+**Acabamento (#295):** a capa quebra em linhas DENTRO de cada coluna e a lista longa (inventários
+de uma bateria) desce para a largura inteira — antes ela atravessava a data. E a página de
+intensidade usa `quebraSeFaltarEspaco(alturaMedida)`, não quebra fixa: pedir folha nova sempre
+deixava a abertura de cada parte da bateria sozinha, com três linhas e o resto branco. Conferir
+com `testar_pdf.py capa` (1 e 10 inventários) e `scripts/medir_densidade.py` (ocupação por
+página). O detector de sobreposição roda em TODA página de TODO teste — texto sobre texto é
+sempre defeito aqui.
 
 **PDF gerado no SERVIDOR** (#293, fatia 1) — `src/lib/pdf/`, rotas `/api/pdf/relatorio/$id` e
 `/api/pdf/bateria/$id`. "Baixar PDF" não é mais `window.print()`: o arquivo é montado e diagramado
