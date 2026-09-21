@@ -53,7 +53,15 @@ export function ResultadosDoAluno({ previewPersonId }: { previewPersonId?: strin
               {r.fatores.map((f) => (
                 <div key={f.key}>
                   <div className="flex items-baseline justify-between gap-2 text-sm">
-                    <span className="truncate">{f.label}</span>
+                    <span className="truncate">
+                      {f.label}
+                      {/* #292: o teste marcou pouco esta dimensão — ela não entra no perfil */}
+                      {f.pouca_informacao && (
+                        <span className="ml-2 rounded-full border border-black/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                          pouca informação
+                        </span>
+                      )}
+                    </span>
                     <span className="shrink-0 tabular-nums text-xs text-muted-foreground">{f.valor}</span>
                   </div>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">

@@ -388,6 +388,8 @@ export const getMeusResultados = createServerFn({ method: "GET" })
                     color: l.color,
                     valor: Math.round(l.percentual),
                     faixa: null as string | null,
+                    // #292: dimensão quase não marcada — o cartão avisa, como o relatório
+                    pouca_informacao: l.pouca_informacao,
                   }))
                   .sort((a, b2) => b2.valor - a.valor)
               : r.factors
@@ -398,6 +400,7 @@ export const getMeusResultados = createServerFn({ method: "GET" })
                     color: f.color,
                     valor: Math.round(f.natural_norm),
                     faixa: f.band_natural?.title ?? null,
+                    pouca_informacao: false,
                   }))
                   .sort((a, b2) => b2.valor - a.valor),
           };
