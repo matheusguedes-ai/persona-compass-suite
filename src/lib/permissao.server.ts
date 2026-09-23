@@ -24,10 +24,12 @@ export async function exigirPermissao(
   supabase: SupabaseClient<Database>,
   userId: string,
   perm: Permissao,
-): Promise<void> {
+) {
   const m = await membershipDoUsuario(supabase, userId);
-  if (m.kind === "owner") return;
-  if ((m.permissions as string[]).includes(perm)) return;
+  // Devolve o vínculo para quem precisa saber DE QUAL conta é o pedido
+  // (`account_id`) sem consultar tudo de novo — nem repetir esta regra.
+  if (m.kind === "owner") return m;
+  if ((m.permissions as string[]).includes(perm)) return m;
   throw new Error("Você não tem acesso a esta área.");
 }
 

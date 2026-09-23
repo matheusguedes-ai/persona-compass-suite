@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listPeople, createPerson } from "@/lib/data.functions";
+import { CadastrosRepetidos } from "@/components/cadastros-repetidos";
 
 export const Route = createFileRoute("/_app/pessoas/")({
   head: () => ({
@@ -132,6 +133,8 @@ function PessoasPage() {
         </Dialog>
         </div>
       </div>
+
+      <CadastrosRepetidos />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex flex-1 items-center gap-2 rounded-md bg-muted px-3 py-1.5 ring-1 ring-black/5">

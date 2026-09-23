@@ -43,6 +43,12 @@ export type Database = {
           },
         ]
       }
+      fusoes_pessoas: {
+        Row: { id: string; mentor_id: string; pessoa_mantida_id: string | null; pessoa_absorvida_id: string; pessoa_absorvida: Json; movidos: Json; descartados: Json; campos_preenchidos: Json; login_movido: boolean; feita_por: string | null; feita_em: string }
+        Insert: { id?: string; mentor_id: string; pessoa_mantida_id?: string | null; pessoa_absorvida_id: string; pessoa_absorvida: Json; movidos?: Json; descartados?: Json; campos_preenchidos?: Json; login_movido?: boolean; feita_por?: string | null; feita_em?: string }
+        Update: { id?: string; mentor_id?: string; pessoa_mantida_id?: string | null; pessoa_absorvida_id?: string; pessoa_absorvida?: Json; movidos?: Json; descartados?: Json; campos_preenchidos?: Json; login_movido?: boolean; feita_por?: string | null; feita_em?: string }
+        Relationships: []
+      }
       suspeitas_duplicidade: {
         Row: { id: string; mentor_id: string; pessoa_nova_id: string; pessoa_existente_id: string; motivo: string; origem: string; invite_link_id: string | null; status: string; created_at: string; resolvida_em: string | null; resolvida_por: string | null }
         Insert: { id?: string; mentor_id: string; pessoa_nova_id: string; pessoa_existente_id: string; motivo: string; origem?: string; invite_link_id?: string | null; status?: string; created_at?: string; resolvida_em?: string | null; resolvida_por?: string | null }
@@ -2258,6 +2264,8 @@ export type Database = {
         Returns: Database["public"]["Tables"]["invite_links"]["Row"][]
       }
       release_invite_link: { Args: { link_id: string }; Returns: undefined }
+      previa_fusao: { Args: { p_manter: string; p_absorver: string }; Returns: Json }
+      fundir_pessoas: { Args: { p_manter: string; p_absorver: string; p_por: string }; Returns: Json }
       option_version_id: { Args: { _option_id: string }; Returns: string }
       owns_test_version: { Args: { _version_id: string }; Returns: boolean }
       question_version_id: { Args: { _question_id: string }; Returns: string }
