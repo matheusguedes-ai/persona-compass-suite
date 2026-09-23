@@ -270,6 +270,15 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `report_content` | blocos de texto do relatório (208 registros globais, `version_id` NULL) |
 | `action_plans` | respostas do plano de ação (1 por response) |
 | `devolutivas` | a conversa de resultado: fila, agendamento e o que ficou combinado |
+| `suspeitas_duplicidade` | #300: par de cadastros que pode ser a mesma pessoa (telefone igual / nome parecido). Nasce no link aberto (`link_aberto`) ou quando o mentor marca "não são a mesma pessoa" (`varredura`, status `descartada`) |
+| `fusoes_pessoas` | #300: registro de cada unificação — a linha inteira do cadastro absorvido, o que mudou de dono e o que foi descartado. É o que torna uma fusão desfazível à mão |
+
+⚠️ **Tabela nova que aponte para `people` precisa entrar em `fundir_pessoas`** (migração
+`20260923210000_fusao_de_pessoas.sql`). A função confere, antes de apagar o cadastro absorvido,
+se sobrou alguma linha apontando para ele em QUALQUER tabela com chave para `people` — e, se
+sobrou, cancela a unificação inteira em vez de deixar o `ON DELETE CASCADE` apagar em silêncio o
+que a tabela nova guarda. Ou seja: esquecer de tratar a tabela não perde dado, mas faz toda
+unificação passar a ser recusada até alguém tratar. Mesma coisa para `previa_fusao` (as contagens).
 
 RLS ativa em todas. Padrão: mentor vê o que é seu (`mentor_id = auth.uid()`).
 Endpoints públicos usam **service role** e o UUID do link como token.
