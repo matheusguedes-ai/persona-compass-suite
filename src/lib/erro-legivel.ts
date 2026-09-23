@@ -52,12 +52,65 @@ export function mensagemDeErro(
     return formatarIssue(issues[0], labels);
   }
 
+  const auth = traduzirErroAuth(erro);
+  if (auth) return auth;
+
   if (erro instanceof Error && erro.message && !pareceTecnico(erro.message)) {
     return erro.message;
   }
 
   console.error(erro);
   return fallback;
+}
+
+/**
+ * #299 — o SDK do Supabase Auth roda direto no navegador (login, cadastro,
+ * "esqueci a senha", trocar senha): o erro que chega aqui é o `AuthError` de
+ * verdade, com `.code` estável — não precisa do parse frágil de string que o
+ * resto deste arquivo faz para erro vindo de server function. Sem isto, a
+ * frase cru do provedor ("Invalid login credentials") aparecia em inglês.
+ *
+ * ⚠️ `email_provider_disabled` × `signup_disabled` NÃO são a mesma coisa —
+ * confundir os dois já custou um dia inteiro aqui (ver memória do projeto,
+ * incidente de login por e-mail): o primeiro derruba login E cadastro; o
+ * segundo só fecha cadastro novo, e é estado normal quando o dono decide
+ * cadastrar todo mundo pelo painel em vez de auto-cadastro aberto.
+ */
+function traduzirErroAuth(erro: unknown): string | null {
+  if (!erro || typeof erro !== "object" || !("code" in erro)) return null;
+  const code = (erro as { code?: unknown }).code;
+  if (typeof code !== "string") return null;
+
+  switch (code) {
+    case "invalid_credentials":
+      return "E-mail ou senha incorretos. Se você usa \"Continuar com Google\", entre por ali em vez da senha.";
+    case "email_not_confirmed":
+      return "Este e-mail ainda não foi confirmado. Confira sua caixa de entrada (e o spam).";
+    case "user_already_exists":
+    case "email_exists":
+      return "Já existe uma conta com este e-mail. Tente entrar, ou use \"Esqueceu a senha?\".";
+    case "weak_password":
+      return "Escolha uma senha mais forte — pelo menos 8 caracteres.";
+    case "email_address_invalid":
+      return "Digite um e-mail válido.";
+    case "email_provider_disabled":
+      return "O login por e-mail está temporariamente desativado. Tente \"Continuar com Google\", ou avise seu mentor.";
+    case "signup_disabled":
+      return "Novos cadastros por conta própria estão desativados. Peça ao seu mentor para te cadastrar.";
+    case "provider_disabled":
+      return "Esta forma de entrar não está disponível agora.";
+    case "otp_expired":
+    case "flow_state_expired":
+      return "Este link expirou. Peça um novo na tela de entrada.";
+    case "over_request_rate_limit":
+    case "over_email_send_rate_limit":
+    case "over_sms_send_rate_limit":
+      return "Muitos pedidos em pouco tempo. Espere um minuto e tente de novo.";
+    case "captcha_failed":
+      return "Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo.";
+    default:
+      return null;
+  }
 }
 
 function extrairIssuesDeZod(erro: unknown): ZodIssueLike[] | null {

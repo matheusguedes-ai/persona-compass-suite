@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { solicitarAcessoAluno } from "@/lib/acesso-aluno.functions";
+import { solicitarRecuperacaoSenha } from "@/lib/recuperar-senha.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,9 +52,10 @@ function AuthPage() {
   useApplyBrand(brand ?? null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup" | "acesso">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "acesso" | "recuperar">("signin");
   const [busy, setBusy] = useState(false);
   const pedirAcesso = useServerFn(solicitarAcessoAluno);
+  const pedirRecuperacao = useServerFn(solicitarRecuperacaoSenha);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
@@ -100,6 +102,17 @@ function AuthPage() {
       // qualquer um descobrir quem são os avaliados de um mentor.
       try {
         const r = await pedirAcesso({ data: { email } });
+        setInfo(r.mensagem);
+      } catch (err) {
+        setError(mensagemDeErro(err, undefined, "Não consegui enviar agora. Tente de novo."));
+      }
+      setBusy(false);
+      return;
+    }
+    if (mode === "recuperar") {
+      // Mesma resposta sempre, com conta ou sem — ver recuperar-senha.functions.ts.
+      try {
+        const r = await pedirRecuperacao({ data: { email } });
         setInfo(r.mensagem);
       } catch (err) {
         setError(mensagemDeErro(err, undefined, "Não consegui enviar agora. Tente de novo."));
@@ -169,11 +182,15 @@ function AuthPage() {
         <form className="w-full max-w-sm space-y-5" onSubmit={submit}>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              {mode === "acesso" ? "Primeiro acesso" : mode === "signin" ? "Bem-vindo de volta" : "Criar conta"}
+              {mode === "acesso" ? "Primeiro acesso"
+                : mode === "recuperar" ? "Recuperar senha"
+                : mode === "signin" ? "Bem-vindo de volta" : "Criar conta"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {mode === "acesso"
                 ? "Se o seu mentor já te cadastrou, informe o e-mail dele e enviamos um link para você entrar e escolher sua senha."
+                : mode === "recuperar"
+                ? "Informe seu e-mail e enviamos um link para você escolher uma nova senha."
                 : mode === "signin" ? "Entre com suas credenciais." : "Cadastre-se com email e senha."}
             </p>
           </div>
@@ -192,27 +209,42 @@ function AuthPage() {
             <Label>Email</Label>
             <Input type="email" required placeholder="voce@empresa.com" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          {mode !== "acesso" && (
+          {mode !== "acesso" && mode !== "recuperar" && (
             <div className="space-y-2">
-              <Label>Senha</Label>
+              <div className="flex items-center justify-between">
+                <Label>Senha</Label>
+                {mode === "signin" && (
+                  <button
+                    type="button" className="text-xs font-medium text-accent hover:underline"
+                    onClick={() => { setMode("recuperar"); setPassword(""); setError(null); setInfo(null); }}
+                  >
+                    Esqueceu a senha?
+                  </button>
+                )}
+              </div>
               <Input type="password" required placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
           )}
           {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
           {info && <p className="text-sm text-accent" role="status">{info}</p>}
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Aguarde…" : mode === "acesso" ? "Enviar link de acesso" : mode === "signin" ? "Entrar" : "Criar conta"}
+            {busy ? "Aguarde…"
+              : mode === "acesso" ? "Enviar link de acesso"
+              : mode === "recuperar" ? "Enviar link de recuperação"
+              : mode === "signin" ? "Entrar" : "Criar conta"}
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             {mode === "acesso" ? (
               <>Já tem senha?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => { setMode("signin"); setError(null); setInfo(null); }}>Entrar</button></>
+            ) : mode === "recuperar" ? (
+              <>Lembrou a senha?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => { setMode("signin"); setError(null); setInfo(null); }}>Entrar</button></>
             ) : mode === "signin" ? (
               <>Sem conta?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => { setMode("signup"); setError(null); setInfo(null); }}>Criar agora</button></>
             ) : (
               <>Já tem conta?{" "}<button type="button" className="font-medium text-accent hover:underline" onClick={() => { setMode("signin"); setError(null); setInfo(null); }}>Entrar</button></>
             )}
           </p>
-          {mode !== "acesso" && (
+          {(mode === "signin" || mode === "signup") && (
             <p className="text-center text-xs text-muted-foreground">
               Seu mentor te cadastrou e você ainda não tem senha?{" "}
               <button
