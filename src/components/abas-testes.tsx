@@ -24,7 +24,10 @@ import { useFadeDeRolagem } from "@/lib/use-fade-de-rolagem";
 
 const ABAS = [
   { to: "/testes", label: "Testes", perm: "testes" },
-  { to: "/envios", label: "Envios", perm: "envios" },
+  // #301 — por baixo continua sendo a rota /envios (não mudei a URL: quebraria
+  // favoritos e links já compartilhados à toa). Só o nome mudou, porque agora
+  // é aqui que campanha (nome, testes, quem respondeu) vive, não só o disparo.
+  { to: "/envios", label: "Campanhas", perm: "envios" },
   // #280 — central de acesso e download; reaproveita a permissão "testes" (a
   // mesma que já protege o painel de respostas do construtor) em vez de
   // criar uma quarta permissão só para isto.

@@ -1221,6 +1221,10 @@ export const startResponse = createServerFn({ method: "POST" })
     person_id: z.string().uuid(),
     group_id: z.string().uuid().optional().nullable(),
     expires_at: z.string().datetime().optional().nullable(),
+    // #301 — a campanha (invite_links) que este envio pertence. Opcional só
+    // por segurança de tipo (RPC antiga sem o campo não quebra); a TELA
+    // sempre manda, porque enviar sozinho, fora de uma campanha, saiu do ar.
+    invite_link_id: z.string().uuid().optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "envios");
@@ -1239,20 +1243,45 @@ export const startResponse = createServerFn({ method: "POST" })
     if (!v || (!v.is_template && v.mentor_id !== context.userId)) {
       throw new Error("Versão de teste não encontrada ou não pertence a você.");
     }
+    const campanha = await validarCampanha(context.supabase, context.userId, data.invite_link_id, [data.version_id]);
     // #212 item 5a — teste anônimo não grava quem respondeu: o vínculo nunca
     // entra na linha, mesmo você tendo escolhido a pessoa pra endereçar o
     // link. A trava é aqui, não escondida na tela.
     const { data: row, error } = await context.supabase.from("test_responses").insert({
       version_id: data.version_id,
       person_id: v.is_anonymous ? null : data.person_id,
-      group_id: data.group_id ?? null,
+      group_id: data.group_id ?? campanha?.group_id ?? null,
       mentor_id: context.userId,
       status: "pending",
       expires_at: data.expires_at ?? null,
+      invite_link_id: campanha?.id ?? null,
     }).select().single();
     if (error) throw new Error(error.message);
     return row;
   });
+
+/**
+ * A campanha existe, é sua, e cobre todas as versões que você está prestes a
+ * enviar? Usada por `startResponse`/`startAssessment` — o envio individual
+ * SEMPRE acontece dentro de uma campanha agora (#301, item 7); sem checar
+ * aqui, alguém poderia gravar um `invite_link_id` de outra conta, ou de uma
+ * campanha que nem inclui aquele teste.
+ */
+async function validarCampanha(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  inviteLinkId: string | null | undefined,
+  versionIds: string[],
+) {
+  if (!inviteLinkId) return null;
+  const { data: link, error } = await supabase
+    .from("invite_links").select("id, mentor_id, group_id, version_ids").eq("id", inviteLinkId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!link || link.mentor_id !== userId) throw new Error("Campanha não encontrada ou não pertence a você.");
+  const faltando = versionIds.filter((v) => !link.version_ids.includes(v));
+  if (faltando.length > 0) throw new Error("Este teste não faz parte da campanha escolhida.");
+  return link;
+}
 
 export const listResponses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -1292,7 +1321,13 @@ export const listResponses = createServerFn({ method: "GET" })
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     const list = rows ?? [];
-    if (list.length === 0) return list;
+    // O retorno precisa ter sempre o MESMO formato do `list.map(...)` lá
+    // embaixo (com observers_invited/observers_answered/aceita_observador) —
+    // devolver `list` puro aqui fazia o TypeScript enxergar dois formatos
+    // possíveis e recusar esses campos em qualquer lugar que usa esta função.
+    if (list.length === 0) {
+      return list.map((r) => ({ ...r, observers_invited: 0, observers_answered: 0, aceita_observador: false }));
+    }
     const { data: observers, error: obsErr } = await context.supabase
       .from("test_responses")
       .select("id, parent_response_id, submitted_at")
@@ -1382,6 +1417,7 @@ export const startAssessment = createServerFn({ method: "POST" })
     version_ids: z.array(z.string().uuid()).min(1).max(10),
     group_id: z.string().uuid().optional().nullable(),
     expires_at: z.string().datetime().optional().nullable(),
+    invite_link_id: z.string().uuid().optional().nullable(),
   }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "envios");
@@ -1404,13 +1440,15 @@ export const startAssessment = createServerFn({ method: "POST" })
         throw new Error("Versão de teste não encontrada ou não pertence a você.");
       }
     }
+    const campanha = await validarCampanha(supabase, userId, data.invite_link_id, versionIds);
 
     const { data: assessment, error: aErr } = await supabase.from("assessment_responses").insert({
       mentor_id: userId,
       person_id: data.person_id,
-      group_id: data.group_id ?? null,
+      group_id: data.group_id ?? campanha?.group_id ?? null,
       status: "pending",
       expires_at: data.expires_at ?? null,
+      invite_link_id: campanha?.id ?? null,
     }).select("id").single();
     if (aErr) throw new Error(aErr.message);
 
@@ -1420,13 +1458,14 @@ export const startAssessment = createServerFn({ method: "POST" })
       data.version_ids.map((version_id, idx) => ({
         version_id,
         person_id: byId.get(version_id)?.is_anonymous ? null : data.person_id,
-        group_id: data.group_id ?? null,
+        group_id: data.group_id ?? campanha?.group_id ?? null,
         mentor_id: userId,
         status: "pending",
         kind: "self",
         expires_at: data.expires_at ?? null,
         assessment_response_id: assessment.id,
         assessment_sort: idx,
+        invite_link_id: campanha?.id ?? null,
       })),
     );
     if (rErr) {
@@ -1477,12 +1516,18 @@ export const listAssessments = createServerFn({ method: "GET" })
 // Um único link que várias pessoas respondem, identificando-se na hora.
 // ============================================================
 
+// #301 — "campanha" é o nome que a tela usa; por baixo continua sendo a
+// mesma tabela `invite_links` que já existia para o link aberto (a estrutura
+// já tinha title/version_ids/group_id/expires_at/max_responses — faltava só
+// expor e organizar, não criar do zero). NOME agora é OBRIGATÓRIO: é o que
+// resolve o problema original ("não acho as respostas depois").
 export const createInviteLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
     version_ids: z.array(z.string().uuid()).min(1).max(10),
-    title: z.string().trim().max(160).optional().nullable(),
+    title: z.string().trim().min(1, "Dê um nome para a campanha.").max(160),
     group_id: z.string().uuid().optional().nullable(),
+    starts_at: z.string().datetime().optional().nullable(),
     expires_at: z.string().datetime().optional().nullable(),
     max_responses: z.number().int().positive().max(10000).optional().nullable(),
   }).parse(d))
@@ -1510,9 +1555,10 @@ export const createInviteLink = createServerFn({ method: "POST" })
 
     const { data: row, error } = await supabase.from("invite_links").insert({
       mentor_id: userId,
-      title: data.title?.trim() || null,
+      title: data.title.trim(),
       version_ids: versionIds,
       group_id: data.group_id ?? null,
+      starts_at: data.starts_at ?? null,
       expires_at: data.expires_at ?? null,
       max_responses: data.max_responses ?? null,
     }).select().single();
@@ -1552,6 +1598,110 @@ export const setInviteLinkActive = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     return row;
+  });
+
+/**
+ * A lista de campanhas (item 2): uma linha por `invite_links`, com os
+ * números que resolvem o problema original — total, respondidos, pendentes.
+ *
+ * "Total" conta UNIDADES de envio (uma bateria OU uma resposta avulsa), não
+ * linhas de `test_responses`: uma bateria de 4 testes é UM destinatário, não
+ * 4. "Respondido" exige a unidade inteira entregue (bateria: todas as etapas).
+ */
+export const listCampanhas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
+    const { supabase } = context;
+    const { data: conta } = await supabase.rpc("acting_account");
+    const mentorId = conta ?? context.userId;
+
+    const { data: links, error } = await supabase
+      .from("invite_links")
+      .select("*, groups(name)")
+      .eq("mentor_id", mentorId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    const lista = links ?? [];
+    if (lista.length === 0) return [];
+
+    const ids = lista.map((l) => l.id);
+    const [{ data: avulsas, error: aErr }, { data: baterias, error: bErr }, { data: versoes, error: vErr }] = await Promise.all([
+      supabase.from("test_responses").select("invite_link_id, submitted_at, canceled_at")
+        .in("invite_link_id", ids).is("assessment_response_id", null),
+      supabase.from("assessment_responses").select("invite_link_id, submitted_at, canceled_at").in("invite_link_id", ids),
+      supabase.from("test_versions").select("id, title"),
+    ]);
+    if (aErr) throw new Error(aErr.message);
+    if (bErr) throw new Error(bErr.message);
+    if (vErr) throw new Error(vErr.message);
+    const tituloVersao = new Map((versoes ?? []).map((v) => [v.id, v.title]));
+
+    return lista.map((l) => {
+      const unidades = [
+        ...(avulsas ?? []).filter((r) => r.invite_link_id === l.id),
+        ...(baterias ?? []).filter((r) => r.invite_link_id === l.id),
+      ].filter((r) => !r.canceled_at);
+      const respondidos = unidades.filter((r) => r.submitted_at).length;
+      return {
+        ...l,
+        testes: l.version_ids.map((v) => tituloVersao.get(v)).filter((t): t is string => !!t),
+        total: unidades.length,
+        respondidos,
+        pendentes: unidades.length - respondidos,
+      };
+    });
+  });
+
+/**
+ * O detalhe de uma campanha (item 3): dados do container + cada unidade de
+ * envio já feita, com o link do relatório de quem já respondeu.
+ */
+export const getCampanha = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
+    const { supabase } = context;
+    const { data: conta } = await supabase.rpc("acting_account");
+    const mentorId = conta ?? context.userId;
+
+    const { data: link, error } = await supabase
+      .from("invite_links").select("*, groups(name)").eq("id", data.id).eq("mentor_id", mentorId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!link) throw new Error("Campanha não encontrada ou não pertence a você.");
+
+    const { data: versoes, error: vErr } = await supabase
+      .from("test_versions").select("id, title").in("id", link.version_ids);
+    if (vErr) throw new Error(vErr.message);
+
+    const [{ data: avulsas, error: aErr }, { data: baterias, error: bErr }] = await Promise.all([
+      supabase.from("test_responses")
+        .select("id, person_id, status, submitted_at, canceled_at, created_at, people(id, full_name, email)")
+        .eq("invite_link_id", data.id).is("assessment_response_id", null)
+        .order("created_at", { ascending: false }),
+      supabase.from("assessment_responses")
+        .select("id, person_id, status, submitted_at, canceled_at, created_at, people(id, full_name, email)")
+        .eq("invite_link_id", data.id)
+        .order("created_at", { ascending: false }),
+    ]);
+    if (aErr) throw new Error(aErr.message);
+    if (bErr) throw new Error(bErr.message);
+
+    const recipientes = [
+      ...(avulsas ?? []).map((r) => ({ ...r, tipo: "avulsa" as const })),
+      ...(baterias ?? []).map((r) => ({ ...r, tipo: "bateria" as const })),
+    ].sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    return {
+      campanha: {
+        ...link,
+        testes: link.version_ids.map((v) => (versoes ?? []).find((x) => x.id === v)?.title).filter((t): t is string => !!t),
+      },
+      recipientes,
+      total: recipientes.filter((r) => !r.canceled_at).length,
+      respondidos: recipientes.filter((r) => !r.canceled_at && r.submitted_at).length,
+    };
   });
 
 // ============================================================

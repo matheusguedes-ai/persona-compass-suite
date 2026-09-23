@@ -192,7 +192,14 @@ function textoDaResposta(
 
 export const baixarPlanilhaDeRespostas = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ version_id: z.string().uuid() }).parse(d))
+  .inputValidator((d) => z.object({
+    version_id: z.string().uuid(),
+    // #301 — quando a planilha é pedida DE DENTRO de uma campanha, restringe
+    // a quem respondeu aquele teste POR AQUELA campanha. Sem isto, um teste
+    // reenviado em campanhas diferentes (já aconteceu — ver a migração
+    // 20260924100000_campanhas.sql) traria gente da campanha errada junto.
+    invite_link_id: z.string().uuid().optional().nullable(),
+  }).parse(d))
   .handler(async ({ data, context }) => {
     await exigirPermissao(context.supabase, context.userId, "testes");
     await exigirDonoParaBaixar(context.supabase, context.userId);
@@ -225,13 +232,15 @@ export const baixarPlanilhaDeRespostas = createServerFn({ method: "POST" })
     if (oErr) throw new Error(oErr.message);
     const opts = options ?? [];
 
-    const { data: responses, error: rErr } = await supabase
+    let respostasQuery = supabase
       .from("test_responses")
       .select("id, submitted_at, people(full_name)")
       .eq("version_id", data.version_id)
       .eq("kind", "self")
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: true });
+    if (data.invite_link_id) respostasQuery = respostasQuery.eq("invite_link_id", data.invite_link_id);
+    const { data: responses, error: rErr } = await respostasQuery;
     if (rErr) throw new Error(rErr.message);
     const resps = responses ?? [];
 

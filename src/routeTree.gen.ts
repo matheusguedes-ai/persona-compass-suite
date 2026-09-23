@@ -60,6 +60,7 @@ import { Route as AppClassroomTreinamentoIdRouteImport } from './routes/_app.cla
 import { Route as AppEducacaoIndexRouteImport } from './routes/_app.educacao.index'
 import { Route as AppEducacaoTrackIdRouteImport } from './routes/_app.educacao.$trackId'
 import { Route as AppEnviosIndexRouteImport } from './routes/_app.envios.index'
+import { Route as AppEnviosCampanhaIdRouteImport } from './routes/_app.envios.$campanhaId'
 import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
 import { Route as AppGruposIndexRouteImport } from './routes/_app.grupos.index'
 import { Route as AppGruposIdRouteImport } from './routes/_app.grupos.$id'
@@ -351,6 +352,11 @@ const AppEnviosIndexRoute = AppEnviosIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppEnviosRoute,
 } as any)
+const AppEnviosCampanhaIdRoute = AppEnviosCampanhaIdRouteImport.update({
+  id: '/$campanhaId',
+  path: '/$campanhaId',
+  getParentRoute: () => AppEnviosRoute,
+} as any)
 const AppEnviosNovoRoute = AppEnviosNovoRouteImport.update({
   id: '/novo',
   path: '/novo',
@@ -557,6 +563,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
   '/educacao/$trackId': typeof AppEducacaoTrackIdRoute
+  '/envios/$campanhaId': typeof AppEnviosCampanhaIdRoute
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/mentorias/$id': typeof AppMentoriasIdRoute
@@ -631,6 +638,7 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
   '/educacao/$trackId': typeof AppEducacaoTrackIdRoute
+  '/envios/$campanhaId': typeof AppEnviosCampanhaIdRoute
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
   '/mentorias/$id': typeof AppMentoriasIdRoute
@@ -715,6 +723,7 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_app/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
   '/_app/educacao/$trackId': typeof AppEducacaoTrackIdRoute
+  '/_app/envios/$campanhaId': typeof AppEnviosCampanhaIdRoute
   '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
   '/_app/mentorias/$id': typeof AppMentoriasIdRoute
@@ -799,6 +808,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/classroom/$treinamentoId'
     | '/educacao/$trackId'
+    | '/envios/$campanhaId'
     | '/envios/novo'
     | '/grupos/$id'
     | '/mentorias/$id'
@@ -873,6 +883,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/classroom/$treinamentoId'
     | '/educacao/$trackId'
+    | '/envios/$campanhaId'
     | '/envios/novo'
     | '/grupos/$id'
     | '/mentorias/$id'
@@ -956,6 +967,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_app/classroom/$treinamentoId'
     | '/_app/educacao/$trackId'
+    | '/_app/envios/$campanhaId'
     | '/_app/envios/novo'
     | '/_app/grupos/$id'
     | '/_app/mentorias/$id'
@@ -1389,6 +1401,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEnviosIndexRouteImport
       parentRoute: typeof AppEnviosRoute
     }
+    '/_app/envios/$campanhaId': {
+      id: '/_app/envios/$campanhaId'
+      path: '/$campanhaId'
+      fullPath: '/envios/$campanhaId'
+      preLoaderRoute: typeof AppEnviosCampanhaIdRouteImport
+      parentRoute: typeof AppEnviosRoute
+    }
     '/_app/envios/novo': {
       id: '/_app/envios/novo'
       path: '/novo'
@@ -1603,11 +1622,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppEnviosRouteChildren {
+  AppEnviosCampanhaIdRoute: typeof AppEnviosCampanhaIdRoute
   AppEnviosNovoRoute: typeof AppEnviosNovoRoute
   AppEnviosIndexRoute: typeof AppEnviosIndexRoute
 }
 
 const AppEnviosRouteChildren: AppEnviosRouteChildren = {
+  AppEnviosCampanhaIdRoute: AppEnviosCampanhaIdRoute,
   AppEnviosNovoRoute: AppEnviosNovoRoute,
   AppEnviosIndexRoute: AppEnviosIndexRoute,
 }

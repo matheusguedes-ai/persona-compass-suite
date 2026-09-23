@@ -16,6 +16,7 @@ import {
   baixarPlanilhaDeRespostas,
 } from "@/lib/exportar-respostas.functions";
 import { getMyMembership } from "@/lib/team.functions";
+import { baixarArquivo } from "@/lib/baixar-arquivo";
 import { Avatar } from "@/components/avatar-upload";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -31,15 +32,6 @@ export const Route = createFileRoute("/_app/respostas/")({
   }),
   component: RespostasIndexPage,
 });
-
-function baixarArquivo(nome: string, blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nome;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 type TesteComResposta = {
   version_id: string;

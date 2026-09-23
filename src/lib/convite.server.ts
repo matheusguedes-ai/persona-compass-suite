@@ -18,6 +18,7 @@ export type LinkAberto = {
   mentor_id: string;
   version_ids: string[];
   group_id: string | null;
+  starts_at?: string | null;
   expires_at: string | null;
   is_active: boolean;
   max_responses: number | null;
@@ -26,18 +27,21 @@ export type LinkAberto = {
 
 export type DestinoDoConvite = { kind: "assessment" | "response"; id: string };
 
-export type MotivoBloqueio = "not_found" | "inactive" | "expired" | "full";
+export type MotivoBloqueio = "not_found" | "inactive" | "not_started" | "expired" | "full";
 
 export const MENSAGENS_BLOQUEIO: Record<MotivoBloqueio, string> = {
   not_found: "Link não encontrado.",
   inactive: "Este link foi desativado pelo mentor.",
+  // #301 — campanha com período de início: começa a aceitar só na data.
+  not_started: "Esta campanha ainda não começou.",
   expired: "Este link expirou. Peça um novo ao seu mentor.",
   full: "Este link já atingiu o número máximo de respostas.",
 };
 
 /** Motivo pelo qual o link não aceita mais respostas NOVAS — null quando está aberto. */
-export function motivoBloqueio(link: Pick<LinkAberto, "is_active" | "expires_at" | "max_responses" | "response_count">): MotivoBloqueio | null {
+export function motivoBloqueio(link: Pick<LinkAberto, "is_active" | "starts_at" | "expires_at" | "max_responses" | "response_count">): MotivoBloqueio | null {
   if (!link.is_active) return "inactive";
+  if (link.starts_at && new Date(link.starts_at).getTime() > Date.now()) return "not_started";
   if (link.expires_at && new Date(link.expires_at).getTime() < Date.now()) return "expired";
   if (link.max_responses != null && link.response_count >= link.max_responses) return "full";
   return null;
@@ -129,6 +133,7 @@ export async function criarRespostasDoConvite(
     status: "pending",
     kind: "self",
     expires_at: link.expires_at,
+    invite_link_id: link.id,
   };
 
   if (versionIds.length > 1) {
@@ -140,6 +145,7 @@ export async function criarRespostasDoConvite(
         group_id: link.group_id ?? null,
         status: "pending",
         expires_at: link.expires_at,
+        invite_link_id: link.id,
       })
       .select("id")
       .single();

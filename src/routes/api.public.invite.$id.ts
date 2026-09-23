@@ -39,7 +39,7 @@ export const Route = createFileRoute("/api/public/invite/$id")({
           const supabase = await getAdmin();
           const { data: link } = await supabase
             .from("invite_links")
-            .select("id, title, version_ids, expires_at, max_responses, response_count, is_active, mentor_id")
+            .select("id, title, version_ids, starts_at, expires_at, max_responses, response_count, is_active, mentor_id")
             .eq("id", params.id)
             .maybeSingle();
           if (!link) return json({ error: "not_found", message: MENSAGENS_BLOQUEIO.not_found }, 404);

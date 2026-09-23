@@ -593,6 +593,7 @@ export type Database = {
           created_at: string
           group_id: string | null
           id: string
+          invite_link_id: string | null
           mentor_id: string
           person_id: string
           started_at: string | null
@@ -607,6 +608,7 @@ export type Database = {
           created_at?: string
           group_id?: string | null
           id?: string
+          invite_link_id?: string | null
           mentor_id: string
           person_id: string
           started_at?: string | null
@@ -621,6 +623,7 @@ export type Database = {
           created_at?: string
           group_id?: string | null
           id?: string
+          invite_link_id?: string | null
           mentor_id?: string
           person_id?: string
           started_at?: string | null
@@ -831,6 +834,7 @@ export type Database = {
           max_responses: number | null
           mentor_id: string
           response_count: number
+          starts_at: string | null
           title: string | null
           version_ids: string[]
         }
@@ -843,6 +847,7 @@ export type Database = {
           max_responses?: number | null
           mentor_id: string
           response_count?: number
+          starts_at?: string | null
           title?: string | null
           version_ids: string[]
         }
@@ -855,6 +860,7 @@ export type Database = {
           max_responses?: number | null
           mentor_id?: string
           response_count?: number
+          starts_at?: string | null
           title?: string | null
           version_ids?: string[]
         }
@@ -1888,6 +1894,7 @@ export type Database = {
           dominant_dimension_id: string | null
           group_id: string | null
           id: string
+          invite_link_id: string | null
           kind: string
           mentor_id: string
           parent_response_id: string | null
@@ -1912,6 +1919,7 @@ export type Database = {
           dominant_dimension_id?: string | null
           group_id?: string | null
           id?: string
+          invite_link_id?: string | null
           kind?: string
           mentor_id: string
           parent_response_id?: string | null
@@ -1936,6 +1944,7 @@ export type Database = {
           dominant_dimension_id?: string | null
           group_id?: string | null
           id?: string
+          invite_link_id?: string | null
           kind?: string
           mentor_id?: string
           parent_response_id?: string | null

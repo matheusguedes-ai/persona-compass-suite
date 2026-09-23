@@ -31,7 +31,7 @@ type Info = {
   tests: string[];
   expires_at: string | null;
   remaining: number | null;
-  blocked: "not_found" | "inactive" | "expired" | "full" | null;
+  blocked: "not_found" | "inactive" | "not_started" | "expired" | "full" | null;
   message: string | null;
 };
 

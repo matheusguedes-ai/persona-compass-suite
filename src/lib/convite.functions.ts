@@ -34,7 +34,7 @@ async function admin() {
 async function carregarLink(supabase: Awaited<ReturnType<typeof admin>>, linkId: string) {
   const { data, error } = await supabase
     .from("invite_links")
-    .select("id, mentor_id, version_ids, group_id, expires_at, is_active, max_responses, response_count")
+    .select("id, mentor_id, version_ids, group_id, starts_at, expires_at, is_active, max_responses, response_count")
     .eq("id", linkId)
     .maybeSingle();
   if (error) throw new Error(error.message);
