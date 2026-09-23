@@ -2,6 +2,10 @@ import { mensagemDeErro } from "@/lib/erro-legivel";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { loadBrandAndSettings } from "@/lib/brand.server";
+import { motivoDeSuspeita, normalizarEmail, type MotivoSuspeita } from "@/lib/duplicidade";
+import {
+  colocarNoGrupoDoLink, criarRespostasDoConvite, MENSAGENS_BLOQUEIO, motivoBloqueio, type LinkAberto,
+} from "@/lib/convite.server";
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -14,31 +18,13 @@ const joinSchema = z.object({
   // Formato livre de propósito: aceita (11) 99999-0000, +55…, com ou sem
   // pontuação. Só garante que não é um punhado de caracteres solto.
   phone: z.string().trim().min(8).max(40),
+  // #300 — a pessoa respondeu "não, é meu primeiro cadastro" à pergunta de
+  // identidade. Só pula a PERGUNTA: o servidor refaz a busca de qualquer
+  // jeito e registra a suspeita para o mentor.
+  confirmacao: z.literal("sou_novo").optional(),
 });
 
 const JOIN_FIELD_LABELS = { full_name: "Nome", email: "Email", phone: "Telefone" };
-
-type Reason = "not_found" | "inactive" | "expired" | "full";
-
-/** Motivo pelo qual o link não aceita mais respostas — null quando está aberto. */
-function blockedReason(link: {
-  is_active: boolean;
-  expires_at: string | null;
-  max_responses: number | null;
-  response_count: number;
-}): Reason | null {
-  if (!link.is_active) return "inactive";
-  if (link.expires_at && new Date(link.expires_at).getTime() < Date.now()) return "expired";
-  if (link.max_responses != null && link.response_count >= link.max_responses) return "full";
-  return null;
-}
-
-const MESSAGES: Record<Reason, string> = {
-  not_found: "Link não encontrado.",
-  inactive: "Este link foi desativado pelo mentor.",
-  expired: "Este link expirou. Peça um novo ao seu mentor.",
-  full: "Este link já atingiu o número máximo de respostas.",
-};
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -56,9 +42,9 @@ export const Route = createFileRoute("/api/public/invite/$id")({
             .select("id, title, version_ids, expires_at, max_responses, response_count, is_active, mentor_id")
             .eq("id", params.id)
             .maybeSingle();
-          if (!link) return json({ error: "not_found", message: MESSAGES.not_found }, 404);
+          if (!link) return json({ error: "not_found", message: MENSAGENS_BLOQUEIO.not_found }, 404);
 
-          const reason = blockedReason(link);
+          const reason = motivoBloqueio(link);
           const { data: versions } = await supabase
             .from("test_versions")
             .select("id, title")
@@ -77,14 +63,32 @@ export const Route = createFileRoute("/api/public/invite/$id")({
             expires_at: link.expires_at,
             remaining: link.max_responses == null ? null : Math.max(0, link.max_responses - link.response_count),
             blocked: reason,
-            message: reason ? MESSAGES[reason] : null,
+            message: reason ? MENSAGENS_BLOQUEIO[reason] : null,
           });
         } catch (e) {
           return json({ error: mensagemDeErro(e) }, 500);
         }
       },
 
-      // A pessoa se identifica e ganha as respostas para preencher.
+      /**
+       * A pessoa se identifica e ganha as respostas para preencher.
+       *
+       * #300 — antes de criar QUALQUER coisa, e antes de gastar vaga, este
+       * handler descobre quem está chegando. Na aula de 22/09 a turma inteira
+       * já tinha cadastro, e o link falhava de duas formas:
+       *
+       *   A. mesmo e-mail → o INSERT batia no e-mail único da conta e a pessoa
+       *      recebia o erro cru do banco, sem caminho nenhum. Agora a resposta
+       *      é `ja_cadastrado`, e a tela oferece entrar na conta.
+       *   B. outro e-mail → virava cadastro NOVO, com as respostas penduradas
+       *      numa pessoa paralela. Agora, se o telefone ou o nome batem com
+       *      alguém da mesma conta, a resposta é `confirmar_identidade` e a
+       *      tela pergunta à própria pessoa.
+       *
+       * ⚠️ Nenhuma das duas respostas diz QUEM foi encontrado: nem nome, nem
+       * e-mail, nem quantos. A tela fala com quem está ali, não revela
+       * terceiros.
+       */
       POST: async ({ request, params }) => {
         try {
           const body = joinSchema.parse(await request.json());
@@ -95,20 +99,47 @@ export const Route = createFileRoute("/api/public/invite/$id")({
             .select("*")
             .eq("id", params.id)
             .maybeSingle();
-          if (!link) return json({ error: "not_found", message: MESSAGES.not_found }, 404);
+          if (!link) return json({ error: "not_found", message: MENSAGENS_BLOQUEIO.not_found }, 404);
 
           // Checagem antecipada só para dar mensagem melhor; quem decide é o claim.
-          const early = blockedReason(link);
-          if (early) return json({ error: early, message: MESSAGES[early] }, 410);
+          const early = motivoBloqueio(link);
+          if (early) return json({ error: early, message: MENSAGENS_BLOQUEIO[early] }, 410);
 
-          // Reserva a vaga de forma atômica: cliques simultâneos não furam o limite.
+          const { data: daConta, error: dcErr } = await supabase
+            .from("people")
+            .select("id, full_name, email, phone")
+            .eq("mentor_id", link.mentor_id);
+          if (dcErr) throw new Error(dcErr.message);
+
+          // Falha A: o e-mail já é de alguém desta conta.
+          const email = normalizarEmail(body.email);
+          if ((daConta ?? []).some((p) => normalizarEmail(p.email) === email)) {
+            return json({ situacao: "ja_cadastrado" });
+          }
+
+          // Falha B: e-mail novo, mas telefone ou nome de quem já existe.
+          const suspeitos = (daConta ?? [])
+            .map((p) => ({ id: p.id, motivo: motivoDeSuspeita(body, p) }))
+            .filter((s): s is { id: string; motivo: MotivoSuspeita } => s.motivo !== null);
+          if (suspeitos.length > 0 && body.confirmacao !== "sou_novo") {
+            return json({ situacao: "confirmar_identidade" });
+          }
+
+          // Só agora reserva a vaga — de forma atômica: cliques simultâneos
+          // não furam o limite. Antes a reserva vinha primeiro, e cada
+          // tentativa que dava erro gastava uma vaga à toa.
           const { data: claimed, error: claimErr } = await supabase.rpc("claim_invite_link", {
             link_id: params.id,
           });
           if (claimErr) throw new Error(claimErr.message);
           if (!claimed || claimed.length === 0) {
-            return json({ error: "full", message: MESSAGES.full }, 410);
+            return json({ error: "full", message: MENSAGENS_BLOQUEIO.full }, 410);
           }
+
+          const devolverVaga = async () => {
+            const { error } = await supabase.rpc("release_invite_link", { link_id: params.id });
+            if (error) console.error("[convite] não consegui devolver a vaga:", error.message);
+          };
 
           const { data: person, error: pErr } = await supabase
             .from("people")
@@ -122,68 +153,45 @@ export const Route = createFileRoute("/api/public/invite/$id")({
             })
             .select("id")
             .single();
-          if (pErr) throw new Error(pErr.message);
-
-          if (link.group_id) {
-            await supabase.from("group_members").insert({ group_id: link.group_id, person_id: person.id });
+          if (pErr) {
+            await devolverVaga();
+            // Corrida: o mesmo e-mail foi cadastrado entre a checagem e o INSERT.
+            if (pErr.code === "23505") return json({ situacao: "ja_cadastrado" });
+            throw new Error(pErr.message);
           }
 
-          const versionIds: string[] = link.version_ids;
-          // #212 item 5a — mesmo pelo link aberto, teste anônimo não grava
-          // quem respondeu. A pessoa se identifica pra ENTRAR (nome/email
-          // viram um cadastro), mas o vínculo com a resposta em si não nasce
-          // se a versão for anônima.
-          const { data: versoes, error: vErr } = await supabase
-            .from("test_versions").select("id, is_anonymous").in("id", versionIds);
-          if (vErr) throw new Error(vErr.message);
-          const anonimaPorId = new Map((versoes ?? []).map((v) => [v.id, v.is_anonymous]));
-          const common = {
-            mentor_id: link.mentor_id,
-            group_id: link.group_id ?? null,
-            status: "pending",
-            kind: "self",
-            expires_at: link.expires_at,
-          };
-
-          // Vários testes = bateria (link único em etapas). Um só = resposta avulsa.
-          if (versionIds.length > 1) {
-            const { data: assessment, error: aErr } = await supabase
-              .from("assessment_responses")
-              .insert({
+          if (suspeitos.length > 0) {
+            // Informação para o mentor, não condição para responder: se a
+            // suspeita não gravar, a pessoa segue, e o erro vai para o log.
+            // Derrubar aqui deixaria um cadastro criado sem resposta nenhuma.
+            const { error: sErr } = await supabase.from("suspeitas_duplicidade").insert(
+              suspeitos.map((s) => ({
                 mentor_id: link.mentor_id,
-                person_id: person.id,
-                group_id: link.group_id ?? null,
-                status: "pending",
-                expires_at: link.expires_at,
-              })
-              .select("id")
-              .single();
-            if (aErr) throw new Error(aErr.message);
-            const { error: rErr } = await supabase.from("test_responses").insert(
-              versionIds.map((version_id, idx) => ({
-                ...common,
-                version_id,
-                person_id: anonimaPorId.get(version_id) ? null : person.id,
-                assessment_response_id: assessment.id,
-                assessment_sort: idx,
+                pessoa_nova_id: person.id,
+                pessoa_existente_id: s.id,
+                motivo: s.motivo,
+                invite_link_id: link.id,
               })),
             );
-            if (rErr) throw new Error(rErr.message);
-            return json({ kind: "assessment", id: assessment.id });
+            if (sErr) console.error("[convite] suspeita de duplicidade não gravou:", sErr.message);
           }
 
-          const { data: response, error: rErr } = await supabase
-            .from("test_responses")
-            .insert({ ...common, version_id: versionIds[0], person_id: anonimaPorId.get(versionIds[0]) ? null : person.id })
-            .select("id")
-            .single();
-          if (rErr) throw new Error(rErr.message);
-          return json({ kind: "response", id: response.id });
+          try {
+            await colocarNoGrupoDoLink(supabase, link as LinkAberto, person.id);
+            return json(await criarRespostasDoConvite(supabase, link as LinkAberto, person.id));
+          } catch (e) {
+            await devolverVaga();
+            throw e;
+          }
         } catch (e) {
           if (e instanceof z.ZodError) {
             return json({ error: mensagemDeErro(e, JOIN_FIELD_LABELS) }, 400);
           }
-          return json({ error: mensagemDeErro(e) }, 500);
+          // Endpoint público: erro inesperado nunca vira texto cru do banco na
+          // tela de quem está respondendo (era o sintoma da falha A). O
+          // detalhe fica no log.
+          console.error("[convite] falha inesperada:", e);
+          return json({ error: "Não foi possível continuar agora. Tente de novo em instantes." }, 500);
         }
       },
     },

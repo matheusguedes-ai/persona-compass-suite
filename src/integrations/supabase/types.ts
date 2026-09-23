@@ -43,6 +43,12 @@ export type Database = {
           },
         ]
       }
+      suspeitas_duplicidade: {
+        Row: { id: string; mentor_id: string; pessoa_nova_id: string; pessoa_existente_id: string; motivo: string; origem: string; invite_link_id: string | null; status: string; created_at: string; resolvida_em: string | null; resolvida_por: string | null }
+        Insert: { id?: string; mentor_id: string; pessoa_nova_id: string; pessoa_existente_id: string; motivo: string; origem?: string; invite_link_id?: string | null; status?: string; created_at?: string; resolvida_em?: string | null; resolvida_por?: string | null }
+        Update: { id?: string; mentor_id?: string; pessoa_nova_id?: string; pessoa_existente_id?: string; motivo?: string; origem?: string; invite_link_id?: string | null; status?: string; created_at?: string; resolvida_em?: string | null; resolvida_por?: string | null }
+        Relationships: []
+      }
       eventos: {
         Row: { id: string; conta_id: string; titulo: string; descricao: string | null; quando: string; termina_em: string | null; imagem_url: string | null; link_url: string | null; duracao_min: number | null; criado_por: string | null; created_at: string; updated_at: string; aula_id: string | null }
         Insert: { id?: string; conta_id: string; titulo: string; descricao?: string | null; quando: string; termina_em?: string | null; imagem_url?: string | null; link_url?: string | null; duracao_min?: number | null; criado_por?: string | null; created_at?: string; updated_at?: string; aula_id?: string | null }
@@ -2251,6 +2257,7 @@ export type Database = {
         Args: { link_id: string }
         Returns: Database["public"]["Tables"]["invite_links"]["Row"][]
       }
+      release_invite_link: { Args: { link_id: string }; Returns: undefined }
       option_version_id: { Args: { _option_id: string }; Returns: string }
       owns_test_version: { Args: { _version_id: string }; Returns: boolean }
       question_version_id: { Args: { _question_id: string }; Returns: string }
