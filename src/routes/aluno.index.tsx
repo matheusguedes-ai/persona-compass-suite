@@ -15,7 +15,7 @@ export const Route = createFileRoute("/aluno/")({
 });
 
 type Resposta = {
-  id: string; status: string; submitted_at: string | null; created_at: string;
+  id: string; status: string; submitted_at: string | null; started_at: string | null; created_at: string;
   assessment_response_id: string | null; attempt: number;
   test_versions: { title: string } | null;
 };
@@ -62,6 +62,9 @@ function MeusResultados() {
         tentativa: b.attempt ?? 1,
         link: b.submitted_at ? `/relatorio-bateria/${b.id}` : `/bateria/${b.id}`,
         pendente: !b.submitted_at,
+        // Bateria continua só nascendo por envio do mentor nesta fatia (#298
+        // não mexeu nisso) — "enviado" é sempre o rótulo certo aqui.
+        emAndamento: false,
       };
     }),
     ...avulsas.map((r) => ({
@@ -70,10 +73,15 @@ function MeusResultados() {
       detalhe: "",
       concluido: !!r.submitted_at,
       parcial: null,
-      quando: r.submitted_at ?? r.created_at,
+      quando: r.submitted_at ?? r.started_at ?? r.created_at,
       tentativa: r.attempt ?? 1,
       link: r.submitted_at ? `/relatorio/${r.id}` : `/responder/${r.id}`,
       pendente: !r.submitted_at,
+      // "Pendente"/"enviado" só descreve quem ainda não abriu (mentor mandou
+      // e a pessoa não clicou). Quem já começou — inclusive quem iniciou por
+      // conta própria pelo menu Testes (#298), onde não há "envio" nenhum —
+      // está em andamento, não pendente. Ver docs/memória do #298.
+      emAndamento: !r.submitted_at && !!r.started_at,
     })),
   ].sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime());
 
@@ -113,13 +121,13 @@ function MeusResultados() {
                   </div>
                   {l.detalhe && <p className="truncate text-xs text-muted-foreground">{l.detalhe}</p>}
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {l.concluido ? "Concluído em " : "Enviado em "}
+                    {l.concluido ? "Concluído em " : l.emAndamento ? "Iniciado em " : "Enviado em "}
                     {new Date(l.quando).toLocaleDateString("pt-BR")}
                     {l.parcial && ` · ${l.parcial} respondidos`}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <StatusBadge status={l.concluido ? "concluido" : "pendente"} />
+                  <StatusBadge status={l.concluido ? "concluido" : l.emAndamento ? "em_andamento" : "pendente"} />
                   <a
                     href={l.link}
                     className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"

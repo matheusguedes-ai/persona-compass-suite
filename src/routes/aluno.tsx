@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Eye, GraduationCap, LayoutList, Lock, LogOut, UserRound, MessagesSquare,
   Users, Trophy, FolderKanban, CalendarDays, PanelLeftClose, PanelLeft, Menu,
-  Presentation,
+  Presentation, FlaskConical,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/lib/theme";
@@ -58,6 +58,12 @@ export const Route = createFileRoute("/aluno")({
 // dados, e tirá-lo prenderia a pessoa numa conta que ela não consegue ajustar.
 const NAV = [
   { to: "/aluno", label: "Meus resultados", icon: LayoutList, exato: true, area: "resultados" },
+  // #298 — reaproveita a área "resultados": é a mesma permissão que já libera
+  // ver o que foi respondido, e criar uma área nova ("testes") exigiria
+  // migração na CHECK CONSTRAINT de `groups.areas_aluno` e nas funções SQL
+  // `areas_da_pessoa()`/`minhas_areas()` por uma distinção que o mentor não
+  // pediu — quem vê resultado também pode ver e iniciar teste.
+  { to: "/aluno/testes", label: "Testes", icon: FlaskConical, exato: false, area: "resultados" },
   { to: "/aluno/comunidade", label: "Comunidade", icon: Users, exato: false, area: "comunidade" },
   { to: "/aluno/mentorias", label: "Mentorias", icon: MessagesSquare, exato: false, area: "mentorias" },
   { to: "/aluno/agenda", label: "Agenda", icon: CalendarDays, exato: false, area: "agenda" },

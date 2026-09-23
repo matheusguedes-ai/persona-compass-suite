@@ -82,7 +82,7 @@ async function montarArea(
   const [respostas, baterias] = await Promise.all([
     supabase
       .from("test_responses")
-      .select("id, status, submitted_at, created_at, assessment_response_id, attempt, test_versions(title)")
+      .select("id, status, submitted_at, started_at, created_at, assessment_response_id, attempt, test_versions(title)")
       .in("person_id", ids)
       .eq("kind", "self")
       .order("created_at", { ascending: false }),
@@ -357,9 +357,24 @@ export const getMeusResultados = createServerFn({ method: "GET" })
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false });
     if (data.preview_person_id) q = q.eq("person_id", data.preview_person_id);
-    const { data: minhas, error } = await q;
+    const { data: todasSubmetidas, error } = await q;
     if (error) throw new Error(error.message);
-    if (!minhas || minhas.length === 0) return { resultados: [] };
+    if (!todasSubmetidas || todasSubmetidas.length === 0) return { resultados: [] };
+
+    // #298 — a tentativa vigente é a mais recente CONCLUÍDA (regra do dono):
+    // já vem ordenado por submitted_at desc, então a primeira ocorrência de
+    // cada instrumento é a vigente; as demais (refeitas) ficam de fora do
+    // cartão — elas continuam no histórico, só não duplicam "Seus resultados".
+    // Teste avulso sem `instrument_id` (não deveria existir, mas por segurança)
+    // nunca é agrupado com outro — cada um aparece por si.
+    const vistos = new Set<string>();
+    const minhas = todasSubmetidas.filter((r) => {
+      const instrumentId = r.test_versions?.instrument_id;
+      if (!instrumentId) return true;
+      if (vistos.has(instrumentId)) return false;
+      vistos.add(instrumentId);
+      return true;
+    });
 
     const { buildReport } = await import("@/lib/report.server");
     const construidos = await Promise.all(minhas.slice(0, 8).map((r) => buildReport(r.id)));
@@ -450,4 +465,329 @@ export const avaliarSessaoMentoria = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+// ============================================================
+// #298 — menu Testes: o aluno encontra sozinho o que foi liberado
+// ============================================================
+//
+// Antes desta demanda, a única porta para responder era o link que o mentor
+// mandava — e ele "barrava quem já tinha cadastro" (bug real em
+// api.public.invite.$id.ts, achado nesta mesma investigação e DEIXADO DE LADO
+// de propósito: a demanda pede para não mexer no link de convite, é outra
+// fatia da reforma). Esta fatia resolve o lado de dentro: quem já tem conta
+// entra pelo painel e não depende de link nenhum.
+//
+// PRINCÍPIO: cadastro ≠ acesso. `group_instruments` diz quais INSTRUMENTOS um
+// grupo libera (DISC, VAK…) — nunca uma versão específica, na prática (a
+// coluna `version_id` existe mas a tela do mentor nunca a preenche). Cada
+// instrumento vira aqui a VERSÃO que a pessoa de fato vai responder: a do
+// próprio mentor quando ele tiver uma publicada, senão o template global.
+
+async function getAdminStudent() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
+}
+
+type VersaoCandidata = {
+  id: string;
+  instrument_id: string;
+  mentor_id: string | null;
+  is_template: boolean;
+  is_anonymous: boolean;
+  created_at: string;
+};
+
+/**
+ * Entre as versões publicadas de um instrumento, qual a pessoa deveria
+ * responder — a mesma regra de dono que `startResponse` já verifica na hora
+ * de enviar (`is_template OR mentor_id === dono`), só que escolhendo em vez
+ * de validar uma escolha que já veio da tela.
+ *
+ * Teste ANÔNIMO fica de fora: o motivo de existir "anônimo" é não saber quem
+ * respondeu, e aqui é sempre a própria pessoa logada abrindo — gravar o
+ * vínculo seria o comportamento certo, e é exatamente o que a trava do banco
+ * (`valida_pessoa_da_resposta`) recusa. Preferimos nunca oferecer a escolher
+ * errado a deixar a pessoa esbarrar num erro de banco.
+ *
+ * Empate entre duas versões PRÓPRIAS do mesmo mentor para o mesmo instrumento
+ * (existe hoje para `instrument_id = 'personalizado'`, onde o mentor pode ter
+ * vários testes personalizados diferentes sob o mesmo id) é decidido pela
+ * mais recente — caso raro, fora do que esta fatia se propõe a arrumar (a
+ * tela do mentor que libera por grupo não distingue qual dos personalizados
+ * quis dizer; ver o relatório final).
+ */
+function resolverVersao(
+  instrumentId: string,
+  versionIdExplicito: string | null,
+  mentorId: string,
+  candidatas: VersaoCandidata[],
+): VersaoCandidata | null {
+  if (versionIdExplicito) {
+    const v = candidatas.find((c) => c.id === versionIdExplicito && !c.is_anonymous);
+    if (v) return v;
+  }
+  const doInstrumento = candidatas.filter((c) => c.instrument_id === instrumentId && !c.is_anonymous);
+  const propria = doInstrumento
+    .filter((c) => !c.is_template && c.mentor_id === mentorId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  if (propria) return propria;
+  return doInstrumento.find((c) => c.is_template) ?? null;
+}
+
+export type TentativaDoAluno = {
+  response_id: string;
+  attempt: number;
+  status: string;
+  submitted_at: string | null;
+  started_at: string | null;
+  canceled_at: string | null;
+};
+
+export type TesteLiberado = {
+  instrument_id: string;
+  nome: string;
+  short_name: string;
+  category: string;
+  duration_min: number;
+  person_id: string;
+  /** `null` = liberado no grupo, mas nenhuma versão publicada foi encontrada — a tela avisa, não trava. */
+  version_id: string | null;
+  /** Da mais recente para a mais antiga. A 1ª SUBMETIDA é a vigente (regra do dono, #298). */
+  tentativas: TentativaDoAluno[];
+};
+
+/**
+ * Os testes que a pessoa pode responder por conta própria: liberados no(s)
+ * grupo(s) dela, com o estado de cada tentativa que ela já tiver.
+ *
+ * Mesmo cuidado de ordem de `getMeusResultados`: resolve a identidade pela
+ * RLS (`context.supabase`) antes de qualquer leitura mais ampla.
+ */
+export const getMeusTestesLiberados = createServerFn({ method: "GET" })
+  .inputValidator((d) =>
+    z.object({ preview_person_id: z.string().uuid().optional().nullable() }).parse(d ?? {}),
+  )
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    let pessoas: { id: string; mentor_id: string }[];
+    if (data.preview_person_id) {
+      const { data: alvo, error } = await supabase
+        .from("people").select("id, mentor_id").eq("id", data.preview_person_id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!alvo) throw new Error("Avaliado não encontrado ou fora do seu acesso.");
+      pessoas = [alvo];
+    } else {
+      const { error: claimErr } = await supabase.rpc("claim_student_profile");
+      if (claimErr) throw new Error(claimErr.message);
+      await supabase.rpc("claim_team_membership");
+      const { data: minhas, error } = await supabase
+        .from("people").select("id, mentor_id").eq("user_id", context.userId);
+      if (error) throw new Error(error.message);
+      pessoas = minhas ?? [];
+    }
+    if (pessoas.length === 0) return { vinculado: false as const, itens: [] };
+
+    const personIds = pessoas.map((p) => p.id);
+    const mentorPorPessoa = new Map(pessoas.map((p) => [p.id, p.mentor_id]));
+
+    const { data: membros, error: mErr } = await supabase
+      .from("group_members").select("person_id, group_id").in("person_id", personIds);
+    if (mErr) throw new Error(mErr.message);
+    if (!membros || membros.length === 0) return { vinculado: true as const, itens: [] };
+    const gruposPorPessoa = new Map<string, string[]>();
+    for (const m of membros) {
+      const l = gruposPorPessoa.get(m.person_id) ?? [];
+      l.push(m.group_id);
+      gruposPorPessoa.set(m.person_id, l);
+    }
+    const groupIds = Array.from(new Set(membros.map((m) => m.group_id)));
+
+    // Legível pelo aluno desde a migração desta demanda (`gi_student_read`).
+    const { data: liberados, error: gErr } = await supabase
+      .from("group_instruments")
+      .select("group_id, instrument_id, version_id, instruments(id, name, short_name, category, duration_min)")
+      .in("group_id", groupIds);
+    if (gErr) throw new Error(gErr.message);
+    if (!liberados || liberados.length === 0) return { vinculado: true as const, itens: [] };
+
+    const instrumentIds = Array.from(new Set(liberados.map((l) => l.instrument_id)));
+    const { data: versoes, error: vErr } = await supabase
+      .from("test_versions")
+      .select("id, instrument_id, mentor_id, is_template, is_anonymous, created_at")
+      .in("instrument_id", instrumentIds)
+      .eq("is_published", true);
+    if (vErr) throw new Error(vErr.message);
+    const candidatas = (versoes ?? []) as VersaoCandidata[];
+
+    const { data: respostas, error: rErr } = await supabase
+      .from("test_responses")
+      .select("id, person_id, version_id, attempt, status, submitted_at, started_at, canceled_at, test_versions(instrument_id)")
+      .in("person_id", personIds)
+      .eq("kind", "self")
+      .order("attempt", { ascending: false });
+    if (rErr) throw new Error(rErr.message);
+
+    const itens: TesteLiberado[] = [];
+    for (const pessoa of pessoas) {
+      const meusGrupos = new Set(gruposPorPessoa.get(pessoa.id) ?? []);
+      if (meusGrupos.size === 0) continue;
+      const meusLiberados = liberados.filter((l) => meusGrupos.has(l.group_id));
+      const porInstrumento = new Map<string, (typeof liberados)[number]>();
+      for (const l of meusLiberados) if (!porInstrumento.has(l.instrument_id)) porInstrumento.set(l.instrument_id, l);
+
+      for (const [instrumentId, lib] of porInstrumento) {
+        const versao = resolverVersao(instrumentId, lib.version_id, pessoa.mentor_id, candidatas);
+        const tentativas = (respostas ?? [])
+          .filter((r) => r.person_id === pessoa.id && r.test_versions?.instrument_id === instrumentId)
+          .map((r) => ({
+            response_id: r.id, attempt: r.attempt ?? 1, status: r.status,
+            submitted_at: r.submitted_at, started_at: r.started_at, canceled_at: r.canceled_at,
+          }));
+        itens.push({
+          instrument_id: instrumentId,
+          nome: lib.instruments?.name ?? instrumentId,
+          short_name: lib.instruments?.short_name ?? instrumentId,
+          category: lib.instruments?.category ?? "comportamental",
+          duration_min: lib.instruments?.duration_min ?? 15,
+          person_id: pessoa.id,
+          version_id: versao?.id ?? null,
+          tentativas,
+        });
+      }
+    }
+    itens.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    return { vinculado: true as const, itens };
+  });
+
+/**
+ * Abre uma tentativa nova, ou devolve a que já está pela metade — a trava do
+ * dono: "não pode abrir uma tentativa nova DO MESMO TESTE enquanto houver uma
+ * pela metade" (#298, regra 5). "Mesmo teste" é o INSTRUMENTO (DISC continua
+ * sendo DISC mesmo que o mentor troque a versão liberada no meio do caminho),
+ * não a versão exata — por isso o achado usa `test_versions(instrument_id)`.
+ *
+ * Refazer um teste já concluído são NOVAS respostas: o histórico nunca é
+ * apagado (regra 5 do dono) — a corrente `attempt`/`previous_response_id` já
+ * existia para o reteste que o MENTOR autoriza (`authorizeRetake`); aqui é a
+ * mesma corrente, só que quem aciona é a própria pessoa.
+ */
+export const iniciarOuRetomarTeste = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ person_id: z.string().uuid(), instrument_id: z.string().min(1) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    // Dono verificado pela RLS de `people` (self) — nunca aceita o person_id
+    // de outra pessoa, mesmo que o chamador tente forçar um id alheio.
+    const { data: pessoa, error: pErr } = await supabase
+      .from("people").select("id, mentor_id").eq("id", data.person_id).eq("user_id", context.userId).maybeSingle();
+    if (pErr) throw new Error(pErr.message);
+    if (!pessoa) throw new Error("Cadastro não encontrado ou não é seu.");
+
+    const { data: membro, error: mErr } = await supabase
+      .from("group_members").select("group_id").eq("person_id", pessoa.id);
+    if (mErr) throw new Error(mErr.message);
+    const groupIds = (membro ?? []).map((m) => m.group_id);
+    if (groupIds.length === 0) throw new Error("Você ainda não está em nenhum grupo.");
+
+    const { data: liberado, error: gErr } = await supabase
+      .from("group_instruments")
+      .select("group_id, instrument_id, version_id")
+      .in("group_id", groupIds)
+      .eq("instrument_id", data.instrument_id)
+      .limit(1)
+      .maybeSingle();
+    if (gErr) throw new Error(gErr.message);
+    if (!liberado) throw new Error("Este teste não está liberado para você.");
+
+    const { data: versoes, error: vErr } = await supabase
+      .from("test_versions")
+      .select("id, instrument_id, mentor_id, is_template, is_anonymous, created_at")
+      .eq("instrument_id", data.instrument_id)
+      .eq("is_published", true);
+    if (vErr) throw new Error(vErr.message);
+    const versao = resolverVersao(data.instrument_id, liberado.version_id, pessoa.mentor_id, (versoes ?? []) as VersaoCandidata[]);
+    if (!versao) throw new Error("Ainda não há uma versão publicada deste teste. Avise seu mentor.");
+
+    const admin = await getAdminStudent();
+
+    // Trava: já existe uma tentativa deste INSTRUMENTO pela metade? Devolve
+    // ela direto — o botão da tela não precisa saber se é "começar" ou
+    // "retomar", os dois casos terminam abrindo o mesmo /responder/$id.
+    const { data: aberta, error: aErr } = await admin
+      .from("test_responses")
+      .select("id, test_versions!inner(instrument_id)")
+      .eq("person_id", pessoa.id)
+      .eq("kind", "self")
+      .eq("test_versions.instrument_id", data.instrument_id)
+      .is("submitted_at", null)
+      .is("canceled_at", null)
+      .maybeSingle();
+    if (aErr) throw new Error(aErr.message);
+    if (aberta) return { response_id: aberta.id, retomando: true as const };
+
+    // Encadeia com a última SUBMETIDA deste instrumento, se houver — mesmo
+    // mecanismo do reteste autorizado pelo mentor (attempt + previous_response_id).
+    const { data: ultimaSubmetida } = await admin
+      .from("test_responses")
+      .select("id, attempt, test_versions!inner(instrument_id)")
+      .eq("person_id", pessoa.id)
+      .eq("kind", "self")
+      .eq("test_versions.instrument_id", data.instrument_id)
+      .not("submitted_at", "is", null)
+      .order("attempt", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: nova, error: iErr } = await admin
+      .from("test_responses")
+      .insert({
+        version_id: versao.id,
+        person_id: pessoa.id,
+        group_id: liberado.group_id,
+        mentor_id: pessoa.mentor_id,
+        kind: "self",
+        status: "pending",
+        attempt: (ultimaSubmetida?.attempt ?? 0) + 1,
+        previous_response_id: ultimaSubmetida?.id ?? null,
+      })
+      .select("id")
+      .single();
+    if (iErr) throw new Error(iErr.message);
+    return { response_id: nova.id, retomando: false as const };
+  });
+
+/**
+ * Cancela a própria tentativa pela metade — a saída que a trava da regra 5
+ * exige oferecer ("ou ele conclui, ou cancela a anterior"). Mesmo mecanismo
+ * do cancelamento que o mentor já tem (`setResponseCanceled`): marca
+ * `canceled_at`, nunca apaga a linha — quem cancelou continua no histórico.
+ */
+export const cancelarMinhaTentativa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ response_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: resp, error } = await supabase
+      .from("test_responses")
+      .select("id, person_id, submitted_at, canceled_at, people!inner(user_id)")
+      .eq("id", data.response_id)
+      .eq("people.user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!resp) throw new Error("Tentativa não encontrada ou não é sua.");
+    if (resp.submitted_at) throw new Error("Esta tentativa já foi concluída — não há o que cancelar.");
+    if (resp.canceled_at) return { ok: true as const };
+
+    const admin = await getAdminStudent();
+    const { error: uErr } = await admin
+      .from("test_responses")
+      .update({ canceled_at: new Date().toISOString() })
+      .eq("id", data.response_id);
+    if (uErr) throw new Error(uErr.message);
+    return { ok: true as const };
   });

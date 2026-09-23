@@ -706,6 +706,9 @@ export const upsertConfiguracoesConta = createServerFn({ method: "POST" })
  * - Agrega por **key** da dimensão (D, I, S, C…), não por id: versões
  *   diferentes do mesmo teste têm ids diferentes para a mesma dimensão.
  * - Só entra dimensão que foi de fato medida (presente em `normalized`).
+ * - **Uma resposta por pessoa por instrumento** (#298): entre as submissões
+ *   da mesma pessoa no mesmo instrumento, só a mais recente entra na conta —
+ *   sem isso, refazer o teste pesa duas vezes na média da turma.
  * - Devolve o tamanho da amostra por instrumento para a tela poder avisar
  *   quando ainda são poucas pessoas.
  */
@@ -726,15 +729,31 @@ export const getGroupDna = createServerFn({ method: "GET" })
     const personIds = (members ?? []).map((m) => m.person_id);
     if (personIds.length === 0) return { members: 0, instruments: [] };
 
-    const { data: responses, error: rErr } = await supabase
+    const { data: responsesRaw, error: rErr } = await supabase
       .from("test_responses")
-      .select("id, person_id, version_id, computed_scores, test_versions(instrument_id, instruments(name))")
+      .select("id, person_id, version_id, submitted_at, computed_scores, test_versions(instrument_id, instruments(name))")
       .in("person_id", personIds)
       .eq("mentor_id", userId)
       .eq("kind", "self")
       .not("submitted_at", "is", null);
     if (rErr) throw new Error(rErr.message);
-    if (!responses || responses.length === 0) return { members: personIds.length, instruments: [] };
+    if (!responsesRaw || responsesRaw.length === 0) return { members: personIds.length, instruments: [] };
+
+    // #298 — UMA resposta por pessoa por instrumento: a mais recente SUBMETIDA
+    // ("a tentativa vigente", regra do dono). Sem isto, quem refaz o mesmo
+    // teste N vezes pesa N vezes na média da turma — o "DNA" deixava de
+    // descrever pessoas e passava a descrever respostas.
+    const maisRecentePorPessoaInstrumento = new Map<string, (typeof responsesRaw)[number]>();
+    for (const r of responsesRaw) {
+      const instrumentId = r.test_versions?.instrument_id;
+      if (!instrumentId || !r.submitted_at) continue;
+      const chave = `${r.person_id}::${instrumentId}`;
+      const atual = maisRecentePorPessoaInstrumento.get(chave);
+      if (!atual || !atual.submitted_at || r.submitted_at > atual.submitted_at) {
+        maisRecentePorPessoaInstrumento.set(chave, r);
+      }
+    }
+    const responses = Array.from(maisRecentePorPessoaInstrumento.values());
 
     const versionIds = Array.from(new Set(responses.map((r) => r.version_id)));
     const { data: dims, error: dErr } = await supabase

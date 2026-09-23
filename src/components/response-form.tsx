@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,8 @@ export type ResponsePayload = {
   questions: Question[];
   options: Option[];
   sections: Section[];
+  /** #298 — o que já foi salvo como rascunho, para "retomar de onde parou". */
+  saved_answers?: { question_id: string; payload: Record<string, unknown> }[];
 };
 export type ResultDim = { id: string; key: string; label: string; color: string | null; points: number };
 export type PerDimBand = { dimension_id: string; label: string; color: string | null; mode: "natural" | "adaptado"; points: number; normalized: number | null; band: { title: string; description: string | null } | null };
@@ -96,6 +98,26 @@ export function ResponseForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blocoAtual, setBlocoAtual] = useState(0);
+  // #298 — controla o autosave do rascunho: `hidratando` evita salvar de volta
+  // o que acabou de ser lido (a primeira mudança de `answers` é a hidratação,
+  // não uma resposta nova), e `salvarTimeout` é o debounce.
+  const hidratando = useRef(true);
+  const salvarTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const salvarRascunho = useCallback((snapshot: Record<string, Record<string, unknown>>) => {
+    const lista = Object.entries(snapshot).map(([question_id, payload]) => ({ question_id, payload }));
+    if (lista.length === 0) return;
+    fetch(`/api/public/response/${responseId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ answers: lista }),
+    }).catch(() => {
+      // Silencioso de propósito: o rascunho é uma rede de segurança, não a
+      // ação principal da tela. Se a rede falhar, a próxima resposta marcada
+      // tenta salvar de novo (o debounce reagenda a cada mudança) — e o envio
+      // final continua sendo a fonte de verdade, ele sim visível se falhar.
+    });
+  }, [responseId]);
 
   useEffect(() => {
     let active = true;
@@ -103,6 +125,7 @@ export function ResponseForm({
     setAnswers({});
     setError(null);
     setBlocoAtual(0);
+    hidratando.current = true;
     fetch(`/api/public/response/${responseId}`)
       .then(async (r) => {
         if (!active) return;
@@ -118,6 +141,10 @@ export function ResponseForm({
         if (json?.submitted) { onBrand?.(json.brand ?? null); onAlreadySubmitted?.(); return; }
         onBrand?.(json.brand ?? null);
         setPayload(json);
+        // #298 — "retomar de onde parou": o padrão de ranking/drag_order (ordem
+        // das opções) entra primeiro, e o rascunho gravado sobrescreve por
+        // cima — é o que a pessoa realmente decidiu da última vez que esteve
+        // aqui, não a ordem de exibição.
         const init: Record<string, Record<string, unknown>> = {};
         for (const q of json.questions as Question[]) {
           if (q.type === "ranking" || q.type === "drag_order") {
@@ -125,6 +152,9 @@ export function ResponseForm({
               ordered_option_ids: (json.options as Option[]).filter((o) => o.question_id === q.id).map((o) => o.id),
             };
           }
+        }
+        for (const a of (json.saved_answers ?? []) as { question_id: string; payload: Record<string, unknown> }[]) {
+          init[a.question_id] = a.payload;
         }
         setAnswers(init);
       })
@@ -135,6 +165,17 @@ export function ResponseForm({
 
   const setAns = (qid: string, value: Record<string, unknown>) =>
     setAnswers((prev) => ({ ...prev, [qid]: value }));
+
+  // #298 — autosave: 1,2s depois da última marcação, sem travar a digitação
+  // nem disparar uma chamada por clique (um ranking reordenado várias vezes
+  // em segundos não precisa de uma requisição por movimento).
+  useEffect(() => {
+    if (hidratando.current) { hidratando.current = false; return; }
+    if (salvarTimeout.current) clearTimeout(salvarTimeout.current);
+    salvarTimeout.current = setTimeout(() => salvarRascunho(answers), 1200);
+    return () => { if (salvarTimeout.current) clearTimeout(salvarTimeout.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers]);
 
   const submit = async () => {
     if (!payload) return;
@@ -202,6 +243,10 @@ export function ResponseForm({
       const motivo = motivoInvalido(q, answers[q.id], indiceGlobal);
       if (motivo) { toast.error(motivo); return; }
     }
+    // Virar de bloco é o momento mais natural de "vou parar por aqui daqui a
+    // pouco" — salva na hora, sem esperar o debounce de 1,2s.
+    if (salvarTimeout.current) clearTimeout(salvarTimeout.current);
+    salvarRascunho(answers);
     window.scrollTo({ top: 0, behavior: "smooth" });
     setBlocoAtual((b) => b + 1);
   };

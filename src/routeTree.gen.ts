@@ -38,6 +38,7 @@ import { Route as AlunoGruposRouteImport } from './routes/aluno.grupos'
 import { Route as AlunoMentoriasRouteImport } from './routes/aluno.mentorias'
 import { Route as AlunoPerfilRouteImport } from './routes/aluno.perfil'
 import { Route as AlunoRankingRouteImport } from './routes/aluno.ranking'
+import { Route as AlunoTestesRouteImport } from './routes/aluno.testes'
 import { Route as ApiManifestRouteImport } from './routes/api.manifest'
 import { Route as ApiMarcaRouteImport } from './routes/api.marca'
 import { Route as AvaliarAulaIdRouteImport } from './routes/avaliar.$aulaId'
@@ -234,6 +235,11 @@ const AlunoPerfilRoute = AlunoPerfilRouteImport.update({
 const AlunoRankingRoute = AlunoRankingRouteImport.update({
   id: '/ranking',
   path: '/ranking',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoTestesRoute = AlunoTestesRouteImport.update({
+  id: '/testes',
+  path: '/testes',
   getParentRoute: () => AlunoRoute,
 } as any)
 const ApiManifestRoute = ApiManifestRouteImport.update({
@@ -531,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/aluno/mentorias': typeof AlunoMentoriasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
+  '/aluno/testes': typeof AlunoTestesRoute
   '/api/manifest': typeof ApiManifestRoute
   '/api/marca': typeof ApiMarcaRoute
   '/avaliar/$aulaId': typeof AvaliarAulaIdRoute
@@ -603,6 +610,7 @@ export interface FileRoutesByTo {
   '/aluno/mentorias': typeof AlunoMentoriasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
+  '/aluno/testes': typeof AlunoTestesRoute
   '/api/manifest': typeof ApiManifestRoute
   '/api/marca': typeof ApiMarcaRoute
   '/avaliar/$aulaId': typeof AvaliarAulaIdRoute
@@ -686,6 +694,7 @@ export interface FileRoutesById {
   '/aluno/mentorias': typeof AlunoMentoriasRoute
   '/aluno/perfil': typeof AlunoPerfilRoute
   '/aluno/ranking': typeof AlunoRankingRoute
+  '/aluno/testes': typeof AlunoTestesRoute
   '/api/manifest': typeof ApiManifestRoute
   '/api/marca': typeof ApiMarcaRoute
   '/avaliar/$aulaId': typeof AvaliarAulaIdRoute
@@ -770,6 +779,7 @@ export interface FileRouteTypes {
     | '/aluno/mentorias'
     | '/aluno/perfil'
     | '/aluno/ranking'
+    | '/aluno/testes'
     | '/api/manifest'
     | '/api/marca'
     | '/avaliar/$aulaId'
@@ -842,6 +852,7 @@ export interface FileRouteTypes {
     | '/aluno/mentorias'
     | '/aluno/perfil'
     | '/aluno/ranking'
+    | '/aluno/testes'
     | '/api/manifest'
     | '/api/marca'
     | '/avaliar/$aulaId'
@@ -924,6 +935,7 @@ export interface FileRouteTypes {
     | '/aluno/mentorias'
     | '/aluno/perfil'
     | '/aluno/ranking'
+    | '/aluno/testes'
     | '/api/manifest'
     | '/api/marca'
     | '/avaliar/$aulaId'
@@ -1221,6 +1233,13 @@ declare module '@tanstack/react-router' {
       path: '/ranking'
       fullPath: '/aluno/ranking'
       preLoaderRoute: typeof AlunoRankingRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/testes': {
+      id: '/aluno/testes'
+      path: '/testes'
+      fullPath: '/aluno/testes'
+      preLoaderRoute: typeof AlunoTestesRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/api/manifest': {
@@ -1719,6 +1738,7 @@ interface AlunoRouteChildren {
   AlunoMentoriasRoute: typeof AlunoMentoriasRoute
   AlunoPerfilRoute: typeof AlunoPerfilRoute
   AlunoRankingRoute: typeof AlunoRankingRoute
+  AlunoTestesRoute: typeof AlunoTestesRoute
   AlunoIndexRoute: typeof AlunoIndexRoute
   AlunoClassroomTreinamentoIdRoute: typeof AlunoClassroomTreinamentoIdRoute
   AlunoEducacaoTrackIdRoute: typeof AlunoEducacaoTrackIdRoute
@@ -1734,6 +1754,7 @@ const AlunoRouteChildren: AlunoRouteChildren = {
   AlunoMentoriasRoute: AlunoMentoriasRoute,
   AlunoPerfilRoute: AlunoPerfilRoute,
   AlunoRankingRoute: AlunoRankingRoute,
+  AlunoTestesRoute: AlunoTestesRoute,
   AlunoIndexRoute: AlunoIndexRoute,
   AlunoClassroomTreinamentoIdRoute: AlunoClassroomTreinamentoIdRoute,
   AlunoEducacaoTrackIdRoute: AlunoEducacaoTrackIdRoute,

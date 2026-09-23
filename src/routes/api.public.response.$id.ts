@@ -60,6 +60,15 @@ async function loadResponsePayload(id: string) {
     .select("id, title, description, sort_order")
     .eq("version_id", versionId)
     .order("sort_order");
+  // #298 — "retomar de onde parou". Antes desta demanda o rascunho não existia:
+  // status virava 'in_progress' acima, mas nenhuma resposta ficava gravada até
+  // o envio final — sair no meio perdia tudo. `test_answers` já é a tabela que
+  // o envio final grava; aqui ela também guarda o rascunho, então reabrir o
+  // link (autoatendido ou por link do mentor) devolve o que já foi marcado.
+  const { data: rascunho } = await supabase
+    .from("test_answers")
+    .select("question_id, payload")
+    .eq("response_id", id);
   return {
     submitted: false as const,
     brand,
@@ -74,6 +83,7 @@ async function loadResponsePayload(id: string) {
     questions: questions ?? [],
     options: options ?? [],
     sections: sections ?? [],
+    saved_answers: rascunho ?? [],
   };
 }
 
@@ -184,6 +194,68 @@ async function avisarQueRespondeu(
   } catch {
     // Ver o comentário acima: aviso nunca derruba a resposta já gravada.
   }
+}
+
+const draftSchema = z.object({
+  answers: z.array(z.object({
+    question_id: z.string().uuid(),
+    payload: z.record(z.string(), z.unknown()),
+  })),
+});
+
+/**
+ * Salva o rascunho — "retomar de onde parou" (#298).
+ *
+ * Não é `computeAndStore` "mais fraco": não pontua, não decide dominante,
+ * não muda `status` nem `submitted_at`. Só grava o que a pessoa já marcou,
+ * pergunta a pergunta, para o GET devolver de volta na próxima visita — a
+ * mesma tabela que o envio final grava (`test_answers`), então não existem
+ * dois lugares guardando resposta.
+ *
+ * `upsert` por `(response_id, question_id)`: reabrir a mesma pergunta e mudar
+ * de ideia substitui a linha, nunca acumula. Perguntas sem conteúdo (usuário
+ * limpou a resposta) são removidas — salvar `{}` eternamente não ajudaria e
+ * confundiria o `hasContent` de quem for ler depois.
+ */
+async function saveDraft(id: string, input: z.infer<typeof draftSchema>) {
+  const supabase = await getAdmin();
+  const { data: response } = await supabase
+    .from("test_responses")
+    .select("id, submitted_at, canceled_at, expires_at, version_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!response) throw new Error("Resposta não encontrada.");
+  if (response.submitted_at) throw new Error("Esta resposta já foi enviada.");
+  if (response.canceled_at) throw new Error("Este link foi cancelado.");
+  if (response.expires_at && new Date(response.expires_at).getTime() < Date.now()) {
+    throw new Error("Este link expirou.");
+  }
+
+  const { data: questions } = await supabase
+    .from("test_questions").select("id, type").eq("version_id", response.version_id);
+  const tipoPorPergunta = new Map((questions ?? []).map((q) => [q.id, q.type]));
+
+  const comConteudo = input.answers.filter((a) => hasContent(tipoPorPergunta.get(a.question_id) ?? "", a.payload));
+  const semConteudo = input.answers.filter((a) => !comConteudo.includes(a));
+
+  if (comConteudo.length > 0) {
+    const { error } = await supabase
+      .from("test_answers")
+      .upsert(
+        comConteudo.map((a) => ({ response_id: id, question_id: a.question_id, payload: a.payload as never })),
+        { onConflict: "response_id,question_id" },
+      );
+    if (error) throw new Error(error.message);
+  }
+  if (semConteudo.length > 0) {
+    const { error } = await supabase
+      .from("test_answers")
+      .delete()
+      .eq("response_id", id)
+      .in("question_id", semConteudo.map((a) => a.question_id));
+    if (error) throw new Error(error.message);
+  }
+  return { ok: true };
 }
 
 async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) {
@@ -824,6 +896,20 @@ export const Route = createFileRoute("/api/public/response/$id")({
           if (result.kind === "observer") {
             return new Response(JSON.stringify({ observer: true }), { headers: { "content-type": "application/json" } });
           }
+          return new Response(JSON.stringify(result), { headers: { "content-type": "application/json" } });
+        } catch (e) {
+          const msg = mensagemDeErro(e);
+          return new Response(JSON.stringify({ error: msg }), { status: 400, headers: { "content-type": "application/json" } });
+        }
+      },
+      // #298 — salva o rascunho sem enviar (ver saveDraft). Método próprio
+      // (não reaproveita o POST) para nunca correr o risco de um rascunho
+      // acionar o motor de pontuação por engano.
+      PATCH: async ({ request, params }) => {
+        try {
+          const body = await request.json();
+          const input = draftSchema.parse(body);
+          const result = await saveDraft(params.id, input);
           return new Response(JSON.stringify(result), { headers: { "content-type": "application/json" } });
         } catch (e) {
           const msg = mensagemDeErro(e);
