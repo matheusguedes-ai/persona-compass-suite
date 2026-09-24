@@ -10,8 +10,18 @@ combinações ordenadas) sempre existem no banco; sigla sem conteúdo aprovado f
 relatório (não é "aviso no lugar", como o texto do perfil; ver `src/lib/disc-secoes-extra.ts`).
 
 NADA INVENTADO: só entra o que está em CONTEUDO abaixo, aprovado pelo dono do produto por
-sigla — hoje só D (perfil de exemplo pedido pela #302, item 7). As outras 15 ficam pendentes até
-ele escrever ou aprovar.
+sigla — hoje os 4 perfis SIMPLES (D, I, S, C; CONTEUDO_perfil_D_DISC.md +
+CONTEUDO_DISC_15_perfis_restantes.md, ambos aprovados 24/09/2026).
+
+⚠️ Os 12 perfis COMBINADOS ficam pendentes AQUI DE PROPÓSITO, e é isso mesmo — não é trabalho
+faltando. Pela regra de herança que o dono do produto definiu em 24/09: a SWOT/Ganhos e
+Perdas/Onde Isso Aparece de um perfil combinado (ex.: "DI") não é conteúdo próprio — é a das
+DUAS letras que o formam, mostrada lado a lado. Uma vez que os 4 simples estão publicados (como
+agora), os 12 combinados JÁ TÊM tudo que essas três seções precisam — não vai entrar mais linha
+nenhuma aqui para eles. Falta só a montagem em `src/lib/disc-secoes-extra.ts`/`relatorio.ts`
+saber buscar as DUAS letras em vez de uma (mudança de lógica combinada com o Matheus em 24/09,
+pendente de confirmar o layout antes de implementar). "Comunicadores com Traços Semelhantes"
+não tem regra de herança — combinados simplesmente não mostram essa seção.
 
 Uso
 ---
@@ -65,6 +75,48 @@ CONTEUDO = {
                 "Relação que vira operacional",
             ],
         },
+        "I": {
+            "forcas": ["Conexão imediata", "Improviso sob pressão", "Energia que contagia", "Simplifica o complexo"],
+            "fragilidades": [
+                "Ponto central se dispersa", "Foge do conflito com humor", "Excesso de palavra", "Combinado que fica vago",
+            ],
+            "oportunidades": ["Palco e apresentação", "Vídeo e redes", "Vendas consultivas", "Papéis de representação"],
+            "ameacas": [
+                "Ser lido como superficial", "Acordo que ninguém cumpre", "Promessa feita no entusiasmo",
+                "Conversa adiada que azeda",
+            ],
+        },
+        "S": {
+            "forcas": ["Escuta genuína", "Constância no combinado", "Ambiente seguro ao redor", "Paciência real"],
+            "fragilidades": [
+                "Discordância engolida", "Conversa difícil adiada", "Posição que não aparece", "Acúmulo silencioso",
+            ],
+            "oportunidades": [
+                "Mediação e conciliação", "Relação de longo prazo", "Formação e acompanhamento", "Times em reconstrução",
+            ],
+            "ameacas": [
+                "Ser passado para trás por educação", "Ressentimento acumulado", "Ser lido como sem opinião",
+                "Sobrecarga por não dizer não",
+            ],
+        },
+        "C": {
+            "forcas": [
+                "Precisão no que afirma", "Preparo antes de falar", "Consistência ao longo do tempo",
+                "Antecipa o que pode falhar",
+            ],
+            "fragilidades": [
+                "Conclusão enterrada no detalhe", "Demora para se posicionar", "Excesso de ressalva",
+                "Autocrítica que trava",
+            ],
+            "oportunidades": [
+                "Temas técnicos e sensíveis", "Documentos e material escrito", "Ambientes que exigem rigor",
+                "Formação e ensino",
+            ],
+            "ameacas": [
+                "Ser lido como lento ou travado", "Perder a janela da decisão", "Cansar quem só queria a resposta",
+                "Paralisia antes do bom o bastante",
+            ],
+        },
     },
     SECAO_GANHOS_PERDAS: {
         "D": {
@@ -88,6 +140,57 @@ CONTEUDO = {
             "frase_que_te_segura": (
                 '"Se eu for mais devagar, perco a força." — Não é o que acontece. O que enfraquece uma '
                 "posição não é o ritmo: é ela não ter sido compreendida."
+            ),
+        },
+        "I": {
+            "mantendo": {
+                "ganha": "Portas abertas, ambiente leve, conflito adiado, energia alta e a sensação constante de que foi bem.",
+                "perde": (
+                    "Ser lembrado com carinho e não com peso. Decisões tomadas por outros porque as suas não "
+                    "ficaram claras. O cansaço de sustentar o clima de todo mundo."
+                ),
+            },
+            "mudando": {
+                "ganha": "A mesma simpatia, agora com consequência. Gente que não só gosta de você, mas conta com você.",
+                "perde": "A tolerância ao desconforto. Aceitar que alguém saia da conversa chateado com você.",
+            },
+            "frase_que_te_segura": (
+                '"Se eu for mais direto, as pessoas vão se afastar." — O oposto costuma acontecer. O que afasta '
+                "não é a franqueza; é a sensação de nunca saber onde você está de verdade."
+            ),
+        },
+        "S": {
+            "mantendo": {
+                "ganha": "Relações preservadas, ambiente sem atrito, confiança de todos.",
+                "perde": (
+                    "Voz nas decisões que te afetam. O respeito que vem de ter posição. E o peso do que você "
+                    "nunca disse."
+                ),
+            },
+            "mudando": {
+                "ganha": "Ser ouvido quando importa. Relações mais verdadeiras. Parar de carregar o que era do outro.",
+                "perde": "A paz imediata. E a certeza de que ninguém vai ficar chateado.",
+            },
+            "frase_que_te_segura": (
+                '"Se eu falar o que penso, vou estragar a relação." — A relação aguenta mais do que você imagina. '
+                "A franqueza dita com cuidado não afasta: aprofunda."
+            ),
+        },
+        "C": {
+            "mantendo": {
+                "ganha": "Confiança total no que diz, zero retratação, segurança de estar certo.",
+                "perde": (
+                    "Velocidade. Espaço para quem fala mais e sabe menos. E a ideia boa que nunca saiu porque "
+                    "não estava pronta."
+                ),
+            },
+            "mudando": {
+                "ganha": "Ser ouvido no tempo em que a decisão acontece. Mesma credibilidade, agora com alcance.",
+                "perde": "A proteção de ter conferido tudo. E o conforto de nunca errar em público.",
+            },
+            "frase_que_te_segura": (
+                '"Se eu não explicar tudo, não vão levar a sério." — Comunicar não é provar. Sua credibilidade já '
+                "está no fato de você não falar o que não sustenta."
             ),
         },
     },
@@ -143,6 +246,138 @@ CONTEUDO = {
                 },
             ],
         },
+        "I": {
+            "situacoes": [
+                {
+                    "situacao": "Liderando",
+                    "automatico": (
+                        "Você engaja pela relação e o time gosta de trabalhar com você. Para não quebrar o "
+                        "clima, você suaviza o combinado e a régua vira negociável."
+                    ),
+                    "tecnica": "Separe o momento de conectar do momento de combinar. Feche dizendo quem faz o quê e até quando.",
+                },
+                {
+                    "situacao": "Vendendo",
+                    "automatico": "Você abre qualquer porta e cria simpatia em minutos. Mas conversa boa vira reunião agradável sem fechamento.",
+                    "tecnica": "Antes de entrar, escreva a frase que você quer ouvir do cliente no fim.",
+                },
+                {
+                    "situacao": "Falando em público",
+                    "automatico": (
+                        "Você tem palco: prende, diverte, sustenta a atenção. O risco é sair do roteiro atrás "
+                        "da reação e nunca voltar."
+                    ),
+                    "tecnica": "Três marcos fixos por fala. Improvise entre eles, mas passe pelos três.",
+                },
+                {
+                    "situacao": "Fazendo networking",
+                    "automatico": (
+                        "É seu território natural, e aí mora a armadilha: você conhece muita gente e "
+                        "aprofunda pouco."
+                    ),
+                    "tecnica": "Saia de cada evento com três nomes, não trinta. Follow-up em 48 horas.",
+                },
+                {
+                    "situacao": "Gravando vídeo",
+                    "automatico": "Sua entrega funciona bem na câmera. Você começa a gravar sem saber onde vai parar e o corte fica impossível.",
+                    "tecnica": "Defina a última frase antes de gravar a primeira.",
+                },
+                {
+                    "situacao": "Em família",
+                    "automatico": (
+                        "Você anima a casa, mas desvia da conversa difícil com humor. Quem está do outro "
+                        "lado se sente não levado a sério."
+                    ),
+                    "tecnica": "Quando perceber a piada chegando num assunto pesado, segure.",
+                },
+                {
+                    "situacao": "Entre pares",
+                    "automatico": (
+                        "Você é bem-quisto, mas evita o conflito aberto e acaba concordando na frente e "
+                        "discordando depois."
+                    ),
+                    "tecnica": "Diga a discordância na reunião, não no corredor.",
+                },
+            ],
+        },
+        "S": {
+            "situacoes": [
+                {
+                    "situacao": "Liderando",
+                    "automatico": "Você sustenta o time, mas adia a conversa de desempenho até virar demissão.",
+                    "tecnica": "Faça o incômodo virar conversa na mesma semana.",
+                },
+                {
+                    "situacao": "Vendendo",
+                    "automatico": "Constrói confiança como poucos, mas não pede o fechamento.",
+                    "tecnica": "Termine toda reunião com uma pergunta de decisão.",
+                },
+                {
+                    "situacao": "Falando em público",
+                    "automatico": "Tom constante e agradável; falta relevo.",
+                    "tecnica": "Escolha uma frase para dizer mais devagar e mais alto.",
+                },
+                {
+                    "situacao": "Fazendo networking",
+                    "automatico": "Aprofunda bem, mas espera ser abordado.",
+                    "tecnica": "Chegue e puxe a primeira conversa. Uma só.",
+                },
+                {
+                    "situacao": "Gravando vídeo",
+                    "automatico": "Transmite calma e confiança; o começo demora.",
+                    "tecnica": "Comece pela frase mais forte, não pela apresentação.",
+                },
+                {
+                    "situacao": "Em família",
+                    "automatico": "Absorve o desconforto de todos e não diz o que precisa.",
+                    "tecnica": "Diga o que você quer antes de perguntar o que os outros querem.",
+                },
+                {
+                    "situacao": "Entre pares",
+                    "automatico": "Concorda na reunião e discorda por dentro.",
+                    "tecnica": 'Diga "tenho uma ressalva" antes que a reunião acabe.',
+                },
+            ],
+        },
+        "C": {
+            "situacoes": [
+                {
+                    "situacao": "Liderando",
+                    "automatico": 'Você explica o porquê em profundidade e o time se perde antes do "o quê".',
+                    "tecnica": "Dê a decisão em uma frase; o raciocínio, se perguntarem.",
+                },
+                {
+                    "situacao": "Vendendo",
+                    "automatico": "Apresenta todas as ressalvas e planta dúvida onde não havia.",
+                    "tecnica": "Responda a objeção feita, não a que você imaginou.",
+                },
+                {
+                    "situacao": "Falando em público",
+                    "automatico": "Conteúdo impecável, abertura arrastada.",
+                    "tecnica": "Comece pela conclusão. O percurso vem depois.",
+                },
+                {
+                    "situacao": "Fazendo networking",
+                    "automatico": "Aprofunda com quem já conhece, custa a iniciar com estranho.",
+                    "tecnica": "Prepare uma pergunta só e use com todo mundo.",
+                },
+                {
+                    "situacao": "Gravando vídeo",
+                    "automatico": "Informação sólida, primeiros segundos frios.",
+                    "tecnica": "Corte tudo que vem antes da primeira ideia.",
+                },
+                {
+                    "situacao": "Em família",
+                    "automatico": "Corrige imprecisão em conversa que não pedia rigor.",
+                    "tecnica": "Pergunte se é hora de resolver ou de escutar.",
+                },
+                {
+                    "situacao": "Entre pares",
+                    "automatico": "Trava a entrega por um detalhe que só você vê.",
+                    "tecnica": 'Defina antes o que é "bom o bastante" — e pare ali.',
+                },
+            ],
+        },
     },
     SECAO_COMUNICADORES: {
         "D": {
@@ -154,6 +389,28 @@ CONTEUDO = {
                     "nome": "Miranda Priestly (ficção, O Diabo Veste Prada)",
                     "descricao": "decide em uma frase, não repete e não explica.",
                 },
+            ],
+        },
+        "I": {
+            "pessoas": [
+                {"nome": "Silvio Santos", "descricao": "carreira inteira construída sobre improviso e conexão imediata."},
+                {"nome": "Oprah Winfrey", "descricao": "referência em criar intimidade pública em minutos."},
+                {"nome": "Luciano Huck", "descricao": "transita entre registros pela energia."},
+                {"nome": "Ted Lasso (ficção)", "descricao": "vence pela relação, não pela técnica."},
+            ],
+        },
+        "S": {
+            "pessoas": [
+                {"nome": "Ayrton Senna fora das pistas", "descricao": "serenidade e constância no trato."},
+                {"nome": "Barack Obama", "descricao": "cadência e uso deliberado da pausa."},
+                {"nome": "Samwise Gamgee (ficção)", "descricao": "lealdade que sustenta sem pedir palco."},
+            ],
+        },
+        "C": {
+            "pessoas": [
+                {"nome": "Ada Lovelace", "descricao": "rigor e precisão como marca."},
+                {"nome": "Tim Cook", "descricao": "contenção e exatidão na comunicação pública."},
+                {"nome": "Hermione Granger e Spock (ficção)", "descricao": "o preparo como forma de cuidado."},
             ],
         },
     },
