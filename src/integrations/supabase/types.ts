@@ -1536,6 +1536,7 @@ export type Database = {
           band_max: number | null
           band_min: number | null
           body: string
+          content_json: Json | null
           created_at: string
           dimension_key: string
           id: string
@@ -1550,6 +1551,7 @@ export type Database = {
           band_max?: number | null
           band_min?: number | null
           body: string
+          content_json?: Json | null
           created_at?: string
           dimension_key: string
           id?: string
@@ -1564,6 +1566,7 @@ export type Database = {
           band_max?: number | null
           band_min?: number | null
           body?: string
+          content_json?: Json | null
           created_at?: string
           dimension_key?: string
           id?: string

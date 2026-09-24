@@ -7,6 +7,7 @@ import { computeDerived, type DerivedConfig, type FactorMap } from "@/lib/deriva
 import { loadBrandAndSettings } from "@/lib/brand.server";
 import { usaMotorIpsativo, type ResultadoIpsativo } from "@/lib/escolha-forcada";
 import { montarIntensidade } from "@/lib/intensidade";
+import { montarSwotDisc, montarGanhosPerdasDisc, montarOndeAparece } from "@/lib/disc-secoes-extra";
 import { obterIpsativo } from "@/lib/ipsativo.server";
 import { getRequest } from "@tanstack/react-start/server";
 
@@ -187,7 +188,7 @@ export async function buildReport(id: string) {
     supabase.from("test_result_bands").select("id, dimension_id, mode, min_score, max_score, title, description").eq("version_id", versionId),
     supabase
       .from("report_content")
-      .select("section, dimension_key, mode, band_min, band_max, title, body, sort_order, version_id, status")
+      .select("section, dimension_key, mode, band_min, band_max, title, body, content_json, sort_order, version_id, status")
       .or(`version_id.is.null,version_id.eq.${versionId}`)
       .order("sort_order"),
   ]);
@@ -678,6 +679,14 @@ export async function buildReport(id: string) {
         })
       : null;
 
+  // --- Três seções extras do DISC (#302): SWOT, Ganhos e Perdas, Onde Isso Aparece ---
+  // Só DISC (item 5 da demanda), e só quando há sigla declarada — é a MESMA sigla do
+  // título "PERFIL <sigla>" da intensidade, não recalculada aqui.
+  const siglaDisc = isDisc ? (intensidade?.natural.sigla ?? null) : null;
+  const swot = siglaDisc ? montarSwotDisc(siglaDisc, versionId, content ?? []) : null;
+  const ganhosPerdas = siglaDisc ? montarGanhosPerdasDisc(siglaDisc, versionId, content ?? []) : null;
+  const ondeAparece = siglaDisc ? montarOndeAparece(siglaDisc, versionId, content ?? []) : null;
+
   const { brand, settings } = await loadBrandAndSettings(response.mentor_id);
 
   return {
@@ -708,6 +717,11 @@ export async function buildReport(id: string) {
       // Só nos instrumentos do motor ipsativo. A chave nem aparece nos demais: o relatório deles sai
       // idêntico ao de antes.
       ...(intensidade ? { intensidade } : {}),
+      // #302 — só DISC, e só quando a sigla tem as três seções cadastradas e publicadas. Chave
+      // ausente = seção não aparece, no MBTI/dimensional e em qualquer sigla ainda sem conteúdo.
+      ...(swot ? { swot } : {}),
+      ...(ganhosPerdas ? { ganhos_perdas: ganhosPerdas } : {}),
+      ...(ondeAparece ? { onde_aparece: ondeAparece } : {}),
     },
   };
 }

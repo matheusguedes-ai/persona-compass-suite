@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 import { fetchComSessao } from "@/lib/fetch-com-sessao";
 import type { GraficoDoConjunto, Intensidade } from "@/lib/intensidade";
+import type { Swot, GanhosPerdas, OndeAparece } from "@/lib/disc-secoes-extra";
 import {
   CONFIABILIDADE,
   CORPO,
@@ -136,6 +137,10 @@ export type Report = {
   external?: { count: number; respondents: string[]; scores: Record<string, number> } | null;
   /** Página de intensidade (DISC, Temperamentos, VAK — motor ipsativo). Ausente nos demais. */
   intensidade?: Intensidade | null;
+  /** #302 — só DISC. Ausente quando o perfil não tem as 3 seções cadastradas (item 3: sem buraco visual). */
+  swot?: Swot | null;
+  ganhos_perdas?: GanhosPerdas | null;
+  onde_aparece?: OndeAparece | null;
 };
 
 export const NATURAL_COLOR = "var(--primary)";
