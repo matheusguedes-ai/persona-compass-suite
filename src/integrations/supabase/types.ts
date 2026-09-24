@@ -43,6 +43,236 @@ export type Database = {
           },
         ]
       }
+      assistente_consentimentos: {
+        Row: {
+          aceito_em: string
+          conta_id: string
+          id: string
+          revogado_em: string | null
+          rotulo_aceito: string
+          termo_id: string
+          termo_versao: number
+          texto_aceito: string
+          user_id: string
+        }
+        Insert: {
+          aceito_em?: string
+          conta_id: string
+          id?: string
+          revogado_em?: string | null
+          rotulo_aceito: string
+          termo_id: string
+          termo_versao: number
+          texto_aceito: string
+          user_id: string
+        }
+        Update: {
+          aceito_em?: string
+          conta_id?: string
+          id?: string
+          revogado_em?: string | null
+          rotulo_aceito?: string
+          termo_id?: string
+          termo_versao?: number
+          texto_aceito?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistente_consentimentos_termo_id_fkey"
+            columns: ["termo_id"]
+            isOneToOne: false
+            referencedRelation: "assistente_termos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistente_conversas: {
+        Row: {
+          atualizada_em: string
+          conta_id: string
+          criada_em: string
+          id: string
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          atualizada_em?: string
+          conta_id: string
+          criada_em?: string
+          id?: string
+          titulo?: string
+          user_id: string
+        }
+        Update: {
+          atualizada_em?: string
+          conta_id?: string
+          criada_em?: string
+          id?: string
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      assistente_liberacoes: {
+        Row: {
+          conta_id: string
+          criado_em: string
+          group_id: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          conta_id: string
+          criado_em?: string
+          group_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          conta_id?: string
+          criado_em?: string
+          group_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistente_liberacoes_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistente_mensagens: {
+        Row: {
+          conta_id: string
+          conteudo: string
+          conversa_id: string
+          criada_em: string
+          id: string
+          papel: string
+          user_id: string
+        }
+        Insert: {
+          conta_id: string
+          conteudo: string
+          conversa_id: string
+          criada_em?: string
+          id?: string
+          papel: string
+          user_id: string
+        }
+        Update: {
+          conta_id?: string
+          conteudo?: string
+          conversa_id?: string
+          criada_em?: string
+          id?: string
+          papel?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistente_mensagens_conversa_id_user_id_conta_id_fkey"
+            columns: ["conversa_id", "user_id", "conta_id"]
+            isOneToOne: false
+            referencedRelation: "assistente_conversas"
+            referencedColumns: ["id", "user_id", "conta_id"]
+          },
+        ]
+      }
+      assistente_termos: {
+        Row: {
+          conta_id: string | null
+          criado_em: string
+          id: string
+          publicado_em: string | null
+          rotulo_aceite: string
+          status: string
+          texto: string
+          versao: number
+        }
+        Insert: {
+          conta_id?: string | null
+          criado_em?: string
+          id?: string
+          publicado_em?: string | null
+          rotulo_aceite: string
+          status?: string
+          texto: string
+          versao: number
+        }
+        Update: {
+          conta_id?: string | null
+          criado_em?: string
+          id?: string
+          publicado_em?: string | null
+          rotulo_aceite?: string
+          status?: string
+          texto?: string
+          versao?: number
+        }
+        Relationships: []
+      }
+      assistente_uso: {
+        Row: {
+          cache_creation_input_tokens: number
+          cache_read_input_tokens: number
+          conta_id: string
+          conversa_id: string | null
+          criado_em: string
+          duracao_ms: number | null
+          erro: string | null
+          id: string
+          input_tokens: number
+          modelo: string
+          output_tokens: number
+          stop_reason: string | null
+          user_id: string | null
+        }
+        Insert: {
+          cache_creation_input_tokens?: number
+          cache_read_input_tokens?: number
+          conta_id: string
+          conversa_id?: string | null
+          criado_em?: string
+          duracao_ms?: number | null
+          erro?: string | null
+          id?: string
+          input_tokens?: number
+          modelo: string
+          output_tokens?: number
+          stop_reason?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          cache_creation_input_tokens?: number
+          cache_read_input_tokens?: number
+          conta_id?: string
+          conversa_id?: string | null
+          criado_em?: string
+          duracao_ms?: number | null
+          erro?: string | null
+          id?: string
+          input_tokens?: number
+          modelo?: string
+          output_tokens?: number
+          stop_reason?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistente_uso_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "assistente_conversas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fusoes_pessoas: {
         Row: { id: string; mentor_id: string; pessoa_mantida_id: string | null; pessoa_absorvida_id: string; pessoa_absorvida: Json; movidos: Json; descartados: Json; campos_preenchidos: Json; login_movido: boolean; feita_por: string | null; feita_em: string }
         Insert: { id?: string; mentor_id: string; pessoa_mantida_id?: string | null; pessoa_absorvida_id: string; pessoa_absorvida: Json; movidos?: Json; descartados?: Json; campos_preenchidos?: Json; login_movido?: boolean; feita_por?: string | null; feita_em?: string }
@@ -2221,6 +2451,10 @@ export type Database = {
         Returns: { id: string; kind: string; owner_id: string }[]
       }
       acting_account: { Args: Record<string, never>; Returns: string }
+      conta_do_autor: { Args: { p_author_id: string }; Returns: string }
+      assistente_liberada: { Args: never; Returns: boolean }
+      assistente_revogar: { Args: never; Returns: undefined }
+      assistente_situacao: { Args: never; Returns: Json }
       promover_a_mentor: { Args: { p_person_id: string }; Returns: string }
       rebaixar_mentor: { Args: { p_person_id: string }; Returns: undefined }
       meus_grupos_como_avaliado: { Args: Record<string, never>; Returns: string[] }

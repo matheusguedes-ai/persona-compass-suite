@@ -32,6 +32,7 @@ import { Route as AppTestesRouteImport } from './routes/_app.testes'
 import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
 import { Route as AlunoAgendaRouteImport } from './routes/aluno.agenda'
+import { Route as AlunoAssistenteRouteImport } from './routes/aluno.assistente'
 import { Route as AlunoComunidadeRouteImport } from './routes/aluno.comunidade'
 import { Route as AlunoCriarSenhaRouteImport } from './routes/aluno.criar-senha'
 import { Route as AlunoGruposRouteImport } from './routes/aluno.grupos'
@@ -206,6 +207,11 @@ const AlunoIndexRoute = AlunoIndexRouteImport.update({
 const AlunoAgendaRoute = AlunoAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoAssistenteRoute = AlunoAssistenteRouteImport.update({
+  id: '/assistente',
+  path: '/assistente',
   getParentRoute: () => AlunoRoute,
 } as any)
 const AlunoComunidadeRoute = AlunoComunidadeRouteImport.update({
@@ -537,6 +543,7 @@ export interface FileRoutesByFullPath {
   '/testes': typeof AppTestesRouteWithChildren
   '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
+  '/aluno/assistente': typeof AlunoAssistenteRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/grupos': typeof AlunoGruposRoute
@@ -611,6 +618,7 @@ export interface FileRoutesByTo {
   '/mentores': typeof AppMentoresRoute
   '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
+  '/aluno/assistente': typeof AlunoAssistenteRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/grupos': typeof AlunoGruposRoute
@@ -696,6 +704,7 @@ export interface FileRoutesById {
   '/_app/testes': typeof AppTestesRouteWithChildren
   '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
+  '/aluno/assistente': typeof AlunoAssistenteRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/grupos': typeof AlunoGruposRoute
@@ -782,6 +791,7 @@ export interface FileRouteTypes {
     | '/testes'
     | '/agendar/$slug'
     | '/aluno/agenda'
+    | '/aluno/assistente'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/grupos'
@@ -856,6 +866,7 @@ export interface FileRouteTypes {
     | '/mentores'
     | '/agendar/$slug'
     | '/aluno/agenda'
+    | '/aluno/assistente'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/grupos'
@@ -940,6 +951,7 @@ export interface FileRouteTypes {
     | '/_app/testes'
     | '/agendar/$slug'
     | '/aluno/agenda'
+    | '/aluno/assistente'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/grupos'
@@ -1203,6 +1215,13 @@ declare module '@tanstack/react-router' {
       path: '/agenda'
       fullPath: '/aluno/agenda'
       preLoaderRoute: typeof AlunoAgendaRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/assistente': {
+      id: '/aluno/assistente'
+      path: '/assistente'
+      fullPath: '/aluno/assistente'
+      preLoaderRoute: typeof AlunoAssistenteRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/aluno/comunidade': {
@@ -1753,6 +1772,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AlunoRouteChildren {
   AlunoAgendaRoute: typeof AlunoAgendaRoute
+  AlunoAssistenteRoute: typeof AlunoAssistenteRoute
   AlunoComunidadeRoute: typeof AlunoComunidadeRoute
   AlunoCriarSenhaRoute: typeof AlunoCriarSenhaRoute
   AlunoGruposRoute: typeof AlunoGruposRoute
@@ -1769,6 +1789,7 @@ interface AlunoRouteChildren {
 
 const AlunoRouteChildren: AlunoRouteChildren = {
   AlunoAgendaRoute: AlunoAgendaRoute,
+  AlunoAssistenteRoute: AlunoAssistenteRoute,
   AlunoComunidadeRoute: AlunoComunidadeRoute,
   AlunoCriarSenhaRoute: AlunoCriarSenhaRoute,
   AlunoGruposRoute: AlunoGruposRoute,

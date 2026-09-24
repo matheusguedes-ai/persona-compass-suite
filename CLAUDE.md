@@ -272,6 +272,9 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `devolutivas` | a conversa de resultado: fila, agendamento e o que ficou combinado |
 | `suspeitas_duplicidade` | #300: par de cadastros que pode ser a mesma pessoa (telefone igual / nome parecido). Nasce no link aberto (`link_aberto`) ou quando o mentor marca "não são a mesma pessoa" (`varredura`, status `descartada`) |
 | `fusoes_pessoas` | #300: registro de cada unificação — a linha inteira do cadastro absorvido, o que mudou de dono e o que foi descartado. É o que torna uma fusão desfazível à mão |
+| `assistente_termos` / `assistente_consentimentos` | #289: termo da assistente, versionado (publicado não se edita — o banco recusa); aceite com versão, data e CÓPIA do texto aceito. Revogar marca `revogado_em` e apaga o histórico |
+| `assistente_conversas` / `assistente_mensagens` | #289: conversas do aluno com a assistente. Dono = `user_id` (o LOGIN do aluno, não `people`) + `conta_id`. **Só o próprio aluno lê** |
+| `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga) |
 
 ⚠️ **Tabela nova que aponte para `people` precisa entrar em `fundir_pessoas`** (migração
 `20260923210000_fusao_de_pessoas.sql`). A função confere, antes de apagar o cadastro absorvido,
@@ -395,6 +398,28 @@ Selo de confiabilidade em toda resposta (`computed_scores.qualidade`): mede
 contradição entre itens equivalentes, respostas sem variação e ritmo. Liderança/competências/índices levam o selo "Derivado do seu DISC".
 Tipos Psicológicos usam o MBTI real quando respondido; senão vão como
 "Estimativa derivada do seu DISC", com ressalva explícita no texto.
+
+## Assistente do Método Intenção (#289)
+
+Nível 1 de 5: o aluno logado conversa sobre o PRÓPRIO relatório (`/aluno/assistente`). Modelo
+`claude-sonnet-5` pelo SDK oficial (`@anthropic-ai/sdk`), chave `ANTHROPIC_API_KEY` (Lovable →
+Cloud → Secrets; local no `.env.local`). Código em `src/lib/assistente/` + `src/lib/assistente.functions.ts`.
+
+- **O mentor não lê as conversas — a trava é o banco.** As policies de conversa/mensagem/consentimento
+  são SÓ `user_id = auth.uid()`; nenhuma menciona conta, equipe ou `acting_account()`. Não criar
+  função de servidor que leia conversa com service role para ninguém além do próprio aluno. A prévia
+  "ver como aluno" roda com o login do mentor e mostra só um aviso.
+- **O que ela lê** = o que o aluno vê: `relatoriosDoAluno` consulta com o login dele (RLS de
+  `test_responses`), filtra pelos cadastros dele e passa cada resposta por `buildReport`;
+  `contexto.ts` vira texto na ordem de `ReportBody`, respeitando `hidden_blocks`. Mudou o relatório
+  na tela? Confira se `contexto.ts` acompanha.
+- **Como ela fala** = `instrucoes.server.ts` (consultiva, só do relatório, "leve ao mentor", CVV 188
+  no risco à vida). Mexeu no texto? Rode `npx tsx scripts/avaliar_assistente.ts <resposta>` — SÓ com
+  pessoa fictícia (`scripts/fixture_assistente.py criar`): avaliar manda o relatório para a Anthropic.
+- **Fechada por padrão**: aparece só com linha em `assistente_liberacoes` (grupo ou login) + relatório
+  concluído + termo publicado. Abrir para a turma = inserir a linha do grupo, decisão do dono.
+- Termo: `scripts/conteudo_termo_assistente.py` (texto do dono do produto, conferido palavra por
+  palavra contra o arquivo aprovado). Mudar o texto = versão nova, nunca editar a publicada.
 
 ## Conteúdo
 

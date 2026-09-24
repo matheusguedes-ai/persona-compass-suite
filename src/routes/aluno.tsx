@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyMembership } from "@/lib/team.functions";
 import { minhasAreas } from "@/lib/data.functions";
+import { situacaoDaAssistente } from "@/lib/assistente.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { BrandMark, BrandProvider, useBrand } from "@/lib/brand";
@@ -12,7 +13,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Eye, GraduationCap, LayoutList, Lock, LogOut, UserRound, MessagesSquare,
   Users, Trophy, FolderKanban, CalendarDays, PanelLeftClose, PanelLeft, Menu,
-  Presentation, FlaskConical,
+  Presentation, FlaskConical, Sparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/lib/theme";
@@ -134,14 +135,33 @@ function AlunoLayout() {
   const liberada = (area: string | null) =>
     area === null || !acesso || acesso.areas.includes(area);
 
+  // #289 — a assistente NÃO é área do grupo: área nova nasce liberada onde o grupo não restringe
+  // nada, e a assistente tem de nascer fechada (abre por liberação explícita, enquanto o dono valida).
+  // Na prévia do mentor ela nem é consultada: a conversa é espaço privado do aluno.
+  const assistenteFn = useServerFn(situacaoDaAssistente);
+  const { data: assistente } = useQuery({
+    queryKey: ["assistente-situacao"],
+    queryFn: () => assistenteFn(),
+    enabled: !verResolvido,
+    staleTime: 60_000,
+  });
+
   const base = NAV.filter((n) => liberada(n.area));
+  const comAssistente =
+    !verResolvido && assistente?.no_menu
+      ? [
+          ...base.filter((n) => n.to !== "/aluno/perfil"),
+          { to: "/aluno/assistente", label: "Assistente", icon: Sparkles, exato: false, area: null } as const,
+          ...base.filter((n) => n.to === "/aluno/perfil"),
+        ]
+      : base;
   const itens =
     membership?.kind === "mentor"
       ? [
-          ...base,
+          ...comAssistente,
           { to: "/aluno/grupos", label: "Grupos", icon: FolderKanban, exato: false, area: null } as const,
         ]
-      : base;
+      : comAssistente;
 
   const areaAtual = areaDaRota(pathname);
   const bloqueada = !liberada(areaAtual);
