@@ -10,8 +10,9 @@ import { toast } from "sonner";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 import { fetchComSessao } from "@/lib/fetch-com-sessao";
 import type { GraficoDoConjunto, Intensidade } from "@/lib/intensidade";
-import type {
-  SwotComunicador, GanhosPerdas, OndeAparece, ComunicadoresSemelhantes,
+import {
+  rotuloDaSituacao,
+  type SwotComunicadorPorLetra, type GanhosPerdasPorLetra, type OndeAparece, type ComunicadoresSemelhantes,
 } from "@/lib/disc-secoes-extra";
 import {
   CONFIABILIDADE,
@@ -26,6 +27,7 @@ import {
   GANHOS_PERDAS,
   ONDE_APARECE,
   COMUNICADORES_SEMELHANTES,
+  PERFIL_COMBINADO,
   avisoDeSinal,
 } from "@/components/report/textos";
 
@@ -143,9 +145,13 @@ export type Report = {
   external?: { count: number; respondents: string[]; scores: Record<string, number> } | null;
   /** Página de intensidade (DISC, Temperamentos, VAK — motor ipsativo). Ausente nos demais. */
   intensidade?: Intensidade | null;
-  /** #302 — só DISC. Ausente quando o perfil não tem a seção cadastrada (item 3: sem buraco visual). */
-  swot_comunicador?: SwotComunicador | null;
-  ganhos_perdas?: GanhosPerdas | null;
+  /**
+   * #302 — só DISC. Ausente quando o perfil não tem a seção cadastrada (item 3: sem buraco
+   * visual). SWOT e Ganhos-Perdas trazem 1 entrada nos perfis simples (D/I/S/C) e 2 nos
+   * combinados (regra de herança — cada entrada é a leitura de uma letra).
+   */
+  swot_comunicador?: SwotComunicadorPorLetra[] | null;
+  ganhos_perdas?: GanhosPerdasPorLetra[] | null;
   onde_aparece?: OndeAparece | null;
   comunicadores_semelhantes?: ComunicadoresSemelhantes | null;
 };
@@ -443,19 +449,32 @@ function QuadranteSwot({
   );
 }
 
-function SwotComunicadorSection({ swot }: { swot: SwotComunicador }) {
+function SwotComunicadorSection({ perfis }: { perfis: SwotComunicadorPorLetra[] }) {
   const S = SWOT_COMUNICADOR;
+  const multiplas = perfis.length > 1;
   return (
     <Section>
       <h2 className="text-xl font-semibold">
         {S.titulo1} <span className="text-muted-foreground">{S.titulo2}</span>
       </h2>
-      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <QuadranteSwot rotulo={S.forcasRotulo} subtitulo={S.forcasSubtitulo} itens={swot.forcas} bg="bg-emerald-600" dot="bg-emerald-600" />
-        <QuadranteSwot rotulo={S.fragilidadesRotulo} subtitulo={S.fragilidadesSubtitulo} itens={swot.fragilidades} bg="bg-red-600" dot="bg-red-600" />
-        <QuadranteSwot rotulo={S.oportunidadesRotulo} subtitulo={S.oportunidadesSubtitulo} itens={swot.oportunidades} bg="bg-blue-600" dot="bg-blue-600" />
-        <QuadranteSwot rotulo={S.ameacasRotulo} subtitulo={S.ameacasSubtitulo} itens={swot.ameacas} bg="bg-amber-600" dot="bg-amber-600" />
-      </div>
+      {multiplas && (
+        <p className="mt-2 text-sm text-muted-foreground">{PERFIL_COMBINADO.aviso(perfis[0].letra, perfis[1].letra)}</p>
+      )}
+      {perfis.map(({ letra, swot }) => (
+        <div key={letra} className="mt-5">
+          {multiplas && (
+            <span className="mb-3 inline-flex rounded-md bg-muted px-2.5 py-0.5 text-sm font-semibold tracking-[0.15em]">
+              {letra}
+            </span>
+          )}
+          <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${multiplas ? "mt-3" : ""}`}>
+            <QuadranteSwot rotulo={S.forcasRotulo} subtitulo={S.forcasSubtitulo} itens={swot.forcas} bg="bg-emerald-600" dot="bg-emerald-600" />
+            <QuadranteSwot rotulo={S.fragilidadesRotulo} subtitulo={S.fragilidadesSubtitulo} itens={swot.fragilidades} bg="bg-red-600" dot="bg-red-600" />
+            <QuadranteSwot rotulo={S.oportunidadesRotulo} subtitulo={S.oportunidadesSubtitulo} itens={swot.oportunidades} bg="bg-blue-600" dot="bg-blue-600" />
+            <QuadranteSwot rotulo={S.ameacasRotulo} subtitulo={S.ameacasSubtitulo} itens={swot.ameacas} bg="bg-amber-600" dot="bg-amber-600" />
+          </div>
+        </div>
+      ))}
       <div className="mt-5 rounded-lg border-l-4 border-accent bg-accent/10 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-accent">{S.comoLerTitulo}</p>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{S.comoLerTexto}</p>
@@ -480,31 +499,44 @@ function ColunaGanhosPerdas({
   );
 }
 
-function GanhosPerdasSection({ gp }: { gp: GanhosPerdas }) {
+function GanhosPerdasSection({ perfis }: { perfis: GanhosPerdasPorLetra[] }) {
   const G = GANHOS_PERDAS;
+  const multiplas = perfis.length > 1;
   return (
     <Section>
       <h2 className="text-xl font-semibold">
         {G.titulo1} <span className="text-muted-foreground">{G.titulo2}</span>
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">{G.abertura}</p>
-      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <ColunaGanhosPerdas rotulo={G.mantendoRotulo} corPilula="bg-emerald-600" corTexto="text-emerald-700" ganha={gp.mantendo.ganha} perde={gp.mantendo.perde} />
-        <ColunaGanhosPerdas rotulo={G.mudandoRotulo} corPilula="bg-blue-600" corTexto="text-blue-700" ganha={gp.mudando.ganha} perde={gp.mudando.perde} />
-      </div>
-      <div className="mt-5 rounded-lg border-l-4 border-sky-400 bg-[#0B2239] p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">{G.fraseQueTeSeguraTitulo}</p>
-        <p className="mt-2 text-base leading-relaxed text-white">{gp.frase_que_te_segura}</p>
-      </div>
+      {multiplas && (
+        <p className="mt-1 text-sm text-muted-foreground">{PERFIL_COMBINADO.aviso(perfis[0].letra, perfis[1].letra)}</p>
+      )}
+      {perfis.map(({ letra, gp }) => (
+        <div key={letra} className="mt-5">
+          {multiplas && (
+            <span className="mb-3 inline-flex rounded-md bg-muted px-2.5 py-0.5 text-sm font-semibold tracking-[0.15em]">
+              {letra}
+            </span>
+          )}
+          <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${multiplas ? "mt-3" : ""}`}>
+            <ColunaGanhosPerdas rotulo={G.mantendoRotulo} corPilula="bg-emerald-600" corTexto="text-emerald-700" ganha={gp.mantendo.ganha} perde={gp.mantendo.perde} />
+            <ColunaGanhosPerdas rotulo={G.mudandoRotulo} corPilula="bg-blue-600" corTexto="text-blue-700" ganha={gp.mudando.ganha} perde={gp.mudando.perde} />
+          </div>
+          <div className="mt-5 rounded-lg border-l-4 border-sky-400 bg-[#0B2239] p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">{G.fraseQueTeSeguraTitulo}</p>
+            <p className="mt-2 text-base leading-relaxed text-white">{gp.frase_que_te_segura}</p>
+          </div>
+        </div>
+      ))}
     </Section>
   );
 }
 
-function CartaoAplicacao({ situacao, automatico, tecnica }: { situacao: string; automatico: string; tecnica: string }) {
+function CartaoAplicacao({ situacao, automatico, tecnica, letra }: { situacao: string; automatico: string; tecnica: string; letra?: string }) {
   return (
     <div className="rounded-xl bg-muted/40 p-5 ring-1 ring-black/5">
       <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-        {situacao}
+        {rotuloDaSituacao(situacao, letra)}
       </span>
       <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{automatico}</p>
       <div className="mt-3 flex items-start gap-2">
@@ -528,7 +560,7 @@ function OndeApareceSection({ oa }: { oa: OndeAparece }) {
       <p className="mt-2 text-sm text-muted-foreground">{O.abertura}</p>
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {oa.situacoes.map((s, i) => (
-          <CartaoAplicacao key={i} situacao={s.situacao} automatico={s.automatico} tecnica={s.tecnica} />
+          <CartaoAplicacao key={i} situacao={s.situacao} automatico={s.automatico} tecnica={s.tecnica} letra={s.letra} />
         ))}
       </div>
     </Section>
@@ -691,8 +723,8 @@ export function ReportBody({
 
       {/* #302 — seções extras do DISC. Chave ausente no payload = seção some inteira, sem
           buraco visual (a sigla ainda não tem o conteúdo cadastrado, ou o instrumento não é DISC). */}
-      {data.swot_comunicador && <SwotComunicadorSection swot={data.swot_comunicador} />}
-      {data.ganhos_perdas && <GanhosPerdasSection gp={data.ganhos_perdas} />}
+      {data.swot_comunicador && <SwotComunicadorSection perfis={data.swot_comunicador} />}
+      {data.ganhos_perdas && <GanhosPerdasSection perfis={data.ganhos_perdas} />}
       {data.onde_aparece && <OndeApareceSection oa={data.onde_aparece} />}
       {data.comunicadores_semelhantes && <ComunicadoresSemelhantesSection cs={data.comunicadores_semelhantes} />}
 

@@ -8,7 +8,8 @@ import { loadBrandAndSettings } from "@/lib/brand.server";
 import { usaMotorIpsativo, type ResultadoIpsativo } from "@/lib/escolha-forcada";
 import { montarIntensidade } from "@/lib/intensidade";
 import {
-  montarSwotComunicador, montarGanhosPerdasDisc, montarOndeAparece, montarComunicadoresSemelhantes,
+  montarSwotComunicadorDoNatural, montarGanhosPerdasDoNatural, montarOndeApareceDoNatural,
+  montarComunicadoresSemelhantesDoNatural,
 } from "@/lib/disc-secoes-extra";
 import { obterIpsativo } from "@/lib/ipsativo.server";
 import { getRequest } from "@tanstack/react-start/server";
@@ -686,10 +687,10 @@ export async function buildReport(id: string) {
   // Só DISC (item 5 da demanda), e só quando há sigla declarada — é a MESMA sigla do
   // título "PERFIL <sigla>" da intensidade, não recalculada aqui.
   const siglaDisc = isDisc ? (intensidade?.natural.sigla ?? null) : null;
-  const swotComunicador = siglaDisc ? montarSwotComunicador(siglaDisc, versionId, content ?? []) : null;
-  const ganhosPerdas = siglaDisc ? montarGanhosPerdasDisc(siglaDisc, versionId, content ?? []) : null;
-  const ondeAparece = siglaDisc ? montarOndeAparece(siglaDisc, versionId, content ?? []) : null;
-  const comunicadoresSemelhantes = siglaDisc ? montarComunicadoresSemelhantes(siglaDisc, versionId, content ?? []) : null;
+  const swotComunicador = siglaDisc ? montarSwotComunicadorDoNatural(siglaDisc, versionId, content ?? []) : null;
+  const ganhosPerdas = siglaDisc ? montarGanhosPerdasDoNatural(siglaDisc, versionId, content ?? []) : null;
+  const ondeAparece = siglaDisc ? montarOndeApareceDoNatural(siglaDisc, versionId, content ?? []) : null;
+  const comunicadoresSemelhantes = siglaDisc ? montarComunicadoresSemelhantesDoNatural(siglaDisc, versionId, content ?? []) : null;
 
   const { brand, settings } = await loadBrandAndSettings(response.mentor_id);
 

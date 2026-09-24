@@ -12,7 +12,8 @@
 import { PDFDocument, rgb, type Color, type PDFPage } from "./pdf-lib";
 import type { Derived, Factor, JungPares, Report } from "@/components/report/sections";
 import type { GraficoDoConjunto, Intensidade } from "@/lib/intensidade";
-import type { SwotComunicador, GanhosPerdas, OndeAparece, ComunicadoresSemelhantes } from "@/lib/disc-secoes-extra";
+import type { SwotComunicadorPorLetra, GanhosPerdasPorLetra, OndeAparece, ComunicadoresSemelhantes } from "@/lib/disc-secoes-extra";
+import { rotuloDaSituacao } from "@/lib/disc-secoes-extra";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 import {
   CONFIABILIDADE,
@@ -35,6 +36,7 @@ import {
   GANHOS_PERDAS,
   ONDE_APARECE,
   COMUNICADORES_SEMELHANTES,
+  PERFIL_COMBINADO,
   avisoDeSinal,
 } from "@/components/report/textos";
 import {
@@ -726,55 +728,87 @@ function pecaComQuebra(blocos: Bloco[]): Bloco[] {
   return [quebraSeFaltarEspaco(altura), ...blocos];
 }
 
-/** Matriz SWOT do Comunicador (#302) — quatro quadrantes coloridos e a nota de como ler. */
-function blocosDoSwotComunicador(swot: SwotComunicador, ctx: Contexto): Bloco[] {
+/**
+ * Matriz SWOT do Comunicador (#302) — quatro quadrantes coloridos e a nota de como ler.
+ * Regra de herança: perfil combinado traz 2 entradas (uma por letra); cada uma vira sua
+ * própria matriz completa, com um rótulo pequeno antes. Com 1 entrada (perfil simples,
+ * D/I/S/C) a saída é idêntica à de antes desta regra existir.
+ */
+function blocosDoSwotComunicador(perfis: SwotComunicadorPorLetra[], ctx: Contexto): Bloco[] {
   const t = ctx.tipo;
   const S = SWOT_COMUNICADOR;
-  return pecaComQuebra([
-    tituloGrande(S.titulo1, S.titulo2, t, 0),
-    colunas(
-      [
-        cartaoQuadrante({ rotulo: S.forcasRotulo, subtitulo: S.forcasSubtitulo, itens: swot.forcas, cor: VERDE_FUNDO, tipo: t }),
-        cartaoQuadrante({ rotulo: S.fragilidadesRotulo, subtitulo: S.fragilidadesSubtitulo, itens: swot.fragilidades, cor: VERMELHO, tipo: t }),
-      ],
-      { vao: 14, antes: 18 },
-    ),
-    colunas(
-      [
-        cartaoQuadrante({ rotulo: S.oportunidadesRotulo, subtitulo: S.oportunidadesSubtitulo, itens: swot.oportunidades, cor: AZUL, tipo: t }),
-        cartaoQuadrante({ rotulo: S.ameacasRotulo, subtitulo: S.ameacasSubtitulo, itens: swot.ameacas, cor: AMBAR_FUNDO, tipo: t }),
-      ],
-      { vao: 14, antes: 14 },
-    ),
-    notaDeLeitura(S.comoLerTitulo, S.comoLerTexto, t, 16),
-  ]);
+  const multiplas = perfis.length > 1;
+  const out: Bloco[] = [tituloGrande(S.titulo1, S.titulo2, t, 0)];
+  if (multiplas) {
+    out.push(paragrafo(PERFIL_COMBINADO.aviso(perfis[0].letra, perfis[1].letra), t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 10 }));
+  }
+  perfis.forEach(({ letra, swot }, i) => {
+    if (multiplas) out.push(rotuloDeSubsecao(letra, t, i === 0 ? 18 : 24));
+    out.push(
+      colunas(
+        [
+          cartaoQuadrante({ rotulo: S.forcasRotulo, subtitulo: S.forcasSubtitulo, itens: swot.forcas, cor: VERDE_FUNDO, tipo: t }),
+          cartaoQuadrante({ rotulo: S.fragilidadesRotulo, subtitulo: S.fragilidadesSubtitulo, itens: swot.fragilidades, cor: VERMELHO, tipo: t }),
+        ],
+        { vao: 14, antes: multiplas ? 8 : 18 },
+      ),
+      colunas(
+        [
+          cartaoQuadrante({ rotulo: S.oportunidadesRotulo, subtitulo: S.oportunidadesSubtitulo, itens: swot.oportunidades, cor: AZUL, tipo: t }),
+          cartaoQuadrante({ rotulo: S.ameacasRotulo, subtitulo: S.ameacasSubtitulo, itens: swot.ameacas, cor: AMBAR_FUNDO, tipo: t }),
+        ],
+        { vao: 14, antes: 14 },
+      ),
+    );
+  });
+  out.push(notaDeLeitura(S.comoLerTitulo, S.comoLerTexto, t, 16));
+  return pecaComQuebra(out);
 }
 
-/** Ganhos e Perdas (#302) — duas colunas confrontadas e o bloco escuro da frase que segura. */
-function blocosDeGanhosPerdas(gp: GanhosPerdas, ctx: Contexto): Bloco[] {
+/**
+ * Ganhos e Perdas (#302) — duas colunas confrontadas e o bloco escuro da frase que segura.
+ * Regra de herança: perfil combinado repete o bloco INTEIRO (as duas colunas + a própria
+ * frase de destaque) uma vez por letra — confirmado com o dono do produto, sabendo que dilui
+ * o efeito de "fala única em 2ª pessoa" quando são duas letras.
+ */
+function blocosDeGanhosPerdas(perfis: GanhosPerdasPorLetra[], ctx: Contexto): Bloco[] {
   const t = ctx.tipo;
   const G = GANHOS_PERDAS;
-  return pecaComQuebra([
+  const multiplas = perfis.length > 1;
+  const out: Bloco[] = [
     tituloGrande(G.titulo1, G.titulo2, t, 0),
     paragrafo(G.abertura, t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 10 }),
-    colunas(
-      [
-        colunaGanhosPerdas({
-          rotulo: G.mantendoRotulo, cor: VERDE_FUNDO, corTexto: VERDE_TEXTO,
-          ganha: gp.mantendo.ganha, perde: gp.mantendo.perde, tipo: t,
-        }),
-        colunaGanhosPerdas({
-          rotulo: G.mudandoRotulo, cor: AZUL, corTexto: AZUL,
-          ganha: gp.mudando.ganha, perde: gp.mudando.perde, tipo: t,
-        }),
-      ],
-      { vao: 14, antes: 16 },
-    ),
-    blocoDeDestaque(G.fraseQueTeSeguraTitulo, gp.frase_que_te_segura, t, 16),
-  ]);
+  ];
+  if (multiplas) {
+    out.push(paragrafo(PERFIL_COMBINADO.aviso(perfis[0].letra, perfis[1].letra), t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 6 }));
+  }
+  perfis.forEach(({ letra, gp }, i) => {
+    if (multiplas) out.push(rotuloDeSubsecao(letra, t, i === 0 ? 18 : 24));
+    out.push(
+      colunas(
+        [
+          colunaGanhosPerdas({
+            rotulo: G.mantendoRotulo, cor: VERDE_FUNDO, corTexto: VERDE_TEXTO,
+            ganha: gp.mantendo.ganha, perde: gp.mantendo.perde, tipo: t,
+          }),
+          colunaGanhosPerdas({
+            rotulo: G.mudandoRotulo, cor: AZUL, corTexto: AZUL,
+            ganha: gp.mudando.ganha, perde: gp.mudando.perde, tipo: t,
+          }),
+        ],
+        { vao: 14, antes: multiplas ? 8 : 16 },
+      ),
+      blocoDeDestaque(G.fraseQueTeSeguraTitulo, gp.frase_que_te_segura, t, 16),
+    );
+  });
+  return pecaComQuebra(out);
 }
 
-/** Onde Isso Aparece (#302) — cartões de aplicação prática, dois por linha. */
+/**
+ * Onde Isso Aparece (#302) — cartões de aplicação prática, dois por linha. Regra de herança:
+ * perfil combinado junta os cartões das duas letras numa lista só (não agrupa por letra como
+ * a SWOT) — cada cartão leva a letra de origem na própria pílula (`rotuloDaSituacao`).
+ */
 function blocosDeOndeAparece(oa: OndeAparece, ctx: Contexto): Bloco[] {
   const t = ctx.tipo;
   const O = ONDE_APARECE;
@@ -784,7 +818,7 @@ function blocosDeOndeAparece(oa: OndeAparece, ctx: Contexto): Bloco[] {
   ];
   for (let i = 0; i < oa.situacoes.length; i += 2) {
     const par = oa.situacoes.slice(i, i + 2).map((s) =>
-      cartaoAplicacao({ situacao: s.situacao, automatico: s.automatico, tecnica: s.tecnica, cor: AZUL, tipo: t }),
+      cartaoAplicacao({ situacao: rotuloDaSituacao(s.situacao, s.letra), automatico: s.automatico, tecnica: s.tecnica, cor: AZUL, tipo: t }),
     );
     out.push(colunas(par.length === 2 ? par : [par[0], espaco(0)], { vao: 14, antes: i === 0 ? 16 : 14 }));
   }

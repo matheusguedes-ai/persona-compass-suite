@@ -169,6 +169,16 @@ export const ONDE_APARECE = {
   tecnica: "Técnica",
 };
 
+/**
+ * Regra de herança (#302, pós-D/I/S/C): nas 12 siglas combinadas, SWOT e Ganhos-Perdas mostram
+ * a leitura das duas letras separadas — esta frase abre as duas seções nesse caso. Nos 4
+ * perfis simples (D/I/S/C) ela não aparece.
+ */
+export const PERFIL_COMBINADO = {
+  aviso: (primeira: string, segunda: string) =>
+    `Seu perfil combina duas letras — ${primeira} e ${segunda}. Veja a leitura de cada uma, separadamente.`,
+};
+
 export const COMUNICADORES_SEMELHANTES = {
   titulo1: "Comunicadores com",
   titulo2: "traços semelhantes",
