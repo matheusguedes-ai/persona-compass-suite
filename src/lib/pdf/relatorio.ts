@@ -12,6 +12,7 @@
 import { PDFDocument, rgb, type Color, type PDFPage } from "./pdf-lib";
 import type { Derived, Factor, JungPares, Report } from "@/components/report/sections";
 import type { GraficoDoConjunto, Intensidade } from "@/lib/intensidade";
+import type { SwotComunicador, GanhosPerdas, OndeAparece, ComunicadoresSemelhantes } from "@/lib/disc-secoes-extra";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 import {
   CONFIABILIDADE,
@@ -30,12 +31,17 @@ import {
   RODAPE_LEGAL,
   SECTION_TITLES,
   BATERIA,
+  SWOT_COMUNICADOR,
+  GANHOS_PERDAS,
+  ONDE_APARECE,
+  COMUNICADORES_SEMELHANTES,
   avisoDeSinal,
 } from "@/components/report/textos";
 import {
   APOIO,
   AZUL,
   AZUL_LEVE,
+  AMBAR_FUNDO,
   BRANCO,
   CARTAO,
   CIANO,
@@ -49,6 +55,9 @@ import {
   FUNDO_SUAVE,
   GRAFITE,
   PRETO,
+  VERDE_FUNDO,
+  VERDE_TEXTO,
+  VERMELHO,
   carregarIlustracoes,
   carregarTipografia,
   corDaMarca,
@@ -59,7 +68,11 @@ import {
 import {
   MM,
   cartao,
+  cartaoAplicacao,
   cartaoDoGrafico,
+  cartaoQuadrante,
+  colunaGanhosPerdas,
+  blocoDeDestaque,
   faixaDeIndices,
   graficoDeTermometros,
   marcaDagua,
@@ -704,6 +717,101 @@ function blocosDaIntensidade(r: Report, ints: Intensidade, mostrarIndices: boole
   return [quebraSeFaltarEspaco(alturaDaPeca), ...out];
 }
 
+/**
+ * Cada seção extra do DISC (#302) é uma peça só — igual à intensidade: título grande, o conteúdo,
+ * e uma quebra que só pede folha nova quando o que resta na página atual não a comporta.
+ */
+function pecaComQuebra(blocos: Bloco[]): Bloco[] {
+  const altura = blocos.reduce((soma, b) => soma + (b.antes ?? 0) + b.altura(LARGURA_UTIL), 0);
+  return [quebraSeFaltarEspaco(altura), ...blocos];
+}
+
+/** Matriz SWOT do Comunicador (#302) — quatro quadrantes coloridos e a nota de como ler. */
+function blocosDoSwotComunicador(swot: SwotComunicador, ctx: Contexto): Bloco[] {
+  const t = ctx.tipo;
+  const S = SWOT_COMUNICADOR;
+  return pecaComQuebra([
+    tituloGrande(S.titulo1, S.titulo2, t, 0),
+    colunas(
+      [
+        cartaoQuadrante({ rotulo: S.forcasRotulo, subtitulo: S.forcasSubtitulo, itens: swot.forcas, cor: VERDE_FUNDO, tipo: t }),
+        cartaoQuadrante({ rotulo: S.fragilidadesRotulo, subtitulo: S.fragilidadesSubtitulo, itens: swot.fragilidades, cor: VERMELHO, tipo: t }),
+      ],
+      { vao: 14, antes: 18 },
+    ),
+    colunas(
+      [
+        cartaoQuadrante({ rotulo: S.oportunidadesRotulo, subtitulo: S.oportunidadesSubtitulo, itens: swot.oportunidades, cor: AZUL, tipo: t }),
+        cartaoQuadrante({ rotulo: S.ameacasRotulo, subtitulo: S.ameacasSubtitulo, itens: swot.ameacas, cor: AMBAR_FUNDO, tipo: t }),
+      ],
+      { vao: 14, antes: 14 },
+    ),
+    notaDeLeitura(S.comoLerTitulo, S.comoLerTexto, t, 16),
+  ]);
+}
+
+/** Ganhos e Perdas (#302) — duas colunas confrontadas e o bloco escuro da frase que segura. */
+function blocosDeGanhosPerdas(gp: GanhosPerdas, ctx: Contexto): Bloco[] {
+  const t = ctx.tipo;
+  const G = GANHOS_PERDAS;
+  return pecaComQuebra([
+    tituloGrande(G.titulo1, G.titulo2, t, 0),
+    paragrafo(G.abertura, t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 10 }),
+    colunas(
+      [
+        colunaGanhosPerdas({
+          rotulo: G.mantendoRotulo, cor: VERDE_FUNDO, corTexto: VERDE_TEXTO,
+          ganha: gp.mantendo.ganha, perde: gp.mantendo.perde, tipo: t,
+        }),
+        colunaGanhosPerdas({
+          rotulo: G.mudandoRotulo, cor: AZUL, corTexto: AZUL,
+          ganha: gp.mudando.ganha, perde: gp.mudando.perde, tipo: t,
+        }),
+      ],
+      { vao: 14, antes: 16 },
+    ),
+    blocoDeDestaque(G.fraseQueTeSeguraTitulo, gp.frase_que_te_segura, t, 16),
+  ]);
+}
+
+/** Onde Isso Aparece (#302) — cartões de aplicação prática, dois por linha. */
+function blocosDeOndeAparece(oa: OndeAparece, ctx: Contexto): Bloco[] {
+  const t = ctx.tipo;
+  const O = ONDE_APARECE;
+  const out: Bloco[] = [
+    tituloGrande(O.titulo1, O.titulo2, t, 0),
+    paragrafo(O.abertura, t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 10 }),
+  ];
+  for (let i = 0; i < oa.situacoes.length; i += 2) {
+    const par = oa.situacoes.slice(i, i + 2).map((s) =>
+      cartaoAplicacao({ situacao: s.situacao, automatico: s.automatico, tecnica: s.tecnica, cor: AZUL, tipo: t }),
+    );
+    out.push(colunas(par.length === 2 ? par : [par[0], espaco(0)], { vao: 14, antes: i === 0 ? 16 : 14 }));
+  }
+  return pecaComQuebra(out);
+}
+
+/**
+ * Comunicadores com Traços Semelhantes (#302, item (a) — entrou junto com o conteúdo do perfil
+ * D). A ressalva SEMPRE aparece: sem ela o relatório estaria descrevendo o perfil de gente real
+ * que nunca respondeu ao inventário.
+ */
+function blocosDeComunicadoresSemelhantes(cs: ComunicadoresSemelhantes, ctx: Contexto): Bloco[] {
+  const t = ctx.tipo;
+  const C = COMUNICADORES_SEMELHANTES;
+  const lista = cs.pessoas.map((p, i) =>
+    paragrafo([{ texto: `${p.nome} — `, forte: true }, { texto: p.descricao }], t, {
+      tamanho: 9.6, entrelinha: 1.5, antes: i === 0 ? 14 : 10,
+    }),
+  );
+  return pecaComQuebra([
+    tituloGrande(C.titulo1, C.titulo2, t, 0),
+    paragrafo(C.abertura, t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 10 }),
+    ...lista,
+    notaDeLeitura(C.ressalvaTitulo, C.ressalva, t, 18),
+  ]);
+}
+
 function blocosDosEixos(jung: { tipo: string; pares: JungPares }, doTeste: boolean, ctx: Contexto): Bloco[] {
   const t = ctx.tipo;
   const indeciso = (p: JungPares[number]) => Math.max(p.leftPct, p.rightPct) < 55;
@@ -988,6 +1096,14 @@ export function blocosDoRelatorio(
       }
     }
   }
+
+  // --- seções extras do DISC (#302): SWOT do Comunicador, Ganhos e Perdas, Onde Isso
+  // Aparece, Comunicadores com Traços Semelhantes — só aparecem quando a sigla tem o
+  // conteúdo cadastrado (chave ausente no payload), e só no DISC (item 5 da demanda). ---
+  if (r.swot_comunicador) out.push(...blocosDoSwotComunicador(r.swot_comunicador, ctx));
+  if (r.ganhos_perdas) out.push(...blocosDeGanhosPerdas(r.ganhos_perdas, ctx));
+  if (r.onde_aparece) out.push(...blocosDeOndeAparece(r.onde_aparece, ctx));
+  if (r.comunicadores_semelhantes) out.push(...blocosDeComunicadoresSemelhantes(r.comunicadores_semelhantes, ctx));
 
   // --- leitura de cada dimensão (não-DISC) ---------------------------------------------------
   if (mostrar("fatores") && !isDisc && ranked.some((f) => f.band_natural)) {

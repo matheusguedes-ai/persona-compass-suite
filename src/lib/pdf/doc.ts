@@ -542,6 +542,27 @@ export function retanguloArredondado(
   }
 }
 
+/**
+ * Retângulo com SÓ os cantos de CIMA arredondados — o cabeçalho colorido de um cartão em duas
+ * cores (#302: o quadrante da Matriz SWOT). Desenhado por cima de um `retanguloArredondado` do
+ * corpo inteiro, com o mesmo raio: os cantos de baixo do corpo continuam arredondados por baixo
+ * do cabeçalho, e a costura entre os dois some porque a cor do cabeçalho cobre exatamente até ali.
+ */
+export function retanguloTopoArredondado(
+  p: PDFPage,
+  o: { x: number; y: number; largura: number; altura: number; raio: number; cor?: Color },
+) {
+  const r = Math.min(o.raio, o.largura / 2, o.altura);
+  p.drawRectangle({ x: o.x, y: o.y, width: o.largura, height: o.altura - r, color: o.cor });
+  p.drawRectangle({ x: o.x + r, y: o.y + o.altura - r, width: o.largura - r * 2, height: r, color: o.cor });
+  for (const [cx, cy] of [
+    [o.x + r, o.y + o.altura - r],
+    [o.x + o.largura - r, o.y + o.altura - r],
+  ]) {
+    p.drawCircle({ x: cx, y: cy, size: r, color: o.cor });
+  }
+}
+
 /** Uma barra de gráfico: trilho claro com o preenchimento proporcional em cima. */
 export function pintarBarra(
   p: PDFPage,

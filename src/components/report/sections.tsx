@@ -10,7 +10,9 @@ import { toast } from "sonner";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 import { fetchComSessao } from "@/lib/fetch-com-sessao";
 import type { GraficoDoConjunto, Intensidade } from "@/lib/intensidade";
-import type { Swot, GanhosPerdas, OndeAparece } from "@/lib/disc-secoes-extra";
+import type {
+  SwotComunicador, GanhosPerdas, OndeAparece, ComunicadoresSemelhantes,
+} from "@/lib/disc-secoes-extra";
 import {
   CONFIABILIDADE,
   CORPO,
@@ -20,6 +22,10 @@ import {
   JUNG,
   OBSERVADORES,
   RODAPE_LEGAL,
+  SWOT_COMUNICADOR,
+  GANHOS_PERDAS,
+  ONDE_APARECE,
+  COMUNICADORES_SEMELHANTES,
   avisoDeSinal,
 } from "@/components/report/textos";
 
@@ -137,10 +143,11 @@ export type Report = {
   external?: { count: number; respondents: string[]; scores: Record<string, number> } | null;
   /** Página de intensidade (DISC, Temperamentos, VAK — motor ipsativo). Ausente nos demais. */
   intensidade?: Intensidade | null;
-  /** #302 — só DISC. Ausente quando o perfil não tem as 3 seções cadastradas (item 3: sem buraco visual). */
-  swot?: Swot | null;
+  /** #302 — só DISC. Ausente quando o perfil não tem a seção cadastrada (item 3: sem buraco visual). */
+  swot_comunicador?: SwotComunicador | null;
   ganhos_perdas?: GanhosPerdas | null;
   onde_aparece?: OndeAparece | null;
+  comunicadores_semelhantes?: ComunicadoresSemelhantes | null;
 };
 
 export const NATURAL_COLOR = "var(--primary)";
@@ -409,6 +416,149 @@ export function IntensidadeDoPerfil({
   );
 }
 
+// ------------------------------------------------------------------------------------------
+// Seções extras do DISC (#302) — "SWOT do Comunicador" (não confundir com o painel de
+// devolutiva do mentor, outra coisa — ver docs/plano-painel-devolutiva.md). Mesmo padrão da
+// intensidade: chave ausente no payload = seção não aparece, sem aviso de "pendente".
+// ------------------------------------------------------------------------------------------
+
+function QuadranteSwot({
+  rotulo, subtitulo, itens, bg, dot,
+}: { rotulo: string; subtitulo: string; itens: string[]; bg: string; dot: string }) {
+  return (
+    <div className="overflow-hidden rounded-xl ring-1 ring-black/5">
+      <div className={`flex flex-wrap items-center justify-between gap-2 px-5 py-3 ${bg}`}>
+        <span className="text-xs font-bold uppercase tracking-wider text-white">{rotulo}</span>
+        <span className="text-[10px] uppercase tracking-wider text-white/90">{subtitulo}</span>
+      </div>
+      <ul className="space-y-3 bg-muted/40 px-5 py-4">
+        {itens.map((item, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm text-foreground">
+            <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${dot}`} />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function SwotComunicadorSection({ swot }: { swot: SwotComunicador }) {
+  const S = SWOT_COMUNICADOR;
+  return (
+    <Section>
+      <h2 className="text-xl font-semibold">
+        {S.titulo1} <span className="text-muted-foreground">{S.titulo2}</span>
+      </h2>
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <QuadranteSwot rotulo={S.forcasRotulo} subtitulo={S.forcasSubtitulo} itens={swot.forcas} bg="bg-emerald-600" dot="bg-emerald-600" />
+        <QuadranteSwot rotulo={S.fragilidadesRotulo} subtitulo={S.fragilidadesSubtitulo} itens={swot.fragilidades} bg="bg-red-600" dot="bg-red-600" />
+        <QuadranteSwot rotulo={S.oportunidadesRotulo} subtitulo={S.oportunidadesSubtitulo} itens={swot.oportunidades} bg="bg-blue-600" dot="bg-blue-600" />
+        <QuadranteSwot rotulo={S.ameacasRotulo} subtitulo={S.ameacasSubtitulo} itens={swot.ameacas} bg="bg-amber-600" dot="bg-amber-600" />
+      </div>
+      <div className="mt-5 rounded-lg border-l-4 border-accent bg-accent/10 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-accent">{S.comoLerTitulo}</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{S.comoLerTexto}</p>
+      </div>
+    </Section>
+  );
+}
+
+function ColunaGanhosPerdas({
+  rotulo, corPilula, corTexto, ganha, perde,
+}: { rotulo: string; corPilula: string; corTexto: string; ganha: string; perde: string }) {
+  return (
+    <div className="rounded-xl bg-muted/40 p-5 ring-1 ring-black/5">
+      <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white ${corPilula}`}>
+        {rotulo}
+      </span>
+      <p className={`mt-4 text-xs font-semibold uppercase tracking-wide ${corTexto}`}>{GANHOS_PERDAS.vocêGanha}</p>
+      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{ganha}</p>
+      <p className={`mt-4 text-xs font-semibold uppercase tracking-wide ${corTexto}`}>{GANHOS_PERDAS.vocêPerde}</p>
+      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{perde}</p>
+    </div>
+  );
+}
+
+function GanhosPerdasSection({ gp }: { gp: GanhosPerdas }) {
+  const G = GANHOS_PERDAS;
+  return (
+    <Section>
+      <h2 className="text-xl font-semibold">
+        {G.titulo1} <span className="text-muted-foreground">{G.titulo2}</span>
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">{G.abertura}</p>
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <ColunaGanhosPerdas rotulo={G.mantendoRotulo} corPilula="bg-emerald-600" corTexto="text-emerald-700" ganha={gp.mantendo.ganha} perde={gp.mantendo.perde} />
+        <ColunaGanhosPerdas rotulo={G.mudandoRotulo} corPilula="bg-blue-600" corTexto="text-blue-700" ganha={gp.mudando.ganha} perde={gp.mudando.perde} />
+      </div>
+      <div className="mt-5 rounded-lg border-l-4 border-sky-400 bg-[#0B2239] p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">{G.fraseQueTeSeguraTitulo}</p>
+        <p className="mt-2 text-base leading-relaxed text-white">{gp.frase_que_te_segura}</p>
+      </div>
+    </Section>
+  );
+}
+
+function CartaoAplicacao({ situacao, automatico, tecnica }: { situacao: string; automatico: string; tecnica: string }) {
+  return (
+    <div className="rounded-xl bg-muted/40 p-5 ring-1 ring-black/5">
+      <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+        {situacao}
+      </span>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{automatico}</p>
+      <div className="mt-3 flex items-start gap-2">
+        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">{ONDE_APARECE.tecnica}</p>
+          <p className="text-sm font-medium text-foreground">{tecnica}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OndeApareceSection({ oa }: { oa: OndeAparece }) {
+  const O = ONDE_APARECE;
+  return (
+    <Section>
+      <h2 className="text-xl font-semibold">
+        {O.titulo1} <span className="text-muted-foreground">{O.titulo2}</span>
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">{O.abertura}</p>
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {oa.situacoes.map((s, i) => (
+          <CartaoAplicacao key={i} situacao={s.situacao} automatico={s.automatico} tecnica={s.tecnica} />
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function ComunicadoresSemelhantesSection({ cs }: { cs: ComunicadoresSemelhantes }) {
+  const C = COMUNICADORES_SEMELHANTES;
+  return (
+    <Section>
+      <h2 className="text-xl font-semibold">
+        {C.titulo1} <span className="text-muted-foreground">{C.titulo2}</span>
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">{C.abertura}</p>
+      <ul className="mt-5 space-y-3">
+        {cs.pessoas.map((p, i) => (
+          <li key={i} className="text-sm leading-relaxed text-foreground">
+            <span className="font-semibold">{p.nome}</span>
+            <span className="text-muted-foreground"> — {p.descricao}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-5 rounded-lg border-l-4 border-accent bg-accent/10 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-accent">{C.ressalvaTitulo}</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{C.ressalva}</p>
+      </div>
+    </Section>
+  );
+}
+
 /**
  * Corpo do relatório de UM teste. `mbtiReal` (quando presente) substitui a
  * estimativa de tipos psicológicos derivada do DISC.
@@ -538,6 +688,13 @@ export function ReportBody({
           </div>
         </Section>
       )}
+
+      {/* #302 — seções extras do DISC. Chave ausente no payload = seção some inteira, sem
+          buraco visual (a sigla ainda não tem o conteúdo cadastrado, ou o instrumento não é DISC). */}
+      {data.swot_comunicador && <SwotComunicadorSection swot={data.swot_comunicador} />}
+      {data.ganhos_perdas && <GanhosPerdasSection gp={data.ganhos_perdas} />}
+      {data.onde_aparece && <OndeApareceSection oa={data.onde_aparece} />}
+      {data.comunicadores_semelhantes && <ComunicadoresSemelhantesSection cs={data.comunicadores_semelhantes} />}
 
       {mostrar("observadores") && data.external && (
         <Section>

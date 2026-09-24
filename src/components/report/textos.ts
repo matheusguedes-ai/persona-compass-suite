@@ -127,6 +127,58 @@ export const INTENSIDADE = {
 };
 
 /**
+ * As quatro seções extras do DISC (#302) — "SWOT do Comunicador" para não confundir com o painel
+ * de devolutiva que o mentor preenche à mão (`docs/plano-painel-devolutiva.md`, outra coisa).
+ *
+ * Só o que é FIXO em todo perfil mora aqui — títulos, rótulos, as frases de abertura de cada
+ * seção. O que muda por sigla (os itens da matriz, os textos de ganhos/perdas, as situações, os
+ * nomes) vem de `report_content` via `src/lib/disc-secoes-extra.ts`.
+ */
+export const SWOT_COMUNICADOR = {
+  titulo1: "Sua matriz",
+  titulo2: "como comunicador",
+  forcasRotulo: "Forças",
+  forcasSubtitulo: "O que já é seu",
+  fragilidadesRotulo: "Fragilidades",
+  fragilidadesSubtitulo: "O que trabalhar",
+  oportunidadesRotulo: "Oportunidades",
+  oportunidadesSubtitulo: "Onde você rende mais",
+  ameacasRotulo: "Ameaças",
+  ameacasSubtitulo: "O que vigiar",
+  comoLerTitulo: "Como ler esta matriz",
+  comoLerTexto:
+    "As duas colunas de cima são sobre você; as de baixo, sobre o ambiente. Força e fragilidade costumam ser a mesma coisa em doses diferentes.",
+};
+
+export const GANHOS_PERDAS = {
+  titulo1: "Ganhos",
+  titulo2: "e perdas",
+  abertura: "Toda escolha de comunicação tem um preço dos dois lados. Esta é a conta honesta do seu perfil.",
+  mantendoRotulo: "Mantendo como está",
+  mudandoRotulo: "Mudando com intenção",
+  vocêGanha: "Você ganha",
+  vocêPerde: "Você perde",
+  fraseQueTeSeguraTitulo: "A frase que te segura",
+};
+
+export const ONDE_APARECE = {
+  titulo1: "Onde isso",
+  titulo2: "aparece",
+  abertura:
+    "Seu perfil não muda de sala para sala — mas o efeito dele muda. Veja o que acontece no automático e o que fazer no lugar.",
+  tecnica: "Técnica",
+};
+
+export const COMUNICADORES_SEMELHANTES = {
+  titulo1: "Comunicadores com",
+  titulo2: "traços semelhantes",
+  abertura: "Pessoas públicas cujo jeito de se comunicar tem pontos de contato com o seu perfil.",
+  /** Ressalva obrigatória (item (a) da demanda) — nenhuma dessas pessoas respondeu ao inventário. */
+  ressalvaTitulo: "Leitura de estilo, não diagnóstico",
+  ressalva: "Leitura do estilo público, não diagnóstico — nenhum deles respondeu a este inventário.",
+};
+
+/**
  * A explicação, para o aluno, de uma dimensão que ele quase não marcou (#292). Sem jargão e sem
  * culpar quem respondeu: o teste é que ficou sem informação sobre aquela dimensão.
  */

@@ -72,6 +72,41 @@ export const TRILHO = rgb(0xdf / 255, 0xe8 / 255, 0xf0 / 255);
 export const NOTA = rgb(0xe7 / 255, 0xf3 / 255, 0xfe / 255);
 
 /**
+ * PALETA DA MATRIZ SWOT DO COMUNICADOR (#302), medida pixel a pixel na peça aprovada
+ * (Metodo_Intencao_pecas_SWOT_ganhos_aplicacoes.pdf) — mesma disciplina da #294: cada cor
+ * conferida contra o fundo onde ela é usada pelo cálculo do WCAG. Verde e Âmbar não passavam como
+ * FUNDO de texto branco nem como TEXTO sobre claro e foram escurecidos o mínimo (matiz
+ * preservada); Vermelho e o Azul Cerúleo (já existente) passam nos dois usos sem ajuste:
+ *
+ *   #0F8A5F → #0F855C   Verde como FUNDO (branco em cima)     (4,36 → 4,64)
+ *   #0F8A5F → #0E8159   Verde como TEXTO (sobre o cartão)     (4,08 → 4,57)
+ *   #B8791B → #A26A18   Âmbar como FUNDO (branco em cima)     (3,63 → 4,55)
+ *   #B8791B → #9B6617   Âmbar como TEXTO (sobre o cartão)     (3,40 → 4,57)
+ *
+ * Reconferir depois de mexer: `python3 scripts/testar_pdf.py contraste`.
+ */
+/** Verde — Forças (SWOT) e "Mantendo como está" (Ganhos e Perdas). MANCHA (marcador do item). */
+export const VERDE = rgb(0x0f / 255, 0x8a / 255, 0x5f / 255);
+/** Verde quando é FUNDO de texto branco (cabeçalho do quadrante, pílula da coluna). */
+export const VERDE_FUNDO = rgb(0x0f / 255, 0x85 / 255, 0x5c / 255);
+/** Verde quando é o próprio TEXTO sobre claro ("VOCÊ GANHA"). */
+export const VERDE_TEXTO = rgb(0x0e / 255, 0x81 / 255, 0x59 / 255);
+/** Vermelho — Fragilidades (SWOT). Passa como fundo e como texto sem precisar de variante. */
+export const VERMELHO = rgb(0xc4 / 255, 0x44 / 255, 0x3e / 255);
+/** Âmbar — Ameaças (SWOT). MANCHA (marcador do item). */
+export const AMBAR = rgb(0xb8 / 255, 0x79 / 255, 0x1b / 255);
+/** Âmbar quando é FUNDO de texto branco (cabeçalho do quadrante). */
+export const AMBAR_FUNDO = rgb(0xa2 / 255, 0x6a / 255, 0x18 / 255);
+/** Âmbar quando é o próprio TEXTO sobre claro. */
+export const AMBAR_TEXTO = rgb(0x9b / 255, 0x66 / 255, 0x17 / 255);
+/**
+ * O Ciano-texto (`CIANO_TEXTO`) foi medido contra branco puro — e o rótulo "TÉCNICA" (#302) fica
+ * sobre o CARTÃO, que é só um pouco mais escuro que branco. A diferença bastou para cair de 4,60
+ * para 4,26, abaixo do mínimo. Mais um degrau de escurecimento, matiz preservada: 4,57.
+ */
+export const CIANO_TEXTO_CARTAO = rgb(0x01 / 255, 0x77 / 255, 0xb5 / 255);
+
+/**
  * Os quatro pesos que o documento usa. Mais do que isso pesaria no asset sem ganho: o relatório é
  * texto corrido com títulos, não uma peça gráfica.
  */

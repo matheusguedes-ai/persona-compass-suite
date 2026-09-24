@@ -11,6 +11,15 @@ original (ver `CLAUDE.md`).
 
 ---
 
+⚠️ **"SWOT" aqui é OUTRA COISA que a "Matriz SWOT do Comunicador" do relatório (#302).** Esta
+página descreve um painel que o MENTOR preenche À MÃO, ao vivo, na conversa de devolutiva — campo
+livre, sem conteúdo pré-escrito. A Matriz SWOT do Comunicador (`src/lib/disc-secoes-extra.ts`,
+seção `disc_swot_comunicador`) é conteúdo CADASTRADO por sigla do DISC, gerado automaticamente e
+mostrado no relatório do avaliado — ninguém preenche nada na hora. Mesmo nome curto, propósitos e
+donos diferentes; nenhuma das duas seções deste documento (§2.3, §5) foi construída ainda.
+
+---
+
 ## 1. O que aquela tela é
 
 Não é relatório e não é gestão. É a **ficha de trabalho da sessão**: a tela que

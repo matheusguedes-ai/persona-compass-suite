@@ -20,6 +20,7 @@ import {
   CARTAO,
   CIANO,
   CIANO_TEXTO,
+  CIANO_TEXTO_CARTAO,
   ESCURO,
   FILETE,
   GRAFITE,
@@ -38,6 +39,7 @@ import {
   paragrafo,
   pilha,
   retanguloArredondado,
+  retanguloTopoArredondado,
   textoEspacado,
   type Bloco,
 } from "./doc";
@@ -652,5 +654,211 @@ export function seloDoPerfil(sigla: string, tipo: Tipografia, antes = 0): Bloco 
       });
     },
     antes,
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Peças da Matriz SWOT do Comunicador (#302) — cor sempre por parâmetro: este módulo não sabe
+// que Forças é verde ou que Ameaças é âmbar, quem sabe é `relatorio.ts`.
+// ---------------------------------------------------------------------------------------------
+
+/** Item de lista com marcador circular colorido — um item da SWOT, sempre uma frase curta. */
+function itemComMarcador(texto: string, cor: Color, tipo: Tipografia, antes = 0): Bloco {
+  const RAIO_PONTO = 3.2;
+  const RECUO = 20;
+  const tamanho = 10.5;
+  const corpo = paragrafo(texto, tipo, { tamanho, cor: GRAFITE, entrelinha: 1.4 });
+  return {
+    antes,
+    altura: (l) => corpo.altura(l - RECUO),
+    desenhar(p, x, yTopo, l) {
+      p.drawCircle({ x: x + RAIO_PONTO, y: yTopo - tamanho * 0.55, size: RAIO_PONTO, color: cor });
+      corpo.desenhar(p, x + RECUO, yTopo, l - RECUO);
+    },
+  };
+}
+
+/**
+ * Quadrante da Matriz SWOT: cabeçalho de duas cores — o rótulo à esquerda e o subtítulo em
+ * linguagem simples à direita, os dois em branco — e o corpo com os itens, cada um com um
+ * marcador da MESMA cor do cabeçalho. Uma peça só, com cantos arredondados nos quatro lados (o
+ * corpo desenha o retângulo inteiro; o cabeçalho cobre por cima só até a costura).
+ */
+export function cartaoQuadrante(o: {
+  rotulo: string;
+  subtitulo: string;
+  itens: string[];
+  cor: Color;
+  tipo: Tipografia;
+  antes?: number;
+}): Bloco {
+  const t = o.tipo;
+  const ALTURA_CABECA = 15 * MM;
+  const PAD_X = 18;
+  const PAD_Y = 16;
+  const RAIO = 4 * MM;
+  const corpo = pilha(o.itens.map((item, i) => itemComMarcador(limpar(item), o.cor, t, i === 0 ? 0 : 15)));
+  const alturaCorpo = (l: number) => corpo.altura(l - PAD_X * 2) + PAD_Y * 2;
+  return {
+    antes: o.antes,
+    atomico: true,
+    altura: (l) => ALTURA_CABECA + alturaCorpo(l),
+    desenhar(p, x, yTopo, l) {
+      const hCorpo = alturaCorpo(l);
+      const hTotal = ALTURA_CABECA + hCorpo;
+      retanguloArredondado(p, { x, y: yTopo - hTotal, largura: l, altura: hTotal, raio: RAIO, cor: CARTAO });
+      retanguloTopoArredondado(p, { x, y: yTopo - ALTURA_CABECA, largura: l, altura: ALTURA_CABECA, raio: RAIO, cor: o.cor });
+
+      const subtitulo = o.subtitulo.toLocaleUpperCase("pt-BR");
+      const lSub = larguraEspacada(subtitulo, t.md, 8, 0.8);
+      textoEspacado(p, {
+        texto: subtitulo,
+        x: x + l - PAD_X - lSub,
+        y: yTopo - ALTURA_CABECA / 2 - 3,
+        tamanho: 8,
+        fonte: t.md,
+        cor: BRANCO,
+        entreletras: 0.8,
+      });
+
+      // O rótulo encolhe até caber no vão antes do subtítulo — "OPORTUNIDADES" é largo
+      // demais em cartões estreitos (duas colunas) para o corpo de 10pt fixo, e colidia
+      // com o subtítulo à direita (mesma técnica de `pintarCabecalho`).
+      const rotulo = o.rotulo.toLocaleUpperCase("pt-BR");
+      const vao = l - PAD_X * 2 - lSub - 10;
+      let corpoRotulo = 10;
+      let entreRotulo = 0.6;
+      while (corpoRotulo > 7 && larguraEspacada(rotulo, t.bd, corpoRotulo, entreRotulo) > vao) {
+        corpoRotulo -= 0.3;
+        entreRotulo = Math.max(0.2, entreRotulo - 0.03);
+      }
+      textoEspacado(p, {
+        texto: rotulo,
+        x: x + PAD_X,
+        y: yTopo - ALTURA_CABECA / 2 - corpoRotulo * 0.35,
+        tamanho: corpoRotulo,
+        fonte: t.bd,
+        cor: BRANCO,
+        entreletras: entreRotulo,
+      });
+
+      corpo.desenhar(p, x + PAD_X, yTopo - ALTURA_CABECA - PAD_Y, l - PAD_X * 2);
+    },
+  };
+}
+
+/**
+ * Coluna confrontada de Ganhos e Perdas: pílula identificando a coluna, "VOCÊ GANHA" e "VOCÊ
+ * PERDE" na cor da coluna, cada um com o texto embaixo.
+ */
+export function colunaGanhosPerdas(o: {
+  rotulo: string;
+  cor: Color;
+  corTexto: Color;
+  ganha: string;
+  perde: string;
+  tipo: Tipografia;
+  antes?: number;
+}): Bloco {
+  const t = o.tipo;
+  const ALTURA_CABECA = 30;
+  return cartao(
+    pilha([
+      desenhoLivre(ALTURA_CABECA, (p, x, yTopo) => {
+        pintarPilula(p, {
+          texto: o.rotulo,
+          x,
+          yTopo: yTopo - 2,
+          altura: 22,
+          fundo: o.cor,
+          cor: BRANCO,
+          tipo: t,
+          tamanho: 8,
+          entreletras: 0.8,
+        });
+      }),
+      paragrafo("VOCÊ GANHA", t, {
+        tamanho: 9, peso: "bd", cor: o.corTexto, maiusculas: true, entreletras: 0.8, antes: 12,
+      }),
+      paragrafo(o.ganha, t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.5, antes: 6 }),
+      paragrafo("VOCÊ PERDE", t, {
+        tamanho: 9, peso: "bd", cor: o.corTexto, maiusculas: true, entreletras: 0.8, antes: 16,
+      }),
+      paragrafo(o.perde, t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.5, antes: 6 }),
+    ]),
+    { antes: o.antes, padding: 18, paddingX: 18 },
+  );
+}
+
+/**
+ * Bloco escuro de destaque: o mesmo desenho da nota de leitura (filete colado na borda,
+ * título + corpo), em ESCURO com texto claro — para "a frase que te segura" (#302), o único
+ * ponto do relatório que fala em segunda pessoa direta.
+ */
+export function blocoDeDestaque(titulo: string, texto: string, tipo: Tipografia, antes = 20): Bloco {
+  const dentro = pilha([
+    paragrafo(titulo, tipo, {
+      tamanho: 8.6, peso: "bd", cor: CIANO, maiusculas: true, entreletras: 1.1, entrelinha: 1.3,
+    }),
+    paragrafo(texto, tipo, { tamanho: 10.5, cor: BRANCO, entrelinha: 1.55, antes: 8 }),
+  ]);
+  const px = 20;
+  const pd = 16;
+  return {
+    antes,
+    atomico: true,
+    altura: (l) => dentro.altura(l - px - 14) + pd * 2,
+    desenhar(p, x, yTopo, l) {
+      const h = this.altura(l);
+      retanguloArredondado(p, { x, y: yTopo - h, largura: l, altura: h, raio: 2.5 * MM, cor: ESCURO });
+      p.drawRectangle({ x, y: yTopo - h, width: 4, height: h, color: CIANO });
+      dentro.desenhar(p, x + px, yTopo - pd, l - px - 14);
+    },
+  };
+}
+
+/**
+ * Cartão de aplicação prática ("Onde Isso Aparece"): pílula com o nome da situação, o texto do
+ * automático, e o bloco TÉCNICA com marcador e a recomendação em destaque.
+ */
+export function cartaoAplicacao(o: {
+  situacao: string;
+  automatico: string;
+  tecnica: string;
+  cor: Color;
+  tipo: Tipografia;
+  antes?: number;
+}): Bloco {
+  const t = o.tipo;
+  const ALTURA_CABECA = 30;
+  return cartao(
+    pilha([
+      desenhoLivre(ALTURA_CABECA, (p, x, yTopo) => {
+        pintarPilula(p, {
+          texto: o.situacao,
+          x,
+          yTopo: yTopo - 2,
+          altura: 22,
+          fundo: o.cor,
+          cor: BRANCO,
+          tipo: t,
+          tamanho: 8,
+          entreletras: 0.8,
+        });
+      }),
+      paragrafo(o.automatico, t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.5, antes: 12 }),
+      desenhoLivre(
+        16,
+        (p, x, yTopo) => {
+          p.drawCircle({ x: x + 3, y: yTopo - 9, size: 3, color: CIANO });
+          textoEspacado(p, {
+            texto: "TÉCNICA", x: x + 14, y: yTopo - 12, tamanho: 8, fonte: t.bd, cor: CIANO_TEXTO_CARTAO, entreletras: 1,
+          });
+        },
+        14,
+      ),
+      paragrafo(o.tecnica, t, { tamanho: 9.6, peso: "md", cor: ESCURO, entrelinha: 1.5, antes: 4 }),
+    ]),
+    { antes: o.antes, padding: 18, paddingX: 18 },
   );
 }

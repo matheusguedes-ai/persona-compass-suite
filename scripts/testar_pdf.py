@@ -508,6 +508,18 @@ PARES_DO_SISTEMA = [
     ("rótulos da capa", "#01A5FC", "#062038", False),
     ("nome na capa", "#FFFFFF", "#062038", True),
     ("dados da capa", "#FFFFFF", "#062038", False),
+    # #302 — Matriz SWOT do Comunicador, Ganhos e Perdas, Onde Isso Aparece.
+    ("cabeçalho do quadrante — Forças (verde)", "#FFFFFF", "#0F855C", False),
+    ("cabeçalho do quadrante — Fragilidades (vermelho)", "#FFFFFF", "#C4443E", False),
+    ("cabeçalho do quadrante — Oportunidades (azul)", "#FFFFFF", "#025EC4", False),
+    ("cabeçalho do quadrante — Ameaças (âmbar)", "#FFFFFF", "#A26A18", False),
+    ("VOCÊ GANHA/PERDE — coluna verde", "#0E8159", "#F4F8FB", False),
+    ("VOCÊ GANHA/PERDE — coluna azul", "#025EC4", "#F4F8FB", False),
+    ("pílula MANTENDO COMO ESTÁ (verde)", "#FFFFFF", "#0F855C", False),
+    ("pílula MUDANDO COM INTENÇÃO / situação (azul)", "#FFFFFF", "#025EC4", False),
+    ("rótulo TÉCNICA sobre o cartão", "#0177B5", "#F4F8FB", False),
+    ("título do bloco de destaque (ciano/escuro)", "#01A5FC", "#0B2239", True),
+    ("corpo do bloco de destaque (branco/escuro)", "#FFFFFF", "#0B2239", False),
 ]
 
 
