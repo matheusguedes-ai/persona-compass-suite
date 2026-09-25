@@ -109,7 +109,8 @@ export const LEADERSHIP_STYLES = [
  * `adaptado = null` (DISC pelo motor ipsativo, #288 Etapa 2c): não existe mais número "adaptado" na mesma
  * régua do `natural` recebido aqui, e as competências ficam só com a série recebida em `natural`.
  *
- * `indices` chega pronto de `calcularIndices` (#304). Antes eram calculados aqui, com pesos que somam 1
+ * `indices` chega pronto (#304): lido do resultado do motor, `ipsativo.indices`, gravado no envio pela
+ * conta de `src/lib/indices.ts`. Antes eram calculados aqui, com pesos que somam 1
  * aplicados a percentuais que somam 100 entre as letras — Positividade e Energia ficavam abaixo de 0,40
  * para praticamente todo mundo, e Estima e Flexibilidade estavam sem valor desde a Etapa 2c.
  */

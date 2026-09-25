@@ -128,12 +128,17 @@ Só para os instrumentos em `INSTRUMENTOS_IPSATIVOS` (**DISC, Temperamentos, VAK
     "perfil": { "tipo": "combinado", "chaves": ["S", "C"], "codigo": "SC", "distancia": 2,
                 "faixa": "combinado", "grupo_da_frente": ["S", "C"], "empate_multiplo": false,
                 "fora_por_sinal": [] }   // letras que o ranking traria e o sinal segurou (#292)
+  },
+  "indices": {                      // SÓ DISC, desde a #304 (segunda parte) — ver "Os índices (#304)"
+    "versao": 1,                    // versão da FÓRMULA dos índices (VERSAO_INDICES)
+    "positividade": 0.61, "estima": 0.4, "flexibilidade": 0.75, "energia": 0.64
   }
 }
 ```
 
-Este é o **único** lugar que as telas devem ler. Ranking, percentuais, perfil, faixa e expressão
-já vêm prontos: quem lê **não recalcula nada** (recalcular é como nascem duas regras diferentes).
+Este é o **único** lugar que as telas devem ler. Ranking, percentuais, perfil, faixa, expressão e —
+no DISC — os índices já vêm prontos: quem lê **não recalcula nada** (recalcular é como nascem duas
+regras diferentes).
 `codigo` junta as chaves sem separador quando todas têm 1 caractere (`SC`) e com `+` nos demais
 (`SAN+COL`, Temperamentos).
 
@@ -196,6 +201,18 @@ No padrão da referência que o dono do produto usa (cartão #288.3, relatórios
 Positividade, Estima e Flexibilidade (página de intensidade) e Energia (bloco "Índices
 comportamentais"). Só DISC — Temperamentos e VAK não mostram índice. Código: `src/lib/indices.ts`
 (função pura sobre o `ipsativo`); oráculo independente: `scripts/indices_oraculo.py`.
+
+**Gravados, não recalculados na tela** (segunda parte da #304). O motor grava os quatro em
+`computed_scores.ipsativo.indices` no envio (`comIndices`, na mesma estrutura do resultado), com a
+versão da fórmula. O relatório LÊ de lá, por `obterIpsativo`, que devolve o gravado como está e só
+completa EM MEMÓRIA, com a mesma conta, o que não tiver índice (resultado derivado das respostas cruas,
+ou gravado com fórmula antiga) — nada é gravado na leitura. As respostas que já existiam ganharam a
+chave com `python3 scripts/gravar_indices.py --aplicar` (acréscimo puro: o resto de `computed_scores`
+conferido byte a byte depois; pessoas fictícias de teste ficam de fora). Prova de que a tela lê o
+gravado, e não a conta: `python3 scripts/testar_indices.py prova-leitura --app URL` troca o gravado de
+uma resposta descartável por sentinelas e exige que o relatório mostre os sentinelas. Mudou a conta?
+Suba `VERSAO_INDICES` e rode `gravar_indices.py` de novo (ele só preenche o que falta; para regravar
+versão antiga, o `obterIpsativo` já recalcula enquanto isso).
 
 **O que estava errado.** Positividade e Energia aplicavam pesos que somam 1 (ex.: 0,6·I + 0,25·S +
 0,15·D) ao percentual de cada letra no gráfico adaptado — só que no motor ipsativo as quatro letras

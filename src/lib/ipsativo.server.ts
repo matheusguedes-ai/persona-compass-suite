@@ -10,6 +10,10 @@
  *    é derivado EM MEMÓRIA das respostas cruas (`test_answers`) com a MESMA função. O relatório
  *    fica igual para elas sem que ninguém precise recalcular o que foi gravado.
  *
+ * Os índices do DISC (#304) vêm DENTRO do resultado (`ipsativo.indices`): gravados pelo motor no
+ * envio e só LIDOS aqui. Se o resultado não trouxer índice (derivado das respostas cruas, ou gravado
+ * antes de os índices passarem a ser gravados), `comIndices` completa em memória com a mesma conta.
+ *
  * Nada aqui escreve no banco.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -20,6 +24,7 @@ import {
   type BlocoRespondido,
   type ResultadoIpsativo,
 } from "@/lib/escolha-forcada";
+import { comIndices, type ResultadoComIndices } from "@/lib/indices";
 
 type Cliente = SupabaseClient<Database>;
 
@@ -32,8 +37,8 @@ export type OrigemDoIpsativo = "gravado" | "derivado";
 export async function obterIpsativo(
   supabase: Cliente,
   args: { responseId: string; versionId: string; computedScores: unknown },
-): Promise<{ ipsativo: ResultadoIpsativo; origem: OrigemDoIpsativo } | null> {
-  const gravado = (args.computedScores as { ipsativo?: ResultadoIpsativo } | null | undefined)
+): Promise<{ ipsativo: ResultadoComIndices; origem: OrigemDoIpsativo } | null> {
+  const gravado = (args.computedScores as { ipsativo?: ResultadoComIndices } | null | undefined)
     ?.ipsativo;
   if (
     gravado &&
@@ -42,10 +47,10 @@ export async function obterIpsativo(
     gravado.letras.length > 0 &&
     Array.isArray(gravado.adaptado?.ranking)
   ) {
-    return { ipsativo: gravado, origem: "gravado" };
+    return { ipsativo: comIndices(gravado), origem: "gravado" };
   }
   const derivado = await derivarDasRespostas(supabase, args.responseId, args.versionId);
-  return derivado ? { ipsativo: derivado, origem: "derivado" } : null;
+  return derivado ? { ipsativo: comIndices(derivado), origem: "derivado" } : null;
 }
 
 async function derivarDasRespostas(

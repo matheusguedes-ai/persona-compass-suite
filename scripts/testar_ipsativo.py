@@ -34,7 +34,7 @@ import argparse, json, math, os, random, shutil, subprocess, sys, urllib.error, 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ipsativo_oraculo import (ALVO_SINAL_POR_LETRA, LIMITE_COMBINADO, LIMITE_MODERADA, comparar,  # noqa: E402
                               distribuir_pares, embaralhar_pares, oraculo, sinal_minimo, sortear_escolhas)
-from indices_oraculo import indices as indices_oraculo  # noqa: E402
+from indices_oraculo import indices as indices_oraculo, sem_versao  # noqa: E402
 
 RAIZ = os.getcwd()
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
@@ -608,9 +608,9 @@ def conferir_relatorio_2c(rel, ips, instrumento, textos, compostas, ips_observad
         elif any(s in SECOES_DISC for s, _ in secoes):
             p.append("sem predominância clara, mas saiu seção escrita para um perfil")
         d = rel.get("derived") or {}
-        # #304: os quatro índices saem do resultado do motor — conferidos contra o oráculo, não contra si mesmos
+        # #304: os quatro índices são LIDOS do resultado do motor — conferidos contra o oráculo, não contra si mesmos
         idx = {i["key"]: i["value"] for i in d.get("indices", [])}
-        esperado = {i["key"]: i["value"] for i in (indices_oraculo(ips) or [])}
+        esperado = sem_versao(indices_oraculo({k: val for k, val in ips.items() if k != "indices"})) or {}
         if idx != esperado:
             p.append(f"índices {idx} ≠ oráculo {esperado}")
         if any(c.get("adaptado") is not None for c in d.get("competencias", [])):
@@ -725,14 +725,20 @@ def cmd_vivo(args):
                 if ips is None:
                     problemas.append("computed_scores.ipsativo ausente")
                 else:
+                    # #304: os índices do DISC são gravados DENTRO do ipsativo — conferidos à parte, contra o
+                    # oráculo deles; o resto do resultado do motor, contra o oráculo do motor, como sempre
+                    indices_gravados = ips.get("indices")
+                    ips = {k: val for k, val in ips.items() if k != "indices"}
                     d = comparar(ips, oraculo(est["dimensoes"], para_oraculo(est, mais, menos)))
                     if d:
                         problemas.append(f"ipsativo difere do oráculo: {d[:4]}")
+                    if indices_gravados != indices_oraculo(ips):
+                        problemas.append(f"ipsativo.indices gravado {indices_gravados} ≠ oráculo {indices_oraculo(ips)}")
                     problemas += conferir_invariantes(ips)
                     for k, e_ in (espera or {}).items():
                         if resumo_do_perfil(ips, k) != (e_[0], e_[1], e_[2], e_[3]):
                             problemas.append(f"{k}: perfil {resumo_do_perfil(ips, k)} ≠ esperado {e_}")
-                    if (retorno.get("result") or {}).get("ipsativo") != ips:
+                    if (retorno.get("result") or {}).get("ipsativo") != {**ips, **({"indices": indices_gravados} if indices_gravados else {})}:
                         problemas.append("result.ipsativo do POST difere do gravado")
                     if gravado["dominant_dimension_id"] is not None or gravado["result_band_id"] is not None:
                         problemas.append("dominant_dimension_id/result_band_id deveriam ficar vazios (sem leitor)")

@@ -74,19 +74,33 @@ def _flexibilidade(validas):
     return trocas / pares
 
 
+VERSAO_INDICES = 1
+CHAVES = ("positividade", "estima", "flexibilidade", "energia")
+
+
 def indices(ips):
-    """Lista como a de `calcularIndices`, ou None fora do DISC."""
+    """O que `calcularIndices` devolve e o motor grava em `ipsativo.indices`, ou None fora do DISC."""
     chaves = [l["chave"].strip().upper() for l in ips["letras"]]
     if len(chaves) != 4 or set(chaves) != set(LETRAS_DO_DISC):
         return None
     validas = [l for l in ips["letras"] if l["sinal_suficiente"] and _disp(l) > 0]
     v = lambda x: None if x is None else _duas_casas(x)  # noqa: E731
-    return [
-        {"key": "positividade", "label": "Positividade", "value": v(_fracao_dos_menos(ips["letras"], LADO_DO_DESAFIO))},
-        {"key": "estima", "label": "Estima", "value": v(_estima(validas))},
-        {"key": "flexibilidade", "label": "Flexibilidade", "value": v(_flexibilidade(validas))},
-        {"key": "energia", "label": "Energia", "value": v(_fracao_dos_menos(ips["letras"], LADO_RECEPTIVO))},
-    ]
+    return {
+        "versao": VERSAO_INDICES,
+        "positividade": v(_fracao_dos_menos(ips["letras"], LADO_DO_DESAFIO)),
+        "estima": v(_estima(validas)),
+        "flexibilidade": v(_flexibilidade(validas)),
+        "energia": v(_fracao_dos_menos(ips["letras"], LADO_RECEPTIVO)),
+    }
+
+
+def do_relatorio(rel):
+    """Os índices como o relatório entrega (lista com nome), no mesmo formato de `indices`, sem a versão."""
+    return {i["key"]: i["value"] for i in ((rel.get("derived") or {}).get("indices") or [])}
+
+
+def sem_versao(g):
+    return None if g is None else {k: g[k] for k in CHAVES}
 
 
 def sem_arredondar(ips):

@@ -9,6 +9,7 @@ import {
   type BlocoRespondido,
   type DimensaoIpsativa,
 } from "@/lib/escolha-forcada";
+import { comIndices } from "@/lib/indices";
 
 type Json = { [k: string]: unknown };
 
@@ -588,9 +589,12 @@ async function computeAndStore(id: string, input: z.infer<typeof submitSchema>) 
   // `usaMotorIpsativo` só liga para os instrumentos listados em `INSTRUMENTOS_IPSATIVOS`.
   // ------------------------------------------------------------------
   const usaIpsativo = forcedQs.length > 0 && usaMotorIpsativo(versao?.instrument_id);
-  const ipsativo = usaIpsativo
+  const resultadoDoMotor = usaIpsativo
     ? calcularIpsativo({ dimensoes: dimensoesDoInstrumento, blocos: blocosForcados })
     : null;
+  // Os índices do DISC (#304) são gravados JUNTO do resultado do motor, na mesma estrutura
+  // (`ipsativo.indices`): o relatório lê de lá, não recalcula. Nos outros instrumentos, nada muda.
+  const ipsativo = resultadoDoMotor ? comIndices(resultadoDoMotor) : null;
 
   // Persist answers (upsert) + response
   if (sanitized.size > 0) {

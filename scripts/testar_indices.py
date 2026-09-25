@@ -14,18 +14,25 @@ Testes e calibração dos ÍNDICES DO PERFIL DISC (#304) — Positividade, Estim
       direção do ajuste verdadeiro). Mostra também as contas antigas, para registro do porquê.
 
   python3 scripts/testar_indices.py real [--app URL]
-      As respostas reais de DISC: os índices pelo oráculo, a partir do `ipsativo` gravado. Com
-      --app, confere também o que o RELATÓRIO entrega (/api/public/report/<id>) — o caminho que a
-      tela, o PDF e a assistente usam. Imprime só o começo do id e a data, nunca nome.
+      As respostas reais de DISC: o índice GRAVADO em `computed_scores.ipsativo.indices`, conferido
+      contra o oráculo. Com --app, confere também o que o RELATÓRIO entrega (/api/public/report/<id>)
+      — o caminho que a tela, o PDF e a assistente usam. Imprime só o começo do id e a data, nunca nome.
+
+  python3 scripts/testar_indices.py prova-leitura --app URL
+      A PROVA de que o relatório LÊ o índice gravado em vez de recalcular: uma resposta descartável
+      pelo endpoint público; confere que o motor gravou os índices; troca o gravado por valores-
+      sentinela e exige que o relatório mostre os sentinelas; tira a chave e exige que o relatório
+      volte a mostrar a conta (o socorro em memória). Apaga tudo no fim, citando os ids antes.
 
 Requer Node 22.6+ (lê o TypeScript direto). Nunca imprime chave nenhuma.
 """
 import argparse, json, math, os, random, shutil, subprocess, sys, urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from indices_oraculo import indices as oraculo_indices, sem_arredondar  # noqa: E402
+from indices_oraculo import CHAVES, VERSAO_INDICES, do_relatorio, indices as oraculo_indices, sem_arredondar, sem_versao  # noqa: E402
 from ipsativo_oraculo import oraculo, sortear_escolhas  # noqa: E402
-from testar_ipsativo import UA, VERSOES, carregar_estrutura, escolhas_do_caso, para_oraculo, rest  # noqa: E402
+from testar_ipsativo import (PREFIXO, UA, VERSOES, _post_app, carregar_estrutura, escolhas_do_caso,  # noqa: E402
+                             para_oraculo, rest)
 
 RAIZ = os.getcwd()
 ORDEM = ["D", "I", "S", "C"]
@@ -125,13 +132,32 @@ def cmd_puro(args):
     print("Casos feitos à mão (esperado conferido na conta):")
     for nome, c in CASOS.items():
         ips = ips_do_caso(est, c["mais"], c["menos"])
-        ts = {i["key"]: i["value"] for i in rodar_node([ips])[0]}
-        py = {i["key"]: i["value"] for i in oraculo_indices(ips)}
-        ok = ts == py == c["espera"]
+        saida = rodar_node([ips])[0]
+        ts, py = sem_versao(saida["calculado"]), sem_versao(oraculo_indices(ips))
+        # sem índice gravado, o que o motor anexa é a própria conta
+        ok = ts == py == c["espera"] and saida["anexado"] == saida["calculado"]
         falhas += not ok
         print(f"  {'OK ' if ok else 'ERRO'} {nome}: {c['desc']}")
         if not ok:
-            print(f"       esperado {c['espera']}\n       TypeScript {ts}\n       oráculo    {py}")
+            print(f"       esperado {c['espera']}\n       TypeScript {ts}\n       oráculo    {py}\n       anexado    {saida['anexado']}")
+
+    # O que é GRAVADO é LIDO: índice já presente e da versão atual volta como está, sem recálculo; índice
+    # de fórmula antiga é recalculado; fora do DISC, nada é anexado.
+    base = ips_do_caso(est, CASOS["dono_25_09"]["mais"], CASOS["dono_25_09"]["menos"])
+    sentinela = {"versao": VERSAO_INDICES, "positividade": 0.11, "estima": 0.22, "flexibilidade": 0.33, "energia": 0.44}
+    velho = {**sentinela, "versao": VERSAO_INDICES - 1}
+    lido, recalculado = rodar_node([{**base, "indices": sentinela}, {**base, "indices": velho}])
+    regras = [
+        ("índice gravado da versão atual é LIDO, não recalculado", lido["anexado"] == sentinela),
+        ("índice gravado de fórmula antiga é recalculado pela conta atual", recalculado["anexado"] == oraculo_indices(base)),
+    ]
+    fora = rodar_node([{"letras": [{"chave": k, "maximo": 24, "mais": 8, "menos": 8, "sinal": 16,
+                                    "sinal_suficiente": True} for k in ("V", "A", "K")]}])[0]
+    regras.append(("fora do DISC não existe índice (VAK)", fora["calculado"] is None and fora["anexado"] is None))
+    print("\nComo o índice gravado é tratado:")
+    for desc, ok in regras:
+        falhas += not ok
+        print(f"  {'OK ' if ok else 'ERRO'} {desc}")
 
     rng = random.Random(3040)
     est_json = {"letra_da_opcao": est["letra_da_opcao"], "blocos": est["blocos"]}
@@ -143,22 +169,15 @@ def cmd_puro(args):
         for _ in range(args.n // 3):
             m, n, _, _ = pessoa_simulada(est, rng, tau, rng.uniform(0.3, 3.0))
             lote.append(oraculo(est["dimensoes"], para_oraculo(est, m, n)))
-    ts = rodar_node(lote)
+    ts = [s["calculado"] for s in rodar_node(lote)]
     divergentes = [i for i, (a, b) in enumerate(zip(ts, [oraculo_indices(r) for r in lote])) if a != b]
     falhas += len(divergentes)
-    nulos = sum(1 for r in ts for i in r if i["value"] is None)
+    nulos = sum(1 for r in ts for k in CHAVES if r[k] is None)
     print(f"\n{len(lote)} respostas (ao acaso + pessoas simuladas) na estrutura real do DISC: "
           f"{'OK — TypeScript e oráculo idênticos' if not divergentes else f'{len(divergentes)} DIVERGENTES'}"
           f" · índices sem valor: {nulos}")
     for i in divergentes[:3]:
         print(f"   #{i}: TS {ts[i]}\n       PY {oraculo_indices(lote[i])}")
-
-    # fora do DISC não existe índice
-    fora = rodar_node([{"letras": [{"chave": k, "maximo": 24, "mais": 8, "menos": 8, "sinal": 16,
-                                    "sinal_suficiente": True} for k in ("V", "A", "K")]}])[0]
-    if fora is not None:
-        falhas += 1
-        print("ERRO: instrumento com letras V/A/K recebeu índices")
     print("\nTUDO CERTO" if falhas == 0 else f"\n{falhas} FALHA(S)")
     return 0 if falhas == 0 else 1
 
@@ -252,30 +271,120 @@ def cmd_simular(args):
 
 
 # ------------------------------------------------------------------ comando: real
+def _relatorio(app, rid):
+    req = urllib.request.Request(f"{app.rstrip('/')}/api/public/report/{rid}?nc={os.urandom(3).hex()}", headers=UA)
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return json.loads(resp.read())
+
+
 def cmd_real(args):
+    """Cada resposta de DISC: o índice GRAVADO (e se bate com a conta), e o que o relatório entrega."""
     versoes = [v["id"] for v in rest("GET", "test_versions", {"instrument_id": "eq.disc", "select": "id"})]
     respostas = rest("GET", "test_responses", {
-        "version_id": "in.(" + ",".join(versoes) + ")", "submitted_at": "not.is.null", "canceled_at": "is.null",
-        "select": "id,submitted_at,kind,computed_scores", "order": "submitted_at.desc"})
+        "version_id": "in.(" + ",".join(versoes) + ")", "computed_scores": "not.is.null",
+        "select": "id,submitted_at,canceled_at,kind,computed_scores", "order": "submitted_at.desc.nullslast"})
     falhas = 0
     for r in respostas:
+        rotulo = f"{r['id'][:8]} {(r['submitted_at'] or '—')[:10]} ({r['kind']}{', cancelada' if r['canceled_at'] else ''})"
         ips = (r.get("computed_scores") or {}).get("ipsativo")
         if not ips:
-            print(f"  {r['id'][:8]} {r['submitted_at'][:10]}: sem ipsativo gravado (o relatório deriva das respostas cruas)")
+            print(f"  {rotulo}: sem ipsativo gravado (o relatório deriva das respostas cruas)")
             continue
-        esperado = {i["key"]: i["value"] for i in oraculo_indices(ips)}
-        linha = " · ".join(f"{k} {esperado[k]:.2f}" if esperado[k] is not None else f"{k} —" for k in esperado)
-        estado = ""
-        if args.app:
-            req = urllib.request.Request(f"{args.app.rstrip('/')}/api/public/report/{r['id']}", headers=UA)
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                rel = json.loads(resp.read())
-            obtido = {i["key"]: i["value"] for i in ((rel.get("derived") or {}).get("indices") or [])}
-            ok = obtido == esperado
+        gravado = ips.get("indices")
+        esperado = oraculo_indices({k: v for k, v in ips.items() if k != "indices"})
+        estado = []
+        if gravado is None:
+            estado.append("índice NÃO gravado")
+            falhas += bool(args.exigir_gravado)
+        elif gravado != esperado:
+            estado.append(f"GRAVADO ≠ CONTA: {gravado}")
+            falhas += 1
+        else:
+            estado.append("gravado ✓")
+        if args.app and r["submitted_at"] and not r["canceled_at"]:
+            obtido = do_relatorio(_relatorio(args.app, r["id"]))
+            ok = obtido == sem_versao(gravado or esperado)
             falhas += not ok
-            estado = "  relatório OK" if ok else f"  RELATÓRIO DIFERENTE: {obtido}"
-        print(f"  {r['id'][:8]} {r['submitted_at'][:10]} ({r['kind']}): {linha}{estado}")
+            estado.append("relatório lê o gravado ✓" if ok and gravado else "relatório OK" if ok else f"RELATÓRIO DIFERENTE: {obtido}")
+        valores = gravado or esperado
+        linha = " · ".join(f"{k} {valores[k]:.2f}" if valores[k] is not None else f"{k} —" for k in CHAVES)
+        print(f"  {rotulo}: {linha}  [{' · '.join(estado)}]")
     return 0 if falhas == 0 else 1
+
+
+# ------------------------------------------------------------------ comando: prova-leitura
+SENTINELA = {"versao": VERSAO_INDICES, "positividade": 0.11, "estima": 0.22, "flexibilidade": 0.33, "energia": 0.44}
+
+
+def cmd_prova_leitura(args):
+    """
+    Números iguais não provam de ONDE o relatório tirou o índice (a conta e o gravado dão o mesmo).
+    A prova é trocar o gravado por valores que a conta nunca daria e ver o relatório mostrá-los.
+    """
+    est = carregar_estrutura(VERSOES["disc"])
+    v = rest("GET", "test_versions", {"id": f"eq.{VERSOES['disc']}", "select": "id,mentor_id"})[0]
+    rodada = os.urandom(3).hex()
+    criados = {"respostas": [], "baterias": [], "pessoas": []}
+    passos = []
+    try:
+        pessoa = rest("POST", "people", corpo=[{"full_name": f"{PREFIXO} Índices {rodada}",
+                                                "email": f"sim-indices-{rodada}@exemplo.invalido", "mentor_id": v["mentor_id"]}])[0]
+        criados["pessoas"].append(pessoa["id"])
+        bateria = rest("POST", "assessment_responses", corpo=[{"mentor_id": v["mentor_id"], "person_id": pessoa["id"], "status": "pending"}])[0]
+        criados["baterias"].append(bateria["id"])
+        base = {"version_id": VERSOES["disc"], "person_id": pessoa["id"], "mentor_id": v["mentor_id"], "kind": "self",
+                "assessment_response_id": bateria["id"]}
+        resp = rest("POST", "test_responses", corpo=[{**base, "status": "in_progress", "assessment_sort": 0}])[0]
+        # a irmã pendente mantém a bateria aberta: o envio não avisa ninguém no sino
+        irma = rest("POST", "test_responses", corpo=[{**base, "status": "pending", "assessment_sort": 1}])[0]
+        criados["respostas"] += [resp["id"], irma["id"]]
+        print(f"fixture: pessoa={pessoa['id']} bateria={bateria['id']} resposta={resp['id']} irmã-pendente={irma['id']}")
+
+        mais, menos = sortear_escolhas({"letra_da_opcao": est["letra_da_opcao"], "blocos": est["blocos"]},
+                                       random.Random(f"prova-{rodada}"))
+        http, _ = _post_app(args.app, f"/api/public/response/{resp['id']}", {"answers": [
+            {"question_id": b["id"], "payload": {"most_option_id": mais[k], "least_option_id": menos[k]}}
+            for k, b in enumerate(est["blocos"])]})
+        if http != 200:
+            passos.append((f"envio pelo endpoint público (HTTP {http})", False))
+            return 1
+        cs = rest("GET", "test_responses", {"id": f"eq.{resp['id']}", "select": "computed_scores"})[0]["computed_scores"]
+        motor = {k: val for k, val in cs["ipsativo"].items() if k != "indices"}
+        esperado = oraculo_indices(motor)
+        gravado = cs["ipsativo"].get("indices")
+        passos.append((f"o motor GRAVOU os índices no envio, pela conta certa: {sem_versao(gravado)}", gravado == esperado))
+        passos.append(("o relatório mostra o gravado", do_relatorio(_relatorio(args.app, resp["id"])) == sem_versao(gravado)))
+
+        assert SENTINELA != esperado, "sentinela coincidiu com a conta — troque os valores"
+        rest("PATCH", "test_responses", {"id": f"eq.{resp['id']}"},
+             corpo={"computed_scores": {**cs, "ipsativo": {**motor, "indices": SENTINELA}}})
+        obtido = do_relatorio(_relatorio(args.app, resp["id"]))
+        passos.append((f"com o gravado trocado por sentinelas, o relatório mostra os SENTINELAS: {obtido}",
+                       obtido == sem_versao(SENTINELA)))
+
+        rest("PATCH", "test_responses", {"id": f"eq.{resp['id']}"}, corpo={"computed_scores": {**cs, "ipsativo": motor}})
+        obtido = do_relatorio(_relatorio(args.app, resp["id"]))
+        passos.append(("sem índice gravado, o relatório completa em memória com a conta", obtido == sem_versao(esperado)))
+    finally:
+        print("\nLIMPEZA — ids que existiram e serão apagados:", criados)
+        for t, ids in (("test_responses", criados["respostas"]), ("assessment_responses", criados["baterias"]),
+                       ("people", criados["pessoas"])):
+            for i in ids:
+                rest("DELETE", t, {"id": f"eq.{i}"}, retorno=False)
+        avisos = rest("GET", "notificacoes", {"titulo": f"like.{PREFIXO}*", "select": "id,titulo"}) or []
+        for n in avisos:
+            print(f"  notificação de teste apagada: {n['id']} ({n['titulo']})")
+            rest("DELETE", "notificacoes", {"id": f"eq.{n['id']}"}, retorno=False)
+        sobras = sum(len(rest("GET", t, {"id": "in.(" + ",".join(ids) + ")", "select": "id"})) for t, ids in
+                     (("test_responses", criados["respostas"]), ("assessment_responses", criados["baterias"]),
+                      ("people", criados["pessoas"])) if ids)
+        passos.append((f"nada sobrou da fixture (sobras: {sobras})", sobras == 0))
+    print()
+    for desc, ok in passos:
+        print(f"  {'OK ' if ok else 'ERRO'} {desc}")
+    ok = all(ok for _, ok in passos)
+    print("\nTUDO CERTO" if ok else "\nHÁ PROBLEMA")
+    return 0 if ok else 1
 
 
 def main():
@@ -289,7 +398,11 @@ def main():
     p.set_defaults(f=cmd_simular)
     p = sub.add_parser("real")
     p.add_argument("--app")
+    p.add_argument("--exigir-gravado", action="store_true", help="falha se alguma resposta de DISC não tiver o índice gravado")
     p.set_defaults(f=cmd_real)
+    p = sub.add_parser("prova-leitura")
+    p.add_argument("--app", required=True)
+    p.set_defaults(f=cmd_prova_leitura)
     args = ap.parse_args()
     sys.exit(args.f(args))
 

@@ -7,6 +7,12 @@
  * apagável do TypeScript — roda no servidor e no Node dos testes (`scripts/testar_indices.py`, que
  * confere esta função contra um oráculo em Python e refaz a calibração).
  *
+ * ── Onde o resultado mora ──────────────────────────────────────────────────────────────────────────
+ * GRAVADO junto do resultado do motor, em `computed_scores.ipsativo.indices` (`comIndices`, chamado
+ * pelo motor no envio). O relatório LÊ de lá — pelo `obterIpsativo`, que só completa em memória, com
+ * esta mesma conta, o que ainda não tiver índice gravado. As respostas anteriores foram preenchidas
+ * por `scripts/gravar_indices.py`.
+ *
  * ── Por que foram refeitos ────────────────────────────────────────────────────────────────────────
  * Até a #304, Positividade e Energia aplicavam pesos que somam 1 ao percentual de cada letra no
  * gráfico ADAPTADO. No motor ipsativo as quatro letras DIVIDEM 100 (média 25): a conta não passava de
@@ -120,18 +126,80 @@ function flexibilidade(validas: LetraIpsativa[]): number | null {
 }
 
 /**
- * Os quatro índices, na ordem em que o bloco "Índices comportamentais" os mostra. `null` quando o
- * resultado não é de DISC (as quatro letras D, I, S, C) — os índices só existem para ele.
+ * Versão da FÓRMULA dos índices, gravada junto deles. Se as contas mudarem, sobe a versão: o índice
+ * gravado com a versão antiga deixa de ser usado (é recalculado em memória pela conta atual, igual ao
+ * que `obterIpsativo` faz com o resultado do motor) até alguém regravar as respostas existentes.
  */
-export function calcularIndices(ips: ResultadoIpsativo): IndiceDoPerfil[] | null {
+export const VERSAO_INDICES = 1;
+
+/**
+ * O que fica gravado em `computed_scores.ipsativo.indices` (#304, segunda parte) — a MESMA estrutura
+ * do resultado do motor, para haver um lugar só de onde ler. Valores de 0 a 1 com duas casas; `null`
+ * só no caso patológico descrito acima.
+ */
+export type IndicesGravados = {
+  versao: number;
+  positividade: number | null;
+  estima: number | null;
+  flexibilidade: number | null;
+  energia: number | null;
+};
+
+/** O resultado do motor como ele fica gravado a partir da #304: com os índices dentro (só DISC). */
+export type ResultadoComIndices = ResultadoIpsativo & { indices?: IndicesGravados };
+
+/**
+ * A CONTA dos quatro índices — o único lugar onde ela existe. `null` quando o resultado não é de
+ * DISC (as quatro letras D, I, S, C): os índices só existem para ele.
+ */
+export function calcularIndices(ips: ResultadoIpsativo): IndicesGravados | null {
   const chaves = ips.letras.map(chaveDe);
   if (chaves.length !== LETRAS_DO_DISC.length || !LETRAS_DO_DISC.every((k) => chaves.includes(k))) return null;
   const validas = ips.letras.filter((l) => l.sinal_suficiente && disponivel(l) > 0);
   const valor = (v: number | null) => (v == null ? null : duasCasas(v));
+  return {
+    versao: VERSAO_INDICES,
+    positividade: valor(fracaoDosMenos(ips.letras, LADO_DO_DESAFIO)),
+    estima: valor(estima(validas)),
+    flexibilidade: valor(flexibilidade(validas)),
+    energia: valor(fracaoDosMenos(ips.letras, LADO_RECEPTIVO)),
+  };
+}
+
+/** Os índices gravados que ainda valem: da versão atual da fórmula e com os quatro campos. */
+function indicesValidos(g: unknown): g is IndicesGravados {
+  const o = g as IndicesGravados | null | undefined;
+  return (
+    !!o &&
+    o.versao === VERSAO_INDICES &&
+    (["positividade", "estima", "flexibilidade", "energia"] as const).every(
+      (k) => o[k] === null || typeof o[k] === "number",
+    )
+  );
+}
+
+/**
+ * O resultado do motor COM os índices dentro. Quem grava (o motor, no envio) e quem entrega ao
+ * relatório (`obterIpsativo`) passam por aqui — então existe uma conta só:
+ *   - índices já gravados e da versão atual → devolvidos como estão (LIDOS, não recalculados);
+ *   - sem índices (resposta anterior à gravação, ou resultado derivado das respostas cruas) →
+ *     calculados agora, em memória, pela mesma `calcularIndices`. Nada é gravado por esta função.
+ * Fora do DISC devolve o resultado intocado, sem a chave.
+ */
+export function comIndices(ips: ResultadoIpsativo): ResultadoComIndices {
+  const atual = ips as ResultadoComIndices;
+  if (indicesValidos(atual.indices)) return atual;
+  const indices = calcularIndices(ips);
+  return indices ? { ...ips, indices } : ips;
+}
+
+/** Os quatro índices como a tela, o PDF e a assistente mostram: nesta ordem e com o nome. */
+export function listaDeIndices(g: IndicesGravados | undefined): IndiceDoPerfil[] {
+  if (!g) return [];
   return [
-    { key: "positividade", label: "Positividade", value: valor(fracaoDosMenos(ips.letras, LADO_DO_DESAFIO)) },
-    { key: "estima", label: "Estima", value: valor(estima(validas)) },
-    { key: "flexibilidade", label: "Flexibilidade", value: valor(flexibilidade(validas)) },
-    { key: "energia", label: "Energia", value: valor(fracaoDosMenos(ips.letras, LADO_RECEPTIVO)) },
+    { key: "positividade", label: "Positividade", value: g.positividade },
+    { key: "estima", label: "Estima", value: g.estima },
+    { key: "flexibilidade", label: "Flexibilidade", value: g.flexibilidade },
+    { key: "energia", label: "Energia", value: g.energia },
   ];
 }

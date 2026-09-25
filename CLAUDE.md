@@ -337,13 +337,17 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
   (DISC) pela letra que lidera o natural; leituras por fator no conjunto adaptado, como sempre.
   Detalhe em `docs/motor-ipsativo.md`. Antes × depois: `scripts/comparar_relatorios.py`.
 - **Índices do DISC** (#304, `src/lib/indices.ts`) — Positividade, Estima, Flexibilidade (na
-  intensidade, cada um com a linha que diz o que significa) e Energia (bloco de índices). Saem do
+  intensidade, cada um com a linha que diz o que significa) e Energia (bloco de índices). **Gravados**
+  pelo motor em `computed_scores.ipsativo.indices` (com a versão da fórmula) e LIDOS de lá pelo
+  relatório; `obterIpsativo` só completa em memória o que faltar. Respostas antigas preenchidas por
+  `scripts/gravar_indices.py`. Saem do
   `ipsativo`, não dos percentuais: Positividade e Energia = fração dos MENOS que cai em D+C / S+C
   (eixos de Marston); Estima e Flexibilidade comparam a ordem do MAIS com a ACEITAÇÃO de cada estilo
   (1 − MENOS ÷ blocos em que ele ainda estava disponível). ⚠️ **Nunca** compará-las pelos dois
   gráficos: o natural é "blocos − MENOS", e o estilo marcado como MAIS não pode ser o MENOS daquele
   bloco — o que a pessoa mais mostra sobe sozinho no natural (natural ≥ MAIS, sempre), e a
-  comparação mede ruído. Calibração e oráculo: `python3 scripts/testar_indices.py puro|simular|real`.
+  comparação mede ruído. Calibração e oráculo: `python3 scripts/testar_indices.py puro|simular|real`;
+  prova de que a tela lê o gravado: `testar_indices.py prova-leitura --app URL`.
 - `src/lib/derivations.ts` — pesos das derivações do DISC (Jung, 4 estilos de
   liderança, 16 competências), sobrescritíveis por `derived_config`.
 - `src/components/report/sections.tsx` — blocos visuais compartilhados.

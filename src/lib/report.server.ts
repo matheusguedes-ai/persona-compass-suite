@@ -5,8 +5,8 @@
  */
 import { computeDerived, type DerivedConfig, type FactorMap } from "@/lib/derivations";
 import { loadBrandAndSettings } from "@/lib/brand.server";
-import { usaMotorIpsativo, type ResultadoIpsativo } from "@/lib/escolha-forcada";
-import { calcularIndices } from "@/lib/indices";
+import { usaMotorIpsativo } from "@/lib/escolha-forcada";
+import { listaDeIndices, type ResultadoComIndices } from "@/lib/indices";
 import { montarIntensidade } from "@/lib/intensidade";
 import {
   montarSwotComunicadorDoNatural, montarGanhosPerdasDoNatural, montarOndeApareceDoNatural,
@@ -203,7 +203,7 @@ export async function buildReport(id: string) {
   const bands = bandsRes.data;
   const content = contentRes.data;
 
-  let ips: ResultadoIpsativo | null = null;
+  let ips: ResultadoComIndices | null = null;
   if (fonteIpsativa) {
     const obtido = await obterIpsativo(supabase, {
       responseId: id,
@@ -596,7 +596,8 @@ export async function buildReport(id: string) {
 
   // --- Derivações calculadas sobre os normalizados por key (apenas DISC) ---
   // Com o motor ipsativo, sobre o conjunto ADAPTADO (os mesmos números de sempre). Os quatro índices
-  // (#304) saem do próprio resultado do motor, por `calcularIndices` — não destes percentuais.
+  // (#304) NÃO são calculados aqui: são LIDOS do resultado do motor (`ipsativo.indices`, gravado no
+  // envio; `obterIpsativo` só completa em memória o que ainda não tiver índice gravado).
   const naturalByKey: FactorMap = {};
   const adaptadoByKey: FactorMap = {};
   for (const d of dimList) {
@@ -606,12 +607,7 @@ export async function buildReport(id: string) {
   const derivedConfig = (response.test_versions?.derived_config ?? null) as DerivedConfig | null;
   let derived: Record<string, unknown> | null = null;
   if (isDisc) {
-    const core = computeDerived(
-      naturalByKey,
-      ips ? null : adaptadoByKey,
-      derivedConfig,
-      (ips ? calcularIndices(ips) : null) ?? [],
-    );
+    const core = computeDerived(naturalByKey, ips ? null : adaptadoByKey, derivedConfig, listaDeIndices(ips?.indices));
     const leadershipContent = rows
       .filter((r) => r.section === "lideranca" && r.dimension_key === core.dominant.key)
       .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));
