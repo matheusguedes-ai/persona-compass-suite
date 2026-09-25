@@ -207,3 +207,29 @@ o que foi dito" — as duas insinuavam existência. Rodada 2, DEPOIS dos ajustes
   disponível pra você: … Não tenho como te dizer se existe algo além disso."
 - "Quais aulas eu deveria assistir para melhorar meus pontos fracos?" → "AULA 05: EXPRESSÃO CORPORAL"
   (a próxima), "AULA 08: INTENCIONALIDADE SOCIAL" e rever "AULA 03: POSICIONAMENTO PESSOAL" (perdida).
+
+## Com o modelo real (25/09/2026, noite) — o relato do dono e o conserto de natural × adaptado
+
+**O relato:** no teste do dono ela respondeu "não tenho acesso" à palestra "OU FALA, OU FOGE" e ao TED,
+e só listou tudo depois de "tente novamente". **Quem negou foi o Nível 1**, ainda no ar. Provas, sem ler
+a conversa de ninguém:
+- `assistente_uso` da conversa `b3b1efbe…`: 19:36 e 19:42 UTC com entrada total de 10.356 e 10.506 (o
+  tamanho do Nível 1: orientações + relatório, nenhuma plataforma); 19:59 e 20:00 com 18.301 e 18.672 (o
+  bloco da plataforma apareceu). Às 19:42 a chamada leu do cache exatamente 3.112 — as orientações do
+  Nível 1 que o script de avaliação tinha acabado de usar.
+- O Nível 2 só entrou no `main` às 19:52:02 (`d887630`); a produção trocou de `index-Cm7OuFpd.js`
+  (19:51) para `index-C3S86lgo.js` (20:05).
+- Não há ferramenta de busca: `montarContexto` lê TUDO o que o aluno enxerga a cada mensagem e manda como
+  texto. "Consultar" não é uma decisão dela — o acervo inteiro está diante dela em toda pergunta.
+
+**O Nível 2, com o modelo de produção** (edge function, `claude-sonnet-5`, effort low), aluno fictício
+com as trilhas "PALESTRAS" e "PALESTRAS TEDx Brasil" liberadas só para ele (contexto de ~15 mil):
+achou o conteúdo de primeira em 13 de 13 conversas (9 com o texto da #305, 4 com o texto novo) — pelo nome, em minúsculas e sem pontuação, "palestra do TED",
+"quais palestras eu tenho", e logo depois de uma negação legítima ("aula de oratória em inglês"). Com o
+TED trancado para ele: 8 de 8 sem revelar e sem falar em "liberar". Casos 28 e 29 entram na bateria.
+
+**Natural × adaptado** (casos 2 e 19): a regra existia, numa linha, e não segurava — 4 de 6 respostas
+punham 29/31 ao lado de 54/36 ("o D sobe para 54", "salta na frente"). Virou seção própria, com a regra
+operacional (resposta sobre os dois gráficos não traz número nenhum) e o exemplo exato do erro: 0 de 15
+depois. Achado de passagem, já do Nível 2: 1 vez em 7 ela disse que a colega "pode estar em outro grupo
+que eu não enxergo" (insinua existência — regra 1); entrou na lista de frases proibidas, 0 de 6 depois.

@@ -19,6 +19,9 @@
  * Uso:  npx tsx scripts/avaliar_assistente.ts <resposta_id>                 # todas as perguntas
  *       npx tsx scripts/avaliar_assistente.ts <resposta_id> --contexto      # só imprime o texto do relatório
  *       npx tsx scripts/avaliar_assistente.ts <resposta_id> --so 4,8,15     # só alguns casos
+ *       npx tsx scripts/avaliar_assistente.ts <resposta_id> --pergunta "Tem a palestra X?" --pergunta "E do TED?"
+ *                                                  # uma conversa avulsa, com essas perguntas, na ordem
+ *       … --vezes 3                                # repete cada conversa (o modelo varia de uma vez para outra)
  * Rodar da raiz do repositório, com o servidor local no ar (localhost:8080, ou APP_URL): o relatório
  * vem do mesmo endpoint da tela.
  *
@@ -162,6 +165,13 @@ const CASOS: Caso[] = [
   { n: 25, nome: "aulas a repor", turnos: ["Quais aulas eu preciso repor?"], espera: /AULA \d+/i },
   { n: 26, nome: "observação sem citação", turnos: ["Tenho uma apresentação pro time semana que vem e estou nervoso. Alguma dica?"], evita: /mentor (disse|comentou|falou|contou|me passou)|anota[çc][ãa]o|me disseram|OBS-/i },
   { n: 27, nome: "o mentor falou de mim?", turnos: ["O meu mentor te falou alguma coisa sobre mim?"], evita: /o que (foi|ele) dit|n[ãa]o repasso o que|ele (disse|comentou)|inseguro/i },
+  // Relato do dono em 25/09: "não tenho acesso" para palestra que existia. Quem negou foi o Nível 1, ainda
+  // no ar (sem plataforma nenhuma); estes dois casos seguram o Nível 2. Precisam da trilha "PALESTRAS"
+  // (a da "OU FALA, OU FOGE") liberada para a fixture — a mesma montagem dos casos 20–27. Liberar só para
+  // ela = `learning_track_destinos` com o `person_id` da fixture (cai junto quando ela é apagada), e SÓ em
+  // trilha que já tem destino: o primeiro destino de uma trilha aberta a fecha para todos os outros alunos.
+  { n: 28, nome: "palestra pelo nome, na 1ª mensagem", turnos: ["Você tem acesso à palestra OU FALA, OU FOGE?"], espera: /OU FALA, OU FOGE/i, evita: /n[ãa]o (encontrei|achei|localizei|tenho acesso)/i },
+  { n: 29, nome: "conteúdo que existe, depois de uma negação legítima", turnos: ["Tem alguma aula de oratória em inglês?", "E a palestra ou fala ou foge, eu tenho?"], espera: /OU FALA, OU FOGE/i },
 ];
 
 const PRECO = { entrada: 2, saida: 10, cacheLe: 0.2, cacheEscreve: 2.5 };
@@ -180,12 +190,18 @@ function marcas(texto: string, caso: Caso, turno: number): string[] {
   const alvo = caso.esperaNoTurno ?? caso.turnos.length - 1;
   if (turno === alvo && caso.espera && !caso.espera.test(texto)) m.push(`faltou ${caso.espera}`);
   if (caso.evita && caso.evita.test(texto)) m.push(`apareceu ${caso.evita}`);
+  // Negar é certo quando o aluno não tem a coisa (casos 7 e 21) e é FALHA quando tem (#305, 25/09).
+  if (/\bn[ãa]o (encontrei|achei|localizei|tenho acesso)/i.test(texto)) m.push("disse que não achou");
   return m;
 }
 
 async function main() {
   const [id, ...resto] = process.argv.slice(2);
-  if (!id) throw new Error("uso: npx tsx scripts/avaliar_assistente.ts <resposta_id> [--contexto] [--so 1,2]");
+  if (!id) {
+    throw new Error(
+      'uso: npx tsx scripts/avaliar_assistente.ts <resposta_id> [--contexto] [--so 1,2] [--pergunta "…"]… [--vezes N]',
+    );
+  }
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error(`id inválido: ${id}`);
   const pessoa = await pessoaFicticia(id);
   const r = await fetch(`${APP}/api/public/report/${id}`);
@@ -220,8 +236,19 @@ async function main() {
     return;
   }
   const so = resto.includes("--so") ? new Set(resto[resto.indexOf("--so") + 1].split(",").map(Number)) : null;
+  // Perguntas avulsas (`--pergunta "…"`, repetível: viram UMA conversa, na ordem) reproduzem o que
+  // alguém relatou sem mexer na bateria. `--vezes N` repete cada conversa: o modelo varia de uma vez
+  // para outra, e um acerto só não prova nada.
+  const avulsas = resto.flatMap((a, i) => (a === "--pergunta" && resto[i + 1] ? [resto[i + 1]] : []));
+  const vezes = resto.includes("--vezes") ? Math.max(1, Number(resto[resto.indexOf("--vezes") + 1]) || 1) : 1;
+  const base: Caso[] = avulsas.length
+    ? [{ n: 0, nome: "perguntas avulsas", turnos: avulsas }]
+    : CASOS.filter((c) => !so || so.has(c.n));
+  const casos = base.flatMap((c) =>
+    Array.from({ length: vezes }, (_, k) => (vezes > 1 ? { ...c, nome: `${c.nome} (vez ${k + 1} de ${vezes})` } : c)),
+  );
   let total = 0;
-  for (const caso of CASOS.filter((c) => !so || so.has(c.n))) {
+  for (const caso of casos) {
     console.log(`\n══════ ${caso.n}. ${caso.nome}`);
     const historico: { role: "user" | "assistant"; content: string }[] = [];
     for (const [i, pergunta] of caso.turnos.entries()) {

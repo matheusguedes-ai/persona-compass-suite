@@ -441,6 +441,9 @@ foram reveladas e revogadas por terem passado por aqui).
   pessoa fictícia (`scripts/fixture_assistente.py criar --login`): avaliar manda o relatório para a
   Anthropic. O script entra como o aluno fictício (link mágico → token, nunca impresso), passa pela
   mesma edge function e RECUSA cadastro fora de `@exemplo.invalido`.
+  **Relato de comportamento? Reproduza ANTES de mexer no texto**: `--pergunta "…" --vezes 3` com a
+  fixture montada como o aluno do relato, e confira em `assistente_uso` o tamanho da entrada das
+  chamadas relatadas — o "não tenho acesso" de 25/09 veio da versão ANTERIOR ainda no ar, não do texto.
 - **Fechada por padrão**: aparece só com linha em `assistente_liberacoes` (grupo ou login) + relatório
   concluído + termo publicado. Abrir para a turma = inserir a linha do grupo, decisão do dono.
 - **Medidor (`assistente_uso`)**: com o cache de prompt ligado, a Anthropic devolve em `input_tokens` SÓ
