@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 import { fetchComSessao } from "@/lib/fetch-com-sessao";
+import { INDICES_DA_INTENSIDADE } from "@/lib/indices";
 import type { GraficoDoConjunto, Intensidade } from "@/lib/intensidade";
 import {
   rotuloDaSituacao,
@@ -46,7 +47,7 @@ import {
   COMUNICACAO,
   FACTOR_THEMES,
   FAIXA_DO_GRAFICO,
-  INDICE_EM_REVISAO,
+  INDICE_SEM_VALOR,
   PLANO_ACAO,
   PLANO_ACAO_GENERICO,
   SECTION_TITLES,
@@ -78,7 +79,10 @@ export type Derived = {
   jung: { tipo: string; pares: JungPares };
   leadership: Array<{ key: string; label: string; pct: number }>;
   dominant: { key: string; label: string; pct: number };
-  /** `value: null` = índice em revisão (Estima e Flexibilidade no motor ipsativo). */
+  /**
+   * Positividade, Estima, Flexibilidade e Energia, de 0 a 1 (#304, `src/lib/indices.ts`). `value: null`
+   * só no caso patológico de quem marcou o mesmo estilo como MAIS em todos os blocos.
+   */
   indices: Array<{ key: string; label: string; value: number | null }>;
   /** `adaptado: null` = só uma série (motor ipsativo: não há segundo conjunto na mesma régua). */
   competencias: Array<{ name: string; natural: number; adaptado: number | null; band: string; definition: string }>;
@@ -326,9 +330,9 @@ export function IntensidadeDoPerfil({
 }) {
   const { perfil, natural, adaptado, texto } = intensidade;
   const indices = mostrarIndices
-    ? ["positividade", "estima", "flexibilidade"]
-        .map((k) => data.derived?.indices.find((i) => i.key === k))
-        .filter((i): i is Derived["indices"][number] => i != null)
+    ? INDICES_DA_INTENSIDADE.map((k) => data.derived?.indices.find((i) => i.key === k)).filter(
+        (i): i is Derived["indices"][number] => i != null,
+      )
     : [];
   const ext = data.external ?? null;
   const dimensional = data.is_disc === false;
@@ -355,17 +359,15 @@ export function IntensidadeDoPerfil({
               <div key={i.key} className="rounded-lg border border-input p-3">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">{i.label}</p>
                 {i.value == null ? (
-                  <p className="mt-1.5 text-sm text-muted-foreground">Em revisão</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{INDICE_SEM_VALOR}</p>
                 ) : (
                   <p className="mt-1 text-2xl font-medium tabular-nums">{i.value.toFixed(2)}</p>
                 )}
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{INTENSIDADE.indiceExplica[i.key]}</p>
               </div>
             ))}
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {INTENSIDADE.indicesRodape}
-            {indices.some((i) => i.value == null) && INTENSIDADE.indicesEmRevisao}
-          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{INTENSIDADE.indicesRodape}</p>
         </>
       )}
 
@@ -1219,10 +1221,10 @@ export function DerivedSections({
         </div>
       </Section>
 
-      {/* Índices comportamentais */}
+      {/* Índices comportamentais — saem das escolhas de MAIS e MENOS (#304), não do gráfico adaptado */}
       <Section>
         <h2 className="text-lg font-semibold">{DERIVADOS.indicesTitulo}</h2>
-        <div className="mt-2"><SourceBadge>{selo}</SourceBadge></div>
+        <div className="mt-2"><SourceBadge>{DERIVADOS.selo}</SourceBadge></div>
         <p className="mt-3 text-sm text-muted-foreground">{DERIVADOS.indicesIntro}</p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {d.indices.map((i) => (
@@ -1232,7 +1234,7 @@ export function DerivedSections({
                 {i.value != null && <span className="text-2xl font-medium tabular-nums">{i.value.toFixed(2)}</span>}
               </div>
               {i.value == null ? (
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{INDICE_EM_REVISAO}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{INDICE_SEM_VALOR}</p>
               ) : (
                 <>
                   <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">

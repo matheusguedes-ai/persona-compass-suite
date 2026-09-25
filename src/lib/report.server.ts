@@ -6,6 +6,7 @@
 import { computeDerived, type DerivedConfig, type FactorMap } from "@/lib/derivations";
 import { loadBrandAndSettings } from "@/lib/brand.server";
 import { usaMotorIpsativo, type ResultadoIpsativo } from "@/lib/escolha-forcada";
+import { calcularIndices } from "@/lib/indices";
 import { montarIntensidade } from "@/lib/intensidade";
 import {
   montarSwotComunicadorDoNatural, montarGanhosPerdasDoNatural, montarOndeApareceDoNatural,
@@ -594,8 +595,8 @@ export async function buildReport(id: string) {
   });
 
   // --- Derivações calculadas sobre os normalizados por key (apenas DISC) ---
-  // Com o motor ipsativo, sobre o conjunto ADAPTADO (os mesmos números de sempre) e sem um segundo
-  // conjunto na mesma régua: Estima e Flexibilidade, que subtraíam um do outro, ficam sem valor.
+  // Com o motor ipsativo, sobre o conjunto ADAPTADO (os mesmos números de sempre). Os quatro índices
+  // (#304) saem do próprio resultado do motor, por `calcularIndices` — não destes percentuais.
   const naturalByKey: FactorMap = {};
   const adaptadoByKey: FactorMap = {};
   for (const d of dimList) {
@@ -605,7 +606,12 @@ export async function buildReport(id: string) {
   const derivedConfig = (response.test_versions?.derived_config ?? null) as DerivedConfig | null;
   let derived: Record<string, unknown> | null = null;
   if (isDisc) {
-    const core = computeDerived(naturalByKey, ips ? null : adaptadoByKey, derivedConfig);
+    const core = computeDerived(
+      naturalByKey,
+      ips ? null : adaptadoByKey,
+      derivedConfig,
+      (ips ? calcularIndices(ips) : null) ?? [],
+    );
     const leadershipContent = rows
       .filter((r) => r.section === "lideranca" && r.dimension_key === core.dominant.key)
       .sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));

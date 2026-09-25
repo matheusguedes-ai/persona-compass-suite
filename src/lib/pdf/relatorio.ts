@@ -15,6 +15,7 @@ import type { GraficoDoConjunto, Intensidade } from "@/lib/intensidade";
 import type { SwotComunicadorPorLetra, GanhosPerdasPorLetra, OndeAparece, ComunicadoresSemelhantes } from "@/lib/disc-secoes-extra";
 import { rotuloDaSituacao } from "@/lib/disc-secoes-extra";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
+import { INDICES_DA_INTENSIDADE } from "@/lib/indices";
 import {
   CONFIABILIDADE,
   COMUNICACAO,
@@ -22,7 +23,7 @@ import {
   DERIVADOS,
   FACTOR_THEMES,
   FAIXA_DO_GRAFICO,
-  INDICE_EM_REVISAO,
+  INDICE_SEM_VALOR,
   INTENSIDADE,
   INTRO,
   JUNG,
@@ -576,9 +577,9 @@ function blocosDaIntensidade(r: Report, ints: Intensidade, mostrarIndices: boole
   const t = ctx.tipo;
   const { perfil, natural, adaptado, texto } = ints;
   const indices = mostrarIndices
-    ? (["positividade", "estima", "flexibilidade"]
-        .map((k) => r.derived?.indices.find((i) => i.key === k))
-        .filter(Boolean) as Derived["indices"])
+    ? (INDICES_DA_INTENSIDADE.map((k) => r.derived?.indices.find((i) => i.key === k)).filter(
+        Boolean,
+      ) as Derived["indices"])
     : [];
   const ext = r.external ?? null;
 
@@ -629,13 +630,19 @@ function blocosDaIntensidade(r: Report, ints: Intensidade, mostrarIndices: boole
         16,
       ),
     );
-    topo.push(
-      paragrafo(
-        INTENSIDADE.indicesRodape + (indices.some((i) => i.value == null) ? INTENSIDADE.indicesEmRevisao : ""),
-        t,
-        { tamanho: 7.6, cor: APOIO, entrelinha: 1.45, antes: 8 },
-      ),
-    );
+    // O que cada número quer dizer (#304) — as mesmas linhas da tela, uma por índice.
+    indices.forEach((i, n) => {
+      const explica = INTENSIDADE.indiceExplica[i.key];
+      topo.push(
+        paragrafo(`${i.label}: ${i.value == null ? INDICE_SEM_VALOR : explica}`, t, {
+          tamanho: 8,
+          cor: GRAFITE,
+          entrelinha: 1.45,
+          antes: n === 0 ? 10 : 4,
+        }),
+      );
+    });
+    topo.push(paragrafo(INTENSIDADE.indicesRodape, t, { tamanho: 7.6, cor: APOIO, entrelinha: 1.45, antes: 8 }));
   }
   out.push(cartao(pilha(topo), { antes: 16 }));
 
@@ -984,9 +991,9 @@ function blocosDerivados(d: Derived, mbtiReal: { tipo: string; pares: JungPares 
     );
   }
 
-  // Índices comportamentais
+  // Índices comportamentais — saem das escolhas de MAIS e MENOS (#304), não do gráfico adaptado
   out.push(tituloDeSecao(DERIVADOS.indicesTitulo, ctx));
-  out.push(selo(seloTexto, t, 4));
+  out.push(selo(DERIVADOS.selo, t, 4));
   out.push(paragrafo(DERIVADOS.indicesIntro, t, { tamanho: 9.4, cor: CINZA, antes: 8 }));
   const cartoes = d.indices.map((i) =>
     cartao(
@@ -1000,7 +1007,7 @@ function blocosDerivados(d: Derived, mbtiReal: { tipo: string; pares: JungPares 
           }
         }),
         i.value == null
-          ? paragrafo(INDICE_EM_REVISAO, t, { tamanho: 9, entrelinha: 1.5, antes: 4 })
+          ? paragrafo(INDICE_SEM_VALOR, t, { tamanho: 9, entrelinha: 1.5, antes: 4 })
           : pilha(
               [
                 barra({ nome: "", valor: i.value * 100, cor: ctx.marca, t }),
