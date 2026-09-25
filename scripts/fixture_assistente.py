@@ -89,10 +89,21 @@ def criar(com_login=False):
 
 def apagar(pessoa_id, user_id=None):
     # Ordem: o que aponta para a pessoa primeiro. As conversas/consentimento caem junto com o login.
+    # Responder pelo endpoint público avisa o dono e a equipe no SINO, com o id da resposta no link — sem
+    # chave estrangeira: apagar a resposta não apaga o aviso, e ele ficaria no sino de gente de verdade.
+    for r in rest("GET", "test_responses", {"person_id": f"eq.{pessoa_id}", "select": "id"}):
+        for n in rest("GET", "notificacoes", {"link": f"like.*{r['id']}*", "select": "id,user_id"}):
+            rest("DELETE", "notificacoes", {"id": f"eq.{n['id']}"}, retorno=False)
+            print(f"apagado o aviso {n['id']} do sino de {n['user_id']}")
     rest("DELETE", "test_responses", {"person_id": f"eq.{pessoa_id}"}, retorno=False)
     rest("DELETE", "people", {"id": f"eq.{pessoa_id}"}, retorno=False)
     print(f"apagada a pessoa {pessoa_id} e as respostas dela")
     if user_id:
+        # O custo de cada pergunta feita pela TELA perde o dono quando o login cai (on delete set null,
+        # de propósito para aluno real) e ficaria contando como uso anônimo — da fixture, apaga antes.
+        for u in rest("GET", "assistente_uso", {"user_id": f"eq.{user_id}", "select": "id"}):
+            rest("DELETE", "assistente_uso", {"id": f"eq.{u['id']}"}, retorno=False)
+            print(f"apagado o registro de custo {u['id']}")
         _auth_admin("DELETE", f"users/{user_id}")
         print(f"apagado o login {user_id} (conversas, consentimento e liberação caem em cascata)")
 
