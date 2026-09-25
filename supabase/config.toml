@@ -1,1 +1,9 @@
-project_id = "bmulylpuqhzrowsqtxgp"
+# ⚠️ Corrigido em 25/09/2026: apontava para "bmulylpuqhzrowsqtxgp", o projeto ERRADO da
+# confusão do agente do Lovable em 29/07 (ver memória "nao-usar-agente-do-lovable"). O projeto
+# deste repositório, desde a migração, é "ycprhrbotcyrewewbwvm".
+project_id = "ycprhrbotcyrewewbwvm"
+
+[functions.assistente-chat]
+# #289 — verificação de JWT LIGADA de propósito: sem isto, qualquer um na internet chamaria a
+# função e gastaria a chave da Anthropic sem estar logado. Ver o comentário no topo do arquivo.
+verify_jwt = true

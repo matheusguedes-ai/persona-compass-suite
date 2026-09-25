@@ -402,8 +402,18 @@ Tipos Psicológicos usam o MBTI real quando respondido; senão vão como
 ## Assistente do Método Intenção (#289)
 
 Nível 1 de 5: o aluno logado conversa sobre o PRÓPRIO relatório (`/aluno/assistente`). Modelo
-`claude-sonnet-5` pelo SDK oficial (`@anthropic-ai/sdk`), chave `ANTHROPIC_API_KEY` (Lovable →
-Cloud → Secrets; local no `.env.local`). Código em `src/lib/assistente/` + `src/lib/assistente.functions.ts`.
+`claude-sonnet-5`. Código em `src/lib/assistente/` + `src/lib/assistente.functions.ts`.
+
+⚠️ **A chave da Anthropic NÃO mora no app** (25/09: o Lovable só permite Secrets em conta
+Enterprise, que este projeto não tem — o app-side `ANTHROPIC_API_KEY` do Nível 1 original nunca
+funcionaria em produção). Ela mora nos secrets da **Supabase Edge Function** `assistente-chat`
+(`supabase/functions/assistente-chat/index.ts`, sem SDK — `fetch` puro para
+`api.anthropic.com`). `src/lib/assistente/modelo.server.ts` não fala com a Anthropic: monta o
+texto de sistema e chama essa edge function com o TOKEN DA SESSÃO do próprio aluno; a edge
+function confere `getClaims` + `assistente_liberada()` antes de gastar a chave — verify_jwt
+ligado, então quem não manda nenhum token nem passa da borda da plataforma. Trocar a chave =
+Supabase → Project Settings → Edge Functions → Secrets, **nunca** pelo chat (duas chaves já
+foram reveladas e revogadas por terem passado por aqui).
 
 - **O mentor não lê as conversas — a trava é o banco.** As policies de conversa/mensagem/consentimento
   são SÓ `user_id = auth.uid()`; nenhuma menciona conta, equipe ou `acting_account()`. Não criar

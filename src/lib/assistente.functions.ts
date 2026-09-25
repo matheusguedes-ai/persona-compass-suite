@@ -12,7 +12,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type Anthropic from "@anthropic-ai/sdk";
+import type { MensagemDoHistorico } from "@/lib/assistente/modelo.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -188,7 +188,9 @@ export const enviarMensagem = createServerFn({ method: "POST" })
     const situacao = await lerSituacao(supabase);
     if (!situacao.consentimento_ativo) throw new Error(ERROS_DA_ASSISTENTE.semConsentimento);
     if (!situacao.liberada) throw new Error(ERROS_DA_ASSISTENTE.naoLiberada);
-    if (!servidor.chaveDaAssistente()) throw new Error(ERROS_DA_ASSISTENTE.desligada);
+    // Não dá mais para checar "tem chave?" antes de montar o contexto — a chave mora na edge
+    // function, do outro lado da rede. Se estiver desligada, `perguntarAoModelo` cai no catch
+    // abaixo com AssistenteDesligada, exatamente com o mesmo aviso final para o aluno.
 
     const db = await admin();
     const { nome, relatorios } = await servidor.relatoriosDoAluno(supabase, db, userId);
@@ -236,7 +238,7 @@ export const enviarMensagem = createServerFn({ method: "POST" })
       .single();
     if (pErr || !pergunta) throw new Error(`Não foi possível guardar a pergunta (${pErr?.message}).`);
 
-    const historico: Anthropic.MessageParam[] = (anteriores ?? [])
+    const historico: MensagemDoHistorico[] = (anteriores ?? [])
       .reverse()
       .map((m) => ({ role: m.papel === "aluno" ? ("user" as const) : ("assistant" as const), content: m.conteudo }));
     while (historico.length && historico[0].role !== "user") historico.shift();

@@ -3,7 +3,8 @@
  * em `modelo.server.ts` e é reexportada daqui.
  *
  * Só é carregado dentro dos handlers de `assistente.functions.ts` (import dinâmico) — nunca chega ao
- * navegador, e é aqui (e em `modelo.server.ts`) que mora a chave da API.
+ * navegador. A chave da API não mora nem aqui nem em `modelo.server.ts`: vive nos secrets da Supabase
+ * Edge Function `assistente-chat` (ver o comentário no topo de `modelo.server.ts`).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -13,10 +14,11 @@ import { contextoDoAluno, type RelatorioDoAluno } from "@/lib/assistente/context
 
 export {
   AssistenteDesligada,
+  AssistenteFalhou,
   MODELO_DA_ASSISTENTE,
-  chaveDaAssistente,
   perguntarAoModelo,
   resumoDoErro,
+  type MensagemDoHistorico,
 } from "@/lib/assistente/modelo.server";
 
 /**
