@@ -263,6 +263,7 @@ export type Database = {
           conversa_id: string | null
           criado_em: string
           duracao_ms: number | null
+          entrada_total_tokens: number | null
           erro: string | null
           id: string
           input_tokens: number
@@ -278,6 +279,7 @@ export type Database = {
           conversa_id?: string | null
           criado_em?: string
           duracao_ms?: number | null
+          entrada_total_tokens?: never
           erro?: string | null
           id?: string
           input_tokens?: number
@@ -293,6 +295,7 @@ export type Database = {
           conversa_id?: string | null
           criado_em?: string
           duracao_ms?: number | null
+          entrada_total_tokens?: never
           erro?: string | null
           id?: string
           input_tokens?: number

@@ -5,7 +5,8 @@ Mentores cadastram pessoas e grupos, enviam inventários por link e recebem
 relatórios detalhados. Metodologias de **domínio público**: DISC (Marston, 1928),
 Tipos Psicológicos (Jung, 1921), Valores (Spranger, 1914), Big Five, VAK.
 
-- Produção: https://persona-compass-suite.lovable.app
+- Produção: **https://assessment.metodointencao.com.br** — é nele que o teste vale e que o dono
+  confere. `persona-compass-suite.lovable.app` é o endereço do Lovable, não o de produção.
 - Editor/hospedagem: Lovable (projeto `7ec78bd4-7fd4-4894-a726-db340b8544a3`)
 - Repositório: `matheusguedes-ai/persona-compass-suite` (sync bidirecional com o Lovable)
 
@@ -274,7 +275,7 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `fusoes_pessoas` | #300: registro de cada unificação — a linha inteira do cadastro absorvido, o que mudou de dono e o que foi descartado. É o que torna uma fusão desfazível à mão |
 | `assistente_termos` / `assistente_consentimentos` | #289: termo da assistente, versionado (publicado não se edita — o banco recusa); aceite com versão, data e CÓPIA do texto aceito. Revogar marca `revogado_em` e apaga o histórico |
 | `assistente_conversas` / `assistente_mensagens` | #289: conversas do aluno com a assistente. Dono = `user_id` (o LOGIN do aluno, não `people`) + `conta_id`. **Só o próprio aluno lê** |
-| `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga) |
+| `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga). ⚠️ A entrada que o modelo recebeu é `entrada_total_tokens` — `input_tokens` é só o pedaço fora do cache (uns 2 tokens) |
 | `assistente_observacoes` | #305: o que o mentor quer que a assistente tenha em mente sobre um aluno. Dono = `conta_id` (preenchido pelo banco, = conta do cadastro) + `person_id`. **O aluno NUNCA lê** — nenhuma policy para ele, e a da equipe exclui o próprio login. Não usar `people.notes` para isso: o aluno lê a própria linha de `people` |
 
 ⚠️ **Tabela nova que aponte para `people` precisa entrar em `fundir_pessoas`** (migração
@@ -442,6 +443,11 @@ foram reveladas e revogadas por terem passado por aqui).
   mesma edge function e RECUSA cadastro fora de `@exemplo.invalido`.
 - **Fechada por padrão**: aparece só com linha em `assistente_liberacoes` (grupo ou login) + relatório
   concluído + termo publicado. Abrir para a turma = inserir a linha do grupo, decisão do dono.
+- **Medidor (`assistente_uso`)**: com o cache de prompt ligado, a Anthropic devolve em `input_tokens` SÓ
+  o pedaço fora do cache (uns 2 tokens) — o grosso vem em `cache_creation_input_tokens` (gravado no cache)
+  e `cache_read_input_tokens` (lido do cache). **Prova de que o contexto chegou = `entrada_total_tokens`**,
+  coluna que o banco calcula somando as três (migração `20260925210000`; comentário em cada coluna).
+  Nunca usar `input_tokens` sozinho como tamanho de entrada.
 - **Nível 2 (#305) — o que mais ela lê**: `plataforma.server.ts` lê Academy (só trilha publicada E
   liberada — trancada nem aparece), Biblioteca (só material liberado), Classroom (aulas, presença dele,
   encontros perdidos), Agenda, Mentorias (sem `mentorias.observacoes`), Comunidade (colegas SÓ por

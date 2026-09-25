@@ -247,9 +247,14 @@ async function main() {
       const ms = marcas(resp.texto, caso, i);
       console.log(`» ${pergunta}`);
       console.log(resp.texto);
+      // Com o cache ligado, `input_tokens` é só o pedaço FORA do cache (uns 2 tokens): a entrada que o
+      // modelo recebeu é a soma das três partes — a mesma conta de `assistente_uso.entrada_total_tokens`.
+      const entradaTotal =
+        resp.uso.input_tokens + resp.uso.cache_creation_input_tokens + resp.uso.cache_read_input_tokens;
       console.log(
-        `   [${resp.stopReason} · ${resp.ms} ms · entrada ${resp.uso.input_tokens} · cache lido ${resp.uso.cache_read_input_tokens}` +
-          ` · cache escrito ${resp.uso.cache_creation_input_tokens} · saída ${resp.uso.output_tokens}]` +
+        `   [${resp.stopReason} · ${resp.ms} ms · entrada total ${entradaTotal} (fora do cache ${resp.uso.input_tokens}` +
+          ` · cache lido ${resp.uso.cache_read_input_tokens} · cache escrito ${resp.uso.cache_creation_input_tokens})` +
+          ` · saída ${resp.uso.output_tokens}]` +
           (ms.length ? `  ⚑ ${ms.join(" · ")}` : ""),
       );
     }
