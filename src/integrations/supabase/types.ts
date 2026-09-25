@@ -184,6 +184,44 @@ export type Database = {
           },
         ]
       }
+      assistente_observacoes: {
+        Row: {
+          atualizada_em: string
+          autor_id: string | null
+          conta_id: string
+          criada_em: string
+          id: string
+          person_id: string
+          texto: string
+        }
+        Insert: {
+          atualizada_em?: string
+          autor_id?: string | null
+          conta_id: string
+          criada_em?: string
+          id?: string
+          person_id: string
+          texto: string
+        }
+        Update: {
+          atualizada_em?: string
+          autor_id?: string | null
+          conta_id?: string
+          criada_em?: string
+          id?: string
+          person_id?: string
+          texto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistente_observacoes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistente_termos: {
         Row: {
           conta_id: string | null

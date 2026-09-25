@@ -26,6 +26,7 @@ import { getPerson, deletePerson } from "@/lib/data.functions";
 import { getMyMembership } from "@/lib/team.functions";
 import { authorizeRetake, authorizeRetakeAssessment } from "@/lib/tests.functions";
 import { toast } from "sonner";
+import { ObservacoesDaAssistente } from "@/components/observacoes-assistente";
 
 export const Route = createFileRoute("/_app/pessoas/$id")({
   head: () => ({
@@ -177,6 +178,7 @@ function PersonProfile() {
               <p className="mt-2 whitespace-pre-wrap text-sm">{person.notes}</p>
             </div>
           )}
+          <ObservacoesDaAssistente personId={person.id} nome={person.full_name} />
         </TabsContent>
         <TabsContent value="relatorios" className="mt-4">
           <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">

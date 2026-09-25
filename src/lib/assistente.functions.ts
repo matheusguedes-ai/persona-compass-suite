@@ -1,5 +1,7 @@
 /**
  * ASSISTENTE DO MÉTODO INTENÇÃO — Nível 1 (#289): o aluno conversa sobre o PRÓPRIO relatório.
+ * Nível 2 (#305): ela passa a ler também o que o aluno tem na plataforma (`assistente/plataforma.server.ts`,
+ * sempre com o login dele) e as observações do mentor (`assistente-observacoes.functions.ts`).
  *
  * Regras que valem para TODAS as funções daqui:
  * - Nenhuma recebe id de pessoa ou de login vindo do navegador. Quem é "o aluno" é sempre o login
@@ -8,7 +10,8 @@
  * - Toda LEITURA de conversa usa o cliente com o login do aluno — quem decide o que volta é a RLS
  *   (`user_id = auth.uid()`), não um filtro aqui. As escritas usam o service role, depois de conferir
  *   consentimento e liberação; o banco ainda recusa gravar sem consentimento ativo (gatilho).
- * - O mentor não tem função nenhuma aqui. Não existe caminho de leitura de conversa para ele.
+ * - O mentor não tem função nenhuma aqui. Não existe caminho de leitura de conversa para ele. As
+ *   observações que ele escreve (#305) vão num sentido só: dele para a assistente.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -193,10 +196,10 @@ export const enviarMensagem = createServerFn({ method: "POST" })
     // abaixo com AssistenteDesligada, exatamente com o mesmo aviso final para o aluno.
 
     const db = await admin();
-    const { nome, relatorios } = await servidor.relatoriosDoAluno(supabase, db, userId);
+    const { nome, pessoas, relatorios } = await servidor.relatoriosDoAluno(supabase, db, userId);
     if (relatorios.length === 0) throw new Error(ERROS_DA_ASSISTENTE.semRelatorio);
-    const contexto = servidor.montarContexto(nome, relatorios);
     const conta = await contaDoAluno(supabase, userId);
+    const contexto = await servidor.montarContexto({ supabase, admin: db, userId, conta, nome, pessoas, relatorios });
 
     // A conversa: a existente (lida com o login do aluno — se não for dele, não volta) ou uma nova.
     let conversaId = data.conversa_id ?? null;

@@ -372,7 +372,7 @@ export function contextoDoAluno(nome: string | null, relatorios: RelatorioDoAlun
   return [
     "<relatorios_do_aluno>",
     nome ? `Aluno: ${nome}` : null,
-    `Estes são os relatórios que este aluno vê na plataforma — o resultado mais recente de cada teste que ele respondeu (${relatorios.length}). É todo o material que você tem sobre ele.`,
+    `Estes são os relatórios que este aluno vê na plataforma — o resultado mais recente de cada teste que ele respondeu (${relatorios.length}). Junto com o bloco <plataforma_do_aluno>, é todo o material que você tem sobre ele.`,
     `Aviso que acompanha todo relatório: ${RODAPE_LEGAL}`,
     "",
     corpo,
