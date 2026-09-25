@@ -37,6 +37,7 @@ const TABELA: Record<string, [string, string]> = {
   treinamento_avaliacoes: ["avaliação de aula", "avaliações de aula"],
   certificados: ["certificado", "certificados"],
   mentorias: ["mentoria", "mentorias"],
+  assistente_observacoes: ["observação para a assistente", "observações para a assistente"],
   email_logs: ["registro de e-mail enviado", "registros de e-mail enviados"],
   team_members: ["vínculo com a equipe", "vínculos com a equipe"],
   destinos: ["liberação individual", "liberações individuais"],

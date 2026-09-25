@@ -275,6 +275,7 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `assistente_termos` / `assistente_consentimentos` | #289: termo da assistente, versionado (publicado não se edita — o banco recusa); aceite com versão, data e CÓPIA do texto aceito. Revogar marca `revogado_em` e apaga o histórico |
 | `assistente_conversas` / `assistente_mensagens` | #289: conversas do aluno com a assistente. Dono = `user_id` (o LOGIN do aluno, não `people`) + `conta_id`. **Só o próprio aluno lê** |
 | `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga) |
+| `assistente_observacoes` | #305: o que o mentor quer que a assistente tenha em mente sobre um aluno. Dono = `conta_id` (preenchido pelo banco, = conta do cadastro) + `person_id`. **O aluno NUNCA lê** — nenhuma policy para ele, e a da equipe exclui o próprio login. Não usar `people.notes` para isso: o aluno lê a própria linha de `people` |
 
 ⚠️ **Tabela nova que aponte para `people` precisa entrar em `fundir_pessoas`** (migração
 `20260923210000_fusao_de_pessoas.sql`). A função confere, antes de apagar o cadastro absorvido,
@@ -408,7 +409,7 @@ Tipos Psicológicos usam o MBTI real quando respondido; senão vão como
 
 ## Assistente do Método Intenção (#289)
 
-Nível 1 de 5: o aluno logado conversa sobre o PRÓPRIO relatório (`/aluno/assistente`). Modelo
+Nível 2 de 5: o aluno logado conversa sobre o PRÓPRIO relatório e o que ele tem na plataforma (`/aluno/assistente`). Modelo
 `claude-sonnet-5`. Código em `src/lib/assistente/` + `src/lib/assistente.functions.ts`.
 
 ⚠️ **A chave da Anthropic NÃO mora no app** (25/09: o Lovable só permite Secrets em conta
@@ -437,6 +438,17 @@ foram reveladas e revogadas por terem passado por aqui).
   mesma edge function e RECUSA cadastro fora de `@exemplo.invalido`.
 - **Fechada por padrão**: aparece só com linha em `assistente_liberacoes` (grupo ou login) + relatório
   concluído + termo publicado. Abrir para a turma = inserir a linha do grupo, decisão do dono.
+- **Nível 2 (#305) — o que mais ela lê**: `plataforma.server.ts` lê Academy (só trilha publicada E
+  liberada — trancada nem aparece), Biblioteca (só material liberado), Classroom (aulas, presença dele,
+  encontros perdidos), Agenda, Mentorias (sem `mentorias.observacoes`), Comunidade (colegas SÓ por
+  `perfil_do_colega`, a função que corta contato de quem não marcou `perfil_visivel`) e pontos —
+  **tudo com o login do aluno**, e só das áreas de `minhas_areas()`. Nada ali usa service role. Tela
+  nova do aluno ou área nova? Confira se `plataforma.server.ts` acompanha.
+- **Observação do mentor** (#305): quadro na ficha da pessoa; vai para o modelo no bloco
+  `<orientacao_reservada>` (única leitura com service role além dos relatórios). As orientações proíbem
+  citar, atribuir ou repetir; pergunta direta recebe a verdade em termos gerais, sem confirmar nada.
+- Não existe registro de acesso à plataforma (`learning_progress` é só "marcar como vista"): ela não
+  sabe quem entrou nem quando.
 - Termo: `scripts/conteudo_termo_assistente.py` (texto do dono do produto, conferido palavra por
   palavra contra o arquivo aprovado). Mudar o texto = versão nova, nunca editar a publicada.
 
