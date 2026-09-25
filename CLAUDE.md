@@ -436,7 +436,9 @@ foram reveladas e revogadas por terem passado por aqui).
   na tela? Confira se `contexto.ts` acompanha.
 - **Como ela fala** = `instrucoes.server.ts` (consultiva, só do relatório, "leve ao mentor", CVV 188
   no risco à vida). Mexeu no texto? Rode `npx tsx scripts/avaliar_assistente.ts <resposta>` — SÓ com
-  pessoa fictícia (`scripts/fixture_assistente.py criar`): avaliar manda o relatório para a Anthropic.
+  pessoa fictícia (`scripts/fixture_assistente.py criar --login`): avaliar manda o relatório para a
+  Anthropic. O script entra como o aluno fictício (link mágico → token, nunca impresso), passa pela
+  mesma edge function e RECUSA cadastro fora de `@exemplo.invalido`.
 - **Fechada por padrão**: aparece só com linha em `assistente_liberacoes` (grupo ou login) + relatório
   concluído + termo publicado. Abrir para a turma = inserir a linha do grupo, decisão do dono.
 - Termo: `scripts/conteudo_termo_assistente.py` (texto do dono do produto, conferido palavra por

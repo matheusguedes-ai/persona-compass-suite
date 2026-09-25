@@ -1,7 +1,8 @@
 /**
  * A chamada ao modelo da assistente (#289). Separada do resto do servidor para o script de avaliação
  * (`scripts/avaliar_assistente.ts`) exercitar EXATAMENTE esta função, com o mesmo modelo, o mesmo
- * texto de sistema e os mesmos parâmetros da produção.
+ * texto de sistema e os mesmos parâmetros da produção — ele roda fora do servidor, então passa o
+ * token de um login fictício em vez de tirá-lo da requisição.
  *
  * A CHAVE NÃO MORA MAIS AQUI. Ela vive nos secrets da Supabase Edge Function `assistente-chat`
  * (`supabase/functions/assistente-chat/`) — o Lovable só permite Secrets em conta Enterprise, que
@@ -41,8 +42,21 @@ export type RespostaDoModelo = {
   ms: number;
 };
 
+/**
+ * A URL do `.env` do repo, que o Vite fixa no build — é ela que vale no servidor: na hospedagem do
+ * Lovable o `SUPABASE_URL` do ambiente aponta para o banco gerenciado por ele (ver `client.server.ts`).
+ * Fora do Vite (o script de avaliação, em `npx tsx`) `import.meta.env` não existe e a leitura estoura;
+ * só aí vale o `SUPABASE_URL` do ambiente. O `try` guarda a MESMA expressão que o Vite substitui —
+ * `import.meta.env?.…` dependeria de o build também reconhecer a forma com `?.`.
+ */
 function urlDoSupabase(): string {
-  const url = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  let daBuild: string | undefined;
+  try {
+    daBuild = import.meta.env.VITE_SUPABASE_URL;
+  } catch {
+    daBuild = undefined;
+  }
+  const url = daBuild || process.env.SUPABASE_URL;
   if (!url) throw new Error("assistente: SUPABASE_URL ausente");
   return url;
 }
@@ -63,16 +77,24 @@ function tokenDaSessao(): string {
  * orientações (iguais para todo aluno) → relatórios (iguais em toda conversa daquele aluno, até ele
  * responder outro teste) → histórico — a edge function é quem manda isso pra Anthropic, mas a
  * composição do prefixo continua sendo decidida aqui, no mesmo lugar de sempre.
+ *
+ * `token` é só para quem chama FORA de uma requisição do servidor, onde não há sessão de onde tirá-lo:
+ * o script de avaliação, com o login de uma pessoa fictícia. O app nunca passa — usa sempre o da
+ * sessão do aluno que perguntou.
  */
-export async function perguntarAoModelo(contexto: string, historico: MensagemDoHistorico[]): Promise<RespostaDoModelo> {
-  const token = tokenDaSessao();
+export async function perguntarAoModelo(
+  contexto: string,
+  historico: MensagemDoHistorico[],
+  token?: string,
+): Promise<RespostaDoModelo> {
+  const sessao = token ?? tokenDaSessao();
   const controle = new AbortController();
   const tempoEsgotado = setTimeout(() => controle.abort(), 90_000);
   let resp: globalThis.Response;
   try {
     resp = await fetch(`${urlDoSupabase()}/functions/v1/assistente-chat`, {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      headers: { "content-type": "application/json", authorization: `Bearer ${sessao}` },
       body: JSON.stringify({ instrucoes: INSTRUCOES_DA_ASSISTENTE, contexto, historico }),
       signal: controle.signal,
     });

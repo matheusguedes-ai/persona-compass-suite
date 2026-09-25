@@ -12,7 +12,8 @@ Uso:
 
 --login cria também um login descartável (e-mail @exemplo.invalido, sem senha) ligado à pessoa e
 libera a assistente só para ele — é o caminho real do aluno, para testar a tela ponta a ponta.
-Precisa do servidor local (localhost:8080): a resposta entra pelo mesmo endpoint que o aluno usa.
+Precisa do servidor local (localhost:8080, ou APP_URL): a resposta entra pelo mesmo endpoint que o
+aluno usa.
 """
 import json
 import os
@@ -26,7 +27,7 @@ from testar_ipsativo import carregar_estrutura, rest  # noqa: E402
 from ipsativo_oraculo import sortear_escolhas  # noqa: E402
 from testar_ipsativo import _env  # noqa: E402
 
-APP = "http://localhost:8080"
+APP = os.environ.get("APP_URL", "http://localhost:8080")  # o mesmo APP_URL do avaliar_assistente.ts
 VERSAO_DISC = "f9c6aba8-115b-4c59-9d35-9c1f995b3eb9"
 NOME = "ZZ Teste Assistente 289 (fictícia — apagar)"
 
