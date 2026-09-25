@@ -10,15 +10,15 @@ export const ASSISTENTE = {
   aceitar: "Aceitar e começar",
   agoraNao: "Agora não",
   abertura:
-    "Oi. Eu sou a assistente do Método Intenção. Posso te ajudar a entender o que está escrito nos seus relatórios — o seu perfil, os números e o que eles querem dizer no dia a dia. Por onde você quer começar?",
+    "Oi. Eu sou a assistente do Método Intenção. Posso te ajudar a entender os seus relatórios e a se achar na plataforma — as suas aulas, a agenda, os materiais e as mentorias. Por onde você quer começar?",
   sugestoes: [
     "O que o meu resultado quer dizer?",
-    "Quais são os meus pontos fortes, segundo o relatório?",
-    "O que o relatório diz para eu tomar cuidado?",
+    "Quais aulas podem me ajudar com os meus pontos de atenção?",
+    "Quando é a minha próxima aula?",
   ],
   rodape: "A assistente pode errar e não substitui o seu mentor. Só você vê esta conversa.",
-  placeholder: "Pergunte sobre o seu relatório…",
-  pensando: "Lendo o seu relatório…",
+  placeholder: "Pergunte sobre o seu relatório, as suas aulas, a agenda…",
+  pensando: "Olhando o seu relatório e a plataforma…",
   novaConversa: "Nova conversa",
   semConversas: "Nenhuma conversa ainda.",
   indisponivel:
@@ -36,6 +36,6 @@ export const ERROS_DA_ASSISTENTE = {
   desligada: "A assistente ainda não está ligada. Tente mais tarde.",
   semRelatorio: "Não encontrei um relatório concluído para conversarmos.",
   falhou: "A assistente não conseguiu responder agora. Tente de novo em instantes.",
-  recusa: "Não consigo seguir por esse caminho. Posso te ajudar com o que está no seu relatório.",
+  recusa: "Não consigo seguir por esse caminho. Posso te ajudar com o seu relatório, as suas aulas, a agenda ou os materiais.",
   conversaNaoEncontrada: "Conversa não encontrada.",
 } as const;

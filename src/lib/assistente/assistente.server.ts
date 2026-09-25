@@ -1,5 +1,6 @@
 /**
- * O lado do servidor da assistente (#289, Nível 1): quais relatórios ela lê. A chamada ao modelo mora
+ * O lado do servidor da assistente (#289, Nível 1; #305, Nível 2): o que ela lê — os relatórios, o
+ * resto da plataforma (`plataforma.server.ts`) e as observações do mentor. A chamada ao modelo mora
  * em `modelo.server.ts` e é reexportada daqui.
  *
  * Só é carregado dentro dos handlers de `assistente.functions.ts` (import dinâmico) — nunca chega ao
@@ -11,6 +12,8 @@ import type { Database } from "@/integrations/supabase/types";
 import type { Report } from "@/components/report/sections";
 import { buildReport } from "@/lib/report.server";
 import { contextoDoAluno, type RelatorioDoAluno } from "@/lib/assistente/contexto";
+import { plataformaDoAluno } from "@/lib/assistente/plataforma.server";
+import { agoraArredondado, contextoDaPlataforma, contextoDasObservacoes } from "@/lib/assistente/plataforma";
 
 export {
   AssistenteDesligada,
@@ -32,7 +35,7 @@ export async function relatoriosDoAluno(
   supabase: SupabaseClient<Database>,
   admin: SupabaseClient<Database>,
   userId: string,
-): Promise<{ nome: string | null; relatorios: RelatorioDoAluno[] }> {
+): Promise<{ nome: string | null; pessoas: string[]; relatorios: RelatorioDoAluno[] }> {
   const { data: pessoas, error: pErr } = await supabase
     .from("people")
     .select("id, full_name, created_at")
@@ -41,7 +44,7 @@ export async function relatoriosDoAluno(
     .order("id");
   if (pErr) throw new Error(`assistente: não li os cadastros do aluno (${pErr.message})`);
   const ids = (pessoas ?? []).map((p) => p.id);
-  if (ids.length === 0) return { nome: null, relatorios: [] };
+  if (ids.length === 0) return { nome: null, pessoas: [], relatorios: [] };
   const nome = pessoas![0].full_name ?? null;
 
   const { data: respostas, error: rErr } = await supabase
@@ -54,7 +57,7 @@ export async function relatoriosDoAluno(
     .order("submitted_at", { ascending: false })
     .order("id");
   if (rErr) throw new Error(`assistente: não li as respostas do aluno (${rErr.message})`);
-  if (!respostas?.length) return { nome, relatorios: [] };
+  if (!respostas?.length) return { nome, pessoas: ids, relatorios: [] };
 
   // O instrumento de cada versão — as respostas já foram filtradas acima, com o login do aluno.
   const versoes = [...new Set(respostas.map((r) => r.version_id))];
@@ -74,9 +77,65 @@ export async function relatoriosDoAluno(
       relatorios.push({ report: rep.data as unknown as Report, submittedAt: r.submitted_at as string });
     }
   }
-  return { nome, relatorios };
+  return { nome, pessoas: ids, relatorios };
 }
 
-export function montarContexto(nome: string | null, relatorios: RelatorioDoAluno[]): string {
-  return contextoDoAluno(nome, relatorios);
+/**
+ * As observações que o mentor registrou sobre ESTE aluno (#305). É a única leitura com service role
+ * fora dos relatórios, e é de propósito: o aluno não tem caminho nenhum para ler estas linhas pela
+ * API (a trava (a) da demanda), então não há login dele que as alcance. O recorte é feito aqui, e só
+ * aqui: os cadastros do próprio login (`pessoas`, lidos acima com o login dele) e, de cada um, só as
+ * observações da MESMA conta do cadastro — nada de outra conta entra.
+ *
+ * O texto nunca vai para a tela nem para o histórico: só para o modelo, dentro do bloco reservado.
+ */
+export async function observacoesDoMentor(
+  admin: SupabaseClient<Database>,
+  pessoas: string[],
+): Promise<Array<{ texto: string; criadaEm: string }>> {
+  if (!pessoas.length) return [];
+  const { data: cad, error: pErr } = await admin.from("people").select("id, mentor_id").in("id", pessoas);
+  if (pErr) throw new Error(`assistente: não li as contas dos cadastros (${pErr.message})`);
+  const contaDe = new Map((cad ?? []).map((p) => [p.id, p.mentor_id]));
+  const { data, error } = await admin
+    .from("assistente_observacoes")
+    .select("person_id, conta_id, texto, criada_em")
+    .in("person_id", pessoas)
+    .order("criada_em")
+    .order("id");
+  if (error) throw new Error(`assistente: não li as observações (${error.message})`);
+  return (data ?? [])
+    .filter((o) => contaDe.get(o.person_id) === o.conta_id)
+    .map((o) => ({ texto: o.texto, criadaEm: o.criada_em }));
+}
+
+/**
+ * O contexto inteiro, na ordem do que menos muda para o que mais muda (é prefixo em cache):
+ * relatórios → plataforma → observações do mentor.
+ */
+export async function montarContexto(opts: {
+  supabase: SupabaseClient<Database>;
+  admin: SupabaseClient<Database>;
+  userId: string;
+  conta: string;
+  nome: string | null;
+  pessoas: string[];
+  relatorios: RelatorioDoAluno[];
+}): Promise<string> {
+  const agora = agoraArredondado(Date.now());
+  const [plataforma, observacoes] = await Promise.all([
+    plataformaDoAluno(opts.supabase, opts.userId, opts.pessoas, opts.conta, agora),
+    observacoesDoMentor(opts.admin, opts.pessoas).catch((e) => {
+      // Sem as observações ela continua funcionando — só sem o pano de fundo.
+      console.error("[assistente] observações do mentor:", e instanceof Error ? e.message : String(e));
+      return [];
+    }),
+  ]);
+  return [
+    contextoDoAluno(opts.nome, opts.relatorios),
+    contextoDaPlataforma(plataforma, agora),
+    contextoDasObservacoes(observacoes),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
