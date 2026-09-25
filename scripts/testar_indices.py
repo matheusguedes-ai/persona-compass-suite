@@ -305,7 +305,9 @@ def cmd_real(args):
             obtido = do_relatorio(_relatorio(args.app, r["id"]))
             ok = obtido == sem_versao(gravado or esperado)
             falhas += not ok
-            estado.append("relatório lê o gravado ✓" if ok and gravado else "relatório OK" if ok else f"RELATÓRIO DIFERENTE: {obtido}")
+            # igualdade não prova DE ONDE o número veio (a conta e o gravado coincidem) — quem prova que a
+            # tela lê o gravado é o `prova-leitura`, com sentinelas
+            estado.append("relatório = gravado ✓" if ok and gravado else "relatório OK" if ok else f"RELATÓRIO DIFERENTE: {obtido}")
         valores = gravado or esperado
         linha = " · ".join(f"{k} {valores[k]:.2f}" if valores[k] is not None else f"{k} —" for k in CHAVES)
         print(f"  {rotulo}: {linha}  [{' · '.join(estado)}]")
