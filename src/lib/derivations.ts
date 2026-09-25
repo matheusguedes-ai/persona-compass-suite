@@ -1,7 +1,11 @@
 /**
  * Derivações do relatório comportamental — calculadas a partir dos scores
  * normalizados (0–100) por fator D/I/S/C. Textos e definições originais.
+ *
+ * Os quatro índices (Positividade, Estima, Flexibilidade, Energia) NÃO são calculados aqui desde a
+ * #304: saem do motor ipsativo por `calcularIndices` (`src/lib/indices.ts`) e chegam prontos.
  */
+import type { IndiceDoPerfil } from "@/lib/indices";
 
 export type FactorKey = "D" | "I" | "S" | "C";
 export type FactorMap = Record<string, number>;
@@ -12,10 +16,6 @@ export type DerivedConfig = {
     intuicao?: Partial<Record<FactorKey, number>>;
     pensamento?: Partial<Record<FactorKey, number>>;
     julgamento?: Partial<Record<FactorKey, number>>;
-  };
-  indices?: {
-    positividade?: Partial<Record<FactorKey, number>>;
-    energia?: Partial<Record<FactorKey, number>>;
   };
   competencias?: Record<string, Partial<Record<FactorKey, number>>>;
 };
@@ -49,11 +49,6 @@ export const DEFAULT_JUNG = {
   intuicao: { D: 0.5, I: 0.5 } as Partial<Record<FactorKey, number>>,
   pensamento: { D: 0.5, C: 0.5 } as Partial<Record<FactorKey, number>>,
   julgamento: { C: 0.55, S: 0.45 } as Partial<Record<FactorKey, number>>,
-};
-
-export const DEFAULT_INDICES = {
-  positividade: { I: 0.6, S: 0.25, D: 0.15 } as Partial<Record<FactorKey, number>>,
-  energia: { D: 0.6, I: 0.4 } as Partial<Record<FactorKey, number>>,
 };
 
 export const COMPETENCIAS: Array<{
@@ -95,10 +90,6 @@ function clamp(n: number) {
   return Math.max(0, Math.min(100, Number.isFinite(n) ? n : 0));
 }
 
-function clamp01(n: number) {
-  return Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
-}
-
 function w(factors: FactorMap, weights: Partial<Record<FactorKey, number>>): number {
   let sum = 0;
   for (const [k, v] of Object.entries(weights)) sum += (factors[k] ?? 0) * (v ?? 0);
@@ -106,7 +97,6 @@ function w(factors: FactorMap, weights: Partial<Record<FactorKey, number>>): num
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export const LEADERSHIP_STYLES = [
   { key: "executivo", factor: "D" as FactorKey, label: "Executivo" },
@@ -117,18 +107,19 @@ export const LEADERSHIP_STYLES = [
 
 /**
  * `adaptado = null` (DISC pelo motor ipsativo, #288 Etapa 2c): não existe mais número "adaptado" na mesma
- * régua do `natural` recebido aqui, e as duas contas que dependiam de subtrair um do outro saem sem valor:
- * Estima e Flexibilidade. Com a régua antiga misturada elas nem mediam a pessoa — pela conta, davam 1,00 e
- * 0,75 para QUALQUER resposta de DISC (verificado em 20 mil respostas). Voltam quando houver uma definição
- * nova, decidida pelo dono do produto. As competências ficam só com a série recebida em `natural`.
+ * régua do `natural` recebido aqui, e as competências ficam só com a série recebida em `natural`.
+ *
+ * `indices` chega pronto de `calcularIndices` (#304). Antes eram calculados aqui, com pesos que somam 1
+ * aplicados a percentuais que somam 100 entre as letras — Positividade e Energia ficavam abaixo de 0,40
+ * para praticamente todo mundo, e Estima e Flexibilidade estavam sem valor desde a Etapa 2c.
  */
 export function computeDerived(
   natural: FactorMap,
   adaptado: FactorMap | null,
-  config?: DerivedConfig | null,
+  config: DerivedConfig | null | undefined,
+  indices: IndiceDoPerfil[],
 ) {
   const jungCfg = { ...DEFAULT_JUNG, ...(config?.jung ?? {}) };
-  const idxCfg = { ...DEFAULT_INDICES, ...(config?.indices ?? {}) };
 
   const extroversao = r1(w(natural, jungCfg.extroversao));
   const intuicao = r1(w(natural, jungCfg.intuicao));
@@ -155,34 +146,6 @@ export function computeDerived(
     pct: totalDISC > 0 ? r1(((natural[s.factor] ?? 0) / totalDISC) * 100) : 25,
   }));
   const dominant = [...leadership].sort((a, b) => b.pct - a.pct)[0];
-
-  const keys: FactorKey[] = ["D", "I", "S", "C"];
-  const positividade = r2(w(natural, idxCfg.positividade) / 100);
-  const energia = r2(w(natural, idxCfg.energia) / 100);
-  let flexibilidade: number | null = null;
-  let estima: number | null = null;
-  if (adaptado) {
-    const diffs = keys.map((k) => Math.abs((adaptado[k] ?? 0) - (natural[k] ?? 0)));
-    flexibilidade = r2(1 - diffs.reduce((a, b) => a + b, 0) / diffs.length / 100);
-    const highs = keys.filter((k) => (natural[k] ?? 0) >= 50);
-    estima =
-      highs.length === 0
-        ? 1
-        : r2(
-            1 -
-              highs
-                .map((k) => Math.max(0, (natural[k] ?? 0) - (adaptado[k] ?? 0)))
-                .reduce((a, b) => a + b, 0) /
-                highs.length /
-                100,
-          );
-  }
-  const indices: Array<{ key: string; label: string; value: number | null }> = [
-    { key: "positividade", label: "Positividade", value: clamp01(positividade) },
-    { key: "estima", label: "Estima", value: estima === null ? null : clamp01(estima) },
-    { key: "flexibilidade", label: "Flexibilidade", value: flexibilidade === null ? null : clamp01(flexibilidade) },
-    { key: "energia", label: "Energia", value: clamp01(energia) },
-  ];
 
   const competencias = COMPETENCIAS.map((c) => {
     const weights = config?.competencias?.[c.name] ?? c.weights;
@@ -240,7 +203,10 @@ export const JUNG_BULLETS: Record<string, string[]> = {
   ],
 };
 
-/** Frase interpretativa por faixa de índice. */
+/**
+ * Frase interpretativa por faixa de índice. Flexibilidade trocou de lado na #304: alto passou a ser
+ * "está ajustando bastante" (o que a palavra diz), não mais "está perto do natural".
+ */
 export function indexPhrase(key: string, value: number): string {
   const level = value < 0.4 ? "low" : value <= 0.7 ? "mid" : "high";
   const table: Record<string, Record<string, string>> = {
@@ -255,9 +221,9 @@ export function indexPhrase(key: string, value: number): string {
       high: "Você se permite expressar seus pontos fortes no ambiente atual, com pouca necessidade de disfarce.",
     },
     flexibilidade: {
-      low: "O esforço de adaptação está alto: seu comportamento atual difere bastante do espontâneo.",
-      mid: "Você adapta parte do seu estilo ao contexto, mantendo boa parte da forma natural de agir.",
-      high: "Seu comportamento atual está próximo do natural, o que sugere baixo desgaste de adaptação.",
+      low: "O que você mostra hoje segue de perto o seu jeito natural, com pouca necessidade de ajuste no ambiente atual.",
+      mid: "Você ajusta parte do seu estilo ao contexto e mantém boa parte da forma natural de agir.",
+      high: "Você está reorganizando bastante o seu jeito natural para responder ao ambiente — útil, e desgastante quando se prolonga.",
     },
     energia: {
       low: "Você prefere ritmos constantes e previsíveis a mobilizações intensas e rápidas.",

@@ -334,12 +334,19 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
   NATURAL>" (1 letra, ou 2 na ordem do ranking; empate múltiplo = "sem predominância clara"),
   gráficos NATURAL e ADAPTADO separados com sigla própria — nunca comparados —, três índices e o
   texto do perfil (cadastrável; pendente vira aviso). Letra quase não marcada sai do título com a
-  marca "pouca informação" e uma frase explicando (#292). Estima e Flexibilidade estão "em revisão"
-  (eram constantes: 1,00 e 0,75 para todo mundo). O resto do relatório: seções por perfil (DISC)
-  pela letra que lidera o natural; leituras por fator no conjunto adaptado, como sempre. Detalhe
-  em `docs/motor-ipsativo.md`. Antes × depois: `scripts/comparar_relatorios.py`.
+  marca "pouca informação" e uma frase explicando (#292). O resto do relatório: seções por perfil
+  (DISC) pela letra que lidera o natural; leituras por fator no conjunto adaptado, como sempre.
+  Detalhe em `docs/motor-ipsativo.md`. Antes × depois: `scripts/comparar_relatorios.py`.
+- **Índices do DISC** (#304, `src/lib/indices.ts`) — Positividade, Estima, Flexibilidade (na
+  intensidade, cada um com a linha que diz o que significa) e Energia (bloco de índices). Saem do
+  `ipsativo`, não dos percentuais: Positividade e Energia = fração dos MENOS que cai em D+C / S+C
+  (eixos de Marston); Estima e Flexibilidade comparam a ordem do MAIS com a ACEITAÇÃO de cada estilo
+  (1 − MENOS ÷ blocos em que ele ainda estava disponível). ⚠️ **Nunca** compará-las pelos dois
+  gráficos: o natural é "blocos − MENOS", e o estilo marcado como MAIS não pode ser o MENOS daquele
+  bloco — o que a pessoa mais mostra sobe sozinho no natural (natural ≥ MAIS, sempre), e a
+  comparação mede ruído. Calibração e oráculo: `python3 scripts/testar_indices.py puro|simular|real`.
 - `src/lib/derivations.ts` — pesos das derivações do DISC (Jung, 4 estilos de
-  liderança, 16 competências, 4 índices), sobrescritíveis por `derived_config`.
+  liderança, 16 competências), sobrescritíveis por `derived_config`.
 - `src/components/report/sections.tsx` — blocos visuais compartilhados.
 - `/relatorio/$responseId` — relatório de um teste.
 - `/relatorio-bateria/$assessmentId` — unificado: uma seção por teste respondido.
@@ -426,7 +433,9 @@ foram reveladas e revogadas por terem passado por aqui).
   na tela? Confira se `contexto.ts` acompanha.
 - **Como ela fala** = `instrucoes.server.ts` (consultiva, só do relatório, "leve ao mentor", CVV 188
   no risco à vida). Mexeu no texto? Rode `npx tsx scripts/avaliar_assistente.ts <resposta>` — SÓ com
-  pessoa fictícia (`scripts/fixture_assistente.py criar`): avaliar manda o relatório para a Anthropic.
+  pessoa fictícia (`scripts/fixture_assistente.py criar --login`): avaliar manda o relatório para a
+  Anthropic. O script entra como o aluno fictício (link mágico → token, nunca impresso), passa pela
+  mesma edge function e RECUSA cadastro fora de `@exemplo.invalido`.
 - **Fechada por padrão**: aparece só com linha em `assistente_liberacoes` (grupo ou login) + relatório
   concluído + termo publicado. Abrir para a turma = inserir a linha do grupo, decisão do dono.
 - **Nível 2 (#305) — o que mais ela lê**: `plataforma.server.ts` lê Academy (só trilha publicada E

@@ -34,6 +34,7 @@ import argparse, json, math, os, random, shutil, subprocess, sys, urllib.error, 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ipsativo_oraculo import (ALVO_SINAL_POR_LETRA, LIMITE_COMBINADO, LIMITE_MODERADA, comparar,  # noqa: E402
                               distribuir_pares, embaralhar_pares, oraculo, sinal_minimo, sortear_escolhas)
+from indices_oraculo import indices as indices_oraculo  # noqa: E402
 
 RAIZ = os.getcwd()
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
@@ -525,7 +526,7 @@ def conferir_relatorio_2c(rel, ips, instrumento, textos, compostas, ips_observad
       - nenhum resto do "adaptado" antigo (a ponte da 2b-i morreu): sem adaptado, sem gap, sem texto de adaptação;
       - as leituras por fator seguem com o número de sempre (percentual do conjunto adaptado);
       - DISC: perfil declarado = sigla do natural, seções por perfil pela letra que LIDERA essa sigla,
-        Estima e Flexibilidade sem valor, competências com uma série só;
+        os quatro índices iguais aos do oráculo (#304), competências com uma série só;
       - 360°: observadores no mesmo conjunto (adaptado) do avaliado.
     """
     p = []
@@ -607,11 +608,11 @@ def conferir_relatorio_2c(rel, ips, instrumento, textos, compostas, ips_observad
         elif any(s in SECOES_DISC for s, _ in secoes):
             p.append("sem predominância clara, mas saiu seção escrita para um perfil")
         d = rel.get("derived") or {}
+        # #304: os quatro índices saem do resultado do motor — conferidos contra o oráculo, não contra si mesmos
         idx = {i["key"]: i["value"] for i in d.get("indices", [])}
-        if idx.get("estima") is not None or idx.get("flexibilidade") is not None:
-            p.append(f"Estima/Flexibilidade deveriam estar sem valor: {idx}")
-        if not all(isinstance(idx.get(k), (int, float)) for k in ("positividade", "energia")):
-            p.append(f"Positividade/Energia deveriam ter valor: {idx}")
+        esperado = {i["key"]: i["value"] for i in (indices_oraculo(ips) or [])}
+        if idx != esperado:
+            p.append(f"índices {idx} ≠ oráculo {esperado}")
         if any(c.get("adaptado") is not None for c in d.get("competencias", [])):
             p.append("competências ainda com a série 'adaptado' antiga")
     if ips_observadores:

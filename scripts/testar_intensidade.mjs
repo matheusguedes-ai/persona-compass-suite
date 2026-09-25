@@ -117,6 +117,9 @@ const corpoDoBanco = (inst, sigla) =>
   linhasDoBanco.find((r) => r.section === secaoDoTextoDoPerfil(inst) && r.dimension_key === sigla)?.body;
 
 // --- casos -------------------------------------------------------------------------------------------
+// `texto` segue o BANCO: desde a #302 (24/09) as 16 siglas do DISC têm descrição publicada, então todo
+// caso de DISC com sigla espera "publicado". O caminho do aviso de pendente (linha pendente, corpo vazio,
+// sigla sem linha) continua coberto no bloco "precedência dos textos", com linhas montadas aqui.
 const CASOS = [
   { nome: "natural CI legítimo (C com sinal 12) e adaptado IC", inst: "disc",
     mais: { C: 9, I: 9, D: 6, S: 4 }, menos: { C: 3, I: 4, S: 11, D: 10 },
@@ -124,11 +127,11 @@ const CASOS = [
               sinal_baixo: [] } },
   { nome: "#292: C lidera o natural com sinal 7 e é segurado fora do título", inst: "disc",
     mais: { D: 12, I: 10, C: 4, S: 2 }, menos: { C: 3, I: 4, S: 9, D: 12 },
-    espera: { titulo: "I", labels: ["Influência"], natural: "I", adaptado: "DI", texto: "pendente",
+    espera: { titulo: "I", labels: ["Influência"], natural: "I", adaptado: "DI", texto: "publicado",
               sinal_baixo: [{ key: "C", sinal: 7, fora_do_titulo: true }] } },
   { nome: "#292: letra nunca marcada (sinal 0) liderava o natural e agora não ocupa o título", inst: "disc",
     mais: { S: 12, C: 10, D: 6, I: 0 }, menos: { D: 12, S: 10, C: 6, I: 0 },
-    espera: { titulo: "C", labels: ["Conformidade"], natural: "C", adaptado: "SC", texto: "pendente",
+    espera: { titulo: "C", labels: ["Conformidade"], natural: "C", adaptado: "SC", texto: "publicado",
               sinal_baixo: [{ key: "I", sinal: 0, fora_do_titulo: true }] } },
   { nome: "#292: letra com sinal baixo que não estava no título — marca, mas o título não muda", inst: "disc",
     mais: { S: 12, C: 10, D: 5, I: 1 }, menos: { S: 3, C: 8, D: 10, I: 7 },
@@ -140,12 +143,12 @@ const CASOS = [
   { nome: "natural CS, compatíveis", inst: "disc",
     mais: { C: 10, S: 9, I: 5, D: 4 }, menos: { D: 11, I: 10, S: 4, C: 3 },
     espera: { titulo: "CS", labels: ["Conformidade", "Estabilidade"], natural: "CS", adaptado: "CS", texto: "publicado" } },
-  { nome: "natural DI, sem texto aprovado", inst: "disc",
+  { nome: "natural DI (texto publicado na #302)", inst: "disc",
     mais: { D: 10, I: 9, S: 5, C: 4 }, menos: { C: 12, S: 11, I: 3, D: 2 },
-    espera: { titulo: "DI", labels: ["Dominância", "Influência"], natural: "DI", adaptado: "DI", texto: "pendente" } },
-  { nome: "natural IC, em tensão e sem trecho da referência", inst: "disc",
+    espera: { titulo: "DI", labels: ["Dominância", "Influência"], natural: "DI", adaptado: "DI", texto: "publicado" } },
+  { nome: "natural IC, em tensão (texto publicado na #302)", inst: "disc",
     mais: { I: 10, C: 8, D: 6, S: 4 }, menos: { S: 11, D: 10, C: 4, I: 3 },
-    espera: { titulo: "IC", labels: ["Influência", "Conformidade"], natural: "IC", adaptado: "IC", texto: "pendente" } },
+    espera: { titulo: "IC", labels: ["Influência", "Conformidade"], natural: "IC", adaptado: "IC", texto: "publicado" } },
   { nome: "empate múltiplo (7-7-7-7)", inst: "disc",
     mais: { D: 7, I: 7, S: 7, C: 7 }, menos: { D: 7, I: 7, S: 7, C: 7 },
     espera: { titulo: null, labels: [], natural: null, adaptado: null, texto: null, sinal_baixo: [] } },
@@ -207,6 +210,7 @@ for (const c of CASOS) {
 
 // --- o texto da versão vence o da plataforma; pendente e corpo vazio viram aviso ----------------------
 {
+  const antes = falhas; // o ✓/✗ desta linha é só deste bloco (antes olhava o total e herdava falha dos casos)
   const { est, ips } = resultado("disc", { C: 9, I: 9, D: 6, S: 4 }, { C: 3, I: 4, S: 11, D: 10 }); // natural CI, com sinal
   const monta = (linhas) =>
     montarIntensidade({ ipsativo: ips, dimensoes: est.dims, instrumentId: "disc", versionId: "v-dona", linhas });
@@ -222,7 +226,7 @@ for (const c of CASOS) {
   confere(d.texto?.estado === "pendente", "sigla sem linha nenhuma deveria virar aviso");
   const e = monta([...global, { ...daVersao("publicado", "de outra versão"), version_id: "v-outra" }]);
   confere(e.texto?.estado === "publicado" && e.texto.corpo === corpoDoBanco("disc", "CI"), "texto de OUTRA versão não pode aparecer");
-  console.log(`${falhas === 0 ? "✓" : "✗"} precedência dos textos: versão > plataforma; pendente, vazio e ausente viram aviso; texto de outra versão não vaza`);
+  console.log(`${falhas === antes ? "✓" : "✗"} precedência dos textos: versão > plataforma; pendente, vazio e ausente viram aviso; texto de outra versão não vaza`);
 }
 
 console.log(falhas === 0 ? "\nRESULTADO: TUDO CERTO" : `\nRESULTADO: ${falhas} FALHA(S)`);

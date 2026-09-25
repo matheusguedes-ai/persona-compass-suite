@@ -198,6 +198,11 @@ def fixos_esperados(r, T, mostra_plano):
         texto = (r["intensidade"].get("texto") or {})
         if texto.get("estado") == "pendente" and r["intensidade"]["perfil"].get("sigla"):
             esperado.append(I["textoPendente"])
+    # #304: a linha que explica cada índice da página de intensidade, e o rodapé — a tela mostra, o PDF tem de mostrar
+    ocultos = ((r.get("settings") or {}).get("hidden_blocks") or [])
+    if is_disc and r.get("intensidade") and r.get("derived") and "derivados" not in ocultos and "fatores" not in ocultos:
+        I = T["INTENSIDADE"]
+        esperado += [I["indicesRodape"]] + [I["indiceExplica"][k] for k in ("positividade", "estima", "flexibilidade")]
     if is_disc:
         esperado += [T["CORPO"]["comunicacaoTitulo"], T["CORPO"]["comunicacaoIntro"]]
         esperado += [c["body"] for c in T["COMUNICACAO"]]
@@ -466,7 +471,20 @@ def cmd_disc(args):
                     rest("DELETE", t, {"id": f"eq.{i}"}, retorno=False)
             print(f"  limpeza: {len(criados['respostas'])} respostas, "
                   f"{len(criados['baterias'])} baterias, {len(criados['pessoas'])} pessoas removidas")
+            limpar_notificacoes_de_teste()
     return falhas
+
+
+def limpar_notificacoes_de_teste():
+    """
+    A fixture CONCLUI uma bateria — e bateria concluída avisa o dono no sino ("fulano concluiu a
+    bateria"). Até 25/09 esses avisos ficavam lá: ~110 acumulados de rodadas deste teste. Agora saem
+    junto com a fixture, citando os ids antes de apagar. Só os do PREFIXO de teste, nunca outro.
+    """
+    achadas = rest("GET", "notificacoes", {"titulo": f"like.{PREFIXO}*", "select": "id,titulo"}) or []
+    for n in achadas:
+        print(f"  notificação de teste apagada: {n['id']} ({n['titulo']})")
+        rest("DELETE", "notificacoes", {"id": f"eq.{n['id']}"}, retorno=False)
 
 
 def baixar_post(app, caminho, corpo):
@@ -606,6 +624,7 @@ def cmd_capa(args):
                     rest("DELETE", t, {"id": f"eq.{i}"}, retorno=False)
             print(f"  limpeza: {len(criados['respostas'])} respostas, {len(criados['baterias'])} baterias, "
                   f"{len(criados['pessoas'])} pessoas removidas")
+            limpar_notificacoes_de_teste()
     return falhas
 
 

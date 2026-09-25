@@ -21,6 +21,7 @@ import type { Derived, Factor, JungPares, Report } from "@/components/report/sec
 import type { GraficoDoConjunto } from "@/lib/intensidade";
 import { JUNG_BULLETS, indexPhrase } from "@/lib/derivations";
 import { rotuloDaSituacao } from "@/lib/disc-secoes-extra";
+import { INDICES_DA_INTENSIDADE } from "@/lib/indices";
 import {
   COMUNICACAO,
   COMUNICADORES_SEMELHANTES,
@@ -30,7 +31,7 @@ import {
   FACTOR_THEMES,
   FAIXA_DO_GRAFICO,
   GANHOS_PERDAS,
-  INDICE_EM_REVISAO,
+  INDICE_SEM_VALOR,
   INTENSIDADE,
   INTRO,
   JUNG,
@@ -108,10 +109,11 @@ function derivados(d: Derived, mbtiReal: { tipo: string; pares: JungPares } | nu
           : `- ${c.name}: natural ${n(c.natural)}, adaptado ${n(c.adaptado ?? 0)} (${c.band}) — ${c.definition}`,
       ),
     ]),
-    bloco(`${DERIVADOS.indicesTitulo} (${selo})`, [
+    // Os índices saem das escolhas de MAIS e MENOS (#304), não do gráfico adaptado: selo neutro, como na tela.
+    bloco(`${DERIVADOS.indicesTitulo} (${DERIVADOS.selo})`, [
       DERIVADOS.indicesIntro,
       ...d.indices.map((i) =>
-        i.value == null ? `- ${i.label}: ${INDICE_EM_REVISAO}` : `- ${i.label}: ${i.value.toFixed(2)} — ${indexPhrase(i.key, i.value)}`,
+        i.value == null ? `- ${i.label}: ${INDICE_SEM_VALOR}` : `- ${i.label}: ${i.value.toFixed(2)} — ${indexPhrase(i.key, i.value)}`,
       ),
     ]),
   ];
@@ -154,9 +156,9 @@ export function textoDoRelatorio(r: Report, mbtiReal: { tipo: string; pares: Jun
     if (it) {
       const indices =
         isDisc && mostrar("derivados") && r.derived
-          ? ["positividade", "estima", "flexibilidade"]
-              .map((k) => r.derived?.indices.find((i) => i.key === k))
-              .filter((i): i is Derived["indices"][number] => i != null)
+          ? INDICES_DA_INTENSIDADE.map((k) => r.derived?.indices.find((i) => i.key === k)).filter(
+              (i): i is Derived["indices"][number] => i != null,
+            )
           : [];
       partes.push(
         bloco(INTENSIDADE.rotulo, [
@@ -164,8 +166,12 @@ export function textoDoRelatorio(r: Report, mbtiReal: { tipo: string; pares: Jun
             ? `PERFIL ${it.perfil.sigla}${it.perfil.labels.length ? ` — ${it.perfil.labels.join(" · ")}` : ""}`
             : INTENSIDADE.semPredominancia,
           !it.perfil.sigla && (it.natural.tipo === "sem_sinal" ? INTENSIDADE.semSinal : INTENSIDADE.empateMultiplo),
-          ...indices.map((i) => `Índice ${i.label}: ${i.value == null ? "em revisão" : i.value.toFixed(2)}`),
-          indices.length > 0 && `${INTENSIDADE.indicesRodape}${indices.some((i) => i.value == null) ? INTENSIDADE.indicesEmRevisao : ""}`,
+          ...indices.map((i) =>
+            i.value == null
+              ? `Índice ${i.label}: ${INDICE_SEM_VALOR}`
+              : `Índice ${i.label}: ${i.value.toFixed(2)} — ${INTENSIDADE.indiceExplica[i.key]}`,
+          ),
+          indices.length > 0 && INTENSIDADE.indicesRodape,
           ...grafico(INTENSIDADE.naturalTitulo, INTENSIDADE.naturalExplica, it.natural),
           ...grafico(INTENSIDADE.adaptadoTitulo, INTENSIDADE.adaptadoExplica, it.adaptado, r.external?.scores ?? null),
           `${INTENSIDADE.reguasTitulo}: ${INTENSIDADE.reguasSeparadas}`,

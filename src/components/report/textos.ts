@@ -70,9 +70,12 @@ export const FAIXA_DO_GRAFICO: Record<"combinado" | "moderada" | "clara", string
   combinado: "perfil combinado",
 };
 
-/** Texto dos índices sem valor (motor ipsativo): Estima e Flexibilidade estão em revisão. */
-export const INDICE_EM_REVISAO =
-  "Em revisão — este índice volta a aparecer quando o novo cálculo estiver pronto.";
+/**
+ * Índice sem valor (#304). Só acontece no caso patológico de quem marcou o MESMO estilo como MAIS em
+ * todos os blocos: Estima e Flexibilidade não têm o que comparar (ver `src/lib/indices.ts`).
+ */
+export const INDICE_SEM_VALOR =
+  "Sem valor nesta resposta: as escolhas ficaram concentradas demais para este índice comparar os estilos.";
 
 /** "Como ler este relatório", nas três formas que o relatório assume. */
 export const INTRO = {
@@ -105,8 +108,20 @@ export const INTENSIDADE = {
     "Nenhuma das dimensões apareceu vezes suficientes nas suas escolhas para o teste posicioná-la com segurança, então este relatório não declara um perfil. Os gráficos abaixo mostram como as suas escolhas se distribuíram.",
   empateMultiplo:
     "As letras do seu gráfico natural ficaram muito próximas entre si — três ou mais praticamente empatadas —, então nenhuma se destaca o bastante para virar o seu perfil. Os gráficos abaixo mostram essa distribuição.",
-  indicesRodape: "Índices de 0 a 1, derivados do seu DISC (gráfico adaptado).",
-  indicesEmRevisao: " Os marcados como em revisão voltam quando o novo cálculo estiver pronto.",
+  /**
+   * O que cada índice quer dizer, em uma linha, com as duas pontas da régua (#304). As contas estão em
+   * `src/lib/indices.ts`; se a conta mudar de sentido, esta linha muda junto.
+   */
+  indiceExplica: {
+    positividade:
+      "O quanto o seu jeito natural lê pessoas e situações como aliadas (perto de 1) ou como obstáculos a vencer (perto de 0).",
+    estima:
+      "O quanto o que você mostra hoje vem dos estilos que você mais aceita em si (perto de 1) ou dos que costuma rejeitar (perto de 0).",
+    flexibilidade:
+      "O quanto você está ajustando o seu jeito natural ao ambiente atual (perto de 1) ou agindo como você é (perto de 0).",
+  } as Record<string, string>,
+  indicesRodape:
+    "De 0 a 1, calculados das suas escolhas de MAIS e MENOS. Estima e Flexibilidade comparam a ordem em que você mostra os estilos com a ordem em que os aceita — nunca os números dos dois gráficos, que têm réguas diferentes.",
   naturalTitulo: "Natural",
   naturalExplica:
     "Seu jeito espontâneo: quanto menos vezes você apontou um estilo como o que menos combina com você, mais alto ele fica.",
@@ -261,7 +276,7 @@ export const DERIVADOS = {
   competenciasDuasSeries:
     "Dezesseis competências calculadas a partir da combinação dos seus fatores. A linha sólida representa o perfil natural; a tracejada, o adaptado.",
   indicesTitulo: "Índices comportamentais",
-  indicesIntro: "Valores de 0 a 1 que resumem tendências gerais do seu momento atual.",
+  indicesIntro: "Valores de 0 a 1, calculados das suas escolhas de MAIS e MENOS.",
 };
 
 /** Demais títulos e frases avulsas do corpo. */

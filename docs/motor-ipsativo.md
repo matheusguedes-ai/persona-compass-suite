@@ -169,10 +169,8 @@ No padrão da referência que o dono do produto usa (cartão #288.3, relatórios
   soma do próprio conjunto** (as letras de um gráfico somam 100), letras na ordem do instrumento. Nada
   compara um com o outro. Os observadores (360°) aparecem só no ADAPTADO: é o mesmo conjunto (vezes
   MAIS), o que a pessoa mostra e quem convive observa.
-- **Os três índices lado a lado** (só DISC). Positividade segue calculada; **Estima e Flexibilidade
-  ficam "em revisão"**: as duas subtraíam o adaptado antigo do natural antigo — réguas misturadas — e,
-  pela conta, davam **1,00 e 0,75 para qualquer resposta de DISC** (verificado em 20 mil respostas).
-  Voltam quando o dono do produto definir um cálculo novo (`computeDerived(natural, null)`).
+- **Os três índices lado a lado** (só DISC): Positividade, Estima e Flexibilidade, cada um com a linha
+  que diz o que ele significa (`INTENSIDADE.indiceExplica`). Refeitos na #304 — ver "Os índices (#304)".
 - **Texto do perfil** — conteúdo cadastrável em `report_content`, seção `<instrumento>_perfil_texto`,
   `dimension_key` = a sigla, `mode = 'natural'`, coluna `status` (`publicado` | `pendente`). Texto da
   versão (`version_id`) vence o da plataforma. Sem linha, pendente ou com corpo vazio → **aviso** de
@@ -193,11 +191,84 @@ No padrão da referência que o dono do produto usa (cartão #288.3, relatórios
   chamando `natural_norm` (herança do formato antigo) e `adaptado`/`adaptado_norm`/`gap` vêm `null`.
 - Antes × depois, campo a campo: `python3 scripts/comparar_relatorios.py capturar|comparar`.
 
+## Os índices (#304)
+
+Positividade, Estima e Flexibilidade (página de intensidade) e Energia (bloco "Índices
+comportamentais"). Só DISC — Temperamentos e VAK não mostram índice. Código: `src/lib/indices.ts`
+(função pura sobre o `ipsativo`); oráculo independente: `scripts/indices_oraculo.py`.
+
+**O que estava errado.** Positividade e Energia aplicavam pesos que somam 1 (ex.: 0,6·I + 0,25·S +
+0,15·D) ao percentual de cada letra no gráfico adaptado — só que no motor ipsativo as quatro letras
+DIVIDEM 100 (média 25). A conta não passava de 0,60 nem para quem marcasse a mesma letra nos 28 blocos
+e ficava perto de 0,25 para todo mundo: **abaixo de 0,40 em 100% (Positividade) e 99,9% (Energia) das
+respostas ao acaso** — o achado registrado desde a 2c, confirmado. O número vinha do motor, não do
+bloco antigo; mas é o mesmo número (as vezes MAIS), por isso o bloco antigo parecia o culpado. Estima
+e Flexibilidade estavam "em revisão" desde a 2c. É a mesma causa que dá ISFP a todo mundo nos Tipos
+Psicológicos estimados e comprime liderança e competências — esses NÃO foram mexidos na #304.
+
+**As contas** (DISC: 28 blocos, uma alternativa por letra em cada bloco):
+
+| índice | conta | leitura |
+|---|---|---|
+| Positividade | MENOS em D e C ÷ total de MENOS | Marston (1928): I e S respondem a um ambiente percebido como favorável; D e C, como desafiador |
+| Energia | MENOS em S e C ÷ total de MENOS | o outro eixo de Marston: D e I agem sobre o ambiente; S e C o acolhem |
+| Estima | Σ MAIS × nota do estilo na ordem de ACEITAÇÃO ÷ Σ MAIS | o quanto o que a pessoa mostra vem do que ela menos rejeita em si |
+| Flexibilidade | pares de estilos com a ordem do MAIS contrária à ordem de ACEITAÇÃO ÷ pares | o quanto ela está reorganizando o jeito natural para o ambiente |
+
+`aceitação = 1 − MENOS ÷ (maximo − MAIS)`: das vezes em que o estilo ainda estava disponível depois do
+MAIS, em quantas não foi rejeitado. Nota na ordem: 1 para o mais aceito, 0 para o menos, empate = meia
+posição. Empate de um lado só num par = meia troca. Estima e Flexibilidade deixam de fora a letra com
+sinal abaixo do mínimo (#292) — o teste não consegue posicioná-la, e posição é o que elas comparam.
+Sem valor (`null`, tela diz por quê) só no caso patológico de quem marca o MESMO estilo como MAIS nos
+28 blocos. Flexibilidade trocou de sentido em relação à conta antiga: **alto = está ajustando
+bastante** (o que a palavra diz); a frase do bloco de índices mudou junto.
+
+**Por que Estima e Flexibilidade NÃO comparam os dois gráficos.** O natural é "blocos − MENOS", e o
+estilo marcado como MAIS num bloco não pode ser o MENOS daquele bloco: letra por letra, **natural ≥
+MAIS, sempre** — o que a pessoa mais mostra sobe sozinho no natural. Medido: comparando a ordem dos
+dois gráficos, a "Flexibilidade" de quem responde ao acaso (mediana 0,33) saía MAIOR que a de quem de
+fato ajusta metade da ordem (mediana 0,00), e a "Estima" subia com o ajuste. A aceitação desconta os
+blocos em que o estilo não podia ser rejeitado; com ela os dois índices andam na direção certa.
+⚠️ Isso também vale para o próprio gráfico natural (o estilo mais escolhido como MAIS tende a subir
+nele por construção) — o motor NÃO foi mudado aqui; fica registrado para quando se revisar o natural.
+
+**Calibração** (`python3 scripts/testar_indices.py simular`, 40 mil respostas ao acaso na estrutura real):
+
+| índice | p5 | mediana | p95 | abaixo de 0,40 | 0,40–0,70 | acima de 0,70 |
+|---|---|---|---|---|---|---|
+| Positividade | 0,36 | 0,50 | 0,64 | 17% | 81% | 2% |
+| Estima | 0,39 | 0,50 | 0,62 | 6% | 94% | 0% |
+| Flexibilidade | 0,08 | 0,50 | 0,83 | 35% | 47% | 18% |
+| Energia | 0,36 | 0,50 | 0,64 | 17% | 81% | 2% |
+
+Ninguém no extremo por acaso — quem responde sem perfil fica no meio. Com PESSOAS SIMULADAS (natural
+sorteado; adaptado = natural + ajuste de tamanho conhecido), Positividade acompanha a orientação
+natural verdadeira (correlação 0,73–0,85) e se espalha por 0,04–0,96; quando o ajuste cresce, a
+Flexibilidade sobe (mediana 0,17 → 0,33; acima de 0,70: 0,5% → 9,9%) e a Estima desce (abaixo de 0,40:
+0,3% → 18%), com correlação ~0,4 com o ajuste verdadeiro — 28 blocos não dão mais que isso. Variantes
+testadas e descartadas por medir pior: suavizar a aceitação para poucos blocos; exigir disponibilidade
+mínima; Estima pela fração dos MAIS nos dois estilos mais aceitos.
+
+As faixas das frases (abaixo de 0,40 / 0,40–0,70 / acima) foram mantidas. Na referência CIS do dono
+(outro instrumento, outro momento), os três índices vão de 0,17 a 0,87 entre 6 pessoas — termômetro de
+escala, não alvo. Resposta real do dono em 25/09: Positividade 0,61 · Estima 0,40 · Flexibilidade 0,75
+· Energia 0,64 (natural I, adaptado C: o que ele mais mostra, C, é o que ele mais rejeita quando pode).
+
+```
+python3 scripts/testar_indices.py puro            # TypeScript × oráculo: casos feitos à mão + milhares de respostas
+python3 scripts/testar_indices.py simular         # a calibração acima
+python3 scripts/testar_indices.py real --app URL  # respostas reais: oráculo × o que o relatório entrega
+```
+
 ## O que continua gravado do formato antigo — e quando sai
 
 Ainda gravado, com a fórmula antiga, exatamente como antes — só para quem ainda o lê (relatórios de
 Valores, Big Five, MBTI, QI e personalizados, e a tela pós-envio `/responder`). Sai quando o último
-leitor migrar; enquanto Valores não entrar no motor, o formato antigo continua existindo para ele:
+leitor migrar; enquanto Valores não entrar no motor, o formato antigo continua existindo para ele.
+⚠️ **E o DNA do grupo** (`getGroupDna`, `src/lib/data.functions.ts`) lê `normalized.natural` de TODAS
+as respostas, inclusive DISC, Temperamentos e VAK — no DISC, a média das vezes MAIS (o conjunto que o
+`ipsativo` chama de adaptado). Achado na #304, que por isso NÃO removeu o bloco nem nos instrumentos
+ipsativos: sem o DNA passar a ler o `ipsativo`, parar de gravar esvaziaria a tela do grupo.
 
 - `computed_scores.total`, `.natural`, `.adaptado`, `.normalized` (0–100).
   ⚠️ **Nome enganoso:** aqui `natural` = só os MAIS (a conta que o `ipsativo` chama de
