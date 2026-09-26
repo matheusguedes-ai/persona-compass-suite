@@ -622,26 +622,41 @@ export const membrosDosGrupos = createServerFn({ method: "GET" })
     return { membros: membros.map((m, i) => ({ ...m, avatar_url: avatares[i] })) };
   });
 
-/** A chave que a pessoa controla: os colegas veem meus dados ou não. */
+/**
+ * A chave que a pessoa controla: os colegas veem meus dados ou não. Devolve o valor que FICOU
+ * gravado — a tela mostra isso, nunca o que foi pedido.
+ *
+ * #308: isto era um `update` direto em `people` com o login do aluno e NUNCA gravou. A única policy
+ * de UPDATE da tabela é a do mentor; para o aluno o banco filtrava a linha, alterava zero linhas e
+ * respondia "ok" sem erro. `definir_meu_perfil_visivel` (SECURITY DEFINER, como `update_my_person`)
+ * grava só esta coluna, só nos cadastros do próprio login, e lê de volta.
+ */
 export const definirPerfilVisivel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ visivel: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
-    // Só o próprio cadastro. A RLS de `people` já barra mexer no de outro, mas
-    // o `eq` deixa explícito que isto nunca é ação sobre terceiro.
-    const { error } = await context.supabase
-      .from("people").update({ perfil_visivel: data.visivel }).eq("user_id", context.userId);
+    const { data: gravado, error } = await context.supabase.rpc("definir_meu_perfil_visivel", {
+      _visivel: data.visivel,
+    });
     if (error) throw new Error(error.message);
-    return { ok: true };
+    if (typeof gravado !== "boolean") throw new Error("Não foi possível confirmar a sua escolha. Tente de novo.");
+    return { visivel: gravado };
   });
 
-/** Como está a minha chave hoje. */
+/**
+ * Como está a minha chave hoje, lida do banco. `null` = este login não tem cadastro de aluno (a chave
+ * não tem o que controlar). Erro de leitura sobe como erro: devolver `false` no lugar mostraria
+ * "desligada" para quem está com ela ligada.
+ */
 export const meuPerfilVisivel = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase
-      .from("people").select("perfil_visivel").eq("user_id", context.userId).limit(1).maybeSingle();
-    return { visivel: data?.perfil_visivel ?? false };
+    const { data, error } = await context.supabase
+      .from("people").select("perfil_visivel").eq("user_id", context.userId);
+    if (error) throw new Error(`Não foi possível ler a sua escolha (${error.message}).`);
+    if (!data?.length) return { visivel: null };
+    // Mesma regra da função do banco: "ligada" só se estiver ligada em todos os cadastros do login.
+    return { visivel: data.every((p) => p.perfil_visivel) };
   });
 
 /**

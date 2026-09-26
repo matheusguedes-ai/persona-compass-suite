@@ -2548,6 +2548,8 @@ export type Database = {
         }
         Returns: number
       }
+      // #308 — o aluno liga/desliga o próprio perfil_visivel e recebe o valor GRAVADO.
+      definir_meu_perfil_visivel: { Args: { _visivel: boolean }; Returns: boolean }
       posso_agendar_mentoria: { Args: { p_person_id: string }; Returns: boolean }
       marcar_tarefa_mentoria: {
         Args: { _tarefa_id: string; _concluida: boolean }

@@ -365,22 +365,42 @@ function VisibilidadeDoPerfil() {
   const qc = useQueryClient();
   const lerFn = useServerFn(meuPerfilVisivel);
   const salvarFn = useServerFn(definirPerfilVisivel);
-  const { data } = useQuery({ queryKey: ["perfil-visivel"], queryFn: () => lerFn() });
+  const lida = useQuery({ queryKey: ["perfil-visivel"], queryFn: () => lerFn() });
+  // true/false = o que está no banco; null = este login não tem cadastro de aluno; undefined = lendo.
+  const visivel = lida.data?.visivel;
 
+  // #308 — a chave E a mensagem saem do valor que o BANCO devolveu ao gravar, nunca do clique. Antes a
+  // mensagem vinha do valor pedido ("agora aparecem") e a chave, da releitura do banco (desligada): as
+  // duas se contradiziam na mesma tela sempre que a gravação não pegava — e ela nunca pegava.
   const salvar = useMutation({
     mutationFn: (v: boolean) => salvarFn({ data: { visivel: v } }),
-    onSuccess: (_r, v) => {
-      qc.invalidateQueries({ queryKey: ["perfil-visivel"] });
-      toast.success(v ? "Seus dados agora aparecem para o grupo." : "Seus dados ficaram ocultos.");
+    onSuccess: (r, pedido) => {
+      qc.setQueryData(["perfil-visivel"], { visivel: r.visivel });
+      if (r.visivel !== pedido) {
+        toast.error("A sua escolha não foi salva. A chave mostra como ela está agora.");
+      } else {
+        toast.success(
+          r.visivel
+            ? "Pronto: seus dados passam a aparecer para quem está nos seus grupos."
+            : "Pronto: seus dados deixam de aparecer para o grupo.",
+        );
+      }
     },
-    onError: (e: Error) => toast.error(mensagemDeErro(e)),
+    // A frase diz o que aconteceu (nada foi salvo); o detalhe técnico vai embaixo — numa queda de rede
+    // ele chega cru ("Failed to fetch"), e isso sozinho não diria nada ao aluno.
+    onError: (e: Error) =>
+      toast.error("A sua escolha não foi salva. A chave mostra como ela está agora.", {
+        description: mensagemDeErro(e),
+      }),
+    // Deu certo ou não, relê do banco: a chave nunca fica mostrando um palpite.
+    onSettled: () => qc.invalidateQueries({ queryKey: ["perfil-visivel"] }),
   });
 
   return (
     <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-medium">Meus dados para o grupo</h2>
+          <h2 id="perfil-visivel-titulo" className="text-sm font-medium">Meus dados para o grupo</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Quando ligado, quem está nos seus grupos pode ver seu e-mail, telefone e profissão.
             Sua foto, nome e cargo aparecem de qualquer forma.
@@ -388,12 +408,30 @@ function VisibilidadeDoPerfil() {
           <p className="mt-1 text-xs text-muted-foreground">
             Seus resultados de teste nunca aparecem aqui.
           </p>
+          {lida.isError && (
+            <p className="mt-2 text-xs text-destructive">
+              Não foi possível carregar a sua escolha agora. Recarregue a página para tentar de novo.
+            </p>
+          )}
+          {visivel === null && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Esta chave vale para o seu cadastro de aluno, e este login não tem um.
+            </p>
+          )}
         </div>
-        <Switch
-          checked={data?.visivel ?? false}
-          onCheckedChange={(v) => salvar.mutate(v)}
-          disabled={salvar.isPending}
-        />
+        {/* Só aparece com o valor lido do banco: enquanto lê, um "desligada" seria palpite. */}
+        {lida.isLoading ? (
+          <Loader2 className="mt-1 size-5 shrink-0 animate-spin text-muted-foreground" aria-label="Carregando" />
+        ) : typeof visivel === "boolean" ? (
+          <Switch
+            aria-labelledby="perfil-visivel-titulo"
+            checked={visivel}
+            onCheckedChange={(v) => salvar.mutate(v)}
+            disabled={salvar.isPending}
+            // #279: a chave tem 20×36px; a área invisível em volta leva o toque a ~44px sem mudar o desenho.
+            className="relative after:absolute after:-inset-3 after:content-['']"
+          />
+        ) : null}
       </div>
     </div>
   );
