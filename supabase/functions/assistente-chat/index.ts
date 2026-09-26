@@ -13,6 +13,11 @@
 //      tela usa para decidir se mostra o item de menu.
 // Nada aqui lê relatório, decide quem vê o quê, nem grava conversa — isso continua no servidor do
 // app, exatamente como antes desta mudança. Só o "falar com a Anthropic" mudou de endereço.
+//
+// #307 — DUAS ASSISTENTES, DOIS PORTÕES. O corpo pode trazer `escopo: "mentor"` (a assistente do
+// painel do mentor); então o portão é `assistente_mentor_liberada()` (dono da conta, com alunos) em vez
+// de `assistente_liberada()`. Sem o campo, é a do aluno — exatamente como sempre. Um aluno que mande
+// "mentor" cai no portão do mentor e é recusado; um mentor que mande "aluno", no do aluno.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -20,7 +25,7 @@ const MODELO = "claude-sonnet-5";
 const TENTATIVAS = 3;
 
 type Mensagem = { role: "user" | "assistant"; content: string };
-type Corpo = { instrucoes?: string; contexto?: string; historico?: Mensagem[] };
+type Corpo = { instrucoes?: string; contexto?: string; historico?: Mensagem[]; escopo?: string };
 
 function erro(mensagem: string, status: number): Response {
   return new Response(JSON.stringify({ error: mensagem }), {
@@ -69,9 +74,7 @@ Deno.serve(async (req) => {
   const { data: claims, error: claimsErro } = await supabase.auth.getClaims(token);
   if (claimsErro || !claims?.claims?.sub) return erro("sessão inválida", 401);
 
-  const { data: liberada, error: liberadaErro } = await supabase.rpc("assistente_liberada");
-  if (liberadaErro || liberada !== true) return erro("assistente não liberada para este login", 403);
-
+  // O corpo antes do portão: é ele que diz QUAL assistente está chamando (e, com isso, qual portão).
   let corpo: unknown;
   try {
     corpo = await req.json();
@@ -79,6 +82,14 @@ Deno.serve(async (req) => {
     return erro("corpo inválido", 400);
   }
   if (!corpoValido(corpo)) return erro("corpo inválido", 400);
+
+  const doMentor = (corpo as Corpo).escopo === "mentor";
+  const { data: liberada, error: liberadaErro } = await supabase.rpc(
+    doMentor ? "assistente_mentor_liberada" : "assistente_liberada",
+  );
+  if (liberadaErro || liberada !== true) {
+    return erro(doMentor ? "assistente do mentor não liberada para este login" : "assistente não liberada para este login", 403);
+  }
 
   const chave = Deno.env.get("ANTHROPIC_API_KEY");
   if (!chave) {

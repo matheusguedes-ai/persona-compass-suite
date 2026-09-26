@@ -73,6 +73,12 @@ function tokenDaSessao(): string {
 }
 
 /**
+ * #307 — a assistente do MENTOR usa a mesma chamada, com as orientações DELA e `escopo: "mentor"`: a
+ * edge function troca de portão (`assistente_mentor_liberada`). Sem opções, é a do aluno, como sempre.
+ */
+export type OpcoesDoModelo = { instrucoes: string; escopo: "mentor" };
+
+/**
  * Uma pergunta ao modelo, via a Supabase Edge Function `assistente-chat`. O prefixo em cache é:
  * orientações (iguais para todo aluno) → relatórios (iguais em toda conversa daquele aluno, até ele
  * responder outro teste) → histórico — a edge function é quem manda isso pra Anthropic, mas a
@@ -86,6 +92,7 @@ export async function perguntarAoModelo(
   contexto: string,
   historico: MensagemDoHistorico[],
   token?: string,
+  opcoes?: OpcoesDoModelo,
 ): Promise<RespostaDoModelo> {
   const sessao = token ?? tokenDaSessao();
   const controle = new AbortController();
@@ -95,7 +102,11 @@ export async function perguntarAoModelo(
     resp = await fetch(`${urlDoSupabase()}/functions/v1/assistente-chat`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${sessao}` },
-      body: JSON.stringify({ instrucoes: INSTRUCOES_DA_ASSISTENTE, contexto, historico }),
+      body: JSON.stringify(
+        opcoes
+          ? { instrucoes: opcoes.instrucoes, contexto, historico, escopo: opcoes.escopo }
+          : { instrucoes: INSTRUCOES_DA_ASSISTENTE, contexto, historico },
+      ),
       signal: controle.signal,
     });
   } catch (e) {

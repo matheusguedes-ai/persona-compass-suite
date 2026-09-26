@@ -13,6 +13,7 @@ import {
   Users2,
   CalendarDays,
   Presentation,
+  Sparkles,
   X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -51,6 +52,9 @@ const NAV = [
   { to: "/mentorias", label: "Mentorias", icon: MessagesSquare, perm: "mentorias" },
   { to: "/agenda", label: "Agenda", icon: CalendarDays, perm: "mentorias" },
   { to: "/comunidades", label: "Comunidades", icon: Users2, perm: "grupos" },
+  // #307 — a assistente do painel lê os resultados e o uso da plataforma de TODOS os alunos da conta.
+  // Só o dono, por decisão do dono: o portão de verdade é `assistente_mentor_liberada()` no banco.
+  { to: "/assistente", label: "Assistente", icon: Sparkles, soDono: true },
   // Sem `perm`/`soDono` de propósito: todo mundo chega, mas a tela em si só
   // mostra Marca/Relatório/Mensagens/Emails/Agenda para o dono — quem não é
   // dono vê só "Meu perfil" (nome e foto). Ver _app.configuracoes.tsx.

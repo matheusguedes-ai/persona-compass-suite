@@ -275,8 +275,9 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `fusoes_pessoas` | #300: registro de cada unificação — a linha inteira do cadastro absorvido, o que mudou de dono e o que foi descartado. É o que torna uma fusão desfazível à mão |
 | `assistente_termos` / `assistente_consentimentos` | #289: termo da assistente, versionado (publicado não se edita — o banco recusa); aceite com versão, data e CÓPIA do texto aceito. Revogar marca `revogado_em` e apaga o histórico |
 | `assistente_conversas` / `assistente_mensagens` | #289: conversas do aluno com a assistente. Dono = `user_id` (o LOGIN do aluno, não `people`) + `conta_id`. **Só o próprio aluno lê** |
-| `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga). ⚠️ A entrada que o modelo recebeu é `entrada_total_tokens` — `input_tokens` é só o pedaço fora do cache (uns 2 tokens) |
+| `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga). ⚠️ A entrada que o modelo recebeu é `entrada_total_tokens` — `input_tokens` é só o pedaço fora do cache (uns 2 tokens). `escopo` (`aluno`/`mentor`, #307) diz de qual assistente veio; `conversa_id` é só de aluno, `conversa_mentor_id` só de mentor (constraint) |
 | `assistente_observacoes` | #305: o que o mentor quer que a assistente tenha em mente sobre um aluno. Dono = `conta_id` (preenchido pelo banco, = conta do cadastro) + `person_id`. **O aluno NUNCA lê** — nenhuma policy para ele, e a da equipe exclui o próprio login. Não usar `people.notes` para isso: o aluno lê a própria linha de `people` |
+| `assistente_mentor_conversas` / `assistente_mentor_mensagens` | #307: conversas do DONO DA CONTA com a assistente do painel. Dono = `user_id` (quem perguntou) + `conta_id` (hoje iguais — gatilho confere). **Só quem perguntou lê.** Separadas das do aluno de propósito: nenhuma tela, função ou policy olha as duas |
 
 ⚠️ **Tabela nova que aponte para `people` precisa entrar em `fundir_pessoas`** (migração
 `20260923210000_fusao_de_pessoas.sql`). A função confere, antes de apagar o cadastro absorvido,
@@ -464,6 +465,42 @@ foram reveladas e revogadas por terem passado por aqui).
   sabe quem entrou nem quando.
 - Termo: `scripts/conteudo_termo_assistente.py` (texto do dono do produto, conferido palavra por
   palavra contra o arquivo aprovado). Mudar o texto = versão nova, nunca editar a publicada.
+
+## Assistente do painel do mentor (#307)
+
+O dono da conta pergunta sobre os alunos DELE (`/assistente`, item "Assistente" do menu, `soDono`).
+Código em `src/lib/assistente-mentor/` + `src/lib/assistente-mentor.functions.ts` +
+`src/routes/_app.assistente.tsx`. Mesmo modelo e mesma edge function da do aluno: o corpo leva
+`escopo: "mentor"` e ela troca de portão.
+
+- **Portão**: `assistente_mentor_liberada()` = logado, agindo pela própria conta
+  (`acting_account() = auth.uid()`) e com alunos (`people.mentor_id`). Aluno, mentor convidado e
+  colaborador ficam de fora (abrir para a equipe = decisão do dono). ⚠️ `member_kind()` devolve
+  'owner' para ALUNO — não serve para perguntar "é dono?".
+- **O que ela lê — fonte (a)**: tudo com o LOGIN do mentor (RLS) e recortado pela conta: pessoas,
+  grupos, testes liberados, resultado VIGENTE de cada teste (via `buildReport`, a mesma tela),
+  envios sem resposta, Classroom (`montarTabelaPresenca` + `calcularConclusoesDoTreinamento`),
+  Academy (`calcularConclusoesDaTrilha` + `learning_progress`), ranking, mentorias (sem observações
+  nem resumos do mentor), campanhas (a mesma conta de `listCampanhas`) e certificados. ⚠️ As cascas
+  `listaDeConcluidos*` EMITEM certificado — a assistente chama só as funções que leem.
+- **O que ela NUNCA lê — fonte (b)**: `assistente_conversas`, `assistente_mensagens`,
+  `assistente_consentimentos`, `assistente_observacoes`, `assistente_liberacoes`; e não lê
+  `assistente_uso` (só grava número). `testar_assistente_mentor.ts estatico` falha se algum arquivo
+  dela citar essas tabelas. As policies de conversa do aluno (`user_id = auth.uid()`) não se afrouxam.
+- **Números**: as contagens do dia a dia vão PRONTAS no contexto ("contado pelo sistema"), cada seção
+  diz de que tela vem. Do perfil, números SÓ do natural; do adaptado, sigla e ordem (mesma regra
+  calibrada da #305). Distribuição de uma turma = contagem das siglas do natural, nunca média — a
+  régua do DNA do grupo é decisão pendente do dono.
+- "Presença baixa" não existe na plataforma: ela mostra a frequência de todos, da menor para a maior,
+  e deixa o corte com o mentor. Frequência (lista de presença) ≠ conclusão (régua do certificado).
+- Registro de acesso não existe, e `auth.users.last_sign_in_at` não é lido (pediria a chave de
+  serviço). "Sem login" ≠ "nunca usou": teste por link e presença não dependem de login.
+- Tela ou área nova no painel? Conferir se `dados.server.ts` e `contexto.ts` acompanham.
+- **Testes** (só conta fictícia — mandam dados para a Anthropic):
+  `python3 scripts/fixture_assistente_mentor.py criar <arq.json>` (mentor, colaboradora, 4 alunos,
+  turma, DISC, Classroom, trilha, campanha, pontos, mentoria e UMA conversa secreta de aluno) →
+  `npx tsx scripts/testar_assistente_mentor.ts estatico|contexto|portoes|perguntas <arq.json>` →
+  `python3 scripts/fixture_assistente_mentor.py apagar <arq.json>`.
 
 ## Conteúdo
 

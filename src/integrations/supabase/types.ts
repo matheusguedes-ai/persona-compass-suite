@@ -261,10 +261,12 @@ export type Database = {
           cache_read_input_tokens: number
           conta_id: string
           conversa_id: string | null
+          conversa_mentor_id: string | null
           criado_em: string
           duracao_ms: number | null
           entrada_total_tokens: number | null
           erro: string | null
+          escopo: string
           id: string
           input_tokens: number
           modelo: string
@@ -277,10 +279,12 @@ export type Database = {
           cache_read_input_tokens?: number
           conta_id: string
           conversa_id?: string | null
+          conversa_mentor_id?: string | null
           criado_em?: string
           duracao_ms?: number | null
           entrada_total_tokens?: never
           erro?: string | null
+          escopo?: string
           id?: string
           input_tokens?: number
           modelo: string
@@ -293,10 +297,12 @@ export type Database = {
           cache_read_input_tokens?: number
           conta_id?: string
           conversa_id?: string | null
+          conversa_mentor_id?: string | null
           criado_em?: string
           duracao_ms?: number | null
           entrada_total_tokens?: never
           erro?: string | null
+          escopo?: string
           id?: string
           input_tokens?: number
           modelo?: string
@@ -311,6 +317,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "assistente_conversas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistente_uso_conversa_mentor_id_fkey"
+            columns: ["conversa_mentor_id"]
+            isOneToOne: false
+            referencedRelation: "assistente_mentor_conversas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // #307 — conversas da assistente do MENTOR (separadas das do aluno).
+      assistente_mentor_conversas: {
+        Row: { id: string; user_id: string; conta_id: string; titulo: string; criada_em: string; atualizada_em: string }
+        Insert: { id?: string; user_id: string; conta_id: string; titulo?: string; criada_em?: string; atualizada_em?: string }
+        Update: { id?: string; user_id?: string; conta_id?: string; titulo?: string; criada_em?: string; atualizada_em?: string }
+        Relationships: []
+      }
+      assistente_mentor_mensagens: {
+        Row: { id: string; conversa_id: string; user_id: string; conta_id: string; papel: string; conteudo: string; criada_em: string }
+        Insert: { id?: string; conversa_id: string; user_id: string; conta_id: string; papel: string; conteudo: string; criada_em?: string }
+        Update: { id?: string; conversa_id?: string; user_id?: string; conta_id?: string; papel?: string; conteudo?: string; criada_em?: string }
+        Relationships: [
+          {
+            foreignKeyName: "assistente_mentor_mensagens_conversa_id_user_id_conta_id_fkey"
+            columns: ["conversa_id", "user_id", "conta_id"]
+            isOneToOne: false
+            referencedRelation: "assistente_mentor_conversas"
+            referencedColumns: ["id", "user_id", "conta_id"]
           },
         ]
       }
@@ -2494,6 +2528,7 @@ export type Database = {
       acting_account: { Args: Record<string, never>; Returns: string }
       conta_do_autor: { Args: { p_author_id: string }; Returns: string }
       assistente_liberada: { Args: never; Returns: boolean }
+      assistente_mentor_liberada: { Args: never; Returns: boolean }
       assistente_revogar: { Args: never; Returns: undefined }
       assistente_situacao: { Args: never; Returns: Json }
       promover_a_mentor: { Args: { p_person_id: string }; Returns: string }

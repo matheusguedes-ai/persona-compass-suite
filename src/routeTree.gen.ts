@@ -19,6 +19,7 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
+import { Route as AppAssistenteRouteImport } from './routes/_app.assistente'
 import { Route as AppColaboradoresRouteImport } from './routes/_app.colaboradores'
 import { Route as AppComunidadesRouteImport } from './routes/_app.comunidades'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
@@ -142,6 +143,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAgendaRoute = AppAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAssistenteRoute = AppAssistenteRouteImport.update({
+  id: '/assistente',
+  path: '/assistente',
   getParentRoute: () => AppRoute,
 } as any)
 const AppColaboradoresRoute = AppColaboradoresRouteImport.update({
@@ -531,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agenda': typeof AppAgendaRoute
+  '/assistente': typeof AppAssistenteRoute
   '/colaboradores': typeof AppColaboradoresRoute
   '/comunidades': typeof AppComunidadesRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -612,6 +619,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agenda': typeof AppAgendaRoute
+  '/assistente': typeof AppAssistenteRoute
   '/colaboradores': typeof AppColaboradoresRoute
   '/comunidades': typeof AppComunidadesRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -692,6 +700,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/agenda': typeof AppAgendaRoute
+  '/_app/assistente': typeof AppAssistenteRoute
   '/_app/colaboradores': typeof AppColaboradoresRoute
   '/_app/comunidades': typeof AppComunidadesRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
@@ -779,6 +788,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/agenda'
+    | '/assistente'
     | '/colaboradores'
     | '/comunidades'
     | '/configuracoes'
@@ -860,6 +870,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/agenda'
+    | '/assistente'
     | '/colaboradores'
     | '/comunidades'
     | '/configuracoes'
@@ -939,6 +950,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_app/agenda'
+    | '/_app/assistente'
     | '/_app/colaboradores'
     | '/_app/comunidades'
     | '/_app/configuracoes'
@@ -1124,6 +1136,13 @@ declare module '@tanstack/react-router' {
       path: '/agenda'
       fullPath: '/agenda'
       preLoaderRoute: typeof AppAgendaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/assistente': {
+      id: '/_app/assistente'
+      path: '/assistente'
+      fullPath: '/assistente'
+      preLoaderRoute: typeof AppAssistenteRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/colaboradores': {
@@ -1732,6 +1751,7 @@ const AppTestesRouteWithChildren = AppTestesRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
+  AppAssistenteRoute: typeof AppAssistenteRoute
   AppColaboradoresRoute: typeof AppColaboradoresRoute
   AppComunidadesRoute: typeof AppComunidadesRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
@@ -1751,6 +1771,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
+  AppAssistenteRoute: AppAssistenteRoute,
   AppColaboradoresRoute: AppColaboradoresRoute,
   AppComunidadesRoute: AppComunidadesRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
