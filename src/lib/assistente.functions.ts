@@ -20,6 +20,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ERROS_DA_ASSISTENTE } from "@/lib/assistente/textos";
+import { avisoDeHistoricoCortado } from "@/lib/assistente/historico";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -231,8 +232,9 @@ export const enviarMensagem = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .order("criada_em", { ascending: false })
       .order("id", { ascending: false })
-      .limit(MAX_HISTORICO);
+      .limit(MAX_HISTORICO + 1); // uma a mais só para saber se houve corte (#310)
     if (hErr) throw new Error(`Não foi possível ler a conversa (${hErr.message}).`);
+    const historicoCortado = (anteriores ?? []).length > MAX_HISTORICO;
 
     const { data: pergunta, error: pErr } = await db
       .from("assistente_mensagens")
@@ -242,6 +244,7 @@ export const enviarMensagem = createServerFn({ method: "POST" })
     if (pErr || !pergunta) throw new Error(`Não foi possível guardar a pergunta (${pErr?.message}).`);
 
     const historico: MensagemDoHistorico[] = (anteriores ?? [])
+      .slice(0, MAX_HISTORICO)
       .reverse()
       .map((m) => ({ role: m.papel === "aluno" ? ("user" as const) : ("assistant" as const), content: m.conteudo }));
     while (historico.length && historico[0].role !== "user") historico.shift();
@@ -249,7 +252,11 @@ export const enviarMensagem = createServerFn({ method: "POST" })
 
     let resposta: Awaited<ReturnType<typeof servidor.perguntarAoModelo>>;
     try {
-      resposta = await servidor.perguntarAoModelo(contexto, historico);
+      // #310: conversa longa não perde o começo em silêncio — ela é avisada de que só viu o final.
+      resposta = await servidor.perguntarAoModelo(
+        historicoCortado ? `${contexto}\n\n${avisoDeHistoricoCortado(MAX_HISTORICO)}` : contexto,
+        historico,
+      );
     } catch (e) {
       await db.from("assistente_mensagens").delete().eq("id", pergunta.id);
       if (conversaNova) await db.from("assistente_conversas").delete().eq("id", conversaId);

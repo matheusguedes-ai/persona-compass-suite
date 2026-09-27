@@ -72,7 +72,9 @@ export type LeituraDoResultado =
       dimensoes: Array<{ key: string; label: string; pct: number; faixa: string | null }>;
     }
   | { tipo: "oculto" }
-  | { tipo: "sem_relatorio" };
+  | { tipo: "sem_relatorio" }
+  /** O resultado existe, mas passou do teto de relatórios montados por pergunta (#310). */
+  | { tipo: "nao_detalhado" };
 
 export type ResultadoDaPessoa = {
   pessoaId: string;
@@ -110,6 +112,8 @@ export type GrupoDaConta = {
 export type SituacaoNaAula = "presente" | "atrasado" | "ausente" | "justificado" | "sem_registro";
 
 export type AulaDoTreinamento = {
+  /** Só para ligar a aula ao evento da Agenda — nunca vai para o texto. */
+  id: string;
   titulo: string;
   modulo: string;
   comecaEm: string | null;
@@ -166,17 +170,46 @@ export type MentoriaDaConta = {
   titulo: string;
   status: string;
   contratadas: number | null;
-  sessoes: Array<{ quando: string | null; status: string; estrelas: number | null; comentario: string | null }>;
+  sessoes: Array<{ quando: string | null; terminaEm: string | null; status: string; estrelas: number | null; comentario: string | null }>;
 };
 
 export type CertificadoDaConta = { pessoaId: string; item: string; tipo: "treinamento" | "trilha"; emitidoEm: string; percentual: number };
+
+/**
+ * #310 — o que a leitura cobriu, área por área. É o que separa "isto é tudo o que existe" de "isto é
+ * tudo o que eu recebi": cada área diz quantos itens existem e se todos chegaram.
+ */
+export type AreaDaCobertura =
+  | "alunos" | "resultados" | "envios" | "classroom" | "academy" | "agenda" | "ranking" | "campanhas" | "mentorias";
+
+export type ItemDaCobertura = {
+  area: AreaDaCobertura;
+  /** O que foi lido, em português ("todos os 17 alunos cadastrados na conta"). */
+  texto: string;
+  /** true = existe mais do que chegou até aqui. */
+  parcial: boolean;
+};
+
+/** Um compromisso do calendário: aula do Classroom, evento da Agenda ou sessão de mentoria. */
+export type CompromissoDaAgenda = {
+  quando: string;
+  terminaEm: string | null;
+  titulo: string;
+  tipo: "aula" | "evento" | "mentoria";
+  /** Aula: o treinamento. Mentoria: o aluno (pessoaId). */
+  treinamento: string | null;
+  pessoaId: string | null;
+  cancelada: boolean;
+  /** Mentoria: a sessão já aconteceu (status concluída). */
+  realizada: boolean;
+  /** Aula do Classroom que também aparece na Agenda do painel (tem evento). */
+  naAgenda: boolean;
+};
 
 export type DadosDaConta = {
   pessoas: PessoaDaConta[];
   grupos: GrupoDaConta[];
   resultados: ResultadoDaPessoa[];
-  /** Resultados vigentes que existem mas não foram detalhados (teto de leitura). */
-  resultadosNaoDetalhados: number;
   pendentes: PendenteDaPessoa[];
   treinamentos: TreinamentoDaConta[];
   trilhas: TrilhaDaConta[];
@@ -186,6 +219,9 @@ export type DadosDaConta = {
   regrasDePontos: Array<{ acao: string; rotulo: string; pontos: number; tetoDiario: number | null }>;
   mentorias: MentoriaDaConta[];
   certificados: CertificadoDaConta[];
+  /** O calendário: a partir de `desde`; `anteriores` = quantos compromissos mais antigos existem e NÃO vieram. */
+  agenda: { desde: string; anteriores: number; itens: CompromissoDaAgenda[] };
+  cobertura: ItemDaCobertura[];
   /** Áreas que falharam ao ler agora. */
   indisponiveis: string[];
 };
@@ -327,6 +363,8 @@ function leituraEmTexto(l: LeituraDoResultado): string {
       return "o bloco de resultados está ESCONDIDO nas Configurações do relatório, então não o leio.";
     case "sem_relatorio":
       return "este teste não gera relatório comportamental (é questionário) — as respostas ficam na aba Respostas e não chegam a esta assistente.";
+    case "nao_detalhado":
+      return "RESULTADO NÃO DETALHADO nesta leitura (passou do limite de relatórios por pergunta) — ele existe, mas o perfil não chegou até mim; está na ficha da pessoa.";
   }
 }
 
@@ -339,8 +377,12 @@ function rotuloDaDistribuicao(l: LeituraDoResultado): string | null {
       return l.tipoMbti ?? "tipo em aberto";
     case "dimensional":
       return l.sigla ?? (l.semPredominancia ? "sem predominância clara" : l.dimensoes[0]?.label ?? null);
-    default:
-      return null;
+    case "nao_detalhado":
+      return "resultado não detalhado nesta leitura";
+    case "sem_relatorio":
+      return "respondeu (questionário, sem perfil)";
+    case "oculto":
+      return "resultado escondido nas Configurações do relatório";
   }
 }
 
@@ -392,15 +434,13 @@ function resumoDaConta(d: DadosDaConta, ix: Indice): string {
   const semGrupo = d.pessoas.filter((p) => !(ix.gruposDe.get(p.id) ?? []).length);
   const comPendente = new Set(d.pendentes.map((p) => p.pessoaId));
   return secao("Resumo da conta (contado pelo sistema)", [
+    avisoDaArea(d, "alunos", "resultados", "envios"),
     `- Alunos cadastrados: ${d.pessoas.length}.`,
     `- Com login na plataforma: ${comLogin.length}. Sem login: ${semLogin.length} — ${nomes(nomesDe(ix, semLogin.map((p) => p.id)))}. ("Sem login" = ainda não criou o acesso à área do aluno; responder teste por link e ter presença não dependem de login.)`,
     `- Grupos: ${d.grupos.length}. Alunos sem grupo: ${semGrupo.length}${semGrupo.length ? ` — ${nomes(nomesDe(ix, semGrupo.map((p) => p.id)))}` : ""}.`,
     `- Com pelo menos um teste concluído: ${comTeste.length}. Sem NENHUM teste concluído: ${semTeste.length} — ${nomes(nomesDe(ix, semTeste.map((p) => p.id)))}.`,
     `- Resultados vigentes (o mais recente de cada teste, por aluno): ${d.resultados.length}.`,
     `- Alunos com teste enviado e ainda sem resposta: ${comPendente.size}.`,
-    d.resultadosNaoDetalhados > 0
-      ? `- ATENÇÃO: ${d.resultadosNaoDetalhados} resultados mais antigos existem mas não foram detalhados aqui (limite de leitura). Se a pergunta depender deles, diga isso e indique a ficha da pessoa.`
-      : null,
   ]);
 }
 
@@ -424,6 +464,7 @@ function distribuicao(ix: Indice, membros: string[], chave: string): string | nu
 function gruposEmTexto(d: DadosDaConta, ix: Indice): string {
   const todos = d.pessoas.map((p) => p.id);
   const blocos: Array<string | null> = [
+    avisoDaArea(d, "alunos", "resultados"),
     "Distribuição dos perfis = contagem da sigla do gráfico NATURAL (no MBTI, o tipo; em Valores e Big Five, a dimensão que lidera). Não há média de percentuais: a régua do \"DNA do grupo\" é outra tela.",
     "### Toda a conta",
     ...ix.testes.map((t) => {
@@ -458,7 +499,8 @@ function gruposEmTexto(d: DadosDaConta, ix: Indice): string {
 }
 
 function alunosEmTexto(d: DadosDaConta, ix: Indice): string {
-  const linhas: string[] = [
+  const linhas: Array<string | null> = [
+    avisoDaArea(d, "resultados", "envios"),
     "Cada aluno com: login, grupos, o resultado VIGENTE de cada teste (o mais recente concluído — como no painel) e os envios ainda sem resposta. Números do perfil: só do gráfico natural; do adaptado, só sigla e ordem.",
   ];
   const freq = new Map<string, string[]>();
@@ -513,7 +555,8 @@ const SITUACAO: Record<SituacaoNaAula, string> = {
 
 function classroomEmTexto(d: DadosDaConta, ix: Indice, agora: number): string {
   if (!d.treinamentos.length) return secao("Classroom", ["A conta não tem treinamento cadastrado."]);
-  const linhas: string[] = [
+  const linhas: Array<string | null> = [
+    avisoDaArea(d, "classroom"),
     'Duas contas diferentes, cada uma com a sua régua — não misture:',
     "- FREQUÊNCIA (a da lista de presença): só encontros que já aconteceram E tiveram a lista fechada; não conta encontro de antes de o aluno entrar na turma. Chegar atrasado conta como presença; falta justificada não.",
     "- CONCLUSÃO (a da aba Conclusão, que emite o certificado): aulas com presença + aulas gravadas marcadas como assistidas, sobre TODAS as aulas não canceladas — inclusive as que ainda vão acontecer. No meio do curso ninguém está perto de concluir, e isso é normal.",
@@ -583,7 +626,8 @@ function classroomEmTexto(d: DadosDaConta, ix: Indice, agora: number): string {
 
 function academyEmTexto(d: DadosDaConta, ix: Indice): string {
   if (!d.trilhas.length) return secao("Academy", ["A conta não tem trilha cadastrada."]);
-  const linhas: string[] = [
+  const linhas: Array<string | null> = [
+    avisoDaArea(d, "academy"),
     '"Vista" = o aluno clicou em "Marcar como vista". A plataforma não mede se o vídeo foi assistido, nem por quanto tempo. Quem não tem login nunca aparece como tendo visto.',
   ];
   for (const t of d.trilhas) {
@@ -635,6 +679,7 @@ function rankingEmTexto(d: DadosDaConta, ix: Indice): string {
     .map((p) => ({ id: p.id, nome: p.nome, total: total.get(p.id) ?? 0 }))
     .sort((a, b) => b.total - a.total || porNome(a, b));
   return secao("Ranking (fonte: pontos — o mesmo do \"Ranking geral\" do Dashboard)", [
+    avisoDaArea(d, "ranking"),
     `Como se ganha ponto hoje: ${d.regrasDePontos.map((r) => `${r.rotulo} ${r.pontos}${r.tetoDiario ? ` (até ${r.tetoDiario} por dia)` : ""}`).join("; ")}. Responder teste e ver aula na Academy NÃO dão ponto.`,
     "Só aluno com login pontua; quem não tem login não aparece.",
     ...comLogin.map((p, i) => {
@@ -669,12 +714,13 @@ function mentoriasEmTexto(d: DadosDaConta, ix: Indice, agora: number): string {
           : ""
       }.`;
     });
-  return secao("Mentorias (fonte: Mentorias)", linhas);
+  return secao("Mentorias (fonte: Mentorias)", [avisoDaArea(d, "mentorias"), ...linhas]);
 }
 
 function campanhasEmTexto(d: DadosDaConta, ix: Indice): string {
   if (!d.campanhas.length) return secao("Campanhas de teste", ["Nenhuma campanha."]);
-  const linhas: string[] = [
+  const linhas: Array<string | null> = [
+    avisoDaArea(d, "campanhas"),
     "Unidade = um envio (uma bateria conta como um só). Respondida = entregue inteira. É a mesma conta da tela Testes → Campanhas. No link aberto, quem nunca abriu o link não aparece.",
   ];
   for (const c of d.campanhas) {
@@ -716,6 +762,8 @@ function legendaEmTexto(): string {
 
 function limitesEmTexto(d: DadosDaConta): string {
   return secao("O que NÃO está neste bloco", [
+    "O que não está neste bloco você NÃO RECEBEU — isso não quer dizer que não exista. Diga \"não recebi\" ou \"não aparece para mim\", nunca \"não existe\".",
+    "- Textos longos (comentários) que terminam em \"…\" foram encurtados aqui; o texto inteiro está na tela.",
     "- Registro de acesso: a plataforma não registra entradas, visitas nem tempo de uso. Não dá para saber quem entrou, quando ou quantas vezes.",
     "- As conversas dos alunos com a assistente deles: não chegam aqui, por desenho — nem texto, nem tema, nem se usam.",
     "- Contato (e-mail, telefone, redes): fica na ficha da pessoa, no painel.",
@@ -727,15 +775,107 @@ function limitesEmTexto(d: DadosDaConta): string {
   ]);
 }
 
-/** O bloco <dados_da_conta> inteiro, na ordem: resumo → grupos → alunos → áreas → limites. */
+
+/** #310 — o aviso de cobertura PARCIAL de uma área, repetido dentro da seção dela (não só no topo). */
+function avisoDaArea(d: DadosDaConta, ...areas: AreaDaCobertura[]): string | null {
+  const parciais = d.cobertura.filter((c) => areas.includes(c.area) && c.parcial);
+  return parciais.length ? `⚠️ COBERTURA PARCIAL desta seção: ${parciais.map((c) => c.texto).join("; ")}.` : null;
+}
+
+const ROTULO_DA_AREA: Record<AreaDaCobertura, string> = {
+  alunos: "Alunos e grupos",
+  resultados: "Resultados dos testes",
+  envios: "Envios sem resposta",
+  classroom: "Classroom",
+  academy: "Academy",
+  agenda: "Calendário (Agenda + aulas + mentorias)",
+  ranking: "Ranking",
+  campanhas: "Campanhas",
+  mentorias: "Mentorias",
+};
+
+/** O mapa do que chegou: primeira coisa do bloco, para "tudo o que existe" nunca ser confundido com "tudo o que recebi". */
+function coberturaEmTexto(d: DadosDaConta): string {
+  return secao("O que esta leitura cobre (contado pelo sistema)", [
+    "COMPLETO = você recebeu tudo o que existe naquela área. PARCIAL = existe mais do que chegou até você: diga isso na resposta.",
+    ...d.cobertura.map((c) => `- ${ROTULO_DA_AREA[c.area]}: ${c.parcial ? "PARCIAL" : "COMPLETO"} — ${c.texto}.`),
+    d.indisponiveis.length
+      ? `- NÃO FOI POSSÍVEL LER AGORA: ${d.indisponiveis.join(", ")}. Sobre isso, você não recebeu nada nesta leitura.`
+      : null,
+  ]);
+}
+
+const MES = (iso: string) =>
+  new Date(iso).toLocaleDateString("pt-BR", { timeZone: FUSO, month: "long", year: "numeric" });
+const chaveDoMes = (iso: string) => {
+  const [dia, mes, ano] = new Date(iso).toLocaleDateString("pt-BR", { timeZone: FUSO }).split("/");
+  void dia;
+  return `${ano}-${mes}`;
+};
+
+/**
+ * #310 — o calendário, AGRUPADO POR MÊS e com a contagem pronta em cada mês. Perguntas como "quais são
+ * as datas dos eventos de outubro?" se respondem copiando o grupo do mês; o número no título do mês é a
+ * conferência de que nenhum item ficou de fora.
+ */
+function agendaEmTexto(d: DadosDaConta, ix: Indice, agora: number): string {
+  const inicio = new Date(d.agenda.desde).toLocaleDateString("pt-BR", { timeZone: FUSO });
+  const linhas: Array<string | null> = [
+    `Cobertura: ${
+      d.cobertura.find((c) => c.area === "agenda")?.texto ?? `compromissos de ${inicio} em diante`
+    }. Um compromisso de antes de ${inicio} NÃO está aqui — isso não quer dizer que não exista: diga que não recebeu e indique a Agenda do painel.`,
+    "Tudo o que está aqui é compromisso da Agenda do painel: as aulas do Classroom aparecem lá como eventos, junto com os eventos avulsos e as sessões de mentoria. Quando o mentor falar em \"eventos\", \"compromissos\", \"agenda\" ou \"datas\" de um período, liste TUDO daquele período, com o tipo ao lado — só filtre por tipo se ele pedir um tipo (\"só as aulas\", \"só as mentorias\"). Aula cancelada aparece marcada e NÃO entra na contagem do mês.",
+    avisoDaArea(d, "agenda"),
+  ];
+  if (!d.agenda.itens.length) {
+    linhas.push("Nenhum compromisso neste recorte.");
+    return secao("Calendário (fonte: Agenda do painel + aulas do Classroom + sessões de mentoria)", linhas);
+  }
+  const porMes = new Map<string, CompromissoDaAgenda[]>();
+  for (const c of d.agenda.itens) porMes.set(chaveDoMes(c.quando), [...(porMes.get(chaveDoMes(c.quando)) ?? []), c]);
+  for (const [, itens] of [...porMes.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const validos = itens.filter((c) => !c.cancelada);
+    const porTipo = (t: CompromissoDaAgenda["tipo"]) => validos.filter((c) => c.tipo === t).length;
+    const partes = [
+      porTipo("aula") ? plural(porTipo("aula"), "aula", "aulas") : null,
+      porTipo("evento") ? plural(porTipo("evento"), "evento avulso", "eventos avulsos") : null,
+      porTipo("mentoria") ? plural(porTipo("mentoria"), "sessão de mentoria", "sessões de mentoria") : null,
+    ].filter(Boolean);
+    linhas.push(
+      `### ${MES(itens[0].quando)} — ${plural(validos.length, "compromisso", "compromissos")}${partes.length ? ` (${partes.join(", ")})` : ""} (contado pelo sistema)`,
+    );
+    for (const c of itens) {
+      const quando = `${quandoBR(c.quando)}${c.terminaEm ? ` até ${new Date(c.terminaEm).toLocaleTimeString("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit" })}` : ""}`;
+      const passou = new Date(c.terminaEm ?? c.quando).getTime() < agora;
+      const tipo =
+        c.tipo === "aula"
+          ? `evento de AULA${c.treinamento ? ` do treinamento "${c.treinamento}"` : ""}${c.naAgenda ? "" : " (só no Classroom: esta aula não aparece na Agenda do painel)"}`
+          : c.tipo === "evento"
+            ? "evento avulso da Agenda"
+            : `evento de MENTORIA com ${ix.nome.get(c.pessoaId ?? "") ?? "(aluno fora da lista)"}`;
+      const estado = c.cancelada
+        ? "CANCELADA — não conta"
+        : c.tipo === "mentoria"
+          ? c.realizada ? "realizada" : passou ? "agendada (a data já passou)" : "agendada"
+          : passou ? "já aconteceu" : "ainda vai acontecer";
+      linhas.push(`- ${quando} — "${c.titulo}" — ${tipo} — ${estado}`);
+    }
+  }
+  return secao("Calendário (fonte: Agenda do painel + aulas do Classroom + sessões de mentoria)", linhas);
+}
+
+/** O bloco <dados_da_conta> inteiro, na ordem: cobertura → resumo → grupos → alunos → áreas → limites. */
 export function contextoDaConta(d: DadosDaConta, agora: number): string {
   const ix = indexar(d);
   const partes = [
-    `Agora é ${quandoBR(new Date(agora).toISOString())} (horário de Brasília, arredondado para a hora cheia). Estes são os dados da conta que o mentor enxerga no painel, lidos agora com o login dele.`,
+    // #310: cada pergunta faz uma leitura NOVA, e ela não recebe a anterior — dito aqui, onde o modelo lê.
+    `Estes dados foram lidos do banco NO MOMENTO DESTA PERGUNTA, com o login do mentor: são o que ele enxerga no painel agora. Cada pergunta faz uma leitura nova; você não recebe as leituras anteriores e não tem como compará-las. Data de referência para "hoje", "próximos" e "já aconteceu": ${quandoBR(new Date(agora).toISOString())} (horário de Brasília, por volta desta hora).`,
+    coberturaEmTexto(d),
     resumoDaConta(d, ix),
     legendaEmTexto(),
     gruposEmTexto(d, ix),
     alunosEmTexto(d, ix),
+    agendaEmTexto(d, ix, agora),
     classroomEmTexto(d, ix, agora),
     academyEmTexto(d, ix),
     rankingEmTexto(d, ix),

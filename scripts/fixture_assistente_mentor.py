@@ -159,7 +159,7 @@ def criar(arquivo):
 
     a1 = aula("1", "ZZ AULA 1 — Escuta ativa", 1, dias=-7, fechada=True)
     a2 = aula("2", "ZZ AULA 2 — Feedback", 2, dias=-3, fechada=True)
-    aula("3", "ZZ AULA 3 — Negociação", 3, dias=5)
+    a3 = aula("3", "ZZ AULA 3 — Negociação", 3, dias=5)
     gravada = aula("gravada", "ZZ Aula gravada — Boas-vindas", 4)
     pres = rest("POST", "treinamento_presencas", corpo=[
         {"aula_id": a1, "person_id": a, "group_id": g["id"], "origem": "manual", "situacao": "presente"},
@@ -173,6 +173,38 @@ def criar(arquivo):
     av = rest("POST", "treinamento_avaliacoes", corpo=[{"aula_id": a1, "person_id": a, "conta_id": m, "estrelas": 5,
                                                         "comentario": "Gostei muito da dinâmica em dupla."}])[0]
     guarda("avaliacao_aula", av["id"])
+
+    # #310 — O CASO DA AULA 09: quatro aulas semanais no mês que vem, a última no fim do mês, cada uma
+    # espelhada na Agenda (como o Classroom faz), mais um evento avulso no mesmo mês. Uma resposta a "quais
+    # são os eventos de <mês>" precisa trazer TODOS. E dois eventos fora das janelas: um antigo (antes do
+    # recorte de 90 dias da Agenda do mentor) e um distante (depois dos 120 dias da agenda do aluno).
+    ano, mes = (agora.year + 1, 1) if agora.month == 12 else (agora.year, agora.month + 1)
+    guarda("mes_seguinte", f"{ano:04d}-{mes:02d}")
+    semanais = []
+    for n, dia in enumerate((6, 13, 20, 27), start=4):
+        inicio = dt.datetime(ano, mes, dia, 22, 0, tzinfo=dt.timezone.utc)
+        x = rest("POST", "treinamento_aulas", corpo=[{
+            "modulo_id": mod["id"], "titulo": f"ZZ AULA {n} — Encontro semanal {n}", "ordem": n,
+            "comeca_em": _iso(inicio), "termina_em": _iso(inicio + dt.timedelta(hours=2))}])[0]
+        guarda(f"aula_{n}", x["id"])
+        semanais.append((x["id"], f"ZZ AULA {n} — Encontro semanal {n}", inicio))
+    aula3 = rest("GET", "treinamento_aulas", {"id": f"eq.{a3}", "select": "titulo,comeca_em,termina_em"})[0]
+    eventos = [{"conta_id": m, "criado_por": m, "titulo": aula3["titulo"], "quando": aula3["comeca_em"],
+                "termina_em": aula3["termina_em"], "aula_id": a3}]
+    eventos += [{"conta_id": m, "criado_por": m, "titulo": t, "quando": _iso(i), "termina_em": _iso(i + dt.timedelta(hours=2)),
+                 "aula_id": aid} for aid, t, i in semanais]
+    eventos += [
+        {"conta_id": m, "criado_por": m, "titulo": "ZZ Live de Oratória 307", "aula_id": None,
+         "quando": _iso(dt.datetime(ano, mes, 15, 23, 0, tzinfo=dt.timezone.utc)),
+         "termina_em": _iso(dt.datetime(ano, mes, 16, 0, 30, tzinfo=dt.timezone.utc))},
+        {"conta_id": m, "criado_por": m, "titulo": "ZZ Evento Antigo 307", "aula_id": None,
+         "quando": _iso(agora - dt.timedelta(days=120)), "termina_em": _iso(agora - dt.timedelta(days=120, hours=-1))},
+        {"conta_id": m, "criado_por": m, "titulo": "ZZ Evento Distante 307", "aula_id": None,
+         "quando": _iso(agora + dt.timedelta(days=150)), "termina_em": _iso(agora + dt.timedelta(days=150, hours=1))},
+    ]
+    evs = rest("POST", "eventos", corpo=eventos)
+    guarda("eventos", [e["id"] for e in evs])
+    rest("POST", "evento_destinos", corpo=[{"evento_id": e["id"], "group_id": g["id"], "person_id": None} for e in evs], retorno=False)
 
     # Academy: uma trilha com duas palestras; a analítica marcou uma como vista.
     tr = rest("POST", "learning_tracks", corpo=[{"owner_id": m, "title": "ZZ Trilha Fictícia 307", "audience": "alunos",
@@ -190,6 +222,11 @@ def criar(arquivo):
     pts = rest("POST", "pontos", corpo=[{"user_id": ids["aluno_user"], "mentor_id": m, "acao": "presenca", "pontos": 20, "referencia": x}
                                         for x in (a1, a2)])
     guarda("pontos", [p_["id"] for p_ in pts])
+    # #310 — passar do teto da API (1.000 linhas por consulta): 1.200 curtidas de 1 ponto. Sem ler em
+    # páginas, o total dela sairia cortado — e ninguém avisaria. Os ids vão para o arquivo por contagem.
+    rest("POST", "pontos", corpo=[{"user_id": ids["aluno_user"], "mentor_id": m, "acao": "curtir", "pontos": 1,
+                                  "referencia": str(__import__("uuid").uuid4())} for _ in range(1200)], retorno=False)
+    guarda("pontos_em_massa", 1200)
     mt = rest("POST", "mentorias", corpo=[{"mentor_id": m, "person_id": b, "titulo": "ZZ Mentoria Fictícia 307",
                                            "status": "ativa", "sessoes_contratadas": 4}])[0]
     guarda("mentoria", mt["id"])
@@ -249,7 +286,17 @@ def apagar(arquivo):
         fora("mentoria_sessoes", {"mentoria_id": f"eq.{ids['mentoria']}"}, "sessão de mentoria")
         fora("mentorias", {"id": f"eq.{ids['mentoria']}"}, "mentoria")
     if m:
-        fora("pontos", {"mentor_id": f"eq.{m}"}, "ponto")
+        # Em massa, pelo filtro da conta fictícia: listar antes de apagar esbarraria no MESMO teto da API
+        # (1.000 linhas) e sobraria resto. Cita os dois pontos nomeados e a contagem dos em massa.
+        for pid in ids.get("pontos", []):
+            print(f"apagado ponto {pid}")
+        rest("DELETE", "pontos", {"mentor_id": f"eq.{m}"}, retorno=False)
+        print(f"apagados os {ids.get('pontos_em_massa', 0)} pontos em massa da conta {m}")
+        assert not rest("GET", "pontos", {"mentor_id": f"eq.{m}", "select": "id", "limit": "1"}), "sobrou ponto"
+        eventos = ids.get("eventos", [])
+        if eventos:
+            fora("evento_destinos", {"evento_id": "in.(" + ",".join(eventos) + ")"}, "destino de evento")
+            fora("eventos", {"id": "in.(" + ",".join(eventos) + ")"}, "evento da agenda")
     if ids.get("trilha"):
         fora("learning_progress", {"track_id": f"eq.{ids['trilha']}"}, "aula vista")
         fora("learning_lessons", {"track_id": f"eq.{ids['trilha']}"}, "aula da trilha")

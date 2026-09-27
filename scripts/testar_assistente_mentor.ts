@@ -13,6 +13,8 @@
  *   npx tsx scripts/testar_assistente_mentor.ts contexto <fixture.json>  # o texto que a assistente recebe + as conferências (sem modelo)
  *   npx tsx scripts/testar_assistente_mentor.ts portoes <fixture.json>   # quem passa na edge function e na RLS (1 chamada curta ao modelo)
  *   npx tsx scripts/testar_assistente_mentor.ts perguntas <fixture.json> [--so 1,4]   # as perguntas do dia a dia, com o modelo
+ *   npx tsx scripts/testar_assistente_mentor.ts confiabilidade <fixture.json>          # #310: o mês inteiro, o recorte declarado,
+ *                                                      "atualizei, veja de novo" com dado mudado de verdade, e o mesmo no aluno
  *
  * O contexto é montado pelo MESMO código da produção (`lerDadosDaConta` + `contextoDaConta`), com o login
  * do mentor fictício. A única troca: os relatórios vêm da rota da tela (`/api/public/report/$id`) com o
@@ -27,6 +29,10 @@ import { contextoDaConta } from "@/lib/assistente-mentor/contexto";
 import { INSTRUCOES_DO_MENTOR } from "@/lib/assistente-mentor/instrucoes.server";
 import { agoraArredondado } from "@/lib/assistente/plataforma";
 import { AssistenteFalhou, perguntarAoModelo, type RespostaDoModelo } from "@/lib/assistente/modelo.server";
+import { contextoDaPlataforma } from "@/lib/assistente/plataforma";
+import { plataformaDoAluno } from "@/lib/assistente/plataforma.server";
+import { contextoDoAluno } from "@/lib/assistente/contexto";
+import type { Report } from "@/components/report/sections";
 
 const APP = process.env.APP_URL ?? "http://localhost:8080";
 const DOMINIO_FICTICIO = "@exemplo.invalido";
@@ -57,7 +63,12 @@ process.env.SUPABASE_URL = SUPABASE_URL; // fora do Vite, `perguntarAoModelo` ac
 async function servico(caminho: string, init: RequestInit = {}): Promise<unknown> {
   const r = await fetch(`${SUPABASE_URL}${caminho}`, {
     ...init,
-    headers: { apikey: CHAVE_DE_SERVICO, authorization: `Bearer ${CHAVE_DE_SERVICO}`, "content-type": "application/json" },
+    headers: {
+      ...((init.headers as Record<string, string> | undefined) ?? {}),
+      apikey: CHAVE_DE_SERVICO,
+      authorization: `Bearer ${CHAVE_DE_SERVICO}`,
+      "content-type": "application/json",
+    },
   });
   const txt = await r.text();
   if (!r.ok) throw new Error(`${caminho.split("?")[0]} falhou (HTTP ${r.status}): ${txt.slice(0, 200)}`);
@@ -165,10 +176,15 @@ async function contexto(arq: string) {
     [/- ZZ Aluna Analítica 307: 2 de 2 \(100%\)/, "frequência da analítica 2 de 2"],
     [/- ZZ Aluno Comunicador 307: 1 de 2 \(50%\); 1 falta justificada/, "frequência do comunicador 1 de 2 + 1 justificada"],
     [/- ZZ Aluna Sem Teste 307: 0 de 2 \(0%\)/, "frequência zero de quem não foi"],
-    [/1 concluíram — ZZ Aluna Analítica 307/, "conclusão do treinamento: só a analítica (3 de 4, régua 75%)"],
+    [/Conclusão \(8 aulas contam; régua 75%\): ninguém concluiu ainda/, "conclusão: com as 4 aulas de outubro na conta, ninguém chega a 75% (a analítica tem 3 de 8)"],
     [/"ZZ PALESTRA — Falar em público"[^\n]*vista por 1 — ZZ Aluna Analítica 307/, "palestra vista por 1"],
     [/"ZZ PALESTRA — Decidir sob pressão"[^\n]*vista por 0/, "palestra vista por 0"],
-    [/1º ZZ Aluna Analítica 307: 40 pontos/, "ranking: 40 pontos"],
+    [/1º ZZ Aluna Analítica 307: 1240 pontos/, "ranking: 1.240 pontos — os 1.200 em massa passaram do teto da API e chegaram TODOS (#310)"],
+    [/## O que esta leitura cobre/, "#310: a seção de cobertura abre o bloco"],
+    [/- Ranking: COMPLETO — todos os 1\.202 registros de pontos/, "#310: ranking completo, com a contagem exata"],
+    [/- Alunos e grupos: COMPLETO — todos os 4 alunos/, "#310: alunos completos"],
+    [/- Calendário \(Agenda \+ aulas \+ mentorias\): PARCIAL — [^\n]*existem 1 mais antigos que NÃO recebi/, "#310: o evento antigo fora da janela é CONTADO e declarado"],
+    [/NO MOMENTO DESTA PERGUNTA/, "#310: o cabeçalho diz que cada pergunta é uma leitura nova"],
     [/"ZZ Campanha Fictícia 307" — Ativa;[^\n]*Envios: 3; respondidos: 2[^\n]*pendentes: 1 \(ZZ Aluno Pendente 307\)/, "campanha: 3 envios, 2 respondidos, 1 pendente"],
     [/ZZ Aluno Comunicador 307 — "ZZ Mentoria Fictícia 307": ativa; 4 sessões contratadas; 1 sessão realizada; próxima em/, "mentoria: 1 realizada, próxima marcada"],
     [/Avaliação da aula: média 5\.0 estrelas \(1 avaliação\)/, "avaliação da aula 1"],
@@ -176,8 +192,41 @@ async function contexto(arq: string) {
     [/Não existe registro de acesso|não registra entradas/, "o limite do registro de acesso está escrito"],
   ];
   for (const [re, rotulo] of espera) confere(re.test(txt), rotulo);
+
+  // #310 — o mês com quatro aulas semanais (a última no fim do mês) + o evento avulso: o grupo do mês
+  // tem de trazer todos, e o número do título tem de bater com as linhas.
+  const mes = mesDaFixture(fx);
+  const grupo = grupoDoMes(txt, mes.extenso);
+  confere(!!grupo, `#310: o calendário tem o grupo de ${mes.extenso}`);
+  if (grupo) {
+    const validos = grupo.itens.filter((l) => !/CANCELADA/.test(l));
+    confere(grupo.cabecalho === validos.length, `#310: título de ${mes.extenso} diz ${grupo.cabecalho}, e há ${validos.length} linhas`);
+    for (const t of mes.titulos) confere(grupo.itens.some((l) => l.includes(t)), `#310: ${mes.extenso} traz "${t}"`);
+  }
+  confere(!txt.includes("ZZ Evento Antigo 307"), "#310: o evento de 120 dias atrás NÃO veio (está fora da janela, e é contado)");
   console.log(falhas ? `\n${falhas} conferência(s) FALHARAM` : "\nTUDO CERTO");
   if (falhas) process.exit(1);
+}
+
+/** O mês seguinte da fixture, por extenso ("outubro de 2026"), e o que TEM de estar nele. */
+function mesDaFixture(fx: Fixture) {
+  const [ano, mes] = String(fx.mes_seguinte).split("-").map(Number);
+  const extenso = new Date(Date.UTC(ano, mes - 1, 15, 12)).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "long", year: "numeric" });
+  const titulos = [4, 5, 6, 7].map((n) => `ZZ AULA ${n} — Encontro semanal ${n}`).concat("ZZ Live de Oratória 307");
+  return { extenso, titulos };
+}
+
+function grupoDoMes(txt: string, extenso: string): { cabecalho: number; itens: string[] } | null {
+  const i = txt.indexOf(`### ${extenso} — `);
+  if (i < 0) return null;
+  const linhas = txt.slice(i).split("\n");
+  const n = linhas[0].match(/— (\d+) compromisso/);
+  const itens: string[] = [];
+  for (const l of linhas.slice(1)) {
+    if (!l.startsWith("- ")) break;
+    itens.push(l);
+  }
+  return { cabecalho: n ? Number(n[1]) : -1, itens };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -317,6 +366,92 @@ async function perguntas(arq: string, resto: string[]) {
   console.log(`\nCusto desta rodada: US$ ${total.toFixed(4)}`);
 }
 
+// ------------------------------------------------------------------------------------------------
+// confiabilidade — #310: os dois defeitos, reproduzidos com o modelo (conta fictícia).
+// ------------------------------------------------------------------------------------------------
+const MUDANCA = /\b(n[ãa]o|nada) (mudou|mudaram|foi alterad|foi atualizad)|\bmudou\b|\bmudaram\b|foi atualizad|continua(m)? (igual|o mesmo|a mesma)|mesm[oa]s? (dados|n[úu]meros|bloco)|ainda n[ãa]o chegou|passou de|subiu|caiu|agora (é|são|está|estão) diferente/i;
+
+async function perguntar(txt: string, historico: { role: "user" | "assistant"; content: string }[], token: string, mentor: boolean) {
+  const r = await perguntarAoModelo(txt, historico, token, mentor ? { instrucoes: INSTRUCOES_DO_MENTOR, escopo: "mentor" } : undefined);
+  const entrada = r.uso.input_tokens + r.uso.cache_creation_input_tokens + r.uso.cache_read_input_tokens;
+  console.log(`${r.texto}\n   [${r.stopReason} · ${r.ms} ms · entrada total ${entrada} · saída ${r.uso.output_tokens}]`);
+  return r;
+}
+
+async function confiabilidade(arq: string, vezes = 1, soOPrimeiro = false) {
+  const fx = lerFixture(arq);
+  const mes = mesDaFixture(fx);
+
+  const { contexto: ctxA, token } = await montarContexto(fx);
+  // A pergunta EXATA do relato (26/09): o nome do mês, sem o ano — "eventos" tem de trazer tudo do mês.
+  const soMes = mes.extenso.replace(/ de \d{4}$/, "");
+  for (let vez = 1; vez <= vezes; vez++) {
+    console.log(`\n══════ 1. a lista de um mês inteiro (${soMes}) — vez ${vez} de ${vezes}`);
+    const p1 = `quais são as datas dos eventos de ${soMes}?`;
+    console.log(`» ${p1}`);
+    const r1 = await perguntar(ctxA, [{ role: "user", content: p1 }], token, true);
+    for (const t of mes.titulos) confere(r1.texto.includes(t.replace(/^ZZ /, "")) || r1.texto.includes(t), `trouxe "${t}"`);
+  }
+
+  if (soOPrimeiro) {
+    console.log(falhas ? `\n${falhas} conferência(s) FALHARAM` : "\nTUDO CERTO");
+    if (falhas) process.exit(1);
+    return;
+  }
+  console.log("\n══════ 2. pergunta de completude que passa do recorte");
+  const p2 = "Liste todos os eventos da conta desde o começo do ano, sem deixar nenhum de fora.";
+  console.log(`» ${p2}`);
+  const r2 = await perguntar(ctxA, [{ role: "user", content: p2 }], token, true);
+  confere(/n[ãa]o (recebi|chegaram|chegou|tenho)|a partir de|mais antig|antes de \d/i.test(r2.texto), "disse o limite (há eventos mais antigos que não recebeu)");
+  confere(!r2.texto.includes("ZZ Evento Antigo 307"), "não inventou o evento antigo");
+
+  console.log("\n══════ 3. \"atualizei, veja de novo\" — com o dado mudado de verdade entre as duas leituras");
+  const p3a = "Como está a frequência da ZZ Turma Fictícia 307 no Classroom?";
+  console.log(`» ${p3a}`);
+  const historico: { role: "user" | "assistant"; content: string }[] = [{ role: "user", content: p3a }];
+  const r3a = await perguntar(ctxA, historico, token, true);
+  historico.push({ role: "assistant", content: r3a.texto });
+  // A mudança: a aluna que faltou às duas aulas ganha presença na segunda (como fechar uma lista).
+  const [nova] = (await servico("/rest/v1/treinamento_presencas", {
+    method: "POST",
+    headers: { Prefer: "return=representation" } as Record<string, string>,
+    body: JSON.stringify([{ aula_id: fx.aula_2, person_id: fx.pessoa_semteste, group_id: fx.grupo, origem: "manual", situacao: "presente" }]),
+  })) as Array<{ id: string }>;
+  console.log(`   (presença de teste criada: ${nova.id})`);
+  try {
+    const { contexto: ctxB } = await montarContexto(fx);
+    confere(/ZZ Aluna Sem Teste 307: 1 de 2 \(50%\)/.test(ctxB), "a leitura nova já traz a presença criada");
+    const p3b = "atualizei. veja novamente";
+    historico.push({ role: "user", content: p3b });
+    console.log(`» ${p3b}`);
+    const r3b = await perguntar(ctxB, historico, token, true);
+    confere(/Sem Teste 307[^\n]*1 de 2/.test(r3b.texto), "respondeu com o número de AGORA (1 de 2)");
+    confere(!MUDANCA.test(r3b.texto), `não afirmou se o dado mudou ou não${MUDANCA.test(r3b.texto) ? ` — achou: "${r3b.texto.match(MUDANCA)?.[0]}"` : ""}`);
+  } finally {
+    await servico(`/rest/v1/treinamento_presencas?id=eq.${nova.id}`, { method: "DELETE" });
+    console.log(`   (presença de teste apagada: ${nova.id})`);
+  }
+
+  console.log("\n══════ 4. a assistente do ALUNO: pontos acima do teto e a janela da agenda");
+  const tokenAluno = await sessao(fx.aluno_user as string);
+  const rr = await fetch(`${APP}/api/public/report/${fx.resposta_analitica}`);
+  const report = (await rr.json()) as Report;
+  const agora = agoraArredondado(Date.now());
+  const plat = await plataformaDoAluno(clienteDe(tokenAluno), fx.aluno_user as string, [fx.pessoa_analitica as string], fx.mentor_user as string, agora);
+  const ctxAluno = [contextoDoAluno(report.person_name, [{ report, submittedAt: report.submitted_at }]), contextoDaPlataforma(plat, agora)].join("\n\n");
+  confere(/Total: 1240 pontos/.test(ctxAluno), "o contexto do aluno traz os 1.240 pontos (todos)");
+  confere(/Cobertura: todos os eventos de \d\d\/\d\d\/\d{4} até \d\d\/\d\d\/\d{4}/.test(ctxAluno), "o contexto do aluno declara a janela da agenda");
+  confere(!ctxAluno.includes("ZZ Evento Distante 307"), "o evento de 150 dias à frente não veio (fora da janela)");
+  confere(/Os 20 pontos mais recentes \(de 1202 registros/.test(ctxAluno), "os 'últimos pontos' dizem que são 20 de 1.202");
+  const p4 = "Quantos pontos eu tenho? E quais são todos os meus eventos daqui para frente, sem deixar nenhum de fora?";
+  console.log(`» ${p4}`);
+  const r4 = await perguntar(ctxAluno, [{ role: "user", content: p4 }], tokenAluno, false);
+  confere(/1\.?240/.test(r4.texto), "disse 1.240 pontos");
+  confere(/at[ée] (o dia )?\d{1,2}\/\d{1,2}|n[ãa]o (recebi|chegou|chegaram)|tela (da )?Agenda|Agenda/i.test(r4.texto), "mencionou o limite da janela (ou indicou a Agenda)");
+  console.log(falhas ? `\n${falhas} conferência(s) FALHARAM` : "\nTUDO CERTO");
+  if (falhas) process.exit(1);
+}
+
 async function main() {
   const [cmd, arq, ...resto] = process.argv.slice(2);
   if (cmd === "estatico") return estatico();
@@ -324,6 +459,10 @@ async function main() {
   if (cmd === "contexto") return contexto(arq);
   if (cmd === "portoes") return portoes(arq);
   if (cmd === "perguntas") return perguntas(arq, resto);
+  if (cmd === "confiabilidade") {
+    const vezes = resto.includes("--vezes") ? Math.max(1, Number(resto[resto.indexOf("--vezes") + 1]) || 1) : 1;
+    return confiabilidade(arq, vezes, resto.includes("--so-o-mes"));
+  }
   throw new Error(`comando desconhecido: ${cmd}`);
 }
 

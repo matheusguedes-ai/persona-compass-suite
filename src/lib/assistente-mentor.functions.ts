@@ -143,8 +143,9 @@ export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .order("criada_em", { ascending: false })
       .order("id", { ascending: false })
-      .limit(MAX_HISTORICO);
+      .limit(MAX_HISTORICO + 1); // uma a mais só para saber se houve corte (#310)
     if (hErr) throw new Error(`Não foi possível ler a conversa (${hErr.message}).`);
+    const historicoCortado = (anteriores ?? []).length > MAX_HISTORICO;
 
     const { data: pergunta, error: pErr } = await db
       .from("assistente_mentor_mensagens")
@@ -154,6 +155,7 @@ export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
     if (pErr || !pergunta) throw new Error(`Não foi possível guardar a pergunta (${pErr?.message}).`);
 
     const historico: MensagemDoHistorico[] = (anteriores ?? [])
+      .slice(0, MAX_HISTORICO)
       .reverse()
       .map((m) => ({ role: m.papel === "mentor" ? ("user" as const) : ("assistant" as const), content: m.conteudo }));
     while (historico.length && historico[0].role !== "user") historico.shift();
@@ -161,10 +163,13 @@ export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
 
     let resposta: Awaited<ReturnType<typeof servidor.perguntarAoModelo>>;
     try {
-      resposta = await servidor.perguntarAoModelo(contexto, historico, undefined, {
-        instrucoes: servidor.INSTRUCOES_DO_MENTOR,
-        escopo: "mentor",
-      });
+      resposta = await servidor.perguntarAoModelo(
+        // #310: conversa longa não perde o começo em silêncio — ela é avisada de que só viu o final.
+        historicoCortado ? `${contexto}\n\n${servidor.avisoDeHistoricoCortado(MAX_HISTORICO)}` : contexto,
+        historico,
+        undefined,
+        { instrucoes: servidor.INSTRUCOES_DO_MENTOR, escopo: "mentor" },
+      );
     } catch (e) {
       await db.from("assistente_mentor_mensagens").delete().eq("id", pergunta.id);
       if (conversaNova) await db.from("assistente_mentor_conversas").delete().eq("id", conversaId);

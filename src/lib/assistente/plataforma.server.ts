@@ -26,6 +26,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { situacaoDe, type Situacao, type AulaPresenca, type Registro } from "@/lib/presenca";
 import { aulaRealizada } from "@/lib/janela";
 import { ACOES } from "@/lib/pontos.functions";
+import { lerTodas } from "@/lib/ler-todas";
 import type {
   AulaDoAluno,
   ColegaDoAluno,
@@ -350,6 +351,8 @@ async function comunidade(supabase: Cliente, pessoas: string[]): Promise<Platafo
 
   return (grupos ?? []).map((g) => ({
     nome: g.name,
+    // #310: quantos colegas o grupo tem de verdade — `membros` abaixo pode vir cortado.
+    totalMembros: (membros ?? []).filter((m) => m.group_id === g.id && perfis.has(m.person_id)).length,
     membros: (membros ?? [])
       .filter((m) => m.group_id === g.id && perfis.has(m.person_id))
       .map((m) => perfis.get(m.person_id)!)
@@ -375,15 +378,12 @@ async function comunidade(supabase: Cliente, pessoas: string[]): Promise<Platafo
 async function pontos(supabase: Cliente, userId: string, conta: string): Promise<PlataformaDoAluno["pontos"]> {
   // A RLS devolve as linhas dele e, com a comunidade aberta, as dos colegas de grupo — a mesma base do
   // ranking da tela. Dos colegas só se usa a SOMA, para a posição; nada de quem é quem.
-  const { data, error } = await supabase
-    .from("pontos")
-    .select("user_id, acao, pontos, created_at")
-    .eq("mentor_id", conta)
-    .order("created_at", { ascending: false })
-    .order("id")
-    .limit(5000);
-  if (error) falhou("pontos", error);
-  const linhas = data ?? [];
+  // #310: TODAS as linhas, em páginas — a API corta num lote e o total/posição saíam menores sem aviso.
+  const lidos = await lerTodas((de, ate) =>
+    supabase.from("pontos").select("user_id, acao, pontos, created_at", { count: "exact" })
+      .eq("mentor_id", conta).order("created_at", { ascending: false }).order("id").range(de, ate),
+  );
+  const linhas = lidos.linhas;
   const meus = linhas.filter((l) => l.user_id === userId);
   const porAcao: Record<string, { vezes: number; pontos: number }> = {};
   for (const l of meus) {
@@ -399,6 +399,8 @@ async function pontos(supabase: Cliente, userId: string, conta: string): Promise
     total,
     porAcao,
     ultimos: meus.slice(0, 20).map((l) => ({ acao: l.acao, pontos: l.pontos, quando: l.created_at })),
+    totalMeus: meus.length,
+    completo: lidos.completo,
     posicao: soma.size > 1 ? { lugar, de: Math.max(soma.size, lugar) } : null,
     regras: (Object.keys(ACOES) as Array<keyof typeof ACOES>)
       .filter((acao) => ACOES_QUE_PONTUAM.has(acao))
@@ -454,6 +456,14 @@ export async function plataformaDoAluno(
     biblioteca: bib,
     treinamentos: trein,
     agenda: ag,
+    // #310: a janela que a agenda cobriu, para o texto declarar o recorte (sem área aberta, nada a declarar).
+    agendaJanela:
+      areas.has("agenda") && !indisponiveis.includes("Agenda")
+        ? {
+            de: new Date(agora - AGENDA_ANTES_DIAS * 86_400_000).toISOString(),
+            ate: new Date(agora + AGENDA_DEPOIS_DIAS * 86_400_000).toISOString(),
+          }
+        : null,
     mentorias: ment,
     comunidade: com,
     pontos: pts,

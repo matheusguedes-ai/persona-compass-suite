@@ -465,6 +465,12 @@ foram reveladas e revogadas por terem passado por aqui).
   sabe quem entrou nem quando.
 - Termo: `scripts/conteudo_termo_assistente.py` (texto do dono do produto, conferido palavra por
   palavra contra o arquivo aprovado). Mudar o texto = versão nova, nunca editar a publicada.
+- **#310 — recortes declarados** (o mesmo conserto da assistente do mentor, só o necessário): a agenda
+  cobre de 7 dias atrás até 120 à frente e o texto DIZ a janela; grupo grande diz "N colegas (PARCIAL:
+  os 80 primeiros)"; os pontos são lidos inteiros (`lerTodas`) e os "últimos" dizem "20 de N"; conversa
+  com mais de 40 mensagens avisa que o começo não chegou (`assistente/historico.ts`). E ela não afirma se
+  o dado mudou ("Cada pergunta é uma leitura nova"). O recorte declarado é sempre do material DO aluno —
+  sobre o que não é dele, continua valendo "não existe para você".
 
 ## Assistente do painel do mentor (#307)
 
@@ -496,10 +502,20 @@ Código em `src/lib/assistente-mentor/` + `src/lib/assistente-mentor.functions.t
 - Registro de acesso não existe, e `auth.users.last_sign_in_at` não é lido (pediria a chave de
   serviço). "Sem login" ≠ "nunca usou": teste por link e presença não dependem de login.
 - Tela ou área nova no painel? Conferir se `dados.server.ts` e `contexto.ts` acompanham.
+- **#310 — "tudo o que existe" × "tudo o que eu recebi"**: toda lista que cresce é lida inteira
+  (`lerTodas`), e o bloco abre com "O que esta leitura cobre": cada área COMPLETA ou PARCIAL, com os
+  números; seção parcial repete o aviso. Recortes que ficam: relatórios DETALHADOS até 80 por pergunta
+  (os demais continuam listados, marcados "não detalhado" — nunca somem); Agenda a partir de 90 dias
+  atrás (os mais antigos são CONTADOS e declarados); presenças/marcações lidas pelas funções das telas
+  (acima de 1.000 por treinamento/trilha, a cobertura avisa). **Calendário por mês** (Agenda + aulas do
+  Classroom + mentorias) com a contagem no título do mês — "eventos de outubro" = tudo do mês, com o
+  tipo ao lado (as aulas aparecem na Agenda como eventos; rotulá-las só como "AULA" fez o modelo
+  responder só a live). E ela não afirma se o dado mudou: cada pergunta é uma leitura nova e ela não
+  recebe a anterior (o relato de 26/09: "o bloco não mudou" dito junto com números novos).
 - **Testes** (só conta fictícia — mandam dados para a Anthropic):
   `python3 scripts/fixture_assistente_mentor.py criar <arq.json>` (mentor, colaboradora, 4 alunos,
   turma, DISC, Classroom, trilha, campanha, pontos, mentoria e UMA conversa secreta de aluno) →
-  `npx tsx scripts/testar_assistente_mentor.ts estatico|contexto|portoes|perguntas <arq.json>` →
+  `npx tsx scripts/testar_assistente_mentor.ts estatico|contexto|portoes|perguntas|confiabilidade <arq.json>` →
   `python3 scripts/fixture_assistente_mentor.py apagar <arq.json>`.
 
 ## Conteúdo
@@ -544,5 +560,13 @@ com dados reais; revisão do QI.
 - Interface e conteúdo em **pt-BR**; código e comentários técnicos em inglês ou pt-BR conciso.
 - Toda server function: middleware `requireSupabaseAuth` + validação Zod + checagem de ownership.
 - Sempre checar `error` de queries Supabase — erros silenciados já causaram corrupção de dados aqui.
+- ⚠️ **A API do banco devolve no máximo 1.000 linhas por consulta e corta o resto SEM AVISAR** (medido em
+  27/09: pedi 5.000 pontos, vieram 1.000 de 1.202 — `content-range 0-999/1202`). `.limit(5000)` e
+  `.range(0, 4999)` NÃO passam do teto. Lista que cresce com a conta: `lerTodas` (`src/lib/ler-todas.ts`,
+  #310 — páginas + contagem exata; devolve `completo: false` se bater no teto de segurança). Telas que
+  ainda leem sem paginar (achado da #310, não consertado): ranking do Dashboard (`painel.functions.ts`),
+  ranking do grupo (`pontos.functions.ts`), presenças em `montarTabelaPresenca` e
+  `calcularConclusoesDoTreinamento`, marcações em `calcularConclusoesDaTrilha`, e o conteúdo do relatório
+  em `buildReport` (`report_content`: 607 linhas em 27/09 — ao passar de 1.000, seções somem sem erro).
 - Exclusões destrutivas exigem `AlertDialog` de confirmação.
 - Endpoints públicos: devolver o mínimo necessário (sem e-mail, `mentor_id` ou scores alheios).

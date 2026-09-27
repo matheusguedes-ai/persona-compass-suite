@@ -21,6 +21,7 @@ export {
   resumoDoErro,
 } from "@/lib/assistente/modelo.server";
 export { INSTRUCOES_DO_MENTOR } from "@/lib/assistente-mentor/instrucoes.server";
+export { avisoDeHistoricoCortado } from "@/lib/assistente/historico";
 
 /** O bloco <dados_da_conta> inteiro, lido agora com o login de quem pergunta. */
 export async function montarContextoDoMentor(supabase: SupabaseClient<Database>, conta: string): Promise<string> {

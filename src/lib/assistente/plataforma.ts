@@ -66,6 +66,8 @@ export type PlataformaDoAluno = {
   biblioteca: Array<{ titulo: string; descricao: string | null; tipo: string; categoria: string | null; pasta: string | null }>;
   treinamentos: TreinamentoDoAluno[];
   agenda: Array<{ titulo: string; descricao: string | null; quando: string; terminaEm: string | null; temLink: boolean; deAula: boolean }>;
+  /** #310 — a janela que a agenda cobre: fora dela, a assistente não recebeu nada (e precisa saber disso). */
+  agendaJanela: { de: string; ate: string } | null;
   mentorias: Array<{
     titulo: string;
     status: string;
@@ -80,12 +82,17 @@ export type PlataformaDoAluno = {
       tarefas: Array<{ titulo: string; concluida: boolean }>;
     }>;
   }>;
-  comunidade: Array<{ nome: string; membros: ColegaDoAluno[] }>;
+  /** `totalMembros`: quantos colegas o grupo tem; `membros` pode vir cortado (#310 — o texto diz quantos chegaram). */
+  comunidade: Array<{ nome: string; membros: ColegaDoAluno[]; totalMembros: number }>;
   pontos: {
     total: number;
     porAcao: Record<string, { vezes: number; pontos: number }>;
     ultimos: Array<{ acao: string; pontos: number; quando: string }>;
     posicao: { lugar: number; de: number } | null;
+    /** #310 — quantos registros de ponto o aluno tem ao todo (os `ultimos` são só os mais recentes). */
+    totalMeus: number;
+    /** #310 — false = a leitura dos pontos da conta bateu no teto e os totais podem estar abaixo do real. */
+    completo: boolean;
     regras: Array<{ acao: string; rotulo: string; pontos: number; tetoDiario: number | null }>;
   } | null;
 };
@@ -199,7 +206,7 @@ function treinamentosEmTexto(ts: TreinamentoDoAluno[], agora: number): string {
   );
 }
 
-function agendaEmTexto(ag: PlataformaDoAluno["agenda"], agora: number): string {
+function agendaEmTexto(ag: PlataformaDoAluno["agenda"], agora: number, janela: PlataformaDoAluno["agendaJanela"]): string {
   const futuros = ag.filter((e) => new Date(e.terminaEm ?? e.quando).getTime() >= agora);
   const passados = ag.filter((e) => new Date(e.terminaEm ?? e.quando).getTime() < agora);
   const linha = (e: PlataformaDoAluno["agenda"][number]) =>
@@ -208,8 +215,13 @@ function agendaEmTexto(ag: PlataformaDoAluno["agenda"], agora: number): string {
       curto(e.descricao, 300) && `  Detalhes: ${curto(e.descricao, 300)}`,
       e.temLink && "  Tem link de acesso, que o aluno encontra na Agenda.",
     ].filter(Boolean).join("\n");
+  const dia = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { timeZone: FUSO });
   return secao("Agenda — eventos do aluno", [
-    futuros.length ? "Próximos (do mais perto ao mais longe):" : "Nenhum evento marcado daqui para frente.",
+    // #310: a janela é um recorte. Sem dizer, "nenhum evento" depois dela soaria como "não existe".
+    janela
+      ? `Cobertura: todos os eventos de ${dia(janela.de)} até ${dia(janela.ate)} (${ag.length}). Evento fora dessa janela NÃO chegou até você — se perguntarem de uma data depois de ${dia(janela.ate)}, diga que não recebeu essa parte da agenda e indique a tela Agenda.`
+      : null,
+    futuros.length ? `Próximos (do mais perto ao mais longe) — ${ag.length - passados.length}:` : "Nenhum evento marcado daqui para frente dentro da janela acima.",
     ...futuros.map(linha),
     passados.length ? "Dos últimos 7 dias:" : null,
     ...passados.map(linha),
@@ -254,7 +266,11 @@ function comunidadeEmTexto(gs: PlataformaDoAluno["comunidade"]): string {
   return secao(
     "Comunidade — grupos do aluno e colegas",
     gs.flatMap((g) => [
-      `### Grupo "${g.nome}" — ${g.membros.length} colega${g.membros.length === 1 ? "" : "s"}`,
+      `### Grupo "${g.nome}" — ${g.totalMembros} colega${g.totalMembros === 1 ? "" : "s"}${
+        g.totalMembros > g.membros.length
+          ? ` (PARCIAL: aqui estão os ${g.membros.length} primeiros em ordem alfabética; os outros ${g.totalMembros - g.membros.length} não chegaram até você)`
+          : ""
+      }`,
       ...g.membros.map((c) => {
         const base = [c.cargo, c.empresa].filter(Boolean).join(", ");
         const contato = c.autorizou
@@ -280,6 +296,9 @@ function comunidadeEmTexto(gs: PlataformaDoAluno["comunidade"]): string {
 function pontosEmTexto(p: NonNullable<PlataformaDoAluno["pontos"]>): string {
   const rotulo = new Map(p.regras.map((r) => [r.acao, r.rotulo]));
   return secao("Ranking — pontos do aluno", [
+    !p.completo
+      ? "⚠️ PARCIAL: a leitura dos pontos da conta bateu no limite; o total e a posição abaixo podem estar abaixo do real — diga isso se falar deles."
+      : null,
     `Total: ${p.total} pontos.${p.posicao ? ` Posição entre os colegas dos grupos dele: ${p.posicao.lugar}º de ${p.posicao.de}.` : ""}`,
     "Como se ganha ponto na plataforma:",
     ...p.regras.map((r) => {
@@ -288,7 +307,9 @@ function pontosEmTexto(p: NonNullable<PlataformaDoAluno["pontos"]>): string {
         feito ? `o aluno fez ${feito.vezes} vez${feito.vezes === 1 ? "" : "es"} (${feito.pontos} ponto${feito.pontos === 1 ? "" : "s"})` : "o aluno ainda não pontuou com isso"
       }`;
     }),
-    p.ultimos.length ? "Últimos pontos, do mais recente:" : null,
+    p.ultimos.length
+      ? `Os ${p.ultimos.length} pontos mais recentes${p.totalMeus > p.ultimos.length ? ` (de ${p.totalMeus} registros; os mais antigos não estão listados aqui)` : ""}, do mais recente:`
+      : null,
     ...p.ultimos.map((u) => `- ${quandoBR(u.quando)} — ${rotulo.get(u.acao) ?? u.acao}: +${u.pontos}`),
   ]);
 }
@@ -296,11 +317,12 @@ function pontosEmTexto(p: NonNullable<PlataformaDoAluno["pontos"]>): string {
 /** O bloco <plataforma_do_aluno>: só o que veio, na ordem das áreas do menu. */
 export function contextoDaPlataforma(p: PlataformaDoAluno, agora: number): string {
   const partes = [
-    `Agora é ${quandoBR(new Date(agora).toISOString())} (horário de Brasília, arredondado para a hora cheia).`,
+    // #310: cada pergunta faz uma leitura nova, e ela não recebe a anterior — dito aqui, onde o modelo lê.
+    `Estes dados foram lidos NO MOMENTO DESTA PERGUNTA, com o login do aluno. Cada pergunta faz uma leitura nova; você não recebe as leituras anteriores e não tem como compará-las. Data de referência: ${quandoBR(new Date(agora).toISOString())} (horário de Brasília, por volta desta hora).`,
     p.indisponiveis.length
       ? `Não foi possível ler agora: ${p.indisponiveis.join(", ")}. Se o aluno perguntar disso, diga que não conseguiu ver essa parte neste momento e sugira abrir a tela correspondente.`
       : null,
-    p.agenda.length || p.areas.includes("agenda") ? agendaEmTexto(p.agenda, agora) : null,
+    p.agenda.length || p.areas.includes("agenda") ? agendaEmTexto(p.agenda, agora, p.agendaJanela) : null,
     p.treinamentos.length ? treinamentosEmTexto(p.treinamentos, agora) : null,
     p.trilhas.length ? trilhasEmTexto(p.trilhas) : null,
     p.biblioteca.length ? bibliotecaEmTexto(p.biblioteca) : null,
