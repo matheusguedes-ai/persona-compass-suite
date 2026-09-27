@@ -9,6 +9,7 @@ import {
   FlaskConical,
   UserCog,
   BookOpen,
+  Library,
   MessagesSquare,
   Users2,
   CalendarDays,
@@ -37,6 +38,9 @@ const NAV = [
   // isso que garante UM cadastro por pessoa. Ver /mentores, que virou redirect.
   { to: "/colaboradores", label: "Colaboradores", icon: UserCog, soDono: true },
   { to: "/educacao", label: "Academy", icon: BookOpen, perm: "educacao" },
+  // #313 — a Biblioteca saiu da Academy e virou menu próprio. Mesma permissão de colaborador
+  // (a de Educação): quem cuidava dela lá continua cuidando aqui.
+  { to: "/biblioteca", label: "Biblioteca", icon: Library, perm: "educacao" },
   // Presencial. Só o dono, como os eventos: a RLS de escrita exige
   // mentor_id = auth.uid(), e a decisão registrada é "menu do master".
   { to: "/classroom", label: "Classroom", icon: Presentation, soDono: true },

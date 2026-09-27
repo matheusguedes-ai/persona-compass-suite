@@ -396,7 +396,7 @@ export const updateTrack = createServerFn({ method: "POST" })
     // Editar sem trocar a capa reenvia o valor ASSINADO que `getTrack` mostrou
     // (é o que ficou no campo do formulário) — preserva o identificador já
     // gravado em vez de persistir um link que expira em minutos. Mesmo cuidado
-    // de `salvarPasta` em biblioteca.functions.ts.
+    // de `salvarPastaDoAcervo` em biblioteca.functions.ts.
     if (rest.cover_url) {
       const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
       if (ehUrlAssinadaNossa(rest.cover_url)) {

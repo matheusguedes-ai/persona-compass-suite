@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Eye, GraduationCap, LayoutList, Lock, LogOut, UserRound, MessagesSquare,
   Users, Trophy, FolderKanban, CalendarDays, PanelLeftClose, PanelLeft, Menu,
-  Presentation, FlaskConical, Sparkles,
+  Presentation, FlaskConical, Sparkles, Library,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/lib/theme";
@@ -69,6 +69,10 @@ const NAV = [
   { to: "/aluno/mentorias", label: "Mentorias", icon: MessagesSquare, exato: false, area: "mentorias" },
   { to: "/aluno/agenda", label: "Agenda", icon: CalendarDays, exato: false, area: "agenda" },
   { to: "/aluno/educacao", label: "Academy", icon: GraduationCap, exato: false, area: "academy" },
+  // #313 — "biblioteca" NÃO é área do grupo (`groups.areas_aluno`): ela aparece quando o banco diz
+  // que a pessoa vê pelo menos um item (`bib_visiveis`, somado em `minhasAreas`). Assim quem recebeu
+  // só um material solto também tem por onde chegar nele.
+  { to: "/aluno/biblioteca", label: "Biblioteca", icon: Library, exato: false, area: "biblioteca" },
   { to: "/aluno/classroom", label: "Classroom", icon: Presentation, exato: false, area: "classroom" },
   { to: "/aluno/perfil", label: "Meu perfil", icon: UserRound, exato: false, area: null },
 ] as const;

@@ -278,6 +278,8 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga). ⚠️ A entrada que o modelo recebeu é `entrada_total_tokens` — `input_tokens` é só o pedaço fora do cache (uns 2 tokens). `escopo` (`aluno`/`mentor`, #307) diz de qual assistente veio; `conversa_id` é só de aluno, `conversa_mentor_id` só de mentor (constraint) |
 | `assistente_observacoes` | #305: o que o mentor quer que a assistente tenha em mente sobre um aluno. Dono = `conta_id` (preenchido pelo banco, = conta do cadastro) + `person_id`. **O aluno NUNCA lê** — nenhuma policy para ele, e a da equipe exclui o próprio login. Não usar `people.notes` para isso: o aluno lê a própria linha de `people` |
 | `assistente_mentor_conversas` / `assistente_mentor_mensagens` | #307: conversas do DONO DA CONTA com a assistente do painel. Dono = `user_id` (quem perguntou) + `conta_id` (hoje iguais — gatilho confere). **Só quem perguntou lê.** Separadas das do aluno de propósito: nenhuma tela, função ou policy olha as duas |
+| `biblioteca_pastas` / `biblioteca_materiais` | #313: o acervo da Biblioteca (menu próprio, fora da Academy). Pasta em até 3 níveis (`pasta_mae_id`; limite e ciclo barrados por gatilho). Material por arquivo (bucket privado `biblioteca`) ou link |
+| `biblioteca_menu_grupos` · `biblioteca_{pasta,material}_destinos` · `biblioteca_{pasta,material}_bloqueios` | #313: as três camadas de acesso — menu por grupo; liberar e bloquear por pasta e por material (grupo OU pessoa). **Quem vê o quê = `bib_decide`, e só ela** (ver a seção Biblioteca) |
 
 ⚠️ **Tabela nova que aponte para `people` precisa entrar em `fundir_pessoas`** (migração
 `20260923210000_fusao_de_pessoas.sql`). A função confere, antes de apagar o cadastro absorvido,
@@ -418,6 +420,23 @@ Selo de confiabilidade em toda resposta (`computed_scores.qualidade`): mede
 contradição entre itens equivalentes, respostas sem variação e ritmo. Liderança/competências/índices levam o selo "Derivado do seu DISC".
 Tipos Psicológicos usam o MBTI real quando respondido; senão vão como
 "Estimativa derivada do seu DISC", com ressalva explícita no texto.
+
+## Biblioteca (#313)
+
+Menu próprio desde 27/09/2026: `/biblioteca` (painel, `src/routes/_app.biblioteca.tsx`) e `/aluno/biblioteca`.
+Contrato completo em `docs/biblioteca-acesso.md`.
+
+- **Uma função decide tudo: `bib_decide`** (banco). Ordem: bloqueio no material → bloqueio em pasta acima →
+  liberação no material → liberação em pasta acima → menu do grupo → nada. **A negação sempre vence.**
+  Tela, busca, link direto, download, RLS e a assistente passam por ela (portas `bib_pode_ver_*`,
+  `bib_visiveis`, `bib_quem_ve`, `bib_resumo_acesso`; `bib_materiais_liberados` só repassa). Nenhum
+  código de tela ou servidor calcula acesso — se precisar saber, pergunte a uma porta.
+- Sem regra e sem menu = **não liberado para ninguém** (nasce fechada). Equipe vê tudo pelo painel;
+  colaborador só com a permissão de Educação (#226, checado no servidor); só o dono muda regras.
+- "Biblioteca" **não é** área de `groups.areas_aluno`: o item do menu do aluno aparece quando
+  `bib_visiveis` devolve algo (`minhasAreas`).
+- Apagar pasta nunca apaga material: `bib_apagar_pasta` sobe o conteúdo um nível e copia as regras.
+- Testar só com a conta fictícia: `scripts/fixture_biblioteca.py criar|link|provar|apagar`.
 
 ## Assistente do Método Intenção (#289)
 

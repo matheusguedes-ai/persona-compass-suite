@@ -411,9 +411,29 @@ export type Database = {
         ]
       }
       biblioteca_pastas: {
-        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; capa_url: string | null; ordem: number; created_at: string }
-        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; capa_url?: string | null; ordem?: number; created_at?: string }
-        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; capa_url?: string | null; ordem?: number; created_at?: string }
+        // #313 — `pasta_mae_id`: a pasta de cima (NULL = raiz), até 3 níveis.
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; capa_url: string | null; ordem: number; created_at: string; pasta_mae_id: string | null }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; capa_url?: string | null; ordem?: number; created_at?: string; pasta_mae_id?: string | null }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; capa_url?: string | null; ordem?: number; created_at?: string; pasta_mae_id?: string | null }
+        Relationships: []
+      }
+      // #313 — as regras novas da biblioteca. `mentor_id` é preenchido pelo banco (a conta do que a regra protege).
+      biblioteca_menu_grupos: {
+        Row: { id: string; mentor_id: string; group_id: string; created_at: string }
+        Insert: { id?: string; mentor_id?: string; group_id: string; created_at?: string }
+        Update: { id?: string; mentor_id?: string; group_id?: string; created_at?: string }
+        Relationships: []
+      }
+      biblioteca_pasta_bloqueios: {
+        Row: { id: string; mentor_id: string; pasta_id: string; group_id: string | null; person_id: string | null; created_at: string }
+        Insert: { id?: string; mentor_id?: string; pasta_id: string; group_id?: string | null; person_id?: string | null; created_at?: string }
+        Update: { id?: string; mentor_id?: string; pasta_id?: string; group_id?: string | null; person_id?: string | null; created_at?: string }
+        Relationships: []
+      }
+      biblioteca_material_bloqueios: {
+        Row: { id: string; mentor_id: string; material_id: string; group_id: string | null; person_id: string | null; created_at: string }
+        Insert: { id?: string; mentor_id?: string; material_id: string; group_id?: string | null; person_id?: string | null; created_at?: string }
+        Update: { id?: string; mentor_id?: string; material_id?: string; group_id?: string | null; person_id?: string | null; created_at?: string }
         Relationships: []
       }
       biblioteca_pasta_destinos: {
@@ -2579,6 +2599,22 @@ export type Database = {
       bib_material_liberado: { Args: { _material_id: string }; Returns: boolean }
       bib_pastas_liberadas: { Args: { _person_id?: string | null }; Returns: string[] }
       bib_materiais_liberados: { Args: { _person_id?: string | null }; Returns: string[] }
+      // #313 — a permissão da biblioteca: UMA função no banco (bib_decide) decide; estas são as portas.
+      bib_pode_ver_material: { Args: { _material_id: string }; Returns: boolean }
+      bib_pode_ver_pasta: { Args: { _pasta_id: string }; Returns: boolean }
+      bib_visiveis: { Args: { _person_id?: string | null }; Returns: Array<{ tipo: string; id: string }> }
+      bib_quem_ve: {
+        Args: { _pasta_id: string | null; _material_id: string | null }
+        Returns: Array<{
+          person_id: string; nome: string; tem_login: boolean; equipe: boolean; grupos: string[]
+          resultado: string; como: string; motivo: string
+        }>
+      }
+      bib_resumo_acesso: {
+        Args: Record<string, never>
+        Returns: Array<{ tipo: string; id: string; veem: number; veem_com_login: number; bloqueados: number }>
+      }
+      bib_apagar_pasta: { Args: { _pasta_id: string }; Returns: { materiais: number; subpastas: number; para: string | null } }
       minhas_areas: { Args: Record<string, never>; Returns: string[] }
       areas_da_pessoa: { Args: { p_person_id: string }; Returns: string[] }
       trilhas_liberadas: { Args: { _person_id?: string | null }; Returns: string[] }
