@@ -57,10 +57,13 @@ def rest_get_todas(tabela, params, lote=1000):
 
 def app_get(url):
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=UA)) as r:
+        # Com limite: um pedido que não volta prendia a comparação inteira sem aviso (#314).
+        with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120) as r:
             return r.status, r.read()
     except urllib.error.HTTPError as e:
         return e.code, e.read()
+    except (urllib.error.URLError, TimeoutError, OSError) as e:  # sem resposta: vira "status 0" e segue
+        return 0, json.dumps({"erro_de_rede": str(e)}).encode()
 
 
 def normalizar(corpo_bytes):
