@@ -75,10 +75,20 @@ export const listPeople = createServerFn({ method: "GET" })
 export const listarPessoasParaEscolher = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("people").select("id, full_name, email").order("full_name");
-    if (error) throw new Error(error.message);
-    return { pessoas: data ?? [] };
+    // Em partes até o fim (#314): numa consulta só, a API entregava as 1.000 primeiras e cortava o resto
+    // sem avisar — quem passasse disso sumia do seletor, e não dava para liberar, convidar nem marcar essa
+    // pessoa. `id` desempata nomes iguais, senão as páginas repetem ou pulam gente.
+    const pessoas = await lerTodasOuRecusar(
+      (de, ate) =>
+        context.supabase
+          .from("people")
+          .select("id, full_name, email", { count: "exact" })
+          .order("full_name")
+          .order("id")
+          .range(de, ate),
+      "a lista de pessoas da conta",
+    );
+    return { pessoas };
   });
 
 export const getPerson = createServerFn({ method: "GET" })

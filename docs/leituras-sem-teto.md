@@ -24,6 +24,7 @@ completo: a página não quebra, só falta seção, o total sai menor, o certifi
 | `pontos.functions.ts` → `lerPontos` (ranking do grupo e "meus pontos") | pontos | 1.001 registros de 1 ponto |
 | `painel.functions.ts` (Dashboard: panorama, Classroom, Academy, Comunidade, "quem está sumindo") | pessoas, grupos, membros, equipe, posts, comentários, pontos, aulas, presenças, aulas vistas, sessões | Dashboard da conta fictícia no motor do Cloudflare |
 | `data.functions.ts` → `getDashboardStats` (topo do Dashboard) | testes enviados da conta | comparação do Dashboard real antes × depois |
+| `data.functions.ts` → `listarPessoasParaEscolher` (o seletor de pessoas de 4 telas: novo evento da Agenda, "Criar mentoria", "Quem acessa" da Academy e "Liberar ou bloquear" da Biblioteca) | pessoas da conta | `scripts/testar_seletor_de_pessoas.py`: 1.050 pessoas, 350 com o MESMO nome — a consulta única trazia 1.000 (50 sumiam sem erro); em partes, 1.050 sem repetir nem faltar com páginas de 7, 100 e 1.000; a tela "Criar mentoria" lista as 1.050 |
 
 Como provar de novo: `python3 scripts/testar_leitura_sem_teto.py criar|encher|turma|relatorio|pdf|esvaziar|apagar`
 e `npx tsx scripts/testar_telas_sem_teto.ts fotografar|comparar|teto` (instruções no topo de cada um).
@@ -57,8 +58,8 @@ cresce com o SaaS. Ficaram de fora por serem outras telas e outro assunto (regra
 - `exportar.functions.ts:33/42` (planilha de pessoas e grupos).
 
 **3. Listas (tipo L):** o feed da comunidade (`comunidade.functions.ts:89`, a base do feed, e `:102`
-comentários), aba Envios (`tests.functions.ts:1313`), baterias (`:1484`), seletor de pessoas
-(`data.functions.ts:78`), membros de grupo, mentorias, agenda do mês, certificados emitidos.
+comentários), aba Envios (`tests.functions.ts:1313`), baterias (`:1484`), membros de grupo, mentorias, agenda do mês, certificados emitidos. (O seletor de
+pessoas saiu desta lista: tratado no mesmo dia, ver a tabela acima.)
 
 ## Duas armadilhas que a paginação NÃO resolve
 

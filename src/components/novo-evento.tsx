@@ -84,7 +84,7 @@ export function NovoEvento({ open, onOpenChange }: { open: boolean; onOpenChange
   const [pessoas, setPessoas] = useState<string[]>([]);
 
   const { data: dg } = useQuery({ queryKey: ["grupos"], queryFn: () => gruposFn(), enabled: open });
-  const { data: dp } = useQuery({
+  const { data: dp, error: erroPessoas } = useQuery({
     queryKey: ["pessoas-evento"], queryFn: () => pessoasFn(), enabled: open,
   });
 
@@ -219,6 +219,10 @@ export function NovoEvento({ open, onOpenChange }: { open: boolean; onOpenChange
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground">Pessoas</p>
+              {/* #314: lista que não pôde ser lida inteira aparece como erro, não como lista curta. */}
+              {erroPessoas && (
+                <p className="mt-1.5 rounded-lg bg-destructive/10 p-2 text-xs text-destructive">{mensagemDeErro(erroPessoas)}</p>
+              )}
               <ul className="mt-1.5 space-y-1.5">
                 {(dp?.pessoas ?? []).map((p) => (
                   <li key={p.id}>
