@@ -97,7 +97,7 @@ const PADRAO_URL_ASSINADA = /\/storage\/v1\/object\/sign\/(biblioteca|avatares|m
  * identificador gravado no banco vira um link com prazo — funciona por alguns
  * minutos e depois quebra sozinho, sem nenhuma ação visível que explique.
  *
- * Quem grava (`salvarMaterial`, `salvarPasta`, `saveMaterialAula`,
+ * Quem grava (`salvarMaterial`, `salvarPastaDoAcervo`, `saveMaterialAula`,
  * `upsertMyProfile`, `updateMyStudentProfile`) usa isto para perceber a
  * situação e preservar o identificador que já estava gravado.
  */

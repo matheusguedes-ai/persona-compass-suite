@@ -1,7 +1,6 @@
 import { mensagemDeErro } from "@/lib/erro-legivel";
 import { BannersAcademy } from "@/components/banners-academy";
-import { Biblioteca } from "@/components/biblioteca";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -14,9 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ChevronDown, Folder, GraduationCap, Image as ImageIcon, Paperclip, Plus,
-} from "lucide-react";
+import { ChevronDown, GraduationCap, Image as ImageIcon, Library, Plus } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -45,10 +42,8 @@ function EducacaoPage() {
   const [audience, setAudience] = useState<"equipe" | "alunos" | "ambos">("alunos");
   const [grupos, setGrupos] = useState<string[]>([]);
   const [pessoas, setPessoas] = useState<string[]>([]);
-  // Os diálogos da biblioteca e dos banners moram nos filhos; o menu "Criar"
-  // mora aqui. Por isso a abertura sobe para esta tela.
-  const [novoMaterial, setNovoMaterial] = useState(false);
-  const [novaPasta, setNovaPasta] = useState(false);
+  // O diálogo dos banners mora no filho; o menu "Criar" mora aqui. Por isso a
+  // abertura sobe para esta tela. (A Biblioteca saiu daqui na #313: menu próprio.)
   const [novoBanner, setNovoBanner] = useState(false);
 
   const listFn = useServerFn(listTracks);
@@ -81,9 +76,9 @@ function EducacaoPage() {
 
   return (
     <div className="space-y-8">
-      {/* O cabeçalho fecha AQUI. Antes os banners e a biblioteca ficavam dentro
-          deste flex, viravam itens da mesma linha do título e apareciam
-          espremidos ao lado do botão. */}
+      {/* O cabeçalho fecha AQUI. Antes os banners ficavam dentro deste flex,
+          viravam itens da mesma linha do título e apareciam espremidos ao lado
+          do botão. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Academy</h1>
@@ -109,20 +104,6 @@ function EducacaoPage() {
                 <p className="text-[11px] text-muted-foreground">Curso com módulos e aulas</p>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setNovaPasta(true); }}>
-              <Folder className="size-4" />
-              <div>
-                <p className="text-sm">Criar pasta</p>
-                <p className="text-[11px] text-muted-foreground">Para agrupar materiais</p>
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setNovoMaterial(true); }}>
-              <Paperclip className="size-4" />
-              <div>
-                <p className="text-sm">Criar material</p>
-                <p className="text-[11px] text-muted-foreground">PDF, planilha, imagem, link…</p>
-              </div>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setNovoBanner(true); }}>
               <ImageIcon className="size-4" />
@@ -135,13 +116,15 @@ function EducacaoPage() {
         </DropdownMenu>
       </div>
 
-      <BannersAcademy podeEditar novo={novoBanner} onNovo={setNovoBanner} />
+      {/* #313 — a Biblioteca morava aqui. Placa de mudança para quem vier procurar no lugar antigo. */}
+      <Link to="/biblioteca"
+        className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed px-4 py-2 text-sm text-muted-foreground hover:bg-muted/50">
+        <Library className="size-4 shrink-0" />
+        <span>A Biblioteca agora tem menu próprio, logo abaixo da Academy.</span>
+        <span className="ml-auto shrink-0 font-medium text-foreground">Abrir a Biblioteca →</span>
+      </Link>
 
-      <Biblioteca
-        podeEditar
-        novoMaterial={novoMaterial} onNovoMaterial={setNovoMaterial}
-        novaPasta={novaPasta} onNovaPasta={setNovaPasta}
-      />
+      <BannersAcademy podeEditar novo={novoBanner} onNovo={setNovoBanner} />
 
       {lista.length === 0 ? (
         <CatalogoVazio podeEditar />

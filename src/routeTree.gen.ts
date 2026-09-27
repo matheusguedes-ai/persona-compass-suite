@@ -20,6 +20,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
 import { Route as AppAssistenteRouteImport } from './routes/_app.assistente'
+import { Route as AppBibliotecaRouteImport } from './routes/_app.biblioteca'
 import { Route as AppColaboradoresRouteImport } from './routes/_app.colaboradores'
 import { Route as AppComunidadesRouteImport } from './routes/_app.comunidades'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
@@ -34,6 +35,7 @@ import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as AlunoIndexRouteImport } from './routes/aluno.index'
 import { Route as AlunoAgendaRouteImport } from './routes/aluno.agenda'
 import { Route as AlunoAssistenteRouteImport } from './routes/aluno.assistente'
+import { Route as AlunoBibliotecaRouteImport } from './routes/aluno.biblioteca'
 import { Route as AlunoComunidadeRouteImport } from './routes/aluno.comunidade'
 import { Route as AlunoCriarSenhaRouteImport } from './routes/aluno.criar-senha'
 import { Route as AlunoGruposRouteImport } from './routes/aluno.grupos'
@@ -61,6 +63,7 @@ import { Route as AppClassroomIndexRouteImport } from './routes/_app.classroom.i
 import { Route as AppClassroomTreinamentoIdRouteImport } from './routes/_app.classroom.$treinamentoId'
 import { Route as AppEducacaoIndexRouteImport } from './routes/_app.educacao.index'
 import { Route as AppEducacaoTrackIdRouteImport } from './routes/_app.educacao.$trackId'
+import { Route as AppEducacaoBibliotecaRouteImport } from './routes/_app.educacao.biblioteca'
 import { Route as AppEnviosIndexRouteImport } from './routes/_app.envios.index'
 import { Route as AppEnviosCampanhaIdRouteImport } from './routes/_app.envios.$campanhaId'
 import { Route as AppEnviosNovoRouteImport } from './routes/_app.envios.novo'
@@ -77,6 +80,7 @@ import { Route as AlunoClassroomIndexRouteImport } from './routes/aluno.classroo
 import { Route as AlunoClassroomTreinamentoIdRouteImport } from './routes/aluno.classroom.$treinamentoId'
 import { Route as AlunoEducacaoIndexRouteImport } from './routes/aluno.educacao.index'
 import { Route as AlunoEducacaoTrackIdRouteImport } from './routes/aluno.educacao.$trackId'
+import { Route as AlunoEducacaoBibliotecaRouteImport } from './routes/aluno.educacao.biblioteca'
 import { Route as ApiCronLembretesRouteImport } from './routes/api.cron.lembretes'
 import { Route as ApiGoogleCallbackRouteImport } from './routes/api.google.callback'
 import { Route as ApiIconeTamanhoRouteImport } from './routes/api.icone.$tamanho'
@@ -150,6 +154,11 @@ const AppAssistenteRoute = AppAssistenteRouteImport.update({
   path: '/assistente',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBibliotecaRoute = AppBibliotecaRouteImport.update({
+  id: '/biblioteca',
+  path: '/biblioteca',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppColaboradoresRoute = AppColaboradoresRouteImport.update({
   id: '/colaboradores',
   path: '/colaboradores',
@@ -218,6 +227,11 @@ const AlunoAgendaRoute = AlunoAgendaRouteImport.update({
 const AlunoAssistenteRoute = AlunoAssistenteRouteImport.update({
   id: '/assistente',
   path: '/assistente',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoBibliotecaRoute = AlunoBibliotecaRouteImport.update({
+  id: '/biblioteca',
+  path: '/biblioteca',
   getParentRoute: () => AlunoRoute,
 } as any)
 const AlunoComunidadeRoute = AlunoComunidadeRouteImport.update({
@@ -359,6 +373,11 @@ const AppEducacaoTrackIdRoute = AppEducacaoTrackIdRouteImport.update({
   path: '/educacao/$trackId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEducacaoBibliotecaRoute = AppEducacaoBibliotecaRouteImport.update({
+  id: '/educacao/biblioteca',
+  path: '/educacao/biblioteca',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppEnviosIndexRoute = AppEnviosIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -438,6 +457,11 @@ const AlunoEducacaoIndexRoute = AlunoEducacaoIndexRouteImport.update({
 const AlunoEducacaoTrackIdRoute = AlunoEducacaoTrackIdRouteImport.update({
   id: '/educacao/$trackId',
   path: '/educacao/$trackId',
+  getParentRoute: () => AlunoRoute,
+} as any)
+const AlunoEducacaoBibliotecaRoute = AlunoEducacaoBibliotecaRouteImport.update({
+  id: '/educacao/biblioteca',
+  path: '/educacao/biblioteca',
   getParentRoute: () => AlunoRoute,
 } as any)
 const ApiCronLembretesRoute = ApiCronLembretesRouteImport.update({
@@ -538,6 +562,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agenda': typeof AppAgendaRoute
   '/assistente': typeof AppAssistenteRoute
+  '/biblioteca': typeof AppBibliotecaRoute
   '/colaboradores': typeof AppColaboradoresRoute
   '/comunidades': typeof AppComunidadesRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -551,6 +576,7 @@ export interface FileRoutesByFullPath {
   '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
   '/aluno/assistente': typeof AlunoAssistenteRoute
+  '/aluno/biblioteca': typeof AlunoBibliotecaRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/grupos': typeof AlunoGruposRoute
@@ -577,6 +603,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
   '/educacao/$trackId': typeof AppEducacaoTrackIdRoute
+  '/educacao/biblioteca': typeof AppEducacaoBibliotecaRoute
   '/envios/$campanhaId': typeof AppEnviosCampanhaIdRoute
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
@@ -585,6 +612,7 @@ export interface FileRoutesByFullPath {
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/aluno/educacao/biblioteca': typeof AlunoEducacaoBibliotecaRoute
   '/api/cron/lembretes': typeof ApiCronLembretesRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
@@ -620,6 +648,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agenda': typeof AppAgendaRoute
   '/assistente': typeof AppAssistenteRoute
+  '/biblioteca': typeof AppBibliotecaRoute
   '/colaboradores': typeof AppColaboradoresRoute
   '/comunidades': typeof AppComunidadesRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -627,6 +656,7 @@ export interface FileRoutesByTo {
   '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
   '/aluno/assistente': typeof AlunoAssistenteRoute
+  '/aluno/biblioteca': typeof AlunoBibliotecaRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/grupos': typeof AlunoGruposRoute
@@ -654,6 +684,7 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
   '/educacao/$trackId': typeof AppEducacaoTrackIdRoute
+  '/educacao/biblioteca': typeof AppEducacaoBibliotecaRoute
   '/envios/$campanhaId': typeof AppEnviosCampanhaIdRoute
   '/envios/novo': typeof AppEnviosNovoRoute
   '/grupos/$id': typeof AppGruposIdRoute
@@ -662,6 +693,7 @@ export interface FileRoutesByTo {
   '/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/aluno/educacao/biblioteca': typeof AlunoEducacaoBibliotecaRoute
   '/api/cron/lembretes': typeof ApiCronLembretesRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
@@ -701,6 +733,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/agenda': typeof AppAgendaRoute
   '/_app/assistente': typeof AppAssistenteRoute
+  '/_app/biblioteca': typeof AppBibliotecaRoute
   '/_app/colaboradores': typeof AppColaboradoresRoute
   '/_app/comunidades': typeof AppComunidadesRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
@@ -714,6 +747,7 @@ export interface FileRoutesById {
   '/agendar/$slug': typeof AgendarSlugRoute
   '/aluno/agenda': typeof AlunoAgendaRoute
   '/aluno/assistente': typeof AlunoAssistenteRoute
+  '/aluno/biblioteca': typeof AlunoBibliotecaRoute
   '/aluno/comunidade': typeof AlunoComunidadeRoute
   '/aluno/criar-senha': typeof AlunoCriarSenhaRoute
   '/aluno/grupos': typeof AlunoGruposRoute
@@ -741,6 +775,7 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_app/classroom/$treinamentoId': typeof AppClassroomTreinamentoIdRoute
   '/_app/educacao/$trackId': typeof AppEducacaoTrackIdRoute
+  '/_app/educacao/biblioteca': typeof AppEducacaoBibliotecaRoute
   '/_app/envios/$campanhaId': typeof AppEnviosCampanhaIdRoute
   '/_app/envios/novo': typeof AppEnviosNovoRoute
   '/_app/grupos/$id': typeof AppGruposIdRoute
@@ -749,6 +784,7 @@ export interface FileRoutesById {
   '/_app/pessoas/$id': typeof AppPessoasIdRoute
   '/aluno/classroom/$treinamentoId': typeof AlunoClassroomTreinamentoIdRoute
   '/aluno/educacao/$trackId': typeof AlunoEducacaoTrackIdRoute
+  '/aluno/educacao/biblioteca': typeof AlunoEducacaoBibliotecaRoute
   '/api/cron/lembretes': typeof ApiCronLembretesRoute
   '/api/google/callback': typeof ApiGoogleCallbackRoute
   '/api/icone/$tamanho': typeof ApiIconeTamanhoRoute
@@ -789,6 +825,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/agenda'
     | '/assistente'
+    | '/biblioteca'
     | '/colaboradores'
     | '/comunidades'
     | '/configuracoes'
@@ -802,6 +839,7 @@ export interface FileRouteTypes {
     | '/agendar/$slug'
     | '/aluno/agenda'
     | '/aluno/assistente'
+    | '/aluno/biblioteca'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/grupos'
@@ -828,6 +866,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/classroom/$treinamentoId'
     | '/educacao/$trackId'
+    | '/educacao/biblioteca'
     | '/envios/$campanhaId'
     | '/envios/novo'
     | '/grupos/$id'
@@ -836,6 +875,7 @@ export interface FileRouteTypes {
     | '/pessoas/$id'
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
+    | '/aluno/educacao/biblioteca'
     | '/api/cron/lembretes'
     | '/api/google/callback'
     | '/api/icone/$tamanho'
@@ -871,6 +911,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/agenda'
     | '/assistente'
+    | '/biblioteca'
     | '/colaboradores'
     | '/comunidades'
     | '/configuracoes'
@@ -878,6 +919,7 @@ export interface FileRouteTypes {
     | '/agendar/$slug'
     | '/aluno/agenda'
     | '/aluno/assistente'
+    | '/aluno/biblioteca'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/grupos'
@@ -905,6 +947,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/classroom/$treinamentoId'
     | '/educacao/$trackId'
+    | '/educacao/biblioteca'
     | '/envios/$campanhaId'
     | '/envios/novo'
     | '/grupos/$id'
@@ -913,6 +956,7 @@ export interface FileRouteTypes {
     | '/pessoas/$id'
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
+    | '/aluno/educacao/biblioteca'
     | '/api/cron/lembretes'
     | '/api/google/callback'
     | '/api/icone/$tamanho'
@@ -951,6 +995,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_app/agenda'
     | '/_app/assistente'
+    | '/_app/biblioteca'
     | '/_app/colaboradores'
     | '/_app/comunidades'
     | '/_app/configuracoes'
@@ -964,6 +1009,7 @@ export interface FileRouteTypes {
     | '/agendar/$slug'
     | '/aluno/agenda'
     | '/aluno/assistente'
+    | '/aluno/biblioteca'
     | '/aluno/comunidade'
     | '/aluno/criar-senha'
     | '/aluno/grupos'
@@ -991,6 +1037,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/_app/classroom/$treinamentoId'
     | '/_app/educacao/$trackId'
+    | '/_app/educacao/biblioteca'
     | '/_app/envios/$campanhaId'
     | '/_app/envios/novo'
     | '/_app/grupos/$id'
@@ -999,6 +1046,7 @@ export interface FileRouteTypes {
     | '/_app/pessoas/$id'
     | '/aluno/classroom/$treinamentoId'
     | '/aluno/educacao/$trackId'
+    | '/aluno/educacao/biblioteca'
     | '/api/cron/lembretes'
     | '/api/google/callback'
     | '/api/icone/$tamanho'
@@ -1145,6 +1193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssistenteRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/biblioteca': {
+      id: '/_app/biblioteca'
+      path: '/biblioteca'
+      fullPath: '/biblioteca'
+      preLoaderRoute: typeof AppBibliotecaRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/colaboradores': {
       id: '/_app/colaboradores'
       path: '/colaboradores'
@@ -1241,6 +1296,13 @@ declare module '@tanstack/react-router' {
       path: '/assistente'
       fullPath: '/aluno/assistente'
       preLoaderRoute: typeof AlunoAssistenteRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/biblioteca': {
+      id: '/aluno/biblioteca'
+      path: '/biblioteca'
+      fullPath: '/aluno/biblioteca'
+      preLoaderRoute: typeof AlunoBibliotecaRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/aluno/comunidade': {
@@ -1432,6 +1494,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEducacaoTrackIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/educacao/biblioteca': {
+      id: '/_app/educacao/biblioteca'
+      path: '/educacao/biblioteca'
+      fullPath: '/educacao/biblioteca'
+      preLoaderRoute: typeof AppEducacaoBibliotecaRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/envios/': {
       id: '/_app/envios/'
       path: '/'
@@ -1542,6 +1611,13 @@ declare module '@tanstack/react-router' {
       path: '/educacao/$trackId'
       fullPath: '/aluno/educacao/$trackId'
       preLoaderRoute: typeof AlunoEducacaoTrackIdRouteImport
+      parentRoute: typeof AlunoRoute
+    }
+    '/aluno/educacao/biblioteca': {
+      id: '/aluno/educacao/biblioteca'
+      path: '/educacao/biblioteca'
+      fullPath: '/aluno/educacao/biblioteca'
+      preLoaderRoute: typeof AlunoEducacaoBibliotecaRouteImport
       parentRoute: typeof AlunoRoute
     }
     '/api/cron/lembretes': {
@@ -1752,6 +1828,7 @@ const AppTestesRouteWithChildren = AppTestesRoute._addFileChildren(
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
   AppAssistenteRoute: typeof AppAssistenteRoute
+  AppBibliotecaRoute: typeof AppBibliotecaRoute
   AppColaboradoresRoute: typeof AppColaboradoresRoute
   AppComunidadesRoute: typeof AppComunidadesRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
@@ -1765,6 +1842,7 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppClassroomTreinamentoIdRoute: typeof AppClassroomTreinamentoIdRoute
   AppEducacaoTrackIdRoute: typeof AppEducacaoTrackIdRoute
+  AppEducacaoBibliotecaRoute: typeof AppEducacaoBibliotecaRoute
   AppClassroomIndexRoute: typeof AppClassroomIndexRoute
   AppEducacaoIndexRoute: typeof AppEducacaoIndexRoute
 }
@@ -1772,6 +1850,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
   AppAssistenteRoute: AppAssistenteRoute,
+  AppBibliotecaRoute: AppBibliotecaRoute,
   AppColaboradoresRoute: AppColaboradoresRoute,
   AppComunidadesRoute: AppComunidadesRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
@@ -1785,6 +1864,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppClassroomTreinamentoIdRoute: AppClassroomTreinamentoIdRoute,
   AppEducacaoTrackIdRoute: AppEducacaoTrackIdRoute,
+  AppEducacaoBibliotecaRoute: AppEducacaoBibliotecaRoute,
   AppClassroomIndexRoute: AppClassroomIndexRoute,
   AppEducacaoIndexRoute: AppEducacaoIndexRoute,
 }
@@ -1794,6 +1874,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 interface AlunoRouteChildren {
   AlunoAgendaRoute: typeof AlunoAgendaRoute
   AlunoAssistenteRoute: typeof AlunoAssistenteRoute
+  AlunoBibliotecaRoute: typeof AlunoBibliotecaRoute
   AlunoComunidadeRoute: typeof AlunoComunidadeRoute
   AlunoCriarSenhaRoute: typeof AlunoCriarSenhaRoute
   AlunoGruposRoute: typeof AlunoGruposRoute
@@ -1804,6 +1885,7 @@ interface AlunoRouteChildren {
   AlunoIndexRoute: typeof AlunoIndexRoute
   AlunoClassroomTreinamentoIdRoute: typeof AlunoClassroomTreinamentoIdRoute
   AlunoEducacaoTrackIdRoute: typeof AlunoEducacaoTrackIdRoute
+  AlunoEducacaoBibliotecaRoute: typeof AlunoEducacaoBibliotecaRoute
   AlunoClassroomIndexRoute: typeof AlunoClassroomIndexRoute
   AlunoEducacaoIndexRoute: typeof AlunoEducacaoIndexRoute
 }
@@ -1811,6 +1893,7 @@ interface AlunoRouteChildren {
 const AlunoRouteChildren: AlunoRouteChildren = {
   AlunoAgendaRoute: AlunoAgendaRoute,
   AlunoAssistenteRoute: AlunoAssistenteRoute,
+  AlunoBibliotecaRoute: AlunoBibliotecaRoute,
   AlunoComunidadeRoute: AlunoComunidadeRoute,
   AlunoCriarSenhaRoute: AlunoCriarSenhaRoute,
   AlunoGruposRoute: AlunoGruposRoute,
@@ -1821,6 +1904,7 @@ const AlunoRouteChildren: AlunoRouteChildren = {
   AlunoIndexRoute: AlunoIndexRoute,
   AlunoClassroomTreinamentoIdRoute: AlunoClassroomTreinamentoIdRoute,
   AlunoEducacaoTrackIdRoute: AlunoEducacaoTrackIdRoute,
+  AlunoEducacaoBibliotecaRoute: AlunoEducacaoBibliotecaRoute,
   AlunoClassroomIndexRoute: AlunoClassroomIndexRoute,
   AlunoEducacaoIndexRoute: AlunoEducacaoIndexRoute,
 }

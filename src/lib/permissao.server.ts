@@ -82,7 +82,7 @@ export async function exigirAcessoAoGrupo(
  * Como `exigirPermissao`, mas para função COMPARTILHADA com quem só está
  * vendo o que é dele — o aluno na área dele, o mentor promovido vendo o que
  * foi atribuído a ele como pessoa. Não é a tela de administrar a área; é a
- * MESMA consulta usada pelas duas pontas (ver `listTracks`/`listarBiblioteca`/
+ * MESMA consulta usada pelas duas pontas (ver `listTracks`/`minhaBiblioteca`/
  * `listarFeed`/`rankingDoGrupo` — todas têm o comentário "quem lê é a conta
  * inteira: aluno, mentor e dono").
  *

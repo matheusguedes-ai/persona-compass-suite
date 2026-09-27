@@ -199,7 +199,7 @@ export const AREAS_DO_ALUNO = [
   { valor: "comunidade", titulo: "Comunidade", ajuda: "O feed do grupo, os membros e o ranking." },
   { valor: "mentorias", titulo: "Mentorias", ajuda: "As sessões marcadas, o resumo e o checklist de cada uma." },
   { valor: "agenda", titulo: "Agenda", ajuda: "Eventos e aulas marcadas para ele." },
-  { valor: "academy", titulo: "Academy", ajuda: "Trilhas, aulas gravadas e biblioteca." },
+  { valor: "academy", titulo: "Academy", ajuda: "Trilhas e aulas gravadas." },
   { valor: "classroom", titulo: "Classroom", ajuda: "Treinamentos presenciais e presença." },
 ] as const;
 
@@ -225,6 +225,18 @@ export const minhasAreas = createServerFn({ method: "GET" })
     const lista = ((rows ?? []) as unknown as Array<string | Record<string, string>>).map((r) =>
       typeof r === "string" ? r : Object.values(r)[0],
     );
+    // #313 — a Biblioteca tem permissão própria (menu por grupo, pasta, material), decidida só no
+    // banco. O item do menu aparece quando há pelo menos uma coisa que a pessoa vê. Falhou a
+    // consulta? O item some (fecha em vez de abrir), sem derrubar o resto do menu. Colaborador sem a
+    // permissão de Educação não ganha o item: a página recusaria (#226, `minhaBiblioteca`).
+    const m = await membershipDoUsuario(context.supabase, context.userId);
+    if (m.kind !== "colaborador" || (m.permissions as string[]).includes("educacao")) {
+      const { data: vis, error: eBib } = await context.supabase.rpc("bib_visiveis", {
+        _person_id: data.preview_person_id ?? null,
+      });
+      if (eBib) console.error("minhasAreas: bib_visiveis", eBib.message);
+      else if ((vis ?? []).length > 0) lista.push("biblioteca");
+    }
     return { areas: lista };
   });
 

@@ -1,9 +1,10 @@
 /**
  * Biblioteca — material que não pertence a aula nenhuma.
  *
- * Item G, primeira parte. Quem lê é a conta inteira: aluno, mentor e dono.
- * Quem escreve é só o dono — material solto é curadoria, não colaboração.
- * A RLS é quem garante isso; aqui só se monta o que a tela precisa.
+ * #313: menu próprio (fora da Academy), pastas em até 3 níveis e acesso em três camadas — menu por
+ * grupo, pasta, material —, com bloqueio que sempre vence. QUEM VÊ O QUÊ é decidido num lugar só,
+ * a função `bib_decide` do banco; aqui nenhuma função calcula acesso, só pergunta ao banco e monta
+ * o que a tela precisa. Quem escreve é o dono (ou colaborador com a permissão de Educação).
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -22,96 +23,6 @@ export const ROTULO_TIPO: Record<string, string> = {
 
 /** A ordem em que os formatos aparecem agrupados dentro da pasta. */
 export const ORDEM_TIPOS = ["pdf", "planilha", "imagem", "video", "audio", "link", "outro"] as const;
-
-/**
- * A biblioteca inteira: pastas e materiais, com o cadeado já resolvido.
- *
- * `preview_person_id` faz a prévia "ver como aluno" valer o acesso DAQUELA
- * pessoa. Sem ele, quem consulta continua sendo o dono — que abre tudo — e o
- * cadeado não teria como ser conferido.
- */
-export const listarBiblioteca = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ preview_person_id: z.string().uuid().nullable().optional() }).parse(d ?? {}),
-  )
-  .handler(async ({ context, data }) => {
-    // Compartilhada com aluno e mentor (a Academy deles). Só falta barrar o
-    // colaborador sem 'educacao', que hoje entra pela mesma porta da equipe.
-    await exigirPermissaoOuVisitante(context.supabase, context.userId, "educacao");
-    const ver = data.preview_person_id ?? null;
-    const [mats, pastas, pLib, mLib] = await Promise.all([
-      context.supabase
-        .from("biblioteca_materiais")
-        .select("id, titulo, descricao, url, kind, categoria, capa_url, pasta_id, created_at, arquivo_proprio, biblioteca_material_destinos(count)")
-        .order("created_at", { ascending: false }),
-      context.supabase
-        .from("biblioteca_pastas")
-        .select("id, titulo, descricao, capa_url, ordem, created_at, biblioteca_pasta_destinos(count)")
-        .order("ordem")
-        .order("created_at"),
-      context.supabase.rpc("bib_pastas_liberadas", { _person_id: ver }),
-      context.supabase.rpc("bib_materiais_liberados", { _person_id: ver }),
-    ]);
-    if (mats.error) throw new Error(mats.error.message);
-    if (pastas.error) throw new Error(pastas.error.message);
-    if (pLib.error) throw new Error(pLib.error.message);
-    if (mLib.error) throw new Error(mLib.error.message);
-
-    const ids = (r: unknown) =>
-      new Set(
-        ((r ?? []) as Array<string | Record<string, string>>).map((x) =>
-          typeof x === "string" ? x : Object.values(x)[0],
-        ),
-      );
-    const pastasOk = ids(pLib.data);
-    const matsOk = ids(mLib.data);
-    const conta = (v: unknown) => (v as Array<{ count: number }> | null)?.[0]?.count ?? 0;
-
-    // O bucket 'biblioteca' é privado: a URL gravada no banco não abre sozinha,
-    // precisa ser assinada aqui. E — o que realmente fecha o cadeado — o link
-    // do ARQUIVO só é assinado para quem está liberado; a CAPA é assinada
-    // sempre, porque ela é a vitrine que continua visível mesmo trancado (ver
-    // o comentário do componente). Sem essa distinção, um material trancado
-    // continuaria entregando o link de download para quem abrisse o
-    // "Inspecionar" — o próprio motivo desta demanda.
-    const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const materiaisData = mats.data ?? [];
-    const pastasData = pastas.data ?? [];
-    const [urlsAssinadas, capasMatAssinadas, capasPastaAssinadas] = await Promise.all([
-      assinarUrls(supabaseAdmin, materiaisData.map((m) => m.url), TTL_ARQUIVO_SEGUNDOS),
-      assinarUrls(supabaseAdmin, materiaisData.map((m) => m.capa_url), TTL_ARQUIVO_SEGUNDOS),
-      assinarUrls(supabaseAdmin, pastasData.map((p) => p.capa_url), TTL_ARQUIVO_SEGUNDOS),
-    ]);
-
-    const materiais = materiaisData.map((m, i) => {
-      const liberado = matsOk.has(m.id);
-      return {
-        ...m,
-        // Trancado: sem link nenhum, nem assinado. A capa fica.
-        url: liberado ? urlsAssinadas[i] : null,
-        capa_url: capasMatAssinadas[i],
-        liberado,
-        destinos_count: conta(m.biblioteca_material_destinos),
-      };
-    });
-    return {
-      materiais,
-      pastas: pastasData.map((p, i) => ({
-        ...p,
-        capa_url: capasPastaAssinadas[i],
-        liberada: pastasOk.has(p.id),
-        destinos_count: conta(p.biblioteca_pasta_destinos),
-        // Quantos materiais moram nela — para o AlertDialog de exclusão dizer
-        // quantos voltam para a raiz.
-        materiais_count: materiais.filter((m) => m.pasta_id === p.id).length,
-      })),
-      // As categorias saem do que existe, não de uma lista fixa: uma lista fixa
-      // envelhece e ninguém lembra de atualizar.
-      categorias: [...new Set(materiais.map((m) => m.categoria).filter(Boolean))] as string[],
-    };
-  });
 
 const materialSchema = z.object({
   titulo: z.string().trim().min(1).max(200),
@@ -182,186 +93,6 @@ export const excluirMaterial = createServerFn({ method: "POST" })
       .from("biblioteca_materiais").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
-  });
-
-// ============================================================
-// Pastas
-// ============================================================
-export const salvarPasta = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({
-      id: z.string().uuid().optional(),
-      titulo: z.string().trim().min(1).max(200),
-      descricao: z.string().trim().max(1000).optional().nullable(),
-      capa_url: z.string().url().nullable().optional(),
-    }).parse(d),
-  )
-  .handler(async ({ context, data }) => {
-    await exigirPermissao(context.supabase, context.userId, "educacao");
-    const { id, ...campos } = data;
-    const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
-    let capaUrl = campos.capa_url ?? null;
-    // Mesmo motivo do material: editar sem trocar a capa reenviaria o valor
-    // assinado que a listagem mostrou.
-    if (id && ehUrlAssinadaNossa(capaUrl)) {
-      const { data: atual } = await context.supabase
-        .from("biblioteca_pastas").select("capa_url").eq("id", id).maybeSingle();
-      capaUrl = atual?.capa_url ?? null;
-    }
-    const linha = {
-      titulo: campos.titulo,
-      descricao: campos.descricao?.trim() || null,
-      capa_url: capaUrl,
-    };
-    if (id) {
-      const { data: row, error } = await context.supabase
-        .from("biblioteca_pastas").update(linha).eq("id", id).select("id").single();
-      if (error) throw new Error(error.message);
-      return { ok: true, id: row.id };
-    }
-    // Entra no fim da fila, como os banners: criar já mexendo na ordem dos
-    // outros seria surpresa.
-    const { data: ultima } = await context.supabase
-      .from("biblioteca_pastas").select("ordem")
-      .order("ordem", { ascending: false }).limit(1).maybeSingle();
-    const { data: row, error } = await context.supabase
-      .from("biblioteca_pastas")
-      .insert({ ...linha, mentor_id: context.userId, ordem: (ultima?.ordem ?? 0) + 1 })
-      .select("id").single();
-    if (error) throw new Error(error.message);
-    return { ok: true, id: row.id };
-  });
-
-/**
- * Apaga a pasta. Os materiais NÃO vão junto: o `ON DELETE SET NULL` devolve
- * todos para a raiz. Apagar material por tabela vizinha seria perda calada, e
- * o arquivo ainda ficaria órfão no bucket.
- */
-export const excluirPasta = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ context, data }) => {
-    await exigirPermissao(context.supabase, context.userId, "educacao");
-    const { error } = await context.supabase
-      .from("biblioteca_pastas").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
-
-export const moverPasta = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ id: z.string().uuid(), direcao: z.enum(["cima", "baixo"]) }).parse(d),
-  )
-  .handler(async ({ context, data }) => {
-    await exigirPermissao(context.supabase, context.userId, "educacao");
-    const supabase = context.supabase;
-    const { data: todas, error } = await supabase
-      .from("biblioteca_pastas").select("id, ordem").order("ordem").order("created_at");
-    if (error) throw new Error(error.message);
-
-    const lista = todas ?? [];
-    const i = lista.findIndex((p) => p.id === data.id);
-    const j = data.direcao === "cima" ? i - 1 : i + 1;
-    if (i < 0 || j < 0 || j >= lista.length) return { ok: true };
-
-    await Promise.all([
-      supabase.from("biblioteca_pastas").update({ ordem: lista[j].ordem }).eq("id", lista[i].id),
-      supabase.from("biblioteca_pastas").update({ ordem: lista[i].ordem }).eq("id", lista[j].id),
-    ]);
-    return { ok: true };
-  });
-
-// ============================================================
-// Quem tem acesso (o cadeado)
-// ============================================================
-export const getDestinosBiblioteca = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ alvo: z.enum(["pasta", "material"]), id: z.string().uuid() }).parse(d),
-  )
-  .handler(async ({ context, data }) => {
-    await exigirPermissao(context.supabase, context.userId, "educacao");
-    const q =
-      data.alvo === "pasta"
-        ? context.supabase
-            .from("biblioteca_pasta_destinos").select("group_id, person_id").eq("pasta_id", data.id)
-        : context.supabase
-            .from("biblioteca_material_destinos").select("group_id, person_id").eq("material_id", data.id);
-    const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
-    return {
-      group_ids: (rows ?? []).filter((r) => r.group_id).map((r) => r.group_id as string),
-      person_ids: (rows ?? []).filter((r) => r.person_id).map((r) => r.person_id as string),
-    };
-  });
-
-/**
- * Troca os destinos por DIFERENÇA, nunca apagando tudo para reinserir.
- *
- * Entre o delete e o insert a pasta ficaria sem destino — ou seja, aberta a
- * todos — e quem carregasse a página nesse instante levaria o material embora.
- * É a mesma razão de `setTrackDestinos`.
- *
- * Os dois ramos são escritos por extenso de propósito: com o nome da tabela
- * numa variável, o cliente do Supabase perde o tipo e o insert deixa de ser
- * conferido em tempo de compilação.
- */
-export const setDestinosBiblioteca = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({
-      alvo: z.enum(["pasta", "material"]),
-      id: z.string().uuid(),
-      group_ids: z.array(z.string().uuid()).max(200).default([]),
-      person_ids: z.array(z.string().uuid()).max(500).default([]),
-    }).parse(d),
-  )
-  .handler(async ({ context, data }) => {
-    await exigirPermissao(context.supabase, context.userId, "educacao");
-    const supabase = context.supabase;
-    const ehPasta = data.alvo === "pasta";
-
-    await validarDestinos(supabase, data.group_ids, data.person_ids);
-
-    const atuais = ehPasta
-      ? await supabase
-          .from("biblioteca_pasta_destinos").select("id, group_id, person_id").eq("pasta_id", data.id)
-      : await supabase
-          .from("biblioteca_material_destinos").select("id, group_id, person_id").eq("material_id", data.id);
-    if (atuais.error) throw new Error(atuais.error.message);
-
-    const quero = new Set([
-      ...data.group_ids.map((g) => `g:${g}`),
-      ...data.person_ids.map((p) => `p:${p}`),
-    ]);
-    const tenho = new Map(
-      (atuais.data ?? []).map((r) => [r.group_id ? `g:${r.group_id}` : `p:${r.person_id}`, r.id]),
-    );
-
-    const sobrando = [...tenho.entries()].filter(([k]) => !quero.has(k)).map(([, id]) => id);
-    if (sobrando.length) {
-      const del = ehPasta
-        ? await supabase.from("biblioteca_pasta_destinos").delete().in("id", sobrando)
-        : await supabase.from("biblioteca_material_destinos").delete().in("id", sobrando);
-      if (del.error) throw new Error(del.error.message);
-    }
-
-    const faltando = [...quero].filter((k) => !tenho.has(k));
-    if (faltando.length) {
-      const grupo = (k: string) => (k.startsWith("g:") ? k.slice(2) : null);
-      const pessoa = (k: string) => (k.startsWith("p:") ? k.slice(2) : null);
-      const ins = ehPasta
-        ? await supabase.from("biblioteca_pasta_destinos").insert(
-            faltando.map((k) => ({ pasta_id: data.id, group_id: grupo(k), person_id: pessoa(k) })),
-          )
-        : await supabase.from("biblioteca_material_destinos").insert(
-            faltando.map((k) => ({ material_id: data.id, group_id: grupo(k), person_id: pessoa(k) })),
-          );
-      if (ins.error) throw new Error(ins.error.message);
-    }
-    return { ok: true, total: quero.size };
   });
 
 /**
@@ -492,4 +223,405 @@ export const moverBanner = createServerFn({ method: "POST" })
       supabase.from("academy_banners").update({ ordem: lista[i].ordem }).eq("id", lista[j].id),
     ]);
     return { ok: true };
+  });
+
+// ============================================================================================
+// #313 — A BIBLIOTECA COM MENU PRÓPRIO
+// ============================================================================================
+// Quem vê o quê é decidido num lugar só: `bib_decide`, no banco (migração 20260927120000). Estas
+// funções só perguntam a ele (pelas portas `bib_visiveis`, `bib_pode_ver_material`, `bib_quem_ve`,
+// `bib_resumo_acesso`) e montam a tela. Nenhuma filtra por conta própria.
+
+const uuid = z.string().uuid();
+const listaDeIds = z.array(uuid).max(500).default([]);
+
+export type AcessoResumido = { veem: number; veemComLogin: number; bloqueados: number };
+export type PastaDoAcervo = {
+  id: string; titulo: string; descricao: string | null; capa_url: string | null;
+  ordem: number; pasta_mae_id: string | null; created_at: string;
+};
+export type MaterialDoAcervo = {
+  id: string; titulo: string; descricao: string | null; kind: string; categoria: string | null;
+  capa_url: string | null; pasta_id: string | null; created_at: string;
+};
+
+async function assinarCapas<T extends { capa_url: string | null }>(itens: T[]): Promise<T[]> {
+  const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const capas = await assinarUrls(supabaseAdmin, itens.map((i) => i.capa_url), TTL_ARQUIVO_SEGUNDOS);
+  return itens.map((i, k) => ({ ...i, capa_url: capas[k] }));
+}
+
+/**
+ * A biblioteca inteira para a GESTÃO (dono e equipe com Academy), com o acesso de cada pasta e
+ * material já resolvido pelo banco — "não liberado para ninguém" é `veem = 0`, nunca um palpite da tela.
+ */
+export const listarAcervo = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const m = await exigirPermissao(context.supabase, context.userId, "educacao");
+    const s = context.supabase;
+    const [pastas, materiais, resumo, menu] = await Promise.all([
+      s.from("biblioteca_pastas")
+        .select("id, titulo, descricao, capa_url, ordem, pasta_mae_id, created_at")
+        .order("ordem").order("created_at").order("id"),
+      // `url` e `arquivo_proprio` só na gestão: editar sem trocar o arquivo reenvia o que está gravado.
+      s.from("biblioteca_materiais")
+        .select("id, titulo, descricao, kind, categoria, capa_url, pasta_id, created_at, url, arquivo_proprio")
+        .order("titulo").order("id"),
+      s.rpc("bib_resumo_acesso"),
+      s.from("biblioteca_menu_grupos").select("group_id"),
+    ]);
+    for (const r of [pastas, materiais, resumo, menu]) if (r.error) throw new Error(r.error.message);
+
+    const acesso = new Map<string, AcessoResumido>();
+    for (const r of resumo.data ?? []) {
+      acesso.set(`${r.tipo}:${r.id}`, { veem: r.veem, veemComLogin: r.veem_com_login, bloqueados: r.bloqueados });
+    }
+    const nenhum: AcessoResumido = { veem: 0, veemComLogin: 0, bloqueados: 0 };
+    const gruposLidos = await s.from("groups").select("id, name").order("name");
+    const nomesDosGrupos = gruposLidos.error ? [] : (gruposLidos.data ?? []);
+    const ps = await assinarCapas((pastas.data ?? []) as PastaDoAcervo[]);
+    const ms = await assinarCapas(
+      (materiais.data ?? []) as Array<MaterialDoAcervo & { url: string; arquivo_proprio: boolean }>,
+    );
+    return {
+      // Escrever é só do dono (a RLS da biblioteca exige mentor_id = auth.uid()); a equipe consulta.
+      podeEditar: m.kind === "owner",
+      pastas: ps.map((p) => ({ ...p, acesso: acesso.get(`pasta:${p.id}`) ?? nenhum })),
+      materiais: ms.map((x) => ({ ...x, acesso: acesso.get(`material:${x.id}`) ?? nenhum })),
+      menuGrupos: (menu.data ?? []).map((r) => r.group_id),
+      // Os nomes, para a tela dizer QUAIS grupos têm o menu. Quem da equipe não lê grupos fica só
+      // com a contagem — não é motivo para derrubar a biblioteca inteira.
+      grupos: nomesDosGrupos,
+    };
+  });
+
+/**
+ * O que ESTE login vê (ou, na prévia "ver como aluno", o que a pessoa `preview_person_id` vê). A
+ * lista de ids sai de `bib_visiveis`, rodada com a sessão de quem pede; as linhas vêm pela chave de
+ * serviço só desses ids. Material sai SEM link: o link só nasce no clique (`abrirMaterialDaBiblioteca`),
+ * depois de o banco confirmar de novo.
+ */
+export const minhaBiblioteca = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ preview_person_id: uuid.nullable().optional() }).parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    // #226: para o banco, "equipe da conta" vê tudo — inclusive o colaborador SEM a permissão de
+    // Educação. Dono, mentor e aluno passam; colaborador só com a permissão.
+    await exigirPermissaoOuVisitante(context.supabase, context.userId, "educacao");
+    const { data: vis, error } = await context.supabase.rpc("bib_visiveis", {
+      _person_id: data.preview_person_id ?? null,
+    });
+    if (error) throw new Error(error.message);
+    const idsPasta = (vis ?? []).filter((v) => v.tipo === "pasta").map((v) => v.id);
+    const idsMaterial = (vis ?? []).filter((v) => v.tipo === "material").map((v) => v.id);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [pastas, materiais] = await Promise.all([
+      idsPasta.length
+        ? supabaseAdmin.from("biblioteca_pastas")
+            .select("id, titulo, descricao, capa_url, ordem, pasta_mae_id, created_at")
+            .in("id", idsPasta).order("ordem").order("created_at").order("id")
+        : Promise.resolve({ data: [], error: null }),
+      idsMaterial.length
+        ? supabaseAdmin.from("biblioteca_materiais")
+            .select("id, titulo, descricao, kind, categoria, capa_url, pasta_id, created_at")
+            .in("id", idsMaterial).order("titulo").order("id")
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (pastas.error) throw new Error(pastas.error.message);
+    if (materiais.error) throw new Error(materiais.error.message);
+    const ms = await assinarCapas((materiais.data ?? []) as MaterialDoAcervo[]);
+    return {
+      pastas: await assinarCapas((pastas.data ?? []) as PastaDoAcervo[]),
+      materiais: ms,
+      categorias: [...new Set(ms.map((x) => x.categoria).filter(Boolean))].sort() as string[],
+    };
+  });
+
+/**
+ * O link de UM material, no momento do clique: o banco confere de novo (`bib_pode_ver_material`) e
+ * só então o arquivo é assinado — um bloqueio feito depois de a página abrir já vale no clique
+ * seguinte. Link externo volta como está (é o próprio conteúdo).
+ */
+export const abrirMaterialDaBiblioteca = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: uuid }).parse(d))
+  .handler(async ({ context, data }) => {
+    await exigirPermissaoOuVisitante(context.supabase, context.userId, "educacao");
+    const { data: pode, error } = await context.supabase.rpc("bib_pode_ver_material", { _material_id: data.id });
+    if (error) throw new Error(error.message);
+    if (pode !== true) throw new Error("Material não encontrado.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: m, error: e2 } = await supabaseAdmin
+      .from("biblioteca_materiais").select("url").eq("id", data.id).maybeSingle();
+    if (e2) throw new Error(e2.message);
+    if (!m) throw new Error("Material não encontrado.");
+    const { assinarUrls, TTL_ARQUIVO_SEGUNDOS } = await import("@/lib/storage-assinado.server");
+    const [url] = await assinarUrls(supabaseAdmin, [m.url], TTL_ARQUIVO_SEGUNDOS);
+    if (!url) throw new Error("Não foi possível abrir este material agora.");
+    return { url };
+  });
+
+/** Criar ou editar pasta. Criar põe no fim da fila das irmãs; a pasta-mãe é conferida pelo banco. */
+export const salvarPastaDoAcervo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      id: uuid.optional(),
+      titulo: z.string().trim().min(1).max(200),
+      descricao: z.string().trim().max(1000).optional().nullable(),
+      capa_url: z.string().url().nullable().optional(),
+      pasta_mae_id: uuid.nullable().optional(),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    const s = context.supabase;
+    const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
+    let capaUrl = data.capa_url ?? null;
+    if (data.id && ehUrlAssinadaNossa(capaUrl)) {
+      const { data: atual } = await s.from("biblioteca_pastas").select("capa_url").eq("id", data.id).maybeSingle();
+      capaUrl = atual?.capa_url ?? null;
+    }
+    const linha = { titulo: data.titulo, descricao: data.descricao?.trim() || null, capa_url: capaUrl };
+    if (data.id) {
+      const { data: row, error } = await s.from("biblioteca_pastas").update(linha).eq("id", data.id).select("id").maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!row) throw new Error("Pasta não encontrada.");
+      return { id: row.id };
+    }
+    const mae = data.pasta_mae_id ?? null;
+    const irmas = mae
+      ? await s.from("biblioteca_pastas").select("ordem").eq("pasta_mae_id", mae).order("ordem", { ascending: false }).limit(1)
+      : await s.from("biblioteca_pastas").select("ordem").is("pasta_mae_id", null).order("ordem", { ascending: false }).limit(1);
+    if (irmas.error) throw new Error(irmas.error.message);
+    const { data: row, error } = await s
+      .from("biblioteca_pastas")
+      .insert({ ...linha, mentor_id: context.userId, pasta_mae_id: mae, ordem: (irmas.data?.[0]?.ordem ?? 0) + 1 })
+      .select("id").single();
+    if (error) throw new Error(error.message);
+    return { id: row.id };
+  });
+
+/**
+ * Mover pasta para dentro de outra (ou para o início, com `pasta_mae_id` nulo). O limite de 3 níveis
+ * e a trava contra ciclo são do banco — a mensagem dele chega aqui como está.
+ */
+export const moverPastaDoAcervo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: uuid, pasta_mae_id: uuid.nullable() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    const s = context.supabase;
+    const irmas = data.pasta_mae_id
+      ? await s.from("biblioteca_pastas").select("ordem").eq("pasta_mae_id", data.pasta_mae_id).order("ordem", { ascending: false }).limit(1)
+      : await s.from("biblioteca_pastas").select("ordem").is("pasta_mae_id", null).order("ordem", { ascending: false }).limit(1);
+    if (irmas.error) throw new Error(irmas.error.message);
+    // Update que não atinge linha nenhuma volta SEM erro — por isso o .select() conferido.
+    const { data: row, error } = await s
+      .from("biblioteca_pastas")
+      .update({ pasta_mae_id: data.pasta_mae_id, ordem: (irmas.data?.[0]?.ordem ?? 0) + 1 })
+      .eq("id", data.id).select("id").maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Pasta não encontrada.");
+    return { ok: true };
+  });
+
+/** Subir/descer uma pasta entre as irmãs (mesma pasta-mãe). */
+export const reordenarPastaDoAcervo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: uuid, direcao: z.enum(["cima", "baixo"]) }).parse(d))
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    const s = context.supabase;
+    const { data: esta, error: e0 } = await s.from("biblioteca_pastas").select("id, pasta_mae_id").eq("id", data.id).maybeSingle();
+    if (e0) throw new Error(e0.message);
+    if (!esta) throw new Error("Pasta não encontrada.");
+    const irmas = esta.pasta_mae_id
+      ? await s.from("biblioteca_pastas").select("id, ordem").eq("pasta_mae_id", esta.pasta_mae_id).order("ordem").order("created_at").order("id")
+      : await s.from("biblioteca_pastas").select("id, ordem").is("pasta_mae_id", null).order("ordem").order("created_at").order("id");
+    if (irmas.error) throw new Error(irmas.error.message);
+    const lista = irmas.data ?? [];
+    const i = lista.findIndex((p) => p.id === data.id);
+    const j = data.direcao === "cima" ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= lista.length) return { ok: true };
+    // Ordens iguais (pastas antigas) não trocam de lugar trocando o número: renumera as irmãs primeiro.
+    const novas = lista.map((p, k) => ({ id: p.id, ordem: k + 1 }));
+    [novas[i].ordem, novas[j].ordem] = [novas[j].ordem, novas[i].ordem];
+    for (const p of novas) {
+      const { error } = await s.from("biblioteca_pastas").update({ ordem: p.ordem }).eq("id", p.id);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
+/** Mover material para uma pasta (ou para o início da Biblioteca, com `pasta_id` nulo). */
+export const moverMaterialDoAcervo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: uuid, pasta_id: uuid.nullable() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    if (data.pasta_id) await conferirPasta(context.supabase, data.pasta_id);
+    const { data: row, error } = await context.supabase
+      .from("biblioteca_materiais").update({ pasta_id: data.pasta_id }).eq("id", data.id).select("id").maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Material não encontrado.");
+    return { ok: true };
+  });
+
+/**
+ * Apagar pasta pelo banco (`bib_apagar_pasta`): o conteúdo sobe um nível e continua visível EXATAMENTE
+ * para quem via — as regras da pasta passam para cada item. Nenhum material é apagado.
+ */
+export const apagarPastaDoAcervo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: uuid }).parse(d))
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    const { data: r, error } = await context.supabase.rpc("bib_apagar_pasta", { _pasta_id: data.id });
+    if (error) throw new Error(error.message);
+    return r as { materiais: number; subpastas: number; para: string | null };
+  });
+
+/** As regras de UMA pasta ou material: quem foi liberado e quem foi bloqueado ali. */
+export const lerRegrasDaBiblioteca = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ alvo: z.enum(["pasta", "material"]), id: uuid }).parse(d))
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    const s = context.supabase;
+    const [lib, bloq] = data.alvo === "pasta"
+      ? await Promise.all([
+          s.from("biblioteca_pasta_destinos").select("group_id, person_id").eq("pasta_id", data.id),
+          s.from("biblioteca_pasta_bloqueios").select("group_id, person_id").eq("pasta_id", data.id),
+        ])
+      : await Promise.all([
+          s.from("biblioteca_material_destinos").select("group_id, person_id").eq("material_id", data.id),
+          s.from("biblioteca_material_bloqueios").select("group_id, person_id").eq("material_id", data.id),
+        ]);
+    if (lib.error) throw new Error(lib.error.message);
+    if (bloq.error) throw new Error(bloq.error.message);
+    const separar = (rows: Array<{ group_id: string | null; person_id: string | null }>) => ({
+      grupos: rows.filter((r) => r.group_id).map((r) => r.group_id as string),
+      pessoas: rows.filter((r) => r.person_id).map((r) => r.person_id as string),
+    });
+    return { liberados: separar(lib.data ?? []), bloqueados: separar(bloq.data ?? []) };
+  });
+
+const conjunto = z.object({ grupos: listaDeIds, pessoas: listaDeIds });
+
+/**
+ * Grava as regras de uma pasta ou material por DIFERENÇA, e na ordem que nunca abre nada no meio do
+ * caminho: primeiro o que RESTRINGE (bloqueios novos, liberações retiradas), depois o que LIBERA
+ * (bloqueios retirados, liberações novas). A mesma pessoa/grupo não pode estar liberada e bloqueada
+ * no mesmo lugar — a negação venceria, e a tela estaria mostrando uma liberação que não vale.
+ */
+export const salvarRegrasDaBiblioteca = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ alvo: z.enum(["pasta", "material"]), id: uuid, liberados: conjunto, bloqueados: conjunto }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    const s = context.supabase;
+    const g = (ids: string[]) => ids.map((x) => `g:${x}`);
+    const p = (ids: string[]) => ids.map((x) => `p:${x}`);
+    const querLib = new Set([...g(data.liberados.grupos), ...p(data.liberados.pessoas)]);
+    const querBloq = new Set([...g(data.bloqueados.grupos), ...p(data.bloqueados.pessoas)]);
+    if ([...querLib].some((k) => querBloq.has(k))) {
+      throw new Error("A mesma pessoa ou grupo não pode estar liberado e bloqueado no mesmo lugar.");
+    }
+    await validarDestinos(s, [...data.liberados.grupos, ...data.bloqueados.grupos], [...data.liberados.pessoas, ...data.bloqueados.pessoas]);
+
+    const ehPasta = data.alvo === "pasta";
+    const [libAtual, bloqAtual] = ehPasta
+      ? await Promise.all([
+          s.from("biblioteca_pasta_destinos").select("id, group_id, person_id").eq("pasta_id", data.id),
+          s.from("biblioteca_pasta_bloqueios").select("id, group_id, person_id").eq("pasta_id", data.id),
+        ])
+      : await Promise.all([
+          s.from("biblioteca_material_destinos").select("id, group_id, person_id").eq("material_id", data.id),
+          s.from("biblioteca_material_bloqueios").select("id, group_id, person_id").eq("material_id", data.id),
+        ]);
+    if (libAtual.error) throw new Error(libAtual.error.message);
+    if (bloqAtual.error) throw new Error(bloqAtual.error.message);
+    const chave = (r: { group_id: string | null; person_id: string | null }) => (r.group_id ? `g:${r.group_id}` : `p:${r.person_id}`);
+    const temLib = new Map((libAtual.data ?? []).map((r) => [chave(r), r.id]));
+    const temBloq = new Map((bloqAtual.data ?? []).map((r) => [chave(r), r.id]));
+    const grupo = (k: string) => (k.startsWith("g:") ? k.slice(2) : null);
+    const pessoa = (k: string) => (k.startsWith("p:") ? k.slice(2) : null);
+
+    // 1. RESTRINGE: bloqueios novos…
+    const bloqNovos = [...querBloq].filter((k) => !temBloq.has(k));
+    if (bloqNovos.length) {
+      const r = ehPasta
+        ? await s.from("biblioteca_pasta_bloqueios").insert(bloqNovos.map((k) => ({ pasta_id: data.id, group_id: grupo(k), person_id: pessoa(k) })))
+        : await s.from("biblioteca_material_bloqueios").insert(bloqNovos.map((k) => ({ material_id: data.id, group_id: grupo(k), person_id: pessoa(k) })));
+      if (r.error) throw new Error(r.error.message);
+    }
+    // … e liberações retiradas.
+    const libSaindo = [...temLib.entries()].filter(([k]) => !querLib.has(k)).map(([, id]) => id);
+    if (libSaindo.length) {
+      const r = ehPasta
+        ? await s.from("biblioteca_pasta_destinos").delete().in("id", libSaindo)
+        : await s.from("biblioteca_material_destinos").delete().in("id", libSaindo);
+      if (r.error) throw new Error(r.error.message);
+    }
+    // 2. LIBERA: bloqueios retirados…
+    const bloqSaindo = [...temBloq.entries()].filter(([k]) => !querBloq.has(k)).map(([, id]) => id);
+    if (bloqSaindo.length) {
+      const r = ehPasta
+        ? await s.from("biblioteca_pasta_bloqueios").delete().in("id", bloqSaindo)
+        : await s.from("biblioteca_material_bloqueios").delete().in("id", bloqSaindo);
+      if (r.error) throw new Error(r.error.message);
+    }
+    // … e liberações novas.
+    const libNovas = [...querLib].filter((k) => !temLib.has(k));
+    if (libNovas.length) {
+      const r = ehPasta
+        ? await s.from("biblioteca_pasta_destinos").insert(libNovas.map((k) => ({ pasta_id: data.id, group_id: grupo(k), person_id: pessoa(k) })))
+        : await s.from("biblioteca_material_destinos").insert(libNovas.map((k) => ({ material_id: data.id, group_id: grupo(k), person_id: pessoa(k) })));
+      if (r.error) throw new Error(r.error.message);
+    }
+    return { ok: true };
+  });
+
+/** Os grupos com o menu Biblioteca (camada 1). Troca por diferença; tirar primeiro, pôr depois. */
+export const salvarMenuDaBiblioteca = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ grupos: listaDeIds }).parse(d))
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    const s = context.supabase;
+    await validarDestinos(s, data.grupos, []);
+    const { data: atuais, error } = await s.from("biblioteca_menu_grupos").select("id, group_id");
+    if (error) throw new Error(error.message);
+    const quero = new Set(data.grupos);
+    const saindo = (atuais ?? []).filter((r) => !quero.has(r.group_id)).map((r) => r.id);
+    if (saindo.length) {
+      const r = await s.from("biblioteca_menu_grupos").delete().in("id", saindo);
+      if (r.error) throw new Error(r.error.message);
+    }
+    const tem = new Set((atuais ?? []).map((r) => r.group_id));
+    const novos = data.grupos.filter((gid) => !tem.has(gid));
+    if (novos.length) {
+      const r = await s.from("biblioteca_menu_grupos").insert(novos.map((gid) => ({ group_id: gid })));
+      if (r.error) throw new Error(r.error.message);
+    }
+    return { ok: true };
+  });
+
+/** "Quem vê isto": a lista final, pessoa a pessoa, com o motivo — calculada pelo banco. */
+export const quemVeNaBiblioteca = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ alvo: z.enum(["pasta", "material"]), id: uuid }).parse(d))
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    const { data: rows, error } = await context.supabase.rpc("bib_quem_ve", {
+      _pasta_id: data.alvo === "pasta" ? data.id : null,
+      _material_id: data.alvo === "material" ? data.id : null,
+    });
+    if (error) throw new Error(error.message);
+    return { pessoas: rows ?? [] };
   });
