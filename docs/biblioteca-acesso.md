@@ -58,7 +58,22 @@ Consequências:
 bloqueios da pasta são **copiados** para cada item que subiu — ninguém ganha nem perde acesso por uma
 pasta ter sumido. Material só some por "Apagar" no próprio material, com confirmação.
 
+## Leituras (regra da #314)
+
+Toda lista da Biblioteca que cresce com o uso é lida em partes até o fim (`lerTodasOuRecusar`, de
+`src/lib/ler-todas.ts`), com ordem terminando numa coluna única: o acervo e o selo de cada item no painel,
+a Biblioteca do aluno (`bib_visiveis`), o "Quem vê isto" (uma linha por pessoa da conta), as regras de um
+item, os grupos com o menu e as irmãs de uma pasta ao reordenar. Se um dia não der para ler tudo, a tela
+recusa com uma frase em vez de mostrar número errado. Listas de ids que vão num `.in()` vão em lotes de 150
+(a lista vai na URL). Provado em 27/09 com páginas de 2 linhas: o total da API bate e juntar as páginas dá
+o conjunto inteiro, sem repetir nem pular.
+
 ## Ressalvas conhecidas
+
+- **Seletor de pessoas** ("Liberar ou bloquear" → pessoas): usa `listarPessoasParaEscolher`, que ainda lê
+  numa consulta só (está no levantamento da #314, `docs/leituras-sem-teto.md`). Numa conta com mais de
+  1.000 pessoas, as que passarem disso não aparecem para escolher — nada é liberado errado, mas falta gente
+  na lista.
 
 - **Link de arquivo já aberto**: o link assinado de um PDF vale 10 minutos (os leitores de PDF buscam o
   arquivo em pedaços enquanto a pessoa rola). Bloquear alguém que está com o material aberto naquele

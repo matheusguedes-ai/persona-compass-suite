@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao, exigirPermissaoOuVisitante } from "@/lib/permissao.server";
+import { lerTodas, lerTodasOuRecusar } from "@/lib/ler-todas";
 import type { Database } from "@/integrations/supabase/types";
 
 export const TIPOS = ["link", "pdf", "planilha", "imagem", "video", "audio", "outro"] as const;
@@ -95,6 +96,13 @@ export const excluirMaterial = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** `.in()` em lotes: a lista de ids vai na URL (que tem limite), e cada lote fica longe do teto de linhas. */
+function emLotes<T>(ids: T[], tamanho = 150): T[][] {
+  const lotes: T[][] = [];
+  for (let i = 0; i < ids.length; i += tamanho) lotes.push(ids.slice(i, i + tamanho));
+  return lotes;
+}
+
 /**
  * Confere que grupos e pessoas são da conta.
  *
@@ -105,20 +113,21 @@ export const excluirMaterial = createServerFn({ method: "POST" })
 async function validarDestinos(
   supabase: SupabaseClient<Database>, groupIds: string[], personIds: string[],
 ) {
-  if (groupIds.length) {
-    const { data, error } = await supabase.from("groups").select("id").in("id", groupIds);
+  // Em lotes: a lista de ids vai na URL, e cada lote volta bem abaixo do teto de 1.000 linhas (#314).
+  let achados = 0;
+  for (const lote of emLotes([...new Set(groupIds)])) {
+    const { data, error } = await supabase.from("groups").select("id").in("id", lote);
     if (error) throw new Error(error.message);
-    if ((data ?? []).length !== new Set(groupIds).size) {
-      throw new Error("Um dos grupos escolhidos não é seu.");
-    }
+    achados += (data ?? []).length;
   }
-  if (personIds.length) {
-    const { data, error } = await supabase.from("people").select("id").in("id", personIds);
+  if (achados !== new Set(groupIds).size) throw new Error("Um dos grupos escolhidos não é seu.");
+  achados = 0;
+  for (const lote of emLotes([...new Set(personIds)])) {
+    const { data, error } = await supabase.from("people").select("id").in("id", lote);
     if (error) throw new Error(error.message);
-    if ((data ?? []).length !== new Set(personIds).size) {
-      throw new Error("Uma das pessoas escolhidas não é sua.");
-    }
+    achados += (data ?? []).length;
   }
+  if (achados !== new Set(personIds).size) throw new Error("Uma das pessoas escolhidas não é sua.");
 }
 
 /** A pasta escolhida é da conta? O id vem do cliente. */
@@ -261,36 +270,53 @@ export const listarAcervo = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const m = await exigirPermissao(context.supabase, context.userId, "educacao");
     const s = context.supabase;
+    // Tudo lido em partes até o fim (#314): a tela CONTA com estas linhas ("nenhum dos N materiais",
+    // o selo de cada item) — uma fatia viraria número errado com cara de certo, então recusa.
     const [pastas, materiais, resumo, menu] = await Promise.all([
-      s.from("biblioteca_pastas")
-        .select("id, titulo, descricao, capa_url, ordem, pasta_mae_id, created_at")
-        .order("ordem").order("created_at").order("id"),
+      lerTodasOuRecusar(
+        (de, ate) => s.from("biblioteca_pastas")
+          .select("id, titulo, descricao, capa_url, ordem, pasta_mae_id, created_at", { count: "exact" })
+          .order("ordem").order("created_at").order("id").range(de, ate),
+        "as pastas da Biblioteca",
+      ),
       // `url` e `arquivo_proprio` só na gestão: editar sem trocar o arquivo reenvia o que está gravado.
-      s.from("biblioteca_materiais")
-        .select("id, titulo, descricao, kind, categoria, capa_url, pasta_id, created_at, url, arquivo_proprio")
-        .order("titulo").order("id"),
-      s.rpc("bib_resumo_acesso"),
-      s.from("biblioteca_menu_grupos").select("group_id"),
+      lerTodasOuRecusar(
+        (de, ate) => s.from("biblioteca_materiais")
+          .select("id, titulo, descricao, kind, categoria, capa_url, pasta_id, created_at, url, arquivo_proprio", { count: "exact" })
+          .order("titulo").order("id").range(de, ate),
+        "os materiais da Biblioteca",
+      ),
+      lerTodasOuRecusar(
+        (de, ate) => s.rpc("bib_resumo_acesso", {}, { count: "exact" }).order("tipo").order("id").range(de, ate),
+        "quem vê cada item da Biblioteca",
+      ),
+      lerTodasOuRecusar(
+        (de, ate) => s.from("biblioteca_menu_grupos").select("group_id", { count: "exact" }).order("id").range(de, ate),
+        "os grupos com o menu Biblioteca",
+      ),
     ]);
-    for (const r of [pastas, materiais, resumo, menu]) if (r.error) throw new Error(r.error.message);
 
     const acesso = new Map<string, AcessoResumido>();
-    for (const r of resumo.data ?? []) {
+    for (const r of resumo) {
       acesso.set(`${r.tipo}:${r.id}`, { veem: r.veem, veemComLogin: r.veem_com_login, bloqueados: r.bloqueados });
     }
     const nenhum: AcessoResumido = { veem: 0, veemComLogin: 0, bloqueados: 0 };
-    const gruposLidos = await s.from("groups").select("id, name").order("name");
-    const nomesDosGrupos = gruposLidos.error ? [] : (gruposLidos.data ?? []);
-    const ps = await assinarCapas((pastas.data ?? []) as PastaDoAcervo[]);
-    const ms = await assinarCapas(
-      (materiais.data ?? []) as Array<MaterialDoAcervo & { url: string; arquivo_proprio: boolean }>,
-    );
+    let nomesDosGrupos: Array<{ id: string; name: string }> = [];
+    try {
+      nomesDosGrupos = (await lerTodas(
+        (de, ate) => s.from("groups").select("id, name", { count: "exact" }).order("name").order("id").range(de, ate),
+      )).linhas;
+    } catch {
+      // Quem da equipe não lê grupos fica só com a contagem (ver abaixo).
+    }
+    const ps = await assinarCapas(pastas as PastaDoAcervo[]);
+    const ms = await assinarCapas(materiais as Array<MaterialDoAcervo & { url: string; arquivo_proprio: boolean }>);
     return {
       // Escrever é só do dono (a RLS da biblioteca exige mentor_id = auth.uid()); a equipe consulta.
       podeEditar: m.kind === "owner",
       pastas: ps.map((p) => ({ ...p, acesso: acesso.get(`pasta:${p.id}`) ?? nenhum })),
       materiais: ms.map((x) => ({ ...x, acesso: acesso.get(`material:${x.id}`) ?? nenhum })),
-      menuGrupos: (menu.data ?? []).map((r) => r.group_id),
+      menuGrupos: menu.map((r) => r.group_id),
       // Os nomes, para a tela dizer QUAIS grupos têm o menu. Quem da equipe não lê grupos fica só
       // com a contagem — não é motivo para derrubar a biblioteca inteira.
       grupos: nomesDosGrupos,
@@ -310,30 +336,35 @@ export const minhaBiblioteca = createServerFn({ method: "GET" })
     // #226: para o banco, "equipe da conta" vê tudo — inclusive o colaborador SEM a permissão de
     // Educação. Dono, mentor e aluno passam; colaborador só com a permissão.
     await exigirPermissaoOuVisitante(context.supabase, context.userId, "educacao");
-    const { data: vis, error } = await context.supabase.rpc("bib_visiveis", {
-      _person_id: data.preview_person_id ?? null,
-    });
-    if (error) throw new Error(error.message);
-    const idsPasta = (vis ?? []).filter((v) => v.tipo === "pasta").map((v) => v.id);
-    const idsMaterial = (vis ?? []).filter((v) => v.tipo === "material").map((v) => v.id);
+    // Em partes até o fim (#314): uma fatia esconderia material liberado sem ninguém saber.
+    const vis = await lerTodasOuRecusar(
+      (de, ate) => context.supabase
+        .rpc("bib_visiveis", { _person_id: data.preview_person_id ?? null }, { count: "exact" })
+        .order("tipo").order("id").range(de, ate),
+      "a sua Biblioteca",
+    );
+    const idsPasta = vis.filter((v) => v.tipo === "pasta").map((v) => v.id);
+    const idsMaterial = vis.filter((v) => v.tipo === "material").map((v) => v.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [pastas, materiais] = await Promise.all([
-      idsPasta.length
-        ? supabaseAdmin.from("biblioteca_pastas")
-            .select("id, titulo, descricao, capa_url, ordem, pasta_mae_id, created_at")
-            .in("id", idsPasta).order("ordem").order("created_at").order("id")
-        : Promise.resolve({ data: [], error: null }),
-      idsMaterial.length
-        ? supabaseAdmin.from("biblioteca_materiais")
-            .select("id, titulo, descricao, kind, categoria, capa_url, pasta_id, created_at")
-            .in("id", idsMaterial).order("titulo").order("id")
-        : Promise.resolve({ data: [], error: null }),
-    ]);
-    if (pastas.error) throw new Error(pastas.error.message);
-    if (materiais.error) throw new Error(materiais.error.message);
-    const ms = await assinarCapas((materiais.data ?? []) as MaterialDoAcervo[]);
+    // As linhas, só desses ids, em lotes (a lista vai na URL).
+    const pastasLidas: PastaDoAcervo[] = [];
+    for (const lote of emLotes(idsPasta)) {
+      const r = await supabaseAdmin.from("biblioteca_pastas")
+        .select("id, titulo, descricao, capa_url, ordem, pasta_mae_id, created_at").in("id", lote);
+      if (r.error) throw new Error(r.error.message);
+      pastasLidas.push(...((r.data ?? []) as PastaDoAcervo[]));
+    }
+    const materiaisLidos: MaterialDoAcervo[] = [];
+    for (const lote of emLotes(idsMaterial)) {
+      const r = await supabaseAdmin.from("biblioteca_materiais")
+        .select("id, titulo, descricao, kind, categoria, capa_url, pasta_id, created_at").in("id", lote);
+      if (r.error) throw new Error(r.error.message);
+      materiaisLidos.push(...((r.data ?? []) as MaterialDoAcervo[]));
+    }
+    materiaisLidos.sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR") || a.id.localeCompare(b.id));
+    const ms = await assinarCapas(materiaisLidos);
     return {
-      pastas: await assinarCapas((pastas.data ?? []) as PastaDoAcervo[]),
+      pastas: await assinarCapas(pastasLidas),
       materiais: ms,
       categorias: [...new Set(ms.map((x) => x.categoria).filter(Boolean))].sort() as string[],
     };
@@ -438,11 +469,15 @@ export const reordenarPastaDoAcervo = createServerFn({ method: "POST" })
     const { data: esta, error: e0 } = await s.from("biblioteca_pastas").select("id, pasta_mae_id").eq("id", data.id).maybeSingle();
     if (e0) throw new Error(e0.message);
     if (!esta) throw new Error("Pasta não encontrada.");
-    const irmas = esta.pasta_mae_id
-      ? await s.from("biblioteca_pastas").select("id, ordem").eq("pasta_mae_id", esta.pasta_mae_id).order("ordem").order("created_at").order("id")
-      : await s.from("biblioteca_pastas").select("id, ordem").is("pasta_mae_id", null).order("ordem").order("created_at").order("id");
-    if (irmas.error) throw new Error(irmas.error.message);
-    const lista = irmas.data ?? [];
+    // Renumera as irmãs — com uma fatia, a ordem sairia errada; lê todas (#314).
+    const lista = await lerTodasOuRecusar(
+      (de, ate) => {
+        const q = s.from("biblioteca_pastas").select("id, ordem", { count: "exact" });
+        return (esta.pasta_mae_id ? q.eq("pasta_mae_id", esta.pasta_mae_id) : q.is("pasta_mae_id", null))
+          .order("ordem").order("created_at").order("id").range(de, ate);
+      },
+      "as pastas deste nível",
+    );
     const i = lista.findIndex((p) => p.id === data.id);
     const j = data.direcao === "cima" ? i - 1 : i + 1;
     if (i < 0 || j < 0 || j >= lista.length) return { ok: true };
@@ -493,20 +528,22 @@ export const lerRegrasDaBiblioteca = createServerFn({ method: "GET" })
     const s = context.supabase;
     const [lib, bloq] = data.alvo === "pasta"
       ? await Promise.all([
-          s.from("biblioteca_pasta_destinos").select("group_id, person_id").eq("pasta_id", data.id),
-          s.from("biblioteca_pasta_bloqueios").select("group_id, person_id").eq("pasta_id", data.id),
+          lerTodasOuRecusar((de, ate) => s.from("biblioteca_pasta_destinos").select("group_id, person_id", { count: "exact" })
+            .eq("pasta_id", data.id).order("id").range(de, ate), "as liberações desta pasta"),
+          lerTodasOuRecusar((de, ate) => s.from("biblioteca_pasta_bloqueios").select("group_id, person_id", { count: "exact" })
+            .eq("pasta_id", data.id).order("id").range(de, ate), "os bloqueios desta pasta"),
         ])
       : await Promise.all([
-          s.from("biblioteca_material_destinos").select("group_id, person_id").eq("material_id", data.id),
-          s.from("biblioteca_material_bloqueios").select("group_id, person_id").eq("material_id", data.id),
+          lerTodasOuRecusar((de, ate) => s.from("biblioteca_material_destinos").select("group_id, person_id", { count: "exact" })
+            .eq("material_id", data.id).order("id").range(de, ate), "as liberações deste material"),
+          lerTodasOuRecusar((de, ate) => s.from("biblioteca_material_bloqueios").select("group_id, person_id", { count: "exact" })
+            .eq("material_id", data.id).order("id").range(de, ate), "os bloqueios deste material"),
         ]);
-    if (lib.error) throw new Error(lib.error.message);
-    if (bloq.error) throw new Error(bloq.error.message);
     const separar = (rows: Array<{ group_id: string | null; person_id: string | null }>) => ({
       grupos: rows.filter((r) => r.group_id).map((r) => r.group_id as string),
       pessoas: rows.filter((r) => r.person_id).map((r) => r.person_id as string),
     });
-    return { liberados: separar(lib.data ?? []), bloqueados: separar(bloq.data ?? []) };
+    return { liberados: separar(lib), bloqueados: separar(bloq) };
   });
 
 const conjunto = z.object({ grupos: listaDeIds, pessoas: listaDeIds });
@@ -535,20 +572,24 @@ export const salvarRegrasDaBiblioteca = createServerFn({ method: "POST" })
     await validarDestinos(s, [...data.liberados.grupos, ...data.bloqueados.grupos], [...data.liberados.pessoas, ...data.bloqueados.pessoas]);
 
     const ehPasta = data.alvo === "pasta";
+    // O que já existe, inteiro (#314): a troca é por diferença — uma fatia faria regra existente
+    // parecer ausente (e ser inserida de novo) ou nunca ser retirada.
     const [libAtual, bloqAtual] = ehPasta
       ? await Promise.all([
-          s.from("biblioteca_pasta_destinos").select("id, group_id, person_id").eq("pasta_id", data.id),
-          s.from("biblioteca_pasta_bloqueios").select("id, group_id, person_id").eq("pasta_id", data.id),
+          lerTodasOuRecusar((de, ate) => s.from("biblioteca_pasta_destinos").select("id, group_id, person_id", { count: "exact" })
+            .eq("pasta_id", data.id).order("id").range(de, ate), "as liberações desta pasta"),
+          lerTodasOuRecusar((de, ate) => s.from("biblioteca_pasta_bloqueios").select("id, group_id, person_id", { count: "exact" })
+            .eq("pasta_id", data.id).order("id").range(de, ate), "os bloqueios desta pasta"),
         ])
       : await Promise.all([
-          s.from("biblioteca_material_destinos").select("id, group_id, person_id").eq("material_id", data.id),
-          s.from("biblioteca_material_bloqueios").select("id, group_id, person_id").eq("material_id", data.id),
+          lerTodasOuRecusar((de, ate) => s.from("biblioteca_material_destinos").select("id, group_id, person_id", { count: "exact" })
+            .eq("material_id", data.id).order("id").range(de, ate), "as liberações deste material"),
+          lerTodasOuRecusar((de, ate) => s.from("biblioteca_material_bloqueios").select("id, group_id, person_id", { count: "exact" })
+            .eq("material_id", data.id).order("id").range(de, ate), "os bloqueios deste material"),
         ]);
-    if (libAtual.error) throw new Error(libAtual.error.message);
-    if (bloqAtual.error) throw new Error(bloqAtual.error.message);
     const chave = (r: { group_id: string | null; person_id: string | null }) => (r.group_id ? `g:${r.group_id}` : `p:${r.person_id}`);
-    const temLib = new Map((libAtual.data ?? []).map((r) => [chave(r), r.id]));
-    const temBloq = new Map((bloqAtual.data ?? []).map((r) => [chave(r), r.id]));
+    const temLib = new Map(libAtual.map((r) => [chave(r), r.id]));
+    const temBloq = new Map(bloqAtual.map((r) => [chave(r), r.id]));
     const grupo = (k: string) => (k.startsWith("g:") ? k.slice(2) : null);
     const pessoa = (k: string) => (k.startsWith("p:") ? k.slice(2) : null);
 
@@ -562,18 +603,18 @@ export const salvarRegrasDaBiblioteca = createServerFn({ method: "POST" })
     }
     // … e liberações retiradas.
     const libSaindo = [...temLib.entries()].filter(([k]) => !querLib.has(k)).map(([, id]) => id);
-    if (libSaindo.length) {
+    for (const lote of emLotes(libSaindo)) {
       const r = ehPasta
-        ? await s.from("biblioteca_pasta_destinos").delete().in("id", libSaindo)
-        : await s.from("biblioteca_material_destinos").delete().in("id", libSaindo);
+        ? await s.from("biblioteca_pasta_destinos").delete().in("id", lote)
+        : await s.from("biblioteca_material_destinos").delete().in("id", lote);
       if (r.error) throw new Error(r.error.message);
     }
     // 2. LIBERA: bloqueios retirados…
     const bloqSaindo = [...temBloq.entries()].filter(([k]) => !querBloq.has(k)).map(([, id]) => id);
-    if (bloqSaindo.length) {
+    for (const lote of emLotes(bloqSaindo)) {
       const r = ehPasta
-        ? await s.from("biblioteca_pasta_bloqueios").delete().in("id", bloqSaindo)
-        : await s.from("biblioteca_material_bloqueios").delete().in("id", bloqSaindo);
+        ? await s.from("biblioteca_pasta_bloqueios").delete().in("id", lote)
+        : await s.from("biblioteca_material_bloqueios").delete().in("id", lote);
       if (r.error) throw new Error(r.error.message);
     }
     // … e liberações novas.
@@ -595,15 +636,17 @@ export const salvarMenuDaBiblioteca = createServerFn({ method: "POST" })
     await exigirPermissao(context.supabase, context.userId, "educacao");
     const s = context.supabase;
     await validarDestinos(s, data.grupos, []);
-    const { data: atuais, error } = await s.from("biblioteca_menu_grupos").select("id, group_id");
-    if (error) throw new Error(error.message);
+    const atuais = await lerTodasOuRecusar(
+      (de, ate) => s.from("biblioteca_menu_grupos").select("id, group_id", { count: "exact" }).order("id").range(de, ate),
+      "os grupos com o menu Biblioteca",
+    );
     const quero = new Set(data.grupos);
-    const saindo = (atuais ?? []).filter((r) => !quero.has(r.group_id)).map((r) => r.id);
-    if (saindo.length) {
-      const r = await s.from("biblioteca_menu_grupos").delete().in("id", saindo);
+    const saindo = atuais.filter((r) => !quero.has(r.group_id)).map((r) => r.id);
+    for (const lote of emLotes(saindo)) {
+      const r = await s.from("biblioteca_menu_grupos").delete().in("id", lote);
       if (r.error) throw new Error(r.error.message);
     }
-    const tem = new Set((atuais ?? []).map((r) => r.group_id));
+    const tem = new Set(atuais.map((r) => r.group_id));
     const novos = data.grupos.filter((gid) => !tem.has(gid));
     if (novos.length) {
       const r = await s.from("biblioteca_menu_grupos").insert(novos.map((gid) => ({ group_id: gid })));
@@ -618,10 +661,15 @@ export const quemVeNaBiblioteca = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ alvo: z.enum(["pasta", "material"]), id: uuid }).parse(d))
   .handler(async ({ context, data }) => {
     await exigirPermissao(context.supabase, context.userId, "educacao");
-    const { data: rows, error } = await context.supabase.rpc("bib_quem_ve", {
-      _pasta_id: data.alvo === "pasta" ? data.id : null,
-      _material_id: data.alvo === "material" ? data.id : null,
-    });
-    if (error) throw new Error(error.message);
-    return { pessoas: rows ?? [] };
+    // Uma linha por pessoa da conta — cresce com a conta, então em partes até o fim (#314).
+    const pessoas = await lerTodasOuRecusar(
+      (de, ate) => context.supabase
+        .rpc("bib_quem_ve", {
+          _pasta_id: data.alvo === "pasta" ? data.id : null,
+          _material_id: data.alvo === "material" ? data.id : null,
+        }, { count: "exact" })
+        .order("nome").order("person_id").range(de, ate),
+      "quem vê este item",
+    );
+    return { pessoas };
   });
