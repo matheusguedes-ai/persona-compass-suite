@@ -594,7 +594,8 @@ com dados reais; revisão do QI.
   com cara de completo. Toda leitura paginada termina a ordem numa coluna única (`.order("id")`, ou a
   chave composta de `group_members`: `group_id, person_id`), senão as páginas repetem ou pulam linhas.
   Já seguem a regra (#314, provado acima de 1.000): relatório (tela, PDF, bateria), lista de presença,
-  conclusões do treinamento e da trilha, rankings e "meus pontos", e o Dashboard inteiro. As ≈ 70 leituras
+  conclusões do treinamento e da trilha, rankings e "meus pontos", o Dashboard inteiro e o seletor de pessoas
+  (`listarPessoasParaEscolher` — Agenda, Mentorias, Academy, Biblioteca). As listas da Biblioteca (#313) também. As ≈ 70 leituras
   que ainda não seguem, em ordem de risco (as piores CRIAM dado errado: cadastro repetido pelo link aberto,
   horário ocupado aparecendo livre), estão em `docs/leituras-sem-teto.md`. Código NOVO segue a regra.
 - Exclusões destrutivas exigem `AlertDialog` de confirmação.

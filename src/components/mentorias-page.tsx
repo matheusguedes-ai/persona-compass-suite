@@ -42,7 +42,7 @@ export function MentoriasPage() {
   const [sessoes, setSessoes] = useState("4");
   const [observacoes, setObservacoes] = useState("");
   const [linkId, setLinkId] = useState("");
-  const { data: pessoasData } = useQuery({
+  const { data: pessoasData, error: erroPessoas } = useQuery({
     queryKey: ["pessoas-para-escolher"], queryFn: () => pessoasFn(), enabled: aberto,
   });
   const { data: linksData } = useQuery({
@@ -158,6 +158,10 @@ export function MentoriasPage() {
                   <option key={p.id} value={p.id}>{p.full_name}</option>
                 ))}
               </select>
+              {/* #314: lista que não pôde ser lida inteira aparece como erro, não como lista curta. */}
+              {erroPessoas && (
+                <p className="mt-1.5 text-xs text-destructive">{mensagemDeErro(erroPessoas)}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium">Título (opcional)</label>

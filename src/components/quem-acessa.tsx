@@ -30,7 +30,7 @@ export function QuemAcessa({
   const gruposFn = useServerFn(meusGrupos);
   const pessoasFn = useServerFn(listarPessoasParaEscolher);
   const { data: dg, error: erroGrupos } = useQuery({ queryKey: ["grupos"], queryFn: () => gruposFn(), enabled: ativo });
-  const { data: dp } = useQuery({
+  const { data: dp, error: erroPessoas } = useQuery({
     queryKey: ["pessoas-destino"], queryFn: () => pessoasFn(), enabled: ativo,
   });
 
@@ -82,7 +82,12 @@ export function QuemAcessa({
         </div>
         <div>
           <p className="text-xs font-medium text-muted-foreground">Pessoas</p>
-          {(dp?.pessoas ?? []).length === 0 ? (
+          {erroPessoas ? (
+            // #314: se a lista não pôde ser lida inteira, a tela DIZ — nunca "nenhuma pessoa".
+            <div className="mt-1 rounded-lg bg-destructive/10 p-3 text-center">
+              <p className="text-xs text-destructive">{mensagemDeErro(erroPessoas)}</p>
+            </div>
+          ) : (dp?.pessoas ?? []).length === 0 ? (
             <p className="mt-1 text-xs text-muted-foreground">Nenhuma pessoa cadastrada.</p>
           ) : (
             <ul className="mt-1.5 space-y-1.5">
