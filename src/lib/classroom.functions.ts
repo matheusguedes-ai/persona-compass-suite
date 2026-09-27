@@ -16,6 +16,7 @@ import { urlOpcional, urlOuCaminhoInterno } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { lerTodasOuRecusar } from "@/lib/ler-todas";
 import { notificar } from "@/lib/notificacoes.functions";
 import { exigirVisitante } from "@/lib/permissao.server";
 
@@ -2031,50 +2032,67 @@ export async function calcularConclusoesDoTreinamento(
   const comHorario = validas.filter((a) => a.comeca_em);
   const gravadas = validas.filter((a) => !a.comeca_em);
 
-  const { data: tg } = await supabase
+  const { data: tg, error: eTg } = await supabase
     .from("treinamento_grupos").select("group_id").eq("treinamento_id", treinamentoId);
+  if (eTg) throw new Error(eTg.message);
   const groupIds = (tg ?? []).map((g) => g.group_id);
-  const { data: membros } = groupIds.length
-    ? await supabase.from("group_members").select("person_id, people(full_name, email)").in("group_id", groupIds)
-    : { data: [] as never[] };
+  // Turma, presenças e aulas gravadas assistidas crescem com o uso — e daqui sai o CERTIFICADO. A API
+  // corta em 1.000 linhas sem avisar: quem esteve em todas as aulas saía sem concluir. Lidas até o fim (#314).
+  const membros = groupIds.length
+    ? await lerTodasOuRecusar(
+        (de, ate) =>
+          supabase.from("group_members").select("person_id, people(full_name, email)", { count: "exact" })
+            .in("group_id", groupIds).order("group_id").order("person_id").range(de, ate),
+        "a turma do treinamento",
+      )
+    : [];
 
   const alunos = new Map<string, { person_id: string; nome: string; email: string | null }>();
-  for (const m of membros ?? []) {
+  for (const m of membros) {
     const p = m.people as unknown as { full_name: string; email: string | null } | null;
     if (!p || alunos.has(m.person_id)) continue;
     alunos.set(m.person_id, { person_id: m.person_id, nome: p.full_name, email: p.email });
   }
 
-  const [presRes, conclRes] = await Promise.all([
+  const [presencas, conclusoes] = await Promise.all([
     comHorario.length
-      ? supabase.from("treinamento_presencas").select("aula_id, person_id, situacao").in("aula_id", comHorario.map((a) => a.id))
-      : Promise.resolve({ data: [] as Array<{ aula_id: string; person_id: string; situacao: string | null }>, error: null }),
+      ? lerTodasOuRecusar(
+          (de, ate) =>
+            supabase.from("treinamento_presencas").select("aula_id, person_id, situacao", { count: "exact" })
+              .in("aula_id", comHorario.map((a) => a.id)).order("id").range(de, ate),
+          "as presenças do treinamento",
+        )
+      : Promise.resolve([] as Array<{ aula_id: string; person_id: string; situacao: string | null }>),
     gravadas.length
-      ? supabase.from("treinamento_aula_conclusoes").select("aula_id, person_id").in("aula_id", gravadas.map((a) => a.id))
-      : Promise.resolve({ data: [] as Array<{ aula_id: string; person_id: string }>, error: null }),
+      ? lerTodasOuRecusar(
+          (de, ate) =>
+            supabase.from("treinamento_aula_conclusoes").select("aula_id, person_id", { count: "exact" })
+              .in("aula_id", gravadas.map((a) => a.id)).order("id").range(de, ate),
+          "as aulas gravadas assistidas",
+        )
+      : Promise.resolve([] as Array<{ aula_id: string; person_id: string }>),
   ]);
-  if (presRes.error) throw new Error(presRes.error.message);
-  if (conclRes.error) throw new Error(conclRes.error.message);
 
   // Quem cumpriu mas já saiu do grupo continua na lista — mesmo motivo de
   // `montarTabelaPresenca`: a conclusão dele aconteceu, e sumir da lista
   // por um ajuste de turma depois apagaria isso.
   const idsExtras = new Set<string>();
-  for (const p of presRes.data ?? []) if (!alunos.has(p.person_id)) idsExtras.add(p.person_id);
-  for (const c of conclRes.data ?? []) if (!alunos.has(c.person_id)) idsExtras.add(c.person_id);
+  for (const p of presencas) if (!alunos.has(p.person_id)) idsExtras.add(p.person_id);
+  for (const c of conclusoes) if (!alunos.has(c.person_id)) idsExtras.add(c.person_id);
   if (idsExtras.size) {
-    const { data: extras } = await supabase.from("people").select("id, full_name, email").in("id", [...idsExtras]);
+    const { data: extras, error: eEx } = await supabase.from("people").select("id, full_name, email").in("id", [...idsExtras]);
+    if (eEx) throw new Error(eEx.message);
     for (const p of extras ?? []) alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email });
   }
 
   const presPorAluno = new Map<string, Map<string, string | null>>();
-  for (const p of presRes.data ?? []) {
+  for (const p of presencas) {
     let m = presPorAluno.get(p.person_id);
     if (!m) { m = new Map(); presPorAluno.set(p.person_id, m); }
     m.set(p.aula_id, p.situacao);
   }
   const conclPorAluno = new Map<string, Set<string>>();
-  for (const c of conclRes.data ?? []) {
+  for (const c of conclusoes) {
     let s = conclPorAluno.get(c.person_id);
     if (!s) { s = new Set(); conclPorAluno.set(c.person_id, s); }
     s.add(c.aula_id);

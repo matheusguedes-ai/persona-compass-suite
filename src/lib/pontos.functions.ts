@@ -12,6 +12,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { exigirPermissaoOuVisitante } from "@/lib/permissao.server";
+import { lerTodasOuRecusar } from "@/lib/ler-todas";
 
 export const ACOES = {
   aula: { pontos: 20, rotulo: "Concluir uma aula", tetoDiario: null },
@@ -186,6 +187,27 @@ export async function contaDaPessoa(
 }
 
 /**
+ * TODOS os pontos de um conjunto de logins, na conta dada (sem conta = sem filtro de conta, como o ranking
+ * sempre fez quando não acha o dono do grupo). Cada ação do aluno vira uma linha — só a comunidade dá até
+ * 16 por dia —, e a API corta em 1.000 sem avisar: o ranking e o extrato somavam uma fatia e mostravam
+ * como total (#314). Lidos em partes até o fim; parcial nunca vira número.
+ */
+export async function lerPontos(
+  supabase: SupabaseClient<Database>,
+  filtro: { userIds: string[]; conta: string | null },
+) {
+  if (filtro.userIds.length === 0) return [];
+  return lerTodasOuRecusar(
+    (de, ate) => {
+      let q = supabase.from("pontos").select("user_id, pontos, acao", { count: "exact" }).in("user_id", filtro.userIds);
+      if (filtro.conta) q = q.eq("mentor_id", filtro.conta);
+      return q.order("id").range(de, ate);
+    },
+    "os pontos",
+  );
+}
+
+/**
  * Ranking de um grupo.
  *
  * Visível para o grupo todo, por decisão do Matheus. Só entram os membros do
@@ -204,30 +226,31 @@ export const rankingDoGrupo = createServerFn({ method: "GET" })
     // Visível para o grupo todo (aluno e mentor incluídos). Só falta barrar o
     // colaborador sem 'grupos' — mesma porta frouxa de `posso_ver_grupo()`.
     await exigirPermissaoOuVisitante(supabase, context.userId, "grupos");
-    const { data: membros, error } = await supabase
-      .from("group_members")
-      .select("person_id, people(full_name, user_id, avatar_url)")
-      .eq("group_id", data.group_id);
-    if (error) throw new Error(error.message);
+    const membros = await lerTodasOuRecusar(
+      (de, ate) =>
+        supabase
+          .from("group_members")
+          .select("person_id, people(full_name, user_id, avatar_url)", { count: "exact" })
+          .eq("group_id", data.group_id)
+          .order("person_id")
+          .range(de, ate),
+      "os membros do grupo",
+    );
 
     // A conta dona do grupo. O ranking é DELA: quem está cadastrado em duas
     // contas não pode trazer para cá os pontos que ganhou na outra.
-    const { data: grupo } = await supabase
+    const { data: grupo, error: eG } = await supabase
       .from("groups").select("mentor_id").eq("id", data.group_id).maybeSingle();
+    if (eG) throw new Error(eG.message);
 
-    const comConta = (membros ?? []).filter((m) => m.people?.user_id);
+    const comConta = membros.filter((m) => m.people?.user_id);
     const ids = comConta.map((m) => m.people!.user_id!) as string[];
     // Sem o dono do grupo em mãos, não filtra por conta em vez de filtrar por
     // string vazia — um uuid inválido derrubaria a tela inteira do ranking.
-    const { data: pts } = ids.length
-      ? await (grupo?.mentor_id
-          ? supabase.from("pontos").select("user_id, pontos, acao")
-              .in("user_id", ids).eq("mentor_id", grupo.mentor_id)
-          : supabase.from("pontos").select("user_id, pontos, acao").in("user_id", ids))
-      : { data: [] as Array<{ user_id: string; pontos: number; acao: string }> };
+    const pts = await lerPontos(supabase, { userIds: ids, conta: grupo?.mentor_id ?? null });
 
     const linhas = comConta.map((m) => {
-      const meus = (pts ?? []).filter((p) => p.user_id === m.people!.user_id);
+      const meus = pts.filter((p) => p.user_id === m.people!.user_id);
       return {
         person_id: m.person_id,
         nome: m.people?.full_name ?? "—",
@@ -275,15 +298,13 @@ export const meusPontos = createServerFn({ method: "GET" })
     // que a pessoa vê no grupo. Sem isto, quem está em duas contas somaria aqui
     // pontos que não contam lá, e os dois números discordariam na mesma tela.
     const conta = await contaDaPessoa(supabase, userId);
-    let q = supabase.from("pontos").select("acao, pontos").eq("user_id", userId);
-    if (conta) q = q.eq("mentor_id", conta);
-    const { data: pts } = await q;
+    const pts = await lerPontos(supabase, { userIds: [userId], conta });
     const porAcao = (Object.keys(ACOES) as Acao[]).map((a) => ({
       acao: a,
       rotulo: ACOES[a].rotulo,
-      vezes: (pts ?? []).filter((p) => p.acao === a).length,
-      total: (pts ?? []).filter((p) => p.acao === a).reduce((s, p) => s + p.pontos, 0),
+      vezes: pts.filter((p) => p.acao === a).length,
+      total: pts.filter((p) => p.acao === a).reduce((s, p) => s + p.pontos, 0),
     })).filter((x) => x.vezes > 0);
 
-    return { total: (pts ?? []).reduce((s, p) => s + p.pontos, 0), porAcao };
+    return { total: pts.reduce((s, p) => s + p.pontos, 0), porAcao };
   });

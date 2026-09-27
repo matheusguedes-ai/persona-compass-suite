@@ -19,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { exigirPermissao, exigirPermissaoOuVisitante } from "@/lib/permissao.server";
+import { lerTodasOuRecusar } from "@/lib/ler-todas";
 
 export const PUBLICOS = [
   { valor: "alunos", titulo: "Alunos", ajuda: "Só quem responde os testes." },
@@ -595,13 +596,15 @@ export async function calcularConclusoesDaTrilha(
   if (eTr) throw new Error(eTr.message);
   if (!track) throw new Error("Trilha não encontrada.");
 
-  const { data: aulas, error: eA } = await supabase
-    .from("learning_lessons")
-    .select("id")
-    .eq("track_id", trackId)
-    .eq("is_published", true);
-  if (eA) throw new Error(eA.message);
-  const aulaIds = new Set((aulas ?? []).map((a) => a.id));
+  // Tudo o que esta conta lê cresce com o uso — e daqui sai o CERTIFICADO. A API corta em 1.000 linhas sem
+  // avisar: quem viu a trilha inteira saía sem concluir. Lido em partes até o fim (#314).
+  const aulas = await lerTodasOuRecusar(
+    (de, ate) =>
+      supabase.from("learning_lessons").select("id", { count: "exact" })
+        .eq("track_id", trackId).eq("is_published", true).order("id").range(de, ate),
+    "as aulas da trilha",
+  );
+  const aulaIds = new Set(aulas.map((a) => a.id));
 
   const { data: destinos, error: eD } = await supabase
     .from("learning_track_destinos").select("group_id, person_id").eq("track_id", trackId);
@@ -617,10 +620,13 @@ export async function calcularConclusoesDaTrilha(
     // — mesma regra de `track_liberada`. "Aluno" aqui é qualquer cadastro
     // (`people`) do dono da trilha: não existe papel "aluno" separado no
     // banco, é `people` (cadastro do mentor) × `team_members` (equipe).
-    const { data: todos, error: eP } = await supabase
-      .from("people").select("id, full_name, email, user_id").eq("mentor_id", track.owner_id);
-    if (eP) throw new Error(eP.message);
-    for (const p of todos ?? []) {
+    const todos = await lerTodasOuRecusar(
+      (de, ate) =>
+        supabase.from("people").select("id, full_name, email, user_id", { count: "exact" })
+          .eq("mentor_id", track.owner_id).order("id").range(de, ate),
+      "os alunos da conta",
+    );
+    for (const p of todos) {
       alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
     }
   } else {
@@ -633,10 +639,13 @@ export async function calcularConclusoesDaTrilha(
       }
     }
     if (groupIds.length) {
-      const { data: membros, error: e2 } = await supabase
-        .from("group_members").select("person_id, people(id, full_name, email, user_id)").in("group_id", groupIds);
-      if (e2) throw new Error(e2.message);
-      for (const m of membros ?? []) {
+      const membros = await lerTodasOuRecusar(
+        (de, ate) =>
+          supabase.from("group_members").select("person_id, people(id, full_name, email, user_id)", { count: "exact" })
+            .in("group_id", groupIds).order("group_id").order("person_id").range(de, ate),
+        "os alunos dos grupos da trilha",
+      );
+      for (const m of membros) {
         const p = m.people as unknown as { id: string; full_name: string; email: string | null; user_id: string | null } | null;
         if (!p || alunos.has(p.id)) continue;
         alunos.set(p.id, { person_id: p.id, nome: p.full_name, email: p.email, user_id: p.user_id });
@@ -644,12 +653,15 @@ export async function calcularConclusoesDaTrilha(
     }
   }
 
-  const { data: progresso, error: eG } = await supabase
-    .from("learning_progress").select("lesson_id, user_id").eq("track_id", trackId);
-  if (eG) throw new Error(eG.message);
+  const progresso = await lerTodasOuRecusar(
+    (de, ate) =>
+      supabase.from("learning_progress").select("lesson_id, user_id", { count: "exact" })
+        .eq("track_id", trackId).order("id").range(de, ate),
+    "as aulas vistas da trilha",
+  );
 
   const feitosPorUser = new Map<string, number>();
-  for (const p of progresso ?? []) {
+  for (const p of progresso) {
     if (!aulaIds.has(p.lesson_id)) continue; // aula despublicada depois não conta
     feitosPorUser.set(p.user_id, (feitosPorUser.get(p.user_id) ?? 0) + 1);
   }

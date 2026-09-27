@@ -25,6 +25,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao, exigirVisitante } from "@/lib/permissao.server";
 import { contaComoPresenca, type Situacao } from "@/lib/presenca";
+import { lerTodasOuRecusar } from "@/lib/ler-todas";
 
 export const getPanoramaGeral = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -32,28 +33,23 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
     const supabase = context.supabase;
 
     // Tudo em paralelo: são consultas independentes e a RLS já recorta cada uma
-    // para a conta de quem está pedindo.
+    // para a conta de quem está pedindo. Todas crescem com o uso, e a API corta
+    // em 1.000 linhas sem avisar — o ranking somava uma fatia dos pontos e os
+    // totais contavam uma fatia das linhas (#314). Lidas em partes até o fim; um
+    // erro, ou uma leitura que não coube, recusa o quadro — "0" ou um total
+    // menor na tela seriam afirmações falsas.
     const [
-      pessoas, grupos, membros, equipe,
+      listaPessoas, grupos, listaMembros, equipe,
       posts, comentarios, pontos,
     ] = await Promise.all([
-      supabase.from("people").select("id, full_name, user_id, avatar_url"),
-      supabase.from("groups").select("id, name"),
-      supabase.from("group_members").select("person_id, group_id"),
-      supabase.from("team_members").select("id, kind, status"),
-      supabase.from("community_posts").select("id, created_at"),
-      supabase.from("community_comments").select("id, created_at"),
-      supabase.from("pontos").select("user_id, pontos, acao"),
+      lerTodasOuRecusar((de, ate) => supabase.from("people").select("id, full_name, user_id, avatar_url", { count: "exact" }).order("id").range(de, ate), "as pessoas"),
+      lerTodasOuRecusar((de, ate) => supabase.from("groups").select("id, name", { count: "exact" }).order("id").range(de, ate), "os grupos"),
+      lerTodasOuRecusar((de, ate) => supabase.from("group_members").select("person_id, group_id", { count: "exact" }).order("group_id").order("person_id").range(de, ate), "os membros dos grupos"),
+      lerTodasOuRecusar((de, ate) => supabase.from("team_members").select("id, kind, status", { count: "exact" }).order("id").range(de, ate), "a equipe"),
+      lerTodasOuRecusar((de, ate) => supabase.from("community_posts").select("id, created_at", { count: "exact" }).order("id").range(de, ate), "os posts da comunidade"),
+      lerTodasOuRecusar((de, ate) => supabase.from("community_comments").select("id, created_at", { count: "exact" }).order("id").range(de, ate), "os comentários da comunidade"),
+      lerTodasOuRecusar((de, ate) => supabase.from("pontos").select("user_id, pontos, acao", { count: "exact" }).order("id").range(de, ate), "os pontos"),
     ]);
-
-    // Um erro silenciado aqui viraria "0" na tela, e "0" é uma afirmação —
-    // "não tem ninguém esperando" quando na verdade a consulta falhou.
-    for (const r of [pessoas, grupos, membros, equipe, posts, comentarios, pontos]) {
-      if (r.error) throw new Error(r.error.message);
-    }
-
-    const listaPessoas = pessoas.data ?? [];
-    const listaMembros = membros.data ?? [];
     const idsEmGrupo = new Set(listaMembros.map((m) => m.person_id));
 
     const agora = Date.now();
@@ -67,7 +63,7 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
     // O Matheus pediu explicitamente "independente de grupos": aqui entra todo
     // avaliado com login, mesmo quem não está em grupo nenhum.
     const porUsuario = new Map<string, { total: number; acoes: number }>();
-    for (const p of pontos.data ?? []) {
+    for (const p of pontos) {
       const at = porUsuario.get(p.user_id) ?? { total: 0, acoes: 0 };
       at.total += p.pontos;
       at.acoes += 1;
@@ -100,26 +96,26 @@ export const getPanoramaGeral = createServerFn({ method: "GET" })
         semGrupo: listaPessoas.filter((p) => !idsEmGrupo.has(p.id)).length,
       },
       grupos: {
-        total: (grupos.data ?? []).length,
+        total: grupos.length,
         pessoasEmGrupo: idsEmGrupo.size,
-        vazios: (grupos.data ?? []).filter(
+        vazios: grupos.filter(
           (g) => !listaMembros.some((m) => m.group_id === g.id),
         ).length,
       },
       equipe: {
-        ativos: (equipe.data ?? []).filter((t) => t.status === "ativo").length,
-        mentores: (equipe.data ?? []).filter((t) => t.status === "ativo" && t.kind === "mentor").length,
+        ativos: equipe.filter((t) => t.status === "ativo").length,
+        mentores: equipe.filter((t) => t.status === "ativo" && t.kind === "mentor").length,
       },
       comunidade: {
-        posts: (posts.data ?? []).length,
-        comentarios: (comentarios.data ?? []).length,
-        posts7: recentes(posts.data ?? []),
-        comentarios7: recentes(comentarios.data ?? []),
+        posts: posts.length,
+        comentarios: comentarios.length,
+        posts7: recentes(posts),
+        comentarios7: recentes(comentarios),
       },
       ranking: rankingAssinado,
       // Serve para a tela dizer "ninguém pontuou ainda" em vez de desenhar um
       // ranking em que todo mundo tem zero e a ordem é só alfabética.
-      alguemPontuou: (pontos.data ?? []).length > 0,
+      alguemPontuou: pontos.length > 0,
     };
   });
 
@@ -138,15 +134,20 @@ export const getResumoClassroom = createServerFn({ method: "GET" })
     const supabase = context.supabase;
     const agora = new Date();
 
-    const { data: aulas, error } = await supabase
-      .from("treinamento_aulas")
-      .select("id, titulo, comeca_em, cancelada, fechada_em")
-      .eq("cancelada", false)
-      .not("comeca_em", "is", null)
-      .order("comeca_em", { ascending: true });
-    if (error) throw new Error(error.message);
-
-    const todas = aulas ?? [];
+    // Em ordem de calendário: com a API cortando em 1.000, eram as aulas MAIS NOVAS que sumiam — e com
+    // elas a próxima aula e a última fechada (#314). Lidas em partes até o fim.
+    const todas = await lerTodasOuRecusar(
+      (de, ate) =>
+        supabase
+          .from("treinamento_aulas")
+          .select("id, titulo, comeca_em, cancelada, fechada_em", { count: "exact" })
+          .eq("cancelada", false)
+          .not("comeca_em", "is", null)
+          .order("comeca_em", { ascending: true })
+          .order("id")
+          .range(de, ate),
+      "as aulas do Classroom",
+    );
     const agoraIso = agora.toISOString();
 
     const proxima = todas.find((a) => a.comeca_em! >= agoraIso) ?? null;
@@ -158,12 +159,12 @@ export const getResumoClassroom = createServerFn({ method: "GET" })
 
     async function presencaDe(aulaIds: string[]): Promise<{ presentes: number; total: number }> {
       if (aulaIds.length === 0) return { presentes: 0, total: 0 };
-      const { data: presencas, error: eP } = await supabase
-        .from("treinamento_presencas")
-        .select("situacao")
-        .in("aula_id", aulaIds);
-      if (eP) throw new Error(eP.message);
-      const lista = presencas ?? [];
+      const lista = await lerTodasOuRecusar(
+        (de, ate) =>
+          supabase.from("treinamento_presencas").select("situacao", { count: "exact" })
+            .in("aula_id", aulaIds).order("id").range(de, ate),
+        "as presenças das aulas",
+      );
       return {
         total: lista.length,
         presentes: lista.filter((p) => contaComoPresenca((p.situacao ?? "ausente") as Situacao)).length,
@@ -195,12 +196,13 @@ export const getResumoAcademy = createServerFn({ method: "GET" })
     await exigirPermissao(context.supabase, context.userId, "educacao");
     const supabase = context.supabase;
 
-    const { data: progresso, error } = await supabase
-      .from("learning_progress")
-      .select("user_id, completed_at");
-    if (error) throw new Error(error.message);
-
-    const lista = progresso ?? [];
+    // Cada aula vista é uma linha: a API cortava em 1.000 e o quadro dizia "1000 conclusões no mês"
+    // quando eram mais (#314, visto no teste). Lidas em partes até o fim.
+    const lista = await lerTodasOuRecusar(
+      (de, ate) =>
+        supabase.from("learning_progress").select("user_id, completed_at", { count: "exact" }).order("id").range(de, ate),
+      "as aulas vistas da Academy",
+    );
     const inicioMes = new Date();
     inicioMes.setDate(1);
     inicioMes.setHours(0, 0, 0, 0);
@@ -227,19 +229,25 @@ export const getResumoComunidade = createServerFn({ method: "GET" })
     const seteDiasAtras = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
     const [posts, comentarios] = await Promise.all([
-      supabase.from("community_posts").select("author_id, created_at").gte("created_at", seteDiasAtras),
-      supabase.from("community_comments").select("author_id, created_at").gte("created_at", seteDiasAtras),
+      lerTodasOuRecusar(
+        (de, ate) => supabase.from("community_posts").select("author_id, created_at", { count: "exact" })
+          .gte("created_at", seteDiasAtras).order("id").range(de, ate),
+        "os posts da semana",
+      ),
+      lerTodasOuRecusar(
+        (de, ate) => supabase.from("community_comments").select("author_id, created_at", { count: "exact" })
+          .gte("created_at", seteDiasAtras).order("id").range(de, ate),
+        "os comentários da semana",
+      ),
     ]);
-    if (posts.error) throw new Error(posts.error.message);
-    if (comentarios.error) throw new Error(comentarios.error.message);
 
     const participantes = new Set([
-      ...(posts.data ?? []).map((p) => p.author_id),
-      ...(comentarios.data ?? []).map((c) => c.author_id),
+      ...posts.map((p) => p.author_id),
+      ...comentarios.map((c) => c.author_id),
     ]);
 
     return {
-      postsNaSemana: (posts.data ?? []).length,
+      postsNaSemana: posts.length,
       participantes: participantes.size,
     };
   });
@@ -272,20 +280,19 @@ export const getResumoEngajamento = createServerFn({ method: "GET" })
     await exigirVisitante(context.supabase, context.userId);
     const supabase = context.supabase;
 
-    const [pessoas, respostas, presencas, progresso, sessoes] = await Promise.all([
-      supabase.from("people").select("id, full_name, user_id"),
-      supabase.from("test_responses").select("person_id, submitted_at").eq("kind", "self"),
-      supabase.from("treinamento_presencas").select("person_id, escaneado_em, registrado_em"),
-      supabase.from("learning_progress").select("user_id, completed_at"),
-      supabase.from("mentoria_sessoes")
-        .select("status, quando, mentorias(person_id)")
-        .eq("status", "concluida"),
+    // A última atividade sai de TUDO o que a pessoa fez — presenças e aulas vistas da conta inteira passam
+    // de 1.000 cedo, e a API cortava o resto sem avisar: alguém ativo aparecia "sumindo" (#314).
+    const [listaPessoas, respostas, presencas, progresso, sessoes] = await Promise.all([
+      lerTodasOuRecusar((de, ate) => supabase.from("people").select("id, full_name, user_id", { count: "exact" }).order("id").range(de, ate), "as pessoas"),
+      lerTodasOuRecusar((de, ate) => supabase.from("test_responses").select("person_id, submitted_at", { count: "exact" }).eq("kind", "self").order("id").range(de, ate), "as respostas de teste"),
+      lerTodasOuRecusar((de, ate) => supabase.from("treinamento_presencas").select("person_id, escaneado_em, registrado_em", { count: "exact" }).order("id").range(de, ate), "as presenças"),
+      lerTodasOuRecusar((de, ate) => supabase.from("learning_progress").select("user_id, completed_at", { count: "exact" }).order("id").range(de, ate), "as aulas vistas"),
+      lerTodasOuRecusar(
+        (de, ate) => supabase.from("mentoria_sessoes").select("status, quando, mentorias(person_id)", { count: "exact" })
+          .eq("status", "concluida").order("id").range(de, ate),
+        "as sessões de mentoria",
+      ),
     ]);
-    for (const r of [pessoas, respostas, presencas, progresso, sessoes]) {
-      if (r.error) throw new Error(r.error.message);
-    }
-
-    const listaPessoas = pessoas.data ?? [];
     if (listaPessoas.length === 0) return { pessoas: [] as PessoaSumindo[], totalPessoas: 0 };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -311,28 +318,28 @@ export const getResumoEngajamento = createServerFn({ method: "GET" })
       }),
     );
 
-    for (const r of respostas.data ?? []) {
+    for (const r of respostas) {
       if (r.submitted_at) marcar(r.person_id, new Date(r.submitted_at).getTime());
     }
-    for (const p of presencas.data ?? []) {
+    for (const p of presencas) {
       const t = p.escaneado_em ?? p.registrado_em;
       if (t) marcar(p.person_id, new Date(t).getTime());
     }
     const personIdPorUserId = new Map(
       listaPessoas.filter((p) => p.user_id).map((p) => [p.user_id!, p.id]),
     );
-    for (const pr of progresso.data ?? []) {
+    for (const pr of progresso) {
       if (!pr.completed_at) continue;
       const personId = personIdPorUserId.get(pr.user_id);
       marcar(personId, new Date(pr.completed_at).getTime());
     }
-    for (const s of sessoes.data ?? []) {
+    for (const s of sessoes) {
       const personId = (s.mentorias as unknown as { person_id: string } | null)?.person_id;
       marcar(personId, new Date(s.quando).getTime());
     }
 
     const pendentes = new Set(
-      (respostas.data ?? []).filter((r) => !r.submitted_at).map((r) => r.person_id),
+      respostas.filter((r) => !r.submitted_at).map((r) => r.person_id),
     );
 
     const agora = Date.now();

@@ -11,6 +11,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { lerTodasOuRecusar } from "@/lib/ler-todas";
 import {
   type Aluno, type AulaPresenca, type Registro, type Situacao,
   frequenciaDe, situacaoDe, atrasoMin, aulaContaNaFrequencia,
@@ -126,26 +127,41 @@ export async function montarTabelaPresenca(
 
   const aulaIds = aulas.map((a) => a.id);
 
-  const { data: presencasCru, error: eP } = aulaIds.length
-    ? await supabase
-        .from("treinamento_presencas")
-        .select("aula_id, person_id, origem, escaneado_em, registrado_em, situacao, observacao, group_id, group_nome, marcado_por_nome")
-        .in("aula_id", aulaIds)
-    : { data: [], error: null };
-  if (eP) throw new Error(eP.message);
+  // Presenças = alunos × aulas: uma turma de 40 com 25 encontros já passa de 1.000, e a API corta o resto
+  // sem avisar — a frequência (e o certificado) saía menor do que é. Lidas em partes até o fim (#314).
+  const presencasCru = aulaIds.length
+    ? await lerTodasOuRecusar(
+        (de, ate) =>
+          supabase
+            .from("treinamento_presencas")
+            .select("aula_id, person_id, origem, escaneado_em, registrado_em, situacao, observacao, group_id, group_nome, marcado_por_nome", { count: "exact" })
+            .in("aula_id", aulaIds)
+            .order("id")
+            .range(de, ate),
+        "as presenças do treinamento",
+      )
+    : [];
 
   // A turma: membros ATUAIS dos grupos do treinamento, mais quem tem presença
   // e já saiu. Quem participou tem de continuar na lista — a aula em que ele
   // esteve aconteceu, e a lista dela não pode perder gente depois.
-  const { data: tg } = await supabase
+  const { data: tg, error: eTg } = await supabase
     .from("treinamento_grupos").select("group_id").eq("treinamento_id", treinamentoId);
+  if (eTg) throw new Error(eTg.message);
   const groupIds = (tg ?? []).map((g) => g.group_id);
-  const { data: membros } = groupIds.length
-    ? await supabase
-        .from("group_members")
-        .select("person_id, group_id, added_at, people(full_name, email), groups(name)")
-        .in("group_id", groupIds)
-    : { data: [] as never[] };
+  const membros = groupIds.length
+    ? await lerTodasOuRecusar(
+        (de, ate) =>
+          supabase
+            .from("group_members")
+            .select("person_id, group_id, added_at, people(full_name, email), groups(name)", { count: "exact" })
+            .in("group_id", groupIds)
+            .order("group_id")
+            .order("person_id")
+            .range(de, ate),
+        "a turma do treinamento",
+      )
+    : [];
 
   const alunosPorId = new Map<string, Aluno>();
   for (const m of membros ?? []) {
@@ -175,8 +191,9 @@ export async function montarTabelaPresenca(
   const idsComPresenca = [...new Set((presencasCru ?? []).map((p) => p.person_id))];
   const faltando = idsComPresenca.filter((id) => !alunosPorId.has(id));
   if (faltando.length) {
-    const { data: exMembros } = await supabase
+    const { data: exMembros, error: eEx } = await supabase
       .from("people").select("id, full_name, email").in("id", faltando);
+    if (eEx) throw new Error(eEx.message);
     for (const p of exMembros ?? []) {
       const linha = (presencasCru ?? []).find((x) => x.person_id === p.id);
       alunosPorId.set(p.id, {

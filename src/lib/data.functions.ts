@@ -6,6 +6,7 @@ import { urlOpcional, urlOuCaminhoInterno } from "@/lib/url-segura";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao, exigirPermissaoOuMentor, exigirAcessoAoGrupo } from "@/lib/permissao.server";
 import { exigirDono, membershipDoUsuario } from "@/lib/team.functions";
+import { lerTodasOuRecusar } from "@/lib/ler-todas";
 
 // ============================================================
 // Instruments (public read)
@@ -852,13 +853,21 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const { data: conta } = await supabase.rpc("acting_account");
     const contaId = conta ?? userId;
 
-    const { data: rows, error } = await supabase
-      .from("test_responses")
-      .select("id, status, created_at, submitted_at, assessment_response_id, people(id, full_name), test_versions(instrument_id, title, instruments(name))")
-      .eq("mentor_id", contaId)
-      .eq("kind", "self")
-      .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    // Todos os envios da conta: os totais, o gráfico por mês e os inventários saem daqui. A API corta em
+    // 1.000 linhas sem avisar — acima disso os envios MAIS ANTIGOS sumiam das contas (#314). Lidos em
+    // partes até o fim, na mesma ordem (o mais novo primeiro; `id` desempata).
+    const list = await lerTodasOuRecusar(
+      (de, ate) =>
+        supabase
+          .from("test_responses")
+          .select("id, status, created_at, submitted_at, assessment_response_id, people(id, full_name), test_versions(instrument_id, title, instruments(name))", { count: "exact" })
+          .eq("mentor_id", contaId)
+          .eq("kind", "self")
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(de, ate),
+      "os testes enviados",
+    );
 
     const { count: peopleCount, error: pErr } = await supabase
       .from("people")
@@ -866,7 +875,6 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       .eq("mentor_id", contaId);
     if (pErr) throw new Error(pErr.message);
 
-    const list = rows ?? [];
     const submitted = list.filter((r) => !!r.submitted_at).length;
 
     // Quais inventários estão realmente sendo usados.

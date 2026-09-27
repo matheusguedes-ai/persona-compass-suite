@@ -3,7 +3,12 @@
  *
  * A API do banco devolve no máximo um lote por consulta (o "max rows" do Supabase) e corta o resto
  * SEM AVISAR: a resposta vem com cara de completa. Para as assistentes, isso vira a pior falha
- * possível — uma resposta de "quantos" ou "quais são" dita com segurança sobre uma fatia.
+ * possível — uma resposta de "quantos" ou "quais são" dita com segurança sobre uma fatia. No relatório
+ * (#314), seção que some sem erro; num ranking, número errado com cara de certo.
+ *
+ * REGRA DO PROJETO (#314): leitura que cresce com o uso passa por aqui — nunca assume que cabe numa
+ * consulta. E quem recebe `completo: false` DIZ isso na tela (ou recusa montar), nunca entrega a fatia
+ * como se fosse o todo.
  *
  * Aqui a leitura vai em páginas, pedindo a CONTAGEM EXATA junto. Cada página começa onde a anterior
  * terminou pelo número de linhas que REALMENTE vieram (não pelo tamanho que se pediu): se o teto do
@@ -46,4 +51,24 @@ export async function lerTodas<T>(
   const lidas = linhas.slice(0, teto);
   const t = Math.max(total ?? lidas.length, lidas.length);
   return { linhas: lidas, total: t, completo: lidas.length >= t };
+}
+
+/**
+ * Para quem CALCULA com as linhas — frequência, conclusão e certificado, ranking, o texto de um relatório
+ * (#314). Aqui uma fatia nunca pode virar resultado: se não der para ler tudo, recusa com uma frase que a
+ * tela mostra, em vez de devolver um número errado com cara de certo.
+ */
+export async function lerTodasOuRecusar<T>(
+  pagina: (de: number, ate: number) => Pagina<T>,
+  oQue: string,
+  opcoes: { lote?: number; teto?: number } = {},
+): Promise<T[]> {
+  const r = await lerTodas(pagina, opcoes);
+  if (!r.completo) {
+    throw new Error(
+      `Não foi possível ler ${oQue} por inteiro (${r.linhas.length} de ${r.total}). Para não mostrar um resultado ` +
+        "incompleto como se fosse completo, nada foi calculado — avise o suporte da plataforma.",
+    );
+  }
+  return r.linhas;
 }

@@ -42,6 +42,19 @@ def rest_get(tabela, params):
         return json.load(r)
 
 
+def rest_get_todas(tabela, params, lote=1000):
+    """A API corta em 1.000 linhas sem avisar (#314): lê em páginas até vir uma página VAZIA (não confia
+    no tamanho do lote — o teto do servidor pode ser menor). `params` precisa de `order` com coluna única
+    no fim, senão as páginas repetem ou pulam linhas."""
+    linhas, inicio = [], 0
+    while True:
+        pagina = rest_get(tabela, {**params, "offset": inicio, "limit": lote})
+        if not pagina:
+            return linhas
+        linhas += pagina
+        inicio += len(pagina)
+
+
 def app_get(url):
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=UA)) as r:
@@ -83,7 +96,7 @@ def caminho_da_rota(entrada):
 
 def cmd_capturar(args):
     os.makedirs(args.saida, exist_ok=True)
-    respostas = rest_get("test_responses", {"submitted_at": "not.is.null", "select": "id,assessment_response_id,test_versions(instrument_id)", "order": "submitted_at"})
+    respostas = rest_get_todas("test_responses", {"submitted_at": "not.is.null", "select": "id,assessment_response_id,test_versions(instrument_id)", "order": "submitted_at,id"})
     indice, baterias = [], set()
     for r in respostas:
         inst = r["test_versions"]["instrument_id"]

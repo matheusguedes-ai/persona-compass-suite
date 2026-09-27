@@ -13,6 +13,7 @@ import {
   montarComunicadoresSemelhantesDoNatural,
 } from "@/lib/disc-secoes-extra";
 import { obterIpsativo } from "@/lib/ipsativo.server";
+import { lerTodasOuRecusar } from "@/lib/ler-todas";
 import { getRequest } from "@tanstack/react-start/server";
 
 async function getAdmin() {
@@ -187,21 +188,31 @@ export async function buildReport(id: string) {
     return { status: 404 as const, error: "Este teste não gera relatório comportamental detalhado." };
   }
 
-  const [dimsRes, bandsRes, contentRes] = await Promise.all([
+  // Os textos do relatório são TODOS os globais + os da versão, e crescem a cada perfil cadastrado. A API
+  // do banco devolve no máximo 1.000 linhas por consulta e corta o resto sem avisar — o relatório saía
+  // sem seção e com cara de completo (#314). Lidos em partes até o fim; `id` desempata a ordem para as
+  // páginas não repetirem nem pularem linha (nenhum texto empata com outro dentro da mesma seção, então
+  // a escolha de cada bloco não muda).
+  // Relatório pela metade não sai: se um dia os textos passarem do teto de segurança, a tela diz isso.
+  const [dimsRes, bandsRes, content] = await Promise.all([
     supabase.from("test_dimensions").select("id, key, label, color, sort_order").eq("version_id", versionId).order("sort_order"),
     supabase.from("test_result_bands").select("id, dimension_id, mode, min_score, max_score, title, description").eq("version_id", versionId),
-    supabase
-      .from("report_content")
-      .select("section, dimension_key, mode, band_min, band_max, title, body, content_json, sort_order, version_id, status")
-      .or(`version_id.is.null,version_id.eq.${versionId}`)
-      .order("sort_order"),
+    lerTodasOuRecusar(
+      (de, ate) =>
+        supabase
+          .from("report_content")
+          .select("section, dimension_key, mode, band_min, band_max, title, body, content_json, sort_order, version_id, status", { count: "exact" })
+          .or(`version_id.is.null,version_id.eq.${versionId}`)
+          .order("sort_order")
+          .order("id")
+          .range(de, ate),
+      "os textos do relatório",
+    ),
   ]);
   if (dimsRes.error) throw new Error(dimsRes.error.message);
   if (bandsRes.error) throw new Error(bandsRes.error.message);
-  if (contentRes.error) throw new Error(contentRes.error.message);
   const dims = dimsRes.data;
   const bands = bandsRes.data;
-  const content = contentRes.data;
 
   let ips: ResultadoComIndices | null = null;
   if (fonteIpsativa) {

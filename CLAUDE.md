@@ -268,7 +268,7 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `people`, `groups`, `group_members`, `group_instruments`, `mentors`, `profiles` | cadastros do mentor |
 | `test_responses` | uma resposta de um teste. `kind` (`self`/`observer`), `parent_response_id`, `rater_name`, `assessment_response_id`, `assessment_sort`, `computed_scores` jsonb, `started_at`, `submitted_at` |
 | `assessment_responses` | **bateria**: agrupa várias `test_responses` num único link |
-| `report_content` | blocos de texto do relatório (208 registros globais, `version_id` NULL) |
+| `report_content` | blocos de texto do relatório (607 globais em 27/09, `version_id` NULL; cresce a cada perfil cadastrado — o relatório lê em partes, #314) |
 | `action_plans` | respostas do plano de ação (1 por response) |
 | `devolutivas` | a conversa de resultado: fila, agendamento e o que ficou combinado |
 | `suspeitas_duplicidade` | #300: par de cadastros que pode ser a mesma pessoa (telefone igual / nome parecido). Nasce no link aberto (`link_aberto`) ou quando o mentor marca "não são a mesma pessoa" (`varredura`, status `descartada`) |
@@ -351,6 +351,12 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
   bloco — o que a pessoa mais mostra sobe sozinho no natural (natural ≥ MAIS, sempre), e a
   comparação mede ruído. Calibração e oráculo: `python3 scripts/testar_indices.py puro|simular|real`;
   prova de que a tela lê o gravado: `testar_indices.py prova-leitura --app URL`.
+- **Textos do relatório lidos em partes até o fim** (#314): `buildReport` lê TODOS os textos globais + os da
+  versão numa só leitura paginada (`lerTodasOuRecusar`, ordem `sort_order, id`). Antes, a partir de 1.000
+  textos cadastrados, o relatório perdia seções sem erro — e as que somem PRIMEIRO são as de maior
+  `sort_order` (Big Five, VAK, Temperamentos), não as do perfil que acabou de ser cadastrado. Prova:
+  `python3 scripts/testar_leitura_sem_teto.py` (cópia fictícia do DISC + textos de enchimento pendentes
+  presos só a ela; nunca encosta em relatório real).
 - `src/lib/derivations.ts` — pesos das derivações do DISC (Jung, 4 estilos de
   liderança, 16 competências), sobrescritíveis por `derived_config`.
 - `src/components/report/sections.tsx` — blocos visuais compartilhados.
@@ -560,13 +566,17 @@ com dados reais; revisão do QI.
 - Interface e conteúdo em **pt-BR**; código e comentários técnicos em inglês ou pt-BR conciso.
 - Toda server function: middleware `requireSupabaseAuth` + validação Zod + checagem de ownership.
 - Sempre checar `error` de queries Supabase — erros silenciados já causaram corrupção de dados aqui.
-- ⚠️ **A API do banco devolve no máximo 1.000 linhas por consulta e corta o resto SEM AVISAR** (medido em
-  27/09: pedi 5.000 pontos, vieram 1.000 de 1.202 — `content-range 0-999/1202`). `.limit(5000)` e
-  `.range(0, 4999)` NÃO passam do teto. Lista que cresce com a conta: `lerTodas` (`src/lib/ler-todas.ts`,
-  #310 — páginas + contagem exata; devolve `completo: false` se bater no teto de segurança). Telas que
-  ainda leem sem paginar (achado da #310, não consertado): ranking do Dashboard (`painel.functions.ts`),
-  ranking do grupo (`pontos.functions.ts`), presenças em `montarTabelaPresenca` e
-  `calcularConclusoesDoTreinamento`, marcações em `calcularConclusoesDaTrilha`, e o conteúdo do relatório
-  em `buildReport` (`report_content`: 607 linhas em 27/09 — ao passar de 1.000, seções somem sem erro).
+- ⚠️ **REGRA (#314): nenhuma leitura que pode crescer com o uso assume que cabe em uma consulta.** A API
+  do banco devolve no máximo 1.000 linhas por consulta e corta o resto SEM AVISAR (medido em 27/09: pedi
+  5.000 pontos, vieram 1.000 de 1.202 — `content-range 0-999/1202`); `.limit(5000)` e `.range(0, 4999)`
+  NÃO passam do teto. Lista que cresce: `lerTodas` (`src/lib/ler-todas.ts` — páginas + contagem exata).
+  Quem CALCULA com as linhas (total, frequência, conclusão/certificado, ranking, texto de relatório):
+  `lerTodasOuRecusar` — se um dia não der para ler tudo, a tela DIZ que não montou, nunca entrega parcial
+  com cara de completo. Toda leitura paginada termina a ordem numa coluna única (`.order("id")`, ou a
+  chave composta de `group_members`: `group_id, person_id`), senão as páginas repetem ou pulam linhas.
+  Já seguem a regra (#314, provado acima de 1.000): relatório (tela, PDF, bateria), lista de presença,
+  conclusões do treinamento e da trilha, rankings e "meus pontos", e o Dashboard inteiro. As ≈ 70 leituras
+  que ainda não seguem, em ordem de risco (as piores CRIAM dado errado: cadastro repetido pelo link aberto,
+  horário ocupado aparecendo livre), estão em `docs/leituras-sem-teto.md`. Código NOVO segue a regra.
 - Exclusões destrutivas exigem `AlertDialog` de confirmação.
 - Endpoints públicos: devolver o mínimo necessário (sem e-mail, `mentor_id` ou scores alheios).
