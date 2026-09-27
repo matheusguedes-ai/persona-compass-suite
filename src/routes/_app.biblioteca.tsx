@@ -247,7 +247,7 @@ function BibliotecaGestao() {
                           <div className="min-w-0 space-y-1">
                             <p className="line-clamp-2 text-sm font-medium">{p.titulo}</p>
                             <p className="text-xs text-muted-foreground">
-                              {q.materiais} material{q.materiais === 1 ? "" : "is"}{q.subpastas ? ` · ${q.subpastas} subpasta${q.subpastas === 1 ? "" : "s"}` : ""}
+                              {q.materiais} {q.materiais === 1 ? "material" : "materiais"}{q.subpastas ? ` · ${q.subpastas} subpasta${q.subpastas === 1 ? "" : "s"}` : ""}
                             </p>
                           </div>
                         </button>
