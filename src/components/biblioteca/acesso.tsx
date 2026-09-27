@@ -244,8 +244,8 @@ export function DialogoRegras({
         </DialogHeader>
         {regras.isLoading || grupos.isLoading || pessoas.isLoading ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Carregando…</p>
-        ) : regras.error || grupos.error ? (
-          <p className="text-sm text-destructive">{mensagemDeErro(regras.error ?? grupos.error)}</p>
+        ) : regras.error || grupos.error || pessoas.error ? (
+          <p className="text-sm text-destructive">{mensagemDeErro(regras.error ?? grupos.error ?? pessoas.error)}</p>
         ) : (
           <div className="space-y-3">
             <div className="relative">

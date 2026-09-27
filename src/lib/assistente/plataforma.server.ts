@@ -8,6 +8,9 @@
  *   /aluno/agenda, /aluno/mentorias, /aluno/comunidade e /aluno/ranking. Não há service role aqui.
  * - Área que o grupo dele fechou (`groups.areas_aluno`) nem é consultada: a lista vem de
  *   `minhas_areas()`, a mesma que monta o menu. Área fechada na tela = área fechada para ela.
+ *   ⚠️ "biblioteca" não é uma dessas áreas (#313): `areasDoAluno()` completa o conjunto perguntando a
+ *   `bib_visiveis`, a MESMA checagem de `minhasAreas()` (data.functions.ts) — nunca reintroduzir
+ *   `areas.has("academy")` como substituto (#315).
  * - Por cima da RLS, os mesmos recortes que a tela faz: só trilha PUBLICADA e LIBERADA para ele
  *   (`trilhas_liberadas` — trilha trancada nem aparece, nem como "existe mas está fechada"), só aula
  *   publicada, só treinamento publicado, só material de aula marcado "visível ao aluno", só material
@@ -71,7 +74,21 @@ type PerfilColega = {
 async function areasDoAluno(supabase: Cliente): Promise<Set<string>> {
   const { data, error } = await supabase.rpc("minhas_areas");
   if (error) falhou("áreas", error);
-  return new Set((data ?? []) as string[]);
+  const areas = new Set((data ?? []) as string[]);
+  // #315 — "biblioteca" não é área de `groups.areas_aluno` (fica de fora de `minhas_areas()`; o CHECK do
+  // banco nem aceitaria o valor): a liberação dela é própria, por `bib_visiveis` (#313). Mesma checagem
+  // que decide o item do menu em `minhasAreas()` (data.functions.ts) e em `aluno.tsx`. Antes disto a
+  // assistente lia por `areas.has("academy")` — sobra de quando a Biblioteca morava dentro da Academy —
+  // e ficava muda para quem tem Biblioteca sem ter Academy, ou falava dela para quem tem Academy sem
+  // ter Biblioteca. Falha aqui não fecha as outras áreas — só a Biblioteca fica de fora.
+  try {
+    const { data: vis, error: eBib } = await supabase.rpc("bib_visiveis", { _person_id: null });
+    if (eBib) throw eBib;
+    if ((vis ?? []).length > 0) areas.add("biblioteca");
+  } catch (e) {
+    console.error("[assistente] biblioteca visível:", e instanceof Error ? e.message : String(e));
+  }
+  return areas;
 }
 
 async function trilhas(supabase: Cliente, userId: string): Promise<TrilhaDoAluno[]> {
@@ -442,7 +459,7 @@ export async function plataformaDoAluno(
   }
   const [trs, bib, trein, ag, ment, com, pts] = await Promise.all([
     tenta("Academy", areas.has("academy"), () => trilhas(supabase, userId), []),
-    tenta("Biblioteca", areas.has("academy"), () => biblioteca(supabase), []),
+    tenta("Biblioteca", areas.has("biblioteca"), () => biblioteca(supabase), []),
     tenta("Classroom", areas.has("classroom"), () => treinamentos(supabase, pessoas, agora), []),
     tenta("Agenda", areas.has("agenda"), () => agenda(supabase, agora), []),
     tenta("Mentorias", areas.has("mentorias"), () => mentorias(supabase, pessoas), []),

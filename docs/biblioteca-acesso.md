@@ -8,12 +8,38 @@ ela) parte daqui.
 
 | Camada | Onde se configura | Tabela |
 |---|---|---|
-| 1. **Menu** | "Escolher grupos", no topo da Biblioteca | `biblioteca_menu_grupos` (grupo) |
+| 1. **Menu** | "Escolher grupos", no topo da Biblioteca — **e** a aba Acesso da ficha do grupo, junto de Comunidade/Agenda/Academy/etc (#315) | `biblioteca_menu_grupos` (grupo) |
 | 2. **Pasta** | ⋮ da pasta → "Liberar ou bloquear…" | `biblioteca_pasta_destinos` (liberar) · `biblioteca_pasta_bloqueios` (bloquear) — grupo OU pessoa |
 | 3. **Material** | ⋮ do material → "Liberar ou bloquear…" | `biblioteca_material_destinos` · `biblioteca_material_bloqueios` |
 
 Pastas vão até **3 níveis** (pasta, subpasta, sub-subpasta). O limite e a proibição de ciclo moram no banco
 (gatilho `bib_pasta_confere_arvore`); a tela só não oferece o que o banco recusaria.
+
+## Duas telas, uma tabela só (#315)
+
+Até 27/09/2026 o menu Biblioteca só se configurava na tela própria da Biblioteca — as outras cinco áreas
+do painel do aluno (Resultados, Comunidade, Mentorias, Agenda, Academy, Classroom) se configuram na aba
+**Acesso** da ficha do grupo (`groups.areas_aluno`). Um mentor com turmas em ambos os lugares tinha de
+lembrar de dois lugares, e o chat já errou por causa disso: foi conferir a liberação em `areas_aluno`,
+não achou nada, e concluiu (errado) que a liberação do dono não tinha funcionado.
+
+A partir da #315 a Biblioteca aparece **também** na aba Acesso, na mesma lista de checkboxes — mas
+continua **fora** de `groups.areas_aluno`, de propósito:
+
+- o CHECK do banco em `areas_aluno` só aceita as seis áreas de sempre; "biblioteca" não é um valor válido;
+- `areas_aluno = NULL` significa "sem restrição, tudo liberado, inclusive área nova que a plataforma
+  ganhar depois" — mas a Biblioteca nasce **fechada** (#313), ao contrário disso. Juntar as duas
+  semânticas abriria a Biblioteca sozinha para todo grupo com `areas_aluno = NULL` (a maioria) na hora em
+  que "biblioteca" virasse uma área reconhecida — exatamente o que a #315 foi proibida de fazer
+  ("não liberar nem remover acesso de ninguém"). Dado real que provou o risco: em 27/09 "Turma Teste" e
+  "TESTE 15/08" tinham as duas `areas_aluno = NULL`, mas só a primeira tinha o menu Biblioteca.
+
+Por isso o checkbox da Biblioteca na aba Acesso é uma **prop à parte** de `<AreasDoAluno>`
+(`src/components/areas-do-aluno.tsx`), não mais um item do array `areas`: ele lê e grava
+`biblioteca_menu_grupos` direto (`grupoTemMenuBiblioteca` em `data.functions.ts` para ler,
+`definirMenuBibliotecaDoGrupo` em `biblioteca.functions.ts` para gravar — a MESMA tabela e a mesma
+permissão "educacao" que a tela própria da Biblioteca já usava; nada de `bib_decide` mudou). As duas telas
+não podem divergir porque são a mesma linha da mesma tabela — não duas tabelas sincronizadas.
 
 ## A regra — uma função só: `bib_decide`
 
@@ -78,10 +104,10 @@ o conjunto inteiro, sem repetir nem pular.
 - **Link de arquivo já aberto**: o link assinado de um PDF vale 10 minutos (os leitores de PDF buscam o
   arquivo em pedaços enquanto a pessoa rola). Bloquear alguém que está com o material aberto naquele
   instante não fecha a aba dele; o próximo clique já é recusado.
-- **Assistente (#312)**: `plataforma.server.ts` só consulta a Biblioteca quando o aluno tem a área
-  **Academy**. Aluno com o menu Biblioteca mas sem Academy fica com a assistente dizendo que não vê a
-  Biblioteca — erro para o lado seguro, a corrigir na #312 (trocar a condição por "tem algo em
-  `bib_visiveis`").
+- ~~**Assistente (#312)**: `plataforma.server.ts` só consulta a Biblioteca quando o aluno tem a área
+  Academy~~ — **corrigido na #315**: `areasDoAluno()` agora soma "biblioteca" ao conjunto perguntando a
+  `bib_visiveis` (a mesma checagem de `minhasAreas()`), e a leitura da Biblioteca passou a olhar essa área
+  em vez de "academy".
 
 ## Testar
 

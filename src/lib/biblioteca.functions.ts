@@ -655,6 +655,30 @@ export const salvarMenuDaBiblioteca = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * O menu Biblioteca de UM grupo só (#315) — a mesma tabela e a mesma regra de `salvarMenuDaBiblioteca`,
+ * chamada da ficha do grupo (aba Acesso), que só conhece este grupo. Liga = insere; desliga = apaga a
+ * linha; nenhuma outra linha muda. A permissão continua "educacao" (a mesma da tela própria da
+ * Biblioteca) — a ficha do grupo passa a MOSTRAR o controle, não a abrir uma capacidade nova: quem só
+ * tem "grupos" vê a caixa, e o clique falha com o mesmo aviso de sempre se faltar "educacao".
+ */
+export const definirMenuBibliotecaDoGrupo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ group_id: uuid, ligado: z.boolean() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await exigirPermissao(context.supabase, context.userId, "educacao");
+    const s = context.supabase;
+    await validarDestinos(s, [data.group_id], []);
+    if (data.ligado) {
+      const r = await s.from("biblioteca_menu_grupos").upsert({ group_id: data.group_id }, { onConflict: "group_id" });
+      if (r.error) throw new Error(r.error.message);
+    } else {
+      const r = await s.from("biblioteca_menu_grupos").delete().eq("group_id", data.group_id);
+      if (r.error) throw new Error(r.error.message);
+    }
+    return { ok: true };
+  });
+
 /** "Quem vê isto": a lista final, pessoa a pessoa, com o motivo — calculada pelo banco. */
 export const quemVeNaBiblioteca = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

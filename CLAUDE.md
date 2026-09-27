@@ -437,6 +437,14 @@ Contrato completo em `docs/biblioteca-acesso.md`.
   `bib_visiveis` devolve algo (`minhasAreas`).
 - Apagar pasta nunca apaga material: `bib_apagar_pasta` sobe o conteúdo um nível e copia as regras.
 - Testar só com a conta fictícia: `scripts/fixture_biblioteca.py criar|link|provar|apagar`.
+- **#315 — o menu por grupo (camada 1) também se configura na aba Acesso da ficha do grupo**, ao lado das
+  outras áreas — continua a MESMA tabela (`biblioteca_menu_grupos`), NUNCA dentro de `areas_aluno` (o
+  CHECK do banco recusaria, e `NULL` = "tudo" abriria a Biblioteca sozinha para todo grupo sem restrição).
+  Ler: `grupoTemMenuBiblioteca` (`data.functions.ts`); gravar: `definirMenuBibliotecaDoGrupo`
+  (`biblioteca.functions.ts`), mesma permissão "educacao" de sempre. Duas telas, uma linha só — não dá
+  para divergir. Detalhe em `docs/biblioteca-acesso.md`. A assistente do aluno também foi corrigida: lia
+  Biblioteca por `areas.has("academy")` (sobra de antes da #313); agora soma "biblioteca" via
+  `bib_visiveis` em `areasDoAluno()` (`assistente/plataforma.server.ts`).
 
 ## Assistente do Método Intenção (#289)
 

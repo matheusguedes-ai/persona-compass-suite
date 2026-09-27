@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listGroups, createGroup, listPeople, listInstruments } from "@/lib/data.functions";
+import { definirMenuBibliotecaDoGrupo } from "@/lib/biblioteca.functions";
 import { AreasDoAluno } from "@/components/areas-do-aluno";
 
 export const Route = createFileRoute("/_app/grupos/")({
@@ -134,13 +135,16 @@ function NewGroupDialog() {
   const [personIds, setPersonIds] = useState<string[]>([]);
   const [instrumentIds, setInstrumentIds] = useState<string[]>([]);
   const [personQuery, setPersonQuery] = useState("");
-  // `null` = sem restrição. Grupo novo nasce liberado.
+  // `null` = sem restrição. Grupo novo nasce liberado — a Biblioteca é a exceção (#315): nasce
+  // FECHADA como em qualquer outro lugar (#313), então o padrão dela é `false`, não "tudo".
   const [areas, setAreas] = useState<string[] | null>(null);
+  const [bibliotecaLigada, setBibliotecaLigada] = useState(false);
 
   const qc = useQueryClient();
   const peopleFn = useServerFn(listPeople);
   const instrFn = useServerFn(listInstruments);
   const createFn = useServerFn(createGroup);
+  const bibFn = useServerFn(definirMenuBibliotecaDoGrupo);
   const { data: people = [] } = useQuery({ queryKey: ["people"], queryFn: () => peopleFn(), enabled: open });
   const { data: instruments = [] } = useQuery({ queryKey: ["instruments"], queryFn: () => instrFn(), enabled: open });
 
@@ -150,13 +154,22 @@ function NewGroupDialog() {
   );
 
   const create = useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       name: string; type: GroupType; description: string | null;
       person_ids: string[]; instrument_ids: string[]; areas_aluno: string[] | null;
-    }) => createFn({ data }),
-    onSuccess: () => {
+    }) => {
+      const group = await createFn({ data });
+      // Biblioteca é OUTRA tabela (`biblioteca_menu_grupos`), só dá para ligar DEPOIS de o grupo
+      // existir. O grupo já nasceu mesmo se este segundo passo falhar — por isso o aviso é à parte.
+      const bibliotecaErro = !bibliotecaLigada
+        ? null
+        : await bibFn({ data: { group_id: group.id, ligado: true } }).then(() => null, (e: unknown) => mensagemDeErro(e));
+      return { group, bibliotecaErro };
+    },
+    onSuccess: ({ bibliotecaErro }) => {
       qc.invalidateQueries({ queryKey: ["groups"] });
-      toast.success("Grupo criado");
+      if (bibliotecaErro) toast.error(`Grupo criado, mas a Biblioteca não: ${bibliotecaErro}`);
+      else toast.success("Grupo criado");
       reset();
     },
     onError: (e: unknown) => toast.error(mensagemDeErro(e, undefined, "Falha ao criar grupo.")),
@@ -164,7 +177,7 @@ function NewGroupDialog() {
 
   function reset() {
     setOpen(false); setStep(1); setName(""); setType("turma"); setDescription("");
-    setPersonIds([]); setInstrumentIds([]); setPersonQuery(""); setAreas(null);
+    setPersonIds([]); setInstrumentIds([]); setPersonQuery(""); setAreas(null); setBibliotecaLigada(false);
   }
 
   function toggle(id: string, list: string[], setter: (v: string[]) => void) {
@@ -241,7 +254,13 @@ function NewGroupDialog() {
           </div>
         )}
 
-        {step === 4 && <AreasDoAluno areas={areas} setAreas={setAreas} />}
+        {step === 4 && (
+          <AreasDoAluno
+            areas={areas}
+            setAreas={setAreas}
+            biblioteca={{ ligado: bibliotecaLigada, onChange: setBibliotecaLigada }}
+          />
+        )}
 
         <DialogFooter className="flex justify-between sm:justify-between">
           <Button type="button" variant="ghost" onClick={() => (step > 1 ? setStep(step - 1) : reset())}>

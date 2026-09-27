@@ -7,23 +7,33 @@
  *
  * "Meu perfil" não aparece aqui de propósito — é onde a pessoa troca a própria
  * senha e os próprios dados.
+ *
+ * "Biblioteca" (#315) aparece na MESMA lista, mas por baixo é outra coisa: ela não é um valor de
+ * `groups.areas_aluno` (o banco recusaria — o CHECK só aceita as áreas de sempre) e não nasce aberta
+ * como as outras. Quem vê o item de verdade é `bib_visiveis`/`biblioteca_menu_grupos` (#313, "nasce
+ * fechada"); aqui é só ONDE se liga e desliga, unificado com o resto — por isso vem com prop própria
+ * (`biblioteca`), em vez de entrar no array `areas`.
  */
 import { AREAS_DO_ALUNO } from "@/lib/data.functions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Info } from "lucide-react";
+import { Info, Library } from "lucide-react";
 
 export function AreasDoAluno({
-  areas, setAreas, titulo = "O que este grupo acessa",
+  areas, setAreas, titulo = "O que este grupo acessa", biblioteca,
 }: {
   /** `null` = sem restrição, tudo liberado. */
   areas: string[] | null;
   setAreas: (v: string[] | null) => void;
   titulo?: string;
+  /** Omitido = não mostra a linha da Biblioteca (ex.: telas fora do contexto de grupo). */
+  biblioteca?: { ligado: boolean; onChange: (v: boolean) => void };
 }) {
   const todas = AREAS_DO_ALUNO.map((a) => a.valor as string);
   const marcadas = areas ?? todas;
   const semRestricao = areas === null || areas.length >= todas.length;
+  const totalComBiblioteca = todas.length + (biblioteca ? 1 : 0);
+  const marcadasComBiblioteca = marcadas.length + (biblioteca?.ligado ? 1 : 0);
 
   function alternar(v: string) {
     const nova = marcadas.includes(v) ? marcadas.filter((x) => x !== v) : [...marcadas, v];
@@ -61,16 +71,39 @@ export function AreasDoAluno({
             </div>
           </label>
         ))}
+        {biblioteca && (
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
+              biblioteca.ligado
+                ? "border-black/10 hover:bg-muted/40"
+                : "border-dashed border-black/10 bg-muted/30 opacity-70"
+            }`}
+          >
+            <Checkbox
+              className="mt-0.5"
+              checked={biblioteca.ligado}
+              onCheckedChange={(v) => biblioteca.onChange(!!v)}
+            />
+            <div>
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <Library className="size-3.5 text-muted-foreground" /> Biblioteca
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Materiais, PDFs e links organizados em pastas. Diferente das outras: nasce FECHADA — marque para liberar.
+              </p>
+            </div>
+          </label>
+        )}
       </div>
 
       <p className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
         <Info className="mt-px size-3.5 shrink-0" />
         <span>
-          {semRestricao
+          {semRestricao && (!biblioteca || biblioteca.ligado)
             ? "Sem restrição: este grupo vê o painel inteiro."
-            : marcadas.length === 0
+            : marcadasComBiblioteca === 0
               ? "Nada marcado: sobra só “Meu perfil”, onde ele troca a própria senha."
-              : `${marcadas.length} de ${todas.length} áreas liberadas. O item some do menu e a rota também para de responder.`}
+              : `${marcadasComBiblioteca} de ${totalComBiblioteca} áreas liberadas. O item some do menu e a rota também para de responder.`}
         </span>
       </p>
     </div>

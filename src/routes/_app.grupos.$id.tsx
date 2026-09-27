@@ -22,6 +22,7 @@ import {
   getGroup, getGroupDna, deleteGroup, addGroupMembers, removeGroupMember,
   setGroupInstruments, listPeople, listInstruments, updateGroup, AREAS_DO_ALUNO,
 } from "@/lib/data.functions";
+import { definirMenuBibliotecaDoGrupo } from "@/lib/biblioteca.functions";
 import { AreasDoAluno } from "@/components/areas-do-aluno";
 import { listResponses } from "@/lib/tests.functions";
 import { toast } from "sonner";
@@ -245,7 +246,11 @@ function GroupDetail() {
           </div>
         </TabsContent>
         <TabsContent value="acesso" className="mt-4">
-          <AcessoDoGrupo groupId={id} atual={(group.areas_aluno as string[] | null) ?? null} />
+          <AcessoDoGrupo
+            groupId={id}
+            atual={(group.areas_aluno as string[] | null) ?? null}
+            bibliotecaAtual={data.bibliotecaLiberada}
+          />
         </TabsContent>
 
         <TabsContent value="ranking" className="mt-4">
@@ -513,33 +518,59 @@ function GroupDna({ groupId }: { groupId: string }) {
  *
  * Salva só quando ele aperta — mudar acesso por clique solto trocaria o que a
  * turma vê enquanto ele ainda está decidindo.
+ *
+ * A Biblioteca (#315) entra na MESMA lista e no MESMO botão "Salvar acesso", mas grava numa tabela
+ * própria (`biblioteca_menu_grupos`, por `definirMenuBibliotecaDoGrupo`) — não em `areas_aluno`, que
+ * o banco nem aceitaria. As duas gravações rodam à parte: se uma falhar (ex.: falta a permissão
+ * "educacao", que só o dono/quem administra Academy tem) a outra ainda vale, e o aviso diz qual não foi.
  */
-function AcessoDoGrupo({ groupId, atual }: { groupId: string; atual: string[] | null }) {
+function AcessoDoGrupo({
+  groupId, atual, bibliotecaAtual,
+}: { groupId: string; atual: string[] | null; bibliotecaAtual: boolean }) {
   const qc = useQueryClient();
   const saveFn = useServerFn(updateGroup);
+  const bibFn = useServerFn(definirMenuBibliotecaDoGrupo);
   const [areas, setAreas] = useState<string[] | null>(atual);
+  const [biblioteca, setBiblioteca] = useState(bibliotecaAtual);
+
+  const areasMudaram = JSON.stringify(areas) !== JSON.stringify(atual);
+  const bibliotecaMudou = biblioteca !== bibliotecaAtual;
+  const mudou = areasMudaram || bibliotecaMudou;
 
   const salvar = useMutation({
-    mutationFn: () => saveFn({ data: { id: groupId, areas_aluno: areas } }),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const [areasOk, bibOk] = await Promise.all([
+        !areasMudaram
+          ? null
+          : saveFn({ data: { id: groupId, areas_aluno: areas } }).then(() => true).catch((e: unknown) => mensagemDeErro(e)),
+        !bibliotecaMudou
+          ? null
+          : bibFn({ data: { group_id: groupId, ligado: biblioteca } }).then(() => true).catch((e: unknown) => mensagemDeErro(e)),
+      ]);
+      return { areasOk, bibOk };
+    },
+    onSuccess: ({ areasOk, bibOk }) => {
       qc.invalidateQueries({ queryKey: ["group", groupId] });
       qc.invalidateQueries({ queryKey: ["groups"] });
-      toast.success("Acesso do grupo atualizado");
+      const falhas = [areasOk, bibOk].filter((r): r is string => typeof r === "string");
+      if (falhas.length === 0) toast.success("Acesso do grupo atualizado");
+      else toast.error(`Nem tudo salvou: ${falhas.join(" · ")}`);
     },
     onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
-  const mudou = JSON.stringify(areas) !== JSON.stringify(atual);
-
   return (
     <div className="space-y-4 rounded-xl bg-card p-6 ring-1 ring-black/5">
-      <AreasDoAluno areas={areas} setAreas={setAreas} />
+      <AreasDoAluno areas={areas} setAreas={setAreas} biblioteca={{ ligado: biblioteca, onChange: setBiblioteca }} />
       <div className="flex items-center gap-3">
         <Button onClick={() => salvar.mutate()} disabled={!mudou || salvar.isPending}>
           {salvar.isPending ? "Salvando…" : "Salvar acesso"}
         </Button>
         {mudou && (
-          <button className="text-xs text-muted-foreground hover:underline" onClick={() => setAreas(atual)}>
+          <button
+            className="text-xs text-muted-foreground hover:underline"
+            onClick={() => { setAreas(atual); setBiblioteca(bibliotecaAtual); }}
+          >
             Desfazer
           </button>
         )}

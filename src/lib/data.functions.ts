@@ -279,7 +279,7 @@ export const getGroup = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!group) throw new Error("Grupo não encontrado");
 
-    const [{ data: members }, { data: instruments }] = await Promise.all([
+    const [{ data: members }, { data: instruments }, bibliotecaLiberada] = await Promise.all([
       context.supabase
         .from("group_members")
         .select("person_id, added_at, people(id, full_name, email, role)")
@@ -288,10 +288,31 @@ export const getGroup = createServerFn({ method: "GET" })
         .from("group_instruments")
         .select("instrument_id, added_at, instruments(id, name, short_name, category, duration_min)")
         .eq("group_id", data.id),
+      grupoTemMenuBiblioteca(context.supabase, data.id),
     ]);
 
-    return { group, members: members ?? [], instruments: instruments ?? [] };
+    return { group, members: members ?? [], instruments: instruments ?? [], bibliotecaLiberada };
   });
+
+/**
+ * Este grupo tem o menu Biblioteca (#315)? A mesma tabela que a tela própria da Biblioteca lê
+ * (`biblioteca_menu_grupos`) — aqui só para MOSTRAR na ficha do grupo, ao lado das outras áreas; quem
+ * decide o acesso de verdade continua sendo `bib_decide` (não recalculado aqui). Sem exigir a permissão
+ * "educacao": ler isto não abre nada que a página do grupo (permissão "grupos") já não mostrasse — só o
+ * SALVAR (`definirMenuBibliotecaDoGrupo`) continua com essa trava. Falha aqui não derruba a ficha do
+ * grupo: mostra fechado, o estado mais seguro.
+ */
+async function grupoTemMenuBiblioteca(supabase: SupabaseClient<Database>, groupId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("biblioteca_menu_grupos").select("id").eq("group_id", groupId).maybeSingle();
+    if (error) throw error;
+    return !!data;
+  } catch (e) {
+    console.error("grupoTemMenuBiblioteca:", e instanceof Error ? e.message : String(e));
+    return false;
+  }
+}
 
 export const createGroup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
