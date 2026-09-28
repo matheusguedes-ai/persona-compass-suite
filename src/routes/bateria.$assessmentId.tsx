@@ -108,12 +108,12 @@ function BateriaPage() {
         <p className="mt-1 text-sm text-muted-foreground">Respondendo como: <strong>{payload.person_name}</strong></p>
       )}
       {justFinished != null && (
-        <div className="mt-4 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
-          <p className="flex items-center gap-2 text-sm font-medium text-emerald-800">
+        <div className="mt-4 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200 dark:bg-emerald-950/30 dark:ring-emerald-900/50">
+          <p className="flex items-center gap-2 text-sm font-medium text-emerald-800 dark:text-emerald-300">
             <CheckCircle2 className="size-4" />
             Etapa {justFinished} de {payload.total} concluída.
           </p>
-          <p className="mt-1 text-sm text-emerald-700">
+          <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400">
             {payload.current
               ? "Você pode seguir agora ou voltar depois — o que já respondeu está salvo."
               : "Você respondeu todas as etapas."}
@@ -131,7 +131,7 @@ function BateriaPage() {
             </Button>
           </div>
           {payload.current && (
-            <p className="mt-3 text-xs text-emerald-700">
+            <p className="mt-3 text-xs text-emerald-700 dark:text-emerald-400">
               Para responder aos poucos, entre no seu painel: é lá que ficam os testes liberados
               para você, com o que já foi respondido guardado.
             </p>
@@ -143,7 +143,7 @@ function BateriaPage() {
         {payload.parts.map((p, i) => {
           const isCurrent = p.response_id === payload.current;
           return (
-            <li key={p.response_id} className="flex items-center gap-3 rounded-xl bg-card p-4 ring-1 ring-black/5">
+            <li key={p.response_id} className="flex items-center gap-3 rounded-xl bg-card p-4 ring-1 ring-black/5 dark:ring-white/10">
               {p.submitted
                 ? <CheckCircle2 className="size-4 text-emerald-500" />
                 : isCurrent ? <ArrowRight className="size-4 text-primary" /> : <Circle className="size-4 text-muted-foreground" />}

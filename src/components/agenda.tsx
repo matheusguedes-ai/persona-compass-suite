@@ -416,7 +416,7 @@ export function Agenda({
                     <div
                       key={d.toISOString()}
                       className={`min-h-20 rounded-lg p-1.5 ring-1 ${
-                        ehHoje ? "bg-primary/5 ring-primary/40" : "bg-card ring-black/5"
+                        ehHoje ? "bg-primary/5 ring-primary/40" : "bg-card ring-black/5 dark:ring-white/10"
                       }`}
                     >
                       <span
@@ -450,7 +450,7 @@ export function Agenda({
               return (
                 <div
                   key={d.toISOString()}
-                  className={`rounded-lg p-2 ring-1 ${ehHoje ? "bg-primary/5 ring-primary/40" : "bg-card ring-black/5"}`}
+                  className={`rounded-lg p-2 ring-1 ${ehHoje ? "bg-primary/5 ring-primary/40" : "bg-card ring-black/5 dark:ring-white/10"}`}
                 >
                   <div className={`text-xs font-medium capitalize ${ehHoje ? "text-primary" : "text-muted-foreground"}`}>
                     {SEMANA[d.getDay()]} · {d.getDate()}
@@ -510,7 +510,7 @@ export function Agenda({
                     return (
                       <div
                         key={d.toISOString()}
-                        className={`relative border-l border-black/5 ${ehHoje ? "bg-primary/5" : ""}`}
+                        className={`relative border-l border-black/5 dark:border-white/10 ${ehHoje ? "bg-primary/5" : ""}`}
                         style={{
                           height: alturaGradePx,
                           backgroundImage: `repeating-linear-gradient(to bottom, transparent, transparent ${ALTURA_HORA_PX - 1}px, rgba(0,0,0,0.07) ${ALTURA_HORA_PX - 1}px, rgba(0,0,0,0.07) ${ALTURA_HORA_PX}px)`,
@@ -549,7 +549,7 @@ export function Agenda({
               return (
                 <div
                   key={d.toISOString()}
-                  className={`rounded-lg p-2 ring-1 ${ehHoje ? "bg-primary/5 ring-primary/40" : "bg-card ring-black/5"}`}
+                  className={`rounded-lg p-2 ring-1 ${ehHoje ? "bg-primary/5 ring-primary/40" : "bg-card ring-black/5 dark:ring-white/10"}`}
                 >
                   <div className={`text-xs font-medium capitalize ${ehHoje ? "text-primary" : "text-muted-foreground"}`}>
                     {SEMANA[d.getDay()]} · {d.getDate()}
@@ -661,7 +661,7 @@ export function Agenda({
       </Dialog>
 
       {/* O calendário mostra o mês ou a semana; esta lista responde "e agora, o que vem?" */}
-      <div className="rounded-xl bg-card p-4 ring-1 ring-black/5">
+      <div className="rounded-xl bg-card p-4 ring-1 ring-black/5 dark:ring-white/10">
         <h3 className="text-sm font-medium">Próximos</h3>
         {proximos.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">

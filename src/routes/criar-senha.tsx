@@ -92,7 +92,7 @@ export function CriarSenha() {
 function Casca({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-xl bg-card p-6 ring-1 ring-black/5">{children}</div>
+      <div className="w-full max-w-sm rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10">{children}</div>
     </div>
   );
 }

@@ -79,7 +79,7 @@ function TestesDoAluno() {
 
   if (!data?.vinculado) {
     return (
-      <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+      <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
         <MailQuestion className="mx-auto size-8 text-muted-foreground" />
         <h1 className="mt-4 text-base font-medium">Ainda não encontramos seu cadastro</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
@@ -102,7 +102,7 @@ function TestesDoAluno() {
       </div>
 
       {itens.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+        <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
           <FlaskConical className="mx-auto size-8 text-muted-foreground" />
           <h2 className="mt-4 text-base font-medium">Nenhum teste disponível ainda</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -114,7 +114,7 @@ function TestesDoAluno() {
           {itens.map((item) => {
             const { aberta, vigente, totalConcluidas } = resumo(item.tentativas);
             return (
-              <div key={item.instrument_id} className="rounded-xl border bg-card p-5 ring-1 ring-black/5">
+              <div key={item.instrument_id} className="rounded-xl border bg-card p-5 ring-1 ring-black/5 dark:ring-white/10">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="font-medium">{item.nome}</h3>

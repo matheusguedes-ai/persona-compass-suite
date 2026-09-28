@@ -45,7 +45,7 @@ export function CriarContaNoFim({ responseId }: { responseId: string }) {
 
   if (enviado) {
     return (
-      <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+      <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10">
         <MailCheck className="mx-auto size-8 text-emerald-500" />
         <p className="mt-3 text-center text-sm">{enviado}</p>
       </div>
@@ -54,7 +54,7 @@ export function CriarContaNoFim({ responseId }: { responseId: string }) {
 
   if (!aberto) {
     return (
-      <div className="rounded-xl bg-card p-6 text-center ring-1 ring-black/5">
+      <div className="rounded-xl bg-card p-6 text-center ring-1 ring-black/5 dark:ring-white/10">
         <UserPlus className="mx-auto size-7 text-muted-foreground" />
         <h2 className="mt-3 text-base font-medium">Quer guardar seus resultados?</h2>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
@@ -67,7 +67,7 @@ export function CriarContaNoFim({ responseId }: { responseId: string }) {
   }
 
   return (
-    <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+    <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10">
       <h2 className="text-base font-medium">Confirme seus dados</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Vamos enviar um link para <strong>{data.email_mascarado}</strong>. É nele que você escolhe

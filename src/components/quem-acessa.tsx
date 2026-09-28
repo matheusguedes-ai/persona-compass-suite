@@ -44,7 +44,7 @@ export function QuemAcessa({
       <Label>Quem tem acesso</Label>
       <p
         className={`flex items-start gap-2 rounded-lg px-3 py-2 text-[11px] ${
-          aberta ? "bg-muted/50 text-muted-foreground" : "bg-amber-50 text-amber-900"
+          aberta ? "bg-muted/50 text-muted-foreground" : "bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
         }`}
       >
         {aberta ? <Unlock className="mt-px size-3.5 shrink-0" /> : <Lock className="mt-px size-3.5 shrink-0" />}
@@ -55,7 +55,7 @@ export function QuemAcessa({
         </span>
       </p>
 
-      <div className="max-h-52 space-y-3 overflow-y-auto rounded-lg border border-black/5 p-3">
+      <div className="max-h-52 space-y-3 overflow-y-auto rounded-lg border border-black/5 dark:border-white/10 p-3">
         <div>
           <p className="text-xs font-medium text-muted-foreground">Grupos</p>
           {erroGrupos ? (

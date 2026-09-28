@@ -49,7 +49,7 @@ type Etapa =
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-lg px-4 py-10 sm:py-16">
-      <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 sm:p-8">{children}</div>
+      <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10 sm:p-8">{children}</div>
     </div>
   );
 }
@@ -363,7 +363,7 @@ function ConvitePage() {
           </p>
 
           {info.tests.length > 0 && (
-            <div className="mt-5 rounded-lg bg-muted/40 p-4 ring-1 ring-black/5">
+            <div className="mt-5 rounded-lg bg-muted/40 p-4 ring-1 ring-black/5 dark:ring-white/10">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">
                 {info.tests.length === 1 ? "Você vai responder" : `Você vai responder ${info.tests.length} inventários`}
               </p>

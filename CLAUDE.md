@@ -658,5 +658,18 @@ com dados reais; revisão do QI.
   (`listarPessoasParaEscolher` — Agenda, Mentorias, Academy, Biblioteca). As listas da Biblioteca (#313) também. As ≈ 70 leituras
   que ainda não seguem, em ordem de risco (as piores CRIAM dado errado: cadastro repetido pelo link aberto,
   horário ocupado aparecendo livre), estão em `docs/leituras-sem-teto.md`. Código NOVO segue a regra.
+- ⚠️ **REGRA (#285B): cor fixa na tela nasce com o par do tema escuro, e contraste se MEDE.** Token do tema
+  (`bg-card`, `text-muted-foreground`, `text-accent`…) já vale nos dois temas; classe de paleta (`bg-amber-50`,
+  `text-emerald-700`, `border-black/5`…) só com o par `dark:` ao lado — ex.: `border-black/5 dark:border-white/10`,
+  `bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200`. A causa da queixa da Turma 4 ("no escuro
+  botões e links somem") era a MARCA: a conta do dono tem `#000000` como cor secundária, e ela entrava igual nos
+  dois temas — link preto sobre o fundo quase preto, 1,0:1. Agora a marca passa por `src/lib/cores-da-marca.ts`:
+  no claro sai exatamente como antes; no escuro, a mesma matiz clareada até se ler (o preto vira branco). A
+  variante `dark:` só vale na TELA (`@custom-variant` em `styles.css`): papel é sempre claro, e o certificado e o
+  relatório têm impressão pelo navegador. Conferir: `python3 scripts/testar_pdf.py contraste` (paleta dos dois
+  temas, com a marca passando pela função de verdade) e `scripts/contraste_na_tela.js` na página aberta, logado
+  com a conta de `python3 scripts/fixture_contraste.py`. ⚠️ O claro tem pares que reprovam desde antes (o ciano
+  `#00b0f0` com texto branco dá 2,5:1): decisão do dono, listada como AVISO no teste. O painel do mentor ainda
+  tem ≈ 286 cores fixas sem par (pendência da #285B).
 - Exclusões destrutivas exigem `AlertDialog` de confirmação.
 - Endpoints públicos: devolver o mínimo necessário (sem e-mail, `mentor_id` ou scores alheios).

@@ -5,7 +5,7 @@
     python3 scripts/testar_pdf.py disc           # cria um DISC descartável (com 360°) e confere
     python3 scripts/testar_pdf.py tudo           # os dois
     python3 scripts/testar_pdf.py capa         # a capa aguenta 1 e 10 inventários? (#295)
-    python3 scripts/testar_pdf.py contraste    # a paleta do sistema visual é legível? (#294)
+    python3 scripts/testar_pdf.py contraste    # a paleta do PDF (#294) e as TELAS nos dois temas (#285B)
     python3 scripts/testar_pdf.py worker         # ⚠️ OBRIGATÓRIO antes de publicar (ver abaixo)
     python3 scripts/testar_pdf.py limpar         # remove sobras de execuções anteriores
 
@@ -635,6 +635,9 @@ def cmd_contraste(_args):
     "Alguns textos somem" foi a queixa do dono do produto sobre a primeira versão. Aqui cada par
     texto/fundo do sistema é medido pelo cálculo do WCAG; abaixo do mínimo, falha. Um tom novo só
     entra na paleta depois de passar por aqui.
+
+    #285B — a mesma régua passou a medir também as TELAS da plataforma, nos dois temas: ver
+    `contraste_das_telas` logo abaixo.
     """
     falhas = []
     print("  par (texto sobre fundo)                    contraste  mínimo")
@@ -646,6 +649,288 @@ def cmd_contraste(_args):
         print(f"  {marca} {nome:40} {c:5.2f}    {minimo}")
         if c < minimo:
             falhas.append(f"contraste insuficiente em {nome}: {c:.2f}, precisa de {minimo} ({fg} sobre {bg})")
+    print()
+    print("Contraste das telas, tema claro e escuro (#285B):")
+    falhas += contraste_das_telas()
+    return falhas
+
+
+# =================================================================================================
+# #285B — AS TELAS, NOS DOIS TEMAS
+#
+# "No modo escuro botões e links somem" (dono do produto, depois da primeira aula real da Turma 4).
+# Aqui a régua do WCAG mede as cores das TELAS, lidas da fonte — não copiadas:
+#   - os tokens do tema saem de `src/styles.css` (blocos `:root` e `.dark`);
+#   - a paleta do Tailwind, de `node_modules/tailwindcss/theme.css`;
+#   - a marca do mentor passa pela MESMA função da plataforma (`src/lib/cores-da-marca.ts`, via tsx).
+# Fundo translúcido (ex.: `bg-emerald-500/15`) é composto sobre a superfície de baixo, como o
+# navegador faz. Os pares que o tema CLARO já reprovava antes da #285B ficam marcados como
+# pendentes — a demanda pedia o claro igual ao de hoje; consertá-los é decisão do dono. Eles
+# aparecem como AVISO, não somem da lista.
+# =================================================================================================
+RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# O limiar 0,45 de `textoSobreNoClaro` e o ciano da conta do dono: o claro reprova desde a marca
+# aplicada, e trocar muda a cara dos botões — decisão do dono (ver o relatório da #285B).
+PENDENTE_CLARO = "já reprovava no claro antes da #285B — decisão do dono"
+
+
+def _oklch_para_hex(L, C, h):
+    import math
+    a, b = C * math.cos(math.radians(h)), C * math.sin(math.radians(h))
+    l_ = L + 0.3963377774 * a + 0.2158037573 * b
+    m_ = L - 0.1055613458 * a - 0.0638541728 * b
+    s_ = L - 0.0894841775 * a - 1.2914855480 * b
+    l, m, s = l_ ** 3, m_ ** 3, s_ ** 3
+    rgb = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+           -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+           -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s]
+    gama = lambda c: 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055  # noqa: E731
+    return "#" + "".join(f"{round(max(0.0, min(1.0, gama(c))) * 255):02x}" for c in rgb)
+
+
+def _ler_oklch(valor):
+    """'oklch(0.55 0.11 195)' ou 'oklch(97.1% 0.013 17.38)' ou com '/ 10%' → (hex, alfa)."""
+    corpo = valor.strip()[len("oklch("):-1]
+    cor, _, alfa = corpo.partition("/")
+    partes = cor.split()
+    L = float(partes[0][:-1]) / 100 if partes[0].endswith("%") else float(partes[0])
+    a = alfa.strip()
+    alfa_num = (float(a[:-1]) / 100 if a.endswith("%") else float(a)) if a else 1.0
+    num = lambda x: 0.0 if x == "none" else float(x)  # noqa: E731 — cinza sem matiz vem como "none"
+    return _oklch_para_hex(L, num(partes[1]), num(partes[2])), alfa_num
+
+
+def _tokens_do_tema():
+    css = open(os.path.join(RAIZ, "src", "styles.css"), encoding="utf-8").read()
+    temas = {}
+    for tema, seletor in (("claro", ":root"), ("escuro", ".dark")):
+        bloco = re.search(r"(?m)^" + re.escape(seletor) + r"\s*\{(.*?)\n\}", css, re.S).group(1)
+        temas[tema] = {k: _ler_oklch(v) for k, v in re.findall(r"--([\w-]+):\s*(oklch\([^)]*\))", bloco)}
+    return temas
+
+
+def _paleta_do_tailwind():
+    css = open(os.path.join(RAIZ, "node_modules", "tailwindcss", "theme.css"), encoding="utf-8").read()
+    paleta = {k: _ler_oklch(v)[0] for k, v in re.findall(r"--color-([a-z]+-\d+):\s*(oklch\([^)]*\))", css)}
+    paleta.update({"white": "#ffffff", "black": "#000000"})
+    return paleta
+
+
+def _compor(cima, alfa, baixo):
+    """Cor translúcida sobre uma opaca — a mistura que o navegador faz (no espaço sRGB)."""
+    c = [int(cima[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(baixo[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(alfa * x + (1 - alfa) * y):02x}" for x, y in zip(c, b))
+
+
+def _contraste(a, b):
+    la, lb = _luminancia(a), _luminancia(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def _tokens_das_marcas(marcas):
+    """Roda a função da plataforma (cores-da-marca.ts) para cada marca de teste."""
+    import subprocess
+    codigo = (
+        "import { tokensDaMarca, SUPERFICIE_ESCURA_OKLCH } from './src/lib/cores-da-marca.ts';"
+        f"const marcas = {json.dumps(marcas)};"
+        "console.log(JSON.stringify({ superficie: SUPERFICIE_ESCURA_OKLCH,"
+        " marcas: marcas.map(([p, s]) => tokensDaMarca(p, s)) }));"
+    )
+    try:
+        r = subprocess.run(["npx", "tsx", "-e", codigo], cwd=RAIZ, capture_output=True, text=True, timeout=180)
+    except FileNotFoundError:
+        sys.exit("Falta o Node no PATH (npx). Com nvm: export NVM_DIR=\"$HOME/.nvm\"; . \"$NVM_DIR/nvm.sh\"")
+    if r.returncode != 0:
+        sys.exit(f"não consegui rodar cores-da-marca.ts pelo tsx:\n{r.stderr[-800:]}")
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+# Marcas de teste: a da conta do dono (a única com marca hoje) e cores que costumam quebrar tema escuro.
+MARCAS_DE_TESTE = [
+    ("marca da conta do dono", "#00b0f0", "#000000"),
+    ("padrão de Configurações", "#164e63", "#0e7490"),
+    ("marca azul-marinho", "#0b2239", "#0b2239"),
+    ("marca amarela", "#facc15", "#facc15"),
+    ("marca cinza médio", "#777777", "#777777"),
+    ("marca branca", "#ffffff", "#ffffff"),
+]
+
+# Os pares fixos das telas do aluno que a #285B tocou ou conferiu. Cada fundo é uma pilha de camadas,
+# de baixo para cima: "t:card" = token do tema; "tw:emerald-500/15" = paleta do Tailwind com alfa;
+# "#0b2239" = cor literal. Texto também aceita alfa ("tw:white/90").
+# (nome, tema, texto, [camadas do fundo], grande, pendente)
+PARES_DAS_TELAS = [
+    # Selos de situação — Meus resultados (status-badge.tsx)
+    ("selo concluído", "claro", "tw:emerald-700", ["t:card", "tw:emerald-100"], False, None),
+    ("selo concluído", "escuro", "tw:emerald-300", ["t:card", "tw:emerald-500/15"], False, None),
+    ("selo em andamento", "claro", "tw:amber-700", ["t:card", "tw:amber-100"], False, None),
+    ("selo em andamento", "escuro", "tw:amber-300", ["t:card", "tw:amber-500/15"], False, None),
+    ("selo pendente", "claro", "tw:zinc-600", ["t:card", "tw:zinc-200"], False, None),
+    ("selo pendente", "escuro", "tw:zinc-300", ["t:card", "tw:zinc-500/20"], False, None),
+    ("selo expirado", "claro", "tw:rose-700", ["t:card", "tw:rose-100"], False, None),
+    ("selo expirado", "escuro", "tw:rose-300", ["t:card", "tw:rose-500/15"], False, None),
+    # Faixa "você está vendo como o aluno vê" (aluno.tsx)
+    ("faixa da prévia", "claro", "tw:amber-900", ["t:background", "tw:amber-50"], False, None),
+    ("faixa da prévia", "escuro", "tw:amber-200", ["t:background", "tw:amber-950/30"], False, None),
+    # "Certificado disponível" — Academy e Classroom (track-view, classroom-view)
+    ("certificado: título", "claro", "tw:emerald-800", ["t:background", "tw:emerald-50"], False, None),
+    ("certificado: título", "escuro", "tw:emerald-300", ["t:background", "tw:emerald-950/30"], False, None),
+    ("certificado: texto", "claro", "tw:emerald-700", ["t:background", "tw:emerald-50"], False, None),
+    ("certificado: texto", "escuro", "tw:emerald-400", ["t:background", "tw:emerald-950/30"], False, None),
+    ("certificado: botão Baixar", "claro", "tw:white", ["tw:emerald-600"], False, PENDENTE_CLARO),
+    # Bateria: "Etapa N de M concluída" (bateria.$assessmentId.tsx)
+    ("bateria: etapa concluída", "claro", "tw:emerald-700", ["t:background", "tw:emerald-50"], False, None),
+    ("bateria: etapa concluída", "escuro", "tw:emerald-400", ["t:background", "tw:emerald-950/30"], False, None),
+    ("certificado: botão Baixar", "escuro", "tw:white", ["tw:emerald-700"], False, None),
+    # Relatório: selo de confiabilidade grave (sections.tsx)
+    ("relatório: aviso de confiabilidade", "claro", "tw:amber-800", ["t:card", "tw:amber-50"], False, None),
+    ("relatório: aviso de confiabilidade", "escuro", "tw:amber-300", ["t:card", "tw:amber-950/30"], False, None),
+    # Relatório: Matriz SWOT — rótulo branco no cabeçalho colorido
+    ("SWOT: Forças", "claro", "tw:white", ["tw:emerald-600"], False, PENDENTE_CLARO),
+    ("SWOT: Forças", "escuro", "tw:white", ["tw:emerald-700"], False, None),
+    ("SWOT: Fragilidades", "claro", "tw:white", ["tw:red-600"], False, None),
+    ("SWOT: Fragilidades", "escuro", "tw:white", ["tw:red-700"], False, None),
+    ("SWOT: Oportunidades", "claro", "tw:white", ["tw:blue-600"], False, None),
+    ("SWOT: Oportunidades", "escuro", "tw:white", ["tw:blue-600"], False, None),
+    ("SWOT: Ameaças", "claro", "tw:white", ["tw:amber-600"], False, PENDENTE_CLARO),
+    ("SWOT: Ameaças", "escuro", "tw:white", ["tw:amber-700"], False, None),
+    # O subtítulo do cabeçalho é branco a 90% no claro; no escuro, branco pleno (a 90% o âmbar dava 4,39 —
+    # achado pela medição na tela, `scripts/contraste_na_tela.js`, no relatório do DISC).
+    ("SWOT: subtítulo (Forças)", "claro", "tw:white/90", ["tw:emerald-600"], False, PENDENTE_CLARO),
+    ("SWOT: subtítulo (Forças)", "escuro", "tw:white", ["tw:emerald-700"], False, None),
+    ("SWOT: subtítulo (Fragilidades)", "claro", "tw:white/90", ["tw:red-600"], False, PENDENTE_CLARO),
+    ("SWOT: subtítulo (Fragilidades)", "escuro", "tw:white", ["tw:red-700"], False, None),
+    ("SWOT: subtítulo (Oportunidades)", "claro", "tw:white/90", ["tw:blue-600"], False, None),
+    ("SWOT: subtítulo (Oportunidades)", "escuro", "tw:white", ["tw:blue-600"], False, None),
+    ("SWOT: subtítulo (Ameaças)", "claro", "tw:white/90", ["tw:amber-600"], False, PENDENTE_CLARO),
+    ("SWOT: subtítulo (Ameaças)", "escuro", "tw:white", ["tw:amber-700"], False, None),
+    # Relatório: Ganhos e Perdas
+    ("ganhos/perdas: pílula verde", "claro", "tw:white", ["tw:emerald-600"], False, PENDENTE_CLARO),
+    ("ganhos/perdas: pílula verde", "escuro", "tw:white", ["tw:emerald-700"], False, None),
+    ("ganhos/perdas: VOCÊ GANHA verde", "claro", "tw:emerald-700", ["t:card", "t:muted/40"], False, None),
+    ("ganhos/perdas: VOCÊ GANHA verde", "escuro", "tw:emerald-400", ["t:card", "t:muted/40"], False, None),
+    ("ganhos/perdas: VOCÊ GANHA azul", "claro", "tw:blue-700", ["t:card", "t:muted/40"], False, None),
+    ("ganhos/perdas: VOCÊ GANHA azul", "escuro", "tw:blue-400", ["t:card", "t:muted/40"], False, None),
+    ("frase que te segura (título)", "escuro", "tw:sky-300", ["#0b2239"], False, None),
+    ("frase que te segura (texto)", "escuro", "tw:white", ["#0b2239"], False, None),
+    # Relatório: "Como ler" / "Técnica" — texto na cor de destaque (token), sobre o fundo translúcido dela
+    ("relatório: título 'Como ler'", "claro", "t:accent", ["t:card", "t:accent/10"], False, PENDENTE_CLARO),
+    ("relatório: título 'Como ler'", "escuro", "t:accent", ["t:card", "t:accent/10"], False, None),
+    # Comunidade: curtida
+    ("comunidade: 'curtir' marcado", "claro", "tw:red-600", ["t:card"], False, None),
+    ("comunidade: 'curtir' marcado", "escuro", "tw:red-400", ["t:card"], False, None),
+    # Classroom: selo âmbar da aula
+    ("classroom: selo âmbar", "claro", "tw:amber-800", ["t:card", "tw:amber-100"], False, None),
+    ("classroom: selo âmbar", "escuro", "tw:amber-300", ["t:card", "tw:amber-500/15"], False, None),
+    ("academy: 'rascunho'", "claro", "tw:amber-700", ["t:card"], False, None),
+    ("academy: 'rascunho'", "escuro", "tw:amber-400", ["t:card"], False, None),
+    # Agenda: etiquetas do calendário (já tinham par escuro antes da #285B)
+    ("agenda: evento", "escuro", "tw:violet-300", ["t:card", "tw:violet-500/10"], False, None),
+    ("agenda: realizada", "escuro", "tw:emerald-300", ["t:card", "tw:emerald-500/10"], False, None),
+    ("agenda: atrasada", "escuro", "tw:amber-300", ["t:card", "tw:amber-500/15"], False, None),
+    ("agenda: agendada", "escuro", "tw:sky-300", ["t:card", "tw:sky-500/10"], False, None),
+]
+
+# Pares de TOKEN que valem em toda tela: (texto, fundo, grande).
+PARES_DE_TOKEN = [
+    ("foreground", "background", False), ("card-foreground", "card", False),
+    ("popover-foreground", "popover", False), ("muted-foreground", "background", False),
+    ("muted-foreground", "card", False), ("muted-foreground", "muted", False),
+    ("primary-foreground", "primary", False), ("secondary-foreground", "secondary", False),
+    ("accent-foreground", "accent", False), ("destructive-foreground", "destructive", False),
+    ("primary", "background", False), ("primary", "card", False),
+    ("accent", "background", False), ("accent", "card", False), ("accent", "muted", False),
+    ("destructive", "background", False), ("destructive", "card", False),
+]
+# O que o tema CLARO já reprovava antes da #285B (medido em 28/09/2026). Fica como aviso.
+TOKENS_PENDENTES_NO_CLARO = {
+    ("muted-foreground", "muted"), ("accent-foreground", "accent"),
+    ("accent", "background"), ("accent", "card"), ("accent", "muted"),
+}
+
+
+def contraste_das_telas():
+    falhas, avisos = [], []
+    temas = _tokens_do_tema()
+    paleta = _paleta_do_tailwind()
+
+    def cor(spec, tema, tokens):
+        nome, _, alfa = spec.partition("/")
+        alfa = int(alfa) / 100 if alfa else 1.0
+        if nome.startswith("t:"):
+            hexa, alfa_token = tokens[nome[2:]]
+            return hexa, alfa * alfa_token
+        if nome.startswith("tw:"):
+            return paleta[nome[3:]], alfa
+        return nome, alfa
+
+    def fundo(camadas, tema, tokens):
+        base, alfa = cor(camadas[0], tema, tokens)
+        if alfa < 1:
+            raise SystemExit(f"a camada de baixo precisa ser opaca: {camadas}")
+        for c in camadas[1:]:
+            h, a = cor(c, tema, tokens)
+            base = _compor(h, a, base)
+        return base
+
+    def medir(nome, tema, tokens, texto, camadas, grande, pendente, avisar_se_ja_passa=True):
+        bg = fundo(camadas, tema, tokens)
+        fg, alfa = cor(texto, tema, tokens)
+        if alfa < 1:
+            fg = _compor(fg, alfa, bg)
+        c = _contraste(fg, bg)
+        minimo = 3.0 if grande else 4.5
+        if c >= minimo:
+            marca = "ok   "
+            if pendente and avisar_se_ja_passa:
+                marca = "ok*  "  # marcado como pendente, mas já passa: tirar a marca
+        elif pendente:
+            marca = "AVISO"
+            avisos.append(f"[{tema}] {nome}: {c:.2f} ({fg} sobre {bg}) — {pendente}")
+        else:
+            marca = "FALHA"
+            falhas.append(f"contraste insuficiente [{tema}] em {nome}: {c:.2f}, precisa de {minimo} ({fg} sobre {bg})")
+        print(f"  {marca} {tema:6} {nome:52} {c:5.2f}    {minimo}")
+
+    print("  — tokens do tema (src/styles.css), sem marca:")
+    for tema in ("claro", "escuro"):
+        tokens = temas[tema]
+        for fg, bg, grande in PARES_DE_TOKEN:
+            pendente = PENDENTE_CLARO if tema == "claro" and (fg, bg) in TOKENS_PENDENTES_NO_CLARO else None
+            medir(f"{fg} sobre {bg}", tema, tokens, f"t:{fg}", [f"t:{bg}"], grande, pendente)
+
+    print("  — marca do mentor (a função da plataforma, cores-da-marca.ts):")
+    saida = _tokens_das_marcas([[p, s] for _, p, s in MARCAS_DE_TESTE])
+    muted_css = temas["escuro"]["muted"][0]
+    muted_ts = _oklch_para_hex(*saida["superficie"])
+    if muted_css != muted_ts:
+        falhas.append(f"SUPERFICIE_ESCURA_OKLCH de cores-da-marca.ts ({muted_ts}) não é mais o --muted do "
+                      f".dark em styles.css ({muted_css}) — atualizar os dois juntos")
+    for (rotulo, _p, _s), marca in zip(MARCAS_DE_TESTE, saida["marcas"]):
+        # As marcas inventadas provam a regra do ESCURO; no claro elas só repetiriam que o claro não
+        # protege cor nenhuma — mede-se ali só a marca que existe (a conta do dono).
+        for tema in (("claro", "escuro") if rotulo == "marca da conta do dono" else ("escuro",)):
+            tokens = dict(temas[tema])
+            for k, v in marca[tema].items():
+                tokens[k.lstrip("-")] = (v.lower(), 1.0)
+            for fg, bg in (("primary-foreground", "primary"), ("accent-foreground", "accent"),
+                           ("primary", "card"), ("primary", "background"), ("accent", "card"), ("accent", "background")):
+                # No claro a marca sai como sempre saiu: se reprova, já reprovava antes.
+                pendente = PENDENTE_CLARO if tema == "claro" else None
+                medir(f"{rotulo}: {fg} sobre {bg}", tema, tokens, f"t:{fg}", [f"t:{bg}"], False, pendente,
+                      avisar_se_ja_passa=False)
+
+    print("  — cores fixas das telas do aluno:")
+    for nome, tema, texto, camadas, grande, pendente in PARES_DAS_TELAS:
+        medir(nome, tema, temas[tema], texto, camadas, grande, pendente)
+
+    if avisos:
+        print(f"\n  ⚠ {len(avisos)} par(es) do tema CLARO reprovam como já reprovavam antes da #285B "
+              "(o claro ficou igual, de propósito):")
+        for a in avisos:
+            print(f"     - {a}")
     return falhas
 
 

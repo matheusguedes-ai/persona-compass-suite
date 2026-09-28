@@ -45,8 +45,8 @@ export function TrackCardItem({ t, base, search }: { t: TrackCard; base: Catalog
       to={to}
       params={{ trackId: t.id }}
       search={search}
-      className={`group relative block w-60 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5 transition ${
-        trancada ? "hover:ring-2 hover:ring-black/20" : "hover:ring-2 hover:ring-primary"
+      className={`group relative block w-60 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition ${
+        trancada ? "hover:ring-2 hover:ring-black/20 dark:hover:ring-white/25" : "hover:ring-2 hover:ring-primary"
       }`}
     >
       <div className="relative h-32 w-full" style={{ background: corDoTitulo(t.title) }}>
@@ -125,7 +125,7 @@ export function Prateleira({
 
 export function CatalogoVazio({ podeEditar }: { podeEditar: boolean }) {
   return (
-    <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+    <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
       <GraduationCap className="mx-auto size-8 text-muted-foreground" />
       <h2 className="mt-4 text-base font-medium">Nenhuma trilha por aqui ainda</h2>
       <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">

@@ -126,14 +126,14 @@ function SeletorDeData({
             <button
               type="button" aria-label="Mês anterior" disabled={mesAtualChave <= minimoMes}
               onClick={() => irParaMes(-1)}
-              className="rounded-md p-1 ring-1 ring-black/10 transition hover:bg-muted/40 disabled:opacity-30 disabled:hover:bg-transparent"
+              className="rounded-md p-1 ring-1 ring-black/10 dark:ring-white/15 transition hover:bg-muted/40 disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <ChevronLeft className="size-4" />
             </button>
             <button
               type="button" aria-label="Próximo mês" disabled={mesAtualChave >= maximoMes}
               onClick={() => irParaMes(1)}
-              className="rounded-md p-1 ring-1 ring-black/10 transition hover:bg-muted/40 disabled:opacity-30 disabled:hover:bg-transparent"
+              className="rounded-md p-1 ring-1 ring-black/10 dark:ring-white/15 transition hover:bg-muted/40 disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <ChevronRight className="size-4" />
             </button>
@@ -177,7 +177,7 @@ function SeletorDeData({
         <button
           type="button" aria-label="Semana anterior" disabled={semanaInicio <= primeiraSemanaInicio}
           onClick={() => setSemanaInicio((s) => somarDias(s, -7))}
-          className="shrink-0 rounded-md p-1 ring-1 ring-black/10 transition hover:bg-muted/40 disabled:opacity-30 disabled:hover:bg-transparent"
+          className="shrink-0 rounded-md p-1 ring-1 ring-black/10 dark:ring-white/15 transition hover:bg-muted/40 disabled:opacity-30 disabled:hover:bg-transparent"
         >
           <ChevronLeft className="size-4" />
         </button>
@@ -210,7 +210,7 @@ function SeletorDeData({
         <button
           type="button" aria-label="Próxima semana" disabled={semanaInicio >= ultimaSemanaInicio}
           onClick={() => setSemanaInicio((s) => somarDias(s, 7))}
-          className="shrink-0 rounded-md p-1 ring-1 ring-black/10 transition hover:bg-muted/40 disabled:opacity-30 disabled:hover:bg-transparent"
+          className="shrink-0 rounded-md p-1 ring-1 ring-black/10 dark:ring-white/15 transition hover:bg-muted/40 disabled:opacity-30 disabled:hover:bg-transparent"
         >
           <ChevronRight className="size-4" />
         </button>
@@ -269,7 +269,7 @@ export function SeletorDeHorario({
               className={`rounded-md px-2 py-1.5 text-sm ring-1 transition ${
                 h === horarioSelecionado
                   ? "bg-primary text-primary-foreground ring-primary"
-                  : "bg-background ring-black/10 hover:bg-muted/40"
+                  : "bg-background ring-black/10 dark:ring-white/15 hover:bg-muted/40"
               }`}
             >
               {horaBr(h)}

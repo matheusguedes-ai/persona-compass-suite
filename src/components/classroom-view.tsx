@@ -261,7 +261,7 @@ export function TreinamentoView({
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight">{t.titulo}</h1>
               {!t.publicado && (
-                <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+                <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
                   <Lock className="size-3" /> rascunho
                 </span>
               )}
@@ -318,12 +318,12 @@ export function TreinamentoView({
           pode baixar. Nunca na prévia "Ver como aluno" — meu_certificado só
           vem preenchido para o aluno de verdade (ver getTreinamento). */}
       {!podeEditar && data.meu_certificado && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200 dark:bg-emerald-950/30 dark:ring-emerald-900/50">
           <div className="flex items-center gap-3">
-            <Award className="size-6 shrink-0 text-emerald-600" />
+            <Award className="size-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <div>
-              <p className="text-sm font-semibold text-emerald-800">Certificado disponível</p>
-              <p className="text-xs text-emerald-700">
+              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Certificado disponível</p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-400">
                 Você concluiu este treinamento — baixe o seu certificado quando quiser.
               </p>
             </div>
@@ -332,7 +332,7 @@ export function TreinamentoView({
             to="/certificado/$certificadoId"
             params={{ certificadoId: data.meu_certificado.id }}
             target="_blank"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-800"
           >
             <Printer className="size-4" /> Baixar certificado
           </Link>
@@ -374,7 +374,7 @@ export function TreinamentoView({
         {/* -------- Ficha da aula -------- */}
         <div className="space-y-4">
           {aula ? (
-            <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+            <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="text-lg font-semibold">{aula.titulo}</h2>
@@ -488,7 +488,7 @@ export function TreinamentoView({
                 </div>
               )}
               {!podeEditar && aula.pode_avaliar && (
-                <div className="mt-3 space-y-2 rounded-lg border border-black/5 bg-card p-3">
+                <div className="mt-3 space-y-2 rounded-lg border border-black/5 dark:border-white/10 bg-card p-3">
                   <p className="text-xs font-medium">Avalie esta aula</p>
                   <SeletorEstrelas
                     valor={rascunhoAval(aula.id).estrelas}
@@ -526,7 +526,7 @@ export function TreinamentoView({
                 </div>
               )}
 
-              <div className="mt-5 border-t border-black/5 pt-4">
+              <div className="mt-5 border-t border-black/5 dark:border-white/10 pt-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium">Materiais</h3>
                   {podeEditar && (
@@ -547,7 +547,7 @@ export function TreinamentoView({
                         <li key={m.id} className="flex items-center gap-2">
                           <a
                             href={m.url ?? undefined} target="_blank" rel="noreferrer"
-                            className="flex flex-1 items-center gap-2 rounded-lg border border-black/5 px-3 py-2 text-sm hover:bg-muted/40"
+                            className="flex flex-1 items-center gap-2 rounded-lg border border-black/5 dark:border-white/10 px-3 py-2 text-sm hover:bg-muted/40"
                           >
                             <Icone className="size-4 shrink-0 text-muted-foreground" />
                             <span className="truncate">{m.titulo}</span>
@@ -590,7 +590,7 @@ export function TreinamentoView({
                   contagem junto (nunca sozinha — média sem contagem engana),
                   e os comentários identificados. */}
               {podeEditar && (
-                <div className="mt-5 border-t border-black/5 pt-4">
+                <div className="mt-5 border-t border-black/5 dark:border-white/10 pt-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-medium">Avaliações</h3>
                     {aula.avaliacao && (
@@ -624,7 +624,7 @@ export function TreinamentoView({
               )}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+            <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
               <Presentation className="mx-auto size-8 text-muted-foreground" />
               <h2 className="mt-4 text-base font-medium">Nenhuma aula ainda</h2>
               <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
@@ -704,8 +704,8 @@ function ModuloBloco({
   });
 
   return (
-    <div className="rounded-xl bg-card ring-1 ring-black/5">
-      <div className="flex items-start justify-between gap-2 border-b border-black/5 p-3">
+    <div className="rounded-xl bg-card ring-1 ring-black/5 dark:ring-white/10">
+      <div className="flex items-start justify-between gap-2 border-b border-black/5 dark:border-white/10 p-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{m.titulo}</p>
           <p className="text-[11px] text-muted-foreground">
@@ -741,7 +741,7 @@ function ModuloBloco({
         )}
       </div>
 
-      <ul className="divide-y divide-black/5">
+      <ul className="divide-y divide-black/5 dark:divide-white/10">
         {m.aulas.map((a) => (
           <li key={a.id}>
             <button
@@ -1140,7 +1140,7 @@ function MaterialDialog({
                 </button>
               </div>
             ) : (
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 dark:border-white/20 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                 <Upload className="size-4" />
                 {enviando ? "Enviando…" : "Escolher arquivo (até 25 MB)"}
                 <input type="file" accept={ACCEPT.biblioteca} className="hidden"
@@ -1177,7 +1177,7 @@ function MaterialDialog({
                     "rounded-lg border p-3 text-left transition",
                     visivelAluno === valor
                       ? "border-primary bg-primary/5 ring-1 ring-primary"
-                      : "border-black/10 hover:bg-muted/40",
+                      : "border-black/10 dark:border-white/15 hover:bg-muted/40",
                   )}
                 >
                   <p className="flex items-center gap-1.5 text-sm font-medium">
@@ -1333,7 +1333,7 @@ function TreinamentoDialog({
               </div>
             ) : (
               <div className="space-y-2">
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 dark:border-white/20 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                   <ImageIcon className="size-4" />
                   {enviandoCapa
                     ? <><Loader2 className="size-4 animate-spin" /> Enviando…</>
@@ -1367,7 +1367,7 @@ function TreinamentoDialog({
           </div>
           <div className="space-y-2">
             <Label>Grupos com acesso</Label>
-            <div className="max-h-44 space-y-1.5 overflow-y-auto rounded-lg border border-black/5 p-3">
+            <div className="max-h-44 space-y-1.5 overflow-y-auto rounded-lg border border-black/5 dark:border-white/10 p-3">
               {(dg?.grupos ?? []).length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhum grupo na conta ainda.</p>
               ) : (
@@ -1413,7 +1413,7 @@ function TreinamentoDialog({
               quem já tinha concluído pela régua anterior.
             </p>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 dark:border-white/10 p-3">
             <div>
               <p className="text-sm font-medium">Publicado</p>
               <p className="text-[11px] text-muted-foreground">

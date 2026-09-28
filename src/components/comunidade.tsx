@@ -329,7 +329,7 @@ export function Comunidade({
     if (!ativa || sugestoes.length === 0) return null;
     return (
       <div className="relative">
-        <div className="absolute z-10 mt-1 max-h-48 w-full min-w-48 overflow-y-auto rounded-lg border border-black/10 bg-popover shadow-md">
+        <div className="absolute z-10 mt-1 max-h-48 w-full min-w-48 overflow-y-auto rounded-lg border border-black/10 dark:border-white/15 bg-popover shadow-md">
           {sugestoes.map((m, i) => (
             <button
               key={m.person_id}
@@ -382,7 +382,7 @@ export function Comunidade({
         vez, criaria uma publicação assinada por VOCÊ com a cara dele.
       */}
       {!error && somenteLeitura && (
-        <div className="rounded-xl border border-dashed border-black/10 bg-card p-4">
+        <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-4">
           <div className="pointer-events-none select-none opacity-50">
             <Textarea rows={2} disabled placeholder="Compartilhe algo com o grupo…" />
           </div>
@@ -394,7 +394,7 @@ export function Comunidade({
         </div>
       )}
       {!error && !somenteLeitura && (
-      <div className="rounded-xl border border-black/5 bg-card p-4">
+      <div className="rounded-xl border border-black/5 dark:border-white/10 bg-card p-4">
         <Textarea
           ref={textoRef}
           value={texto}
@@ -477,7 +477,7 @@ export function Comunidade({
                     key={ev.id}
                     type="button"
                     onClick={() => { setEventoEscolhido({ id: ev.id, titulo: ev.titulo }); setTexto(ev.titulo); }}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-black/10 p-2 text-left text-sm hover:bg-muted/50"
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-black/10 dark:border-white/15 p-2 text-left text-sm hover:bg-muted/50"
                   >
                     <span className="min-w-0 truncate">{ev.titulo}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">{dataDoEvento(ev.quando)}</span>
@@ -607,7 +607,7 @@ export function Comunidade({
           key={p.id}
           id={`post-${p.id}`}
           className={cn(
-            "rounded-xl border border-black/5 bg-card p-4 transition-shadow",
+            "rounded-xl border border-black/5 dark:border-white/10 bg-card p-4 transition-shadow",
             focoPostId === p.id && "ring-2 ring-primary/50",
           )}
         >
@@ -658,7 +658,7 @@ export function Comunidade({
                             onClick={() => bloqueadoNoPreview(somenteLeitura, () => votar.mutate({ post_id: p.id, option_id: o.id }))}
                             className={cn(
                               "relative flex-1 overflow-hidden rounded-lg border p-2 text-left text-sm transition",
-                              escolhida ? "border-primary" : "border-black/10 hover:border-black/20",
+                              escolhida ? "border-primary" : "border-black/10 dark:border-white/15 hover:border-black/20 dark:hover:border-white/25",
                             )}
                           >
                             <div
@@ -692,7 +692,7 @@ export function Comunidade({
                       key={o.id}
                       type="button"
                       onClick={() => bloqueadoNoPreview(somenteLeitura, () => votar.mutate({ post_id: p.id, option_id: o.id }))}
-                      className="w-full rounded-lg border border-black/10 p-2 text-left text-sm hover:bg-muted/50"
+                      className="w-full rounded-lg border border-black/10 dark:border-white/15 p-2 text-left text-sm hover:bg-muted/50"
                     >
                       {o.texto}
                     </button>
@@ -709,7 +709,7 @@ export function Comunidade({
             </p>
           )}
           {p.evento && !p.evento.apagado && (
-            <div className="mt-3 overflow-hidden rounded-lg border border-black/10">
+            <div className="mt-3 overflow-hidden rounded-lg border border-black/10 dark:border-white/15">
               {p.evento.imagemUrl && (
                 <img src={p.evento.imagemUrl} alt="" className="max-h-48 w-full object-cover" />
               )}
@@ -777,10 +777,10 @@ export function Comunidade({
             </a>
           )}
 
-          <div className="mt-3 flex items-center gap-4 border-t border-black/5 pt-3">
+          <div className="mt-3 flex items-center gap-4 border-t border-black/5 dark:border-white/10 pt-3">
             <button
               onClick={() => bloqueadoNoPreview(somenteLeitura, () => curtir.mutate({ post_id: p.id, curtir: !p.curti }))}
-              className={cn("flex items-center gap-1.5 text-sm", p.curti ? "text-red-600" : "text-muted-foreground hover:text-foreground")}
+              className={cn("flex items-center gap-1.5 text-sm", p.curti ? "text-red-600 dark:text-red-400" : "text-muted-foreground hover:text-foreground")}
             >
               <Heart className={cn("size-4", p.curti && "fill-current")} /> {p.curtidas > 0 ? p.curtidas : ""}
             </button>

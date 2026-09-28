@@ -39,7 +39,7 @@ export function ResultadosDoAluno({ previewPersonId }: { previewPersonId?: strin
       </p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         {resultados.map((r) => (
-          <div key={r.response_id} className="rounded-xl border border-black/5 bg-card p-5">
+          <div key={r.response_id} className="rounded-xl border border-black/5 dark:border-white/10 bg-card p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="text-sm font-semibold">{r.titulo}</h3>
               {r.tipo_mbti ? (
@@ -57,7 +57,7 @@ export function ResultadosDoAluno({ previewPersonId }: { previewPersonId?: strin
                       {f.label}
                       {/* #292: o teste marcou pouco esta dimensão — ela não entra no perfil */}
                       {f.pouca_informacao && (
-                        <span className="ml-2 rounded-full border border-black/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <span className="ml-2 rounded-full border border-black/10 dark:border-white/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
                           pouca informação
                         </span>
                       )}

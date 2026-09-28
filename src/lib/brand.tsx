@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getAccountBrand } from "@/lib/data.functions";
+import { cssDaMarca } from "@/lib/cores-da-marca";
 
 /**
  * Marca do mentor aplicada na interface.
@@ -32,52 +33,31 @@ export function brandName(b: Brand | null | undefined) {
   return b?.company_name?.trim() || MARCA_PADRAO;
 }
 
-/**
- * Preto ou branco por cima da cor escolhida, pelo brilho percebido. Sem isso
- * um mentor que escolhe amarelo fica com texto branco ilegível no botão.
- */
-function textoLegivelSobre(hex: string): string {
-  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return "#ffffff";
-  let h = m[1];
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
-  const r = parseInt(h.slice(0, 2), 16) / 255;
-  const g = parseInt(h.slice(2, 4), 16) / 255;
-  const b = parseInt(h.slice(4, 6), 16) / 255;
-  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return L > 0.45 ? "#111111" : "#ffffff";
-}
-
-const CHAVES = [
-  "--primary", "--primary-foreground",
-  "--sidebar-primary", "--sidebar-primary-foreground",
-  "--accent", "--accent-foreground",
-] as const;
+const ID_DA_FOLHA = "marca-da-conta";
 
 /**
- * Sobrescreve os tokens de cor no `<html>`. Só mexe no que o mentor definiu —
- * campo vazio mantém o tema padrão em vez de zerar a cor.
+ * Sobrescreve os tokens de cor do tema com os da marca. Só mexe no que o
+ * mentor definiu — campo vazio mantém o tema padrão em vez de zerar a cor.
+ *
+ * #285B — vira uma folha de estilo com uma regra para cada tema, em vez de
+ * `style` no `<html>` (que valia igual no claro e no escuro: a cor secundária
+ * preta da conta do dono pintava links de preto sobre o fundo escuro). O que
+ * cada tema recebe, e por quê, está em `cores-da-marca.ts`.
  */
 export function applyBrand(b: Brand | null | undefined) {
   if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  for (const k of CHAVES) root.style.removeProperty(k);
-  if (!b) return;
-
-  const primary = b.brand_color?.trim();
-  if (primary) {
-    const fg = textoLegivelSobre(primary);
-    root.style.setProperty("--primary", primary);
-    root.style.setProperty("--primary-foreground", fg);
-    root.style.setProperty("--sidebar-primary", primary);
-    root.style.setProperty("--sidebar-primary-foreground", fg);
+  const css = b ? cssDaMarca(b.brand_color, b.brand_accent_color) : "";
+  let folha = document.getElementById(ID_DA_FOLHA) as HTMLStyleElement | null;
+  if (!css) {
+    folha?.remove();
+    return;
   }
-  const accent = b.brand_accent_color?.trim();
-  if (accent) {
-    root.style.setProperty("--accent", accent);
-    root.style.setProperty("--accent-foreground", textoLegivelSobre(accent));
+  if (!folha) {
+    folha = document.createElement("style");
+    folha.id = ID_DA_FOLHA;
+    document.head.appendChild(folha);
   }
+  folha.textContent = css;
 }
 
 /** Aplica a marca enquanto a tela estiver montada e devolve o tema ao sair. */

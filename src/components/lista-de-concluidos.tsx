@@ -39,14 +39,14 @@ function Lista({
 
   if (!totalItens) {
     return (
-      <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground ring-1 ring-black/5">
+      <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground ring-1 ring-black/5 dark:ring-white/10">
         Ainda não há aula nenhuma para medir conclusão.
       </p>
     );
   }
   if (!pessoas || pessoas.length === 0) {
     return (
-      <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground ring-1 ring-black/5">
+      <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground ring-1 ring-black/5 dark:ring-white/10">
         Ninguém na turma ainda.
       </p>
     );
@@ -64,7 +64,7 @@ function Lista({
       </p>
       <div className="space-y-2">
         {[...concluidos, ...restante].map((p) => (
-          <div key={p.person_id} className="flex items-center gap-3 rounded-lg bg-card p-3 ring-1 ring-black/5">
+          <div key={p.person_id} className="flex items-center gap-3 rounded-lg bg-card p-3 ring-1 ring-black/5 dark:ring-white/10">
             {p.concluido ? (
               <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
             ) : (
@@ -88,7 +88,7 @@ function Lista({
             {/* #221 F2 — a emissão é automática (ninguém aperta botão); isto
                 só mostra o que já aconteceu. */}
             {p.certificado && (
-              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                 <Award className="size-3" />
                 Certificado em {new Date(p.certificado.emitido_em).toLocaleDateString("pt-BR")}
               </span>

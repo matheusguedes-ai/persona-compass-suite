@@ -73,7 +73,7 @@ function ResultView({ result, responseId, selo }: { result: Result; responseId: 
   const adaptadoBands = perDim.filter((p) => p.mode === "adaptado");
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-6">
-      <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 text-center">
+      <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10 text-center">
         <CheckCircle2 className="mx-auto size-10 text-emerald-500" />
         <h1 className="mt-2 text-2xl font-semibold">Respostas enviadas!</h1>
         {result.dominant && (
@@ -98,7 +98,7 @@ function ResultView({ result, responseId, selo }: { result: Result; responseId: 
       <CriarContaNoFim responseId={responseId} />
 
       {result.band && (
-        <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+        <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10">
           <h2 className="text-lg font-semibold">{result.band.title}</h2>
           {result.band.description && <p className="mt-2 text-sm text-muted-foreground">{result.band.description}</p>}
         </div>
@@ -109,7 +109,7 @@ function ResultView({ result, responseId, selo }: { result: Result; responseId: 
       {adaptadoBands.length > 0 && (
         <PerDimSection title="Perfil adaptado" items={adaptadoBands} />
       )}
-      <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+      <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Pontuação por dimensão</h3>
         <div className="mt-3 space-y-2">
           {(result.by_dimension && result.by_dimension.length > 0
@@ -134,7 +134,7 @@ function ResultView({ result, responseId, selo }: { result: Result; responseId: 
 
 function PerDimSection({ title, items }: { title: string; items: PerDimBand[] }) {
   return (
-    <div className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+    <div className="rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10">
       <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
       <div className="mt-3 space-y-3">
         {items.map((d) => (

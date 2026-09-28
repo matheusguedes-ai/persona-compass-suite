@@ -177,7 +177,7 @@ export function NovoEvento({ open, onOpenChange }: { open: boolean; onOpenChange
                 </button>
               </div>
             ) : (
-              <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+              <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 dark:border-white/20 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                 <ImagePlus className="size-4" />
                 {enviando ? "Enviando…" : "Escolher arquivo"}
                 <input
@@ -196,7 +196,7 @@ export function NovoEvento({ open, onOpenChange }: { open: boolean; onOpenChange
             />
           </div>
 
-          <div className="max-h-56 space-y-3 overflow-y-auto rounded-lg border border-black/5 p-3">
+          <div className="max-h-56 space-y-3 overflow-y-auto rounded-lg border border-black/5 dark:border-white/10 p-3">
             <div>
               <p className="text-xs font-medium text-muted-foreground">Grupos</p>
               {(dg?.grupos ?? []).length === 0 ? (

@@ -30,7 +30,7 @@ export function TreinamentoCardItem({
       to={to}
       params={{ treinamentoId: t.id }}
       search={search}
-      className="group relative block w-60 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5 transition hover:ring-2 hover:ring-primary"
+      className="group relative block w-60 shrink-0 overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition hover:ring-2 hover:ring-primary"
     >
       <div className="relative h-32 w-full" style={{ background: corDoTitulo(t.titulo) }}>
         {t.capa_url && (
@@ -83,7 +83,7 @@ export function PrateleiraTreinamentos({
 
 export function ClassroomVazio({ podeEditar }: { podeEditar: boolean }) {
   return (
-    <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+    <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
       <Presentation className="mx-auto size-8 text-muted-foreground" />
       <h2 className="mt-4 text-base font-medium">
         {podeEditar ? "Nenhum treinamento ainda" : "Nenhum treinamento por aqui ainda"}

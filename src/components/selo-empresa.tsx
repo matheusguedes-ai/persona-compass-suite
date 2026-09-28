@@ -24,7 +24,7 @@ export function SeloEmpresa({
 
   return (
     <footer
-      className={`border-t border-black/5 px-6 py-4 text-center text-xs text-muted-foreground ${className}`}
+      className={`border-t border-black/5 dark:border-white/10 px-6 py-4 text-center text-xs text-muted-foreground ${className}`}
     >
       <p>
         {nome}

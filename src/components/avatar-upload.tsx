@@ -29,7 +29,7 @@ export function Avatar({
   const txt = iniciais(nome);
   return (
     <span
-      className={`inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-black/5 ${className}`}
+      className={`inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-black/5 dark:ring-white/10 ${className}`}
       style={{ width: size, height: size, fontSize: Math.max(10, size * 0.36) }}
       title={nome ?? undefined}
     >

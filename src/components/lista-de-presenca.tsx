@@ -81,7 +81,7 @@ export function ListaDePresenca({ treinamentoId }: { treinamentoId: string }) {
 
   if (aulas.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-black/10 bg-card p-10 text-center">
+      <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-10 text-center">
         <ClipboardList className="mx-auto size-7 text-muted-foreground" />
         <p className="mt-3 text-sm text-muted-foreground">
           Nenhuma aula neste treinamento ainda — sem aula, não há lista de presença.
@@ -122,7 +122,7 @@ export function ListaDePresenca({ treinamentoId }: { treinamentoId: string }) {
                   key={a.id} onClick={() => setAulaId(a.id)}
                   className={cn(
                     "shrink-0 rounded-lg border px-3 py-2 text-left transition",
-                    ativa ? "border-primary bg-primary/5" : "border-black/10 hover:bg-muted/40",
+                    ativa ? "border-primary bg-primary/5" : "border-black/10 dark:border-white/15 hover:bg-muted/40",
                   )}
                 >
                   <p className="text-xs font-medium">{a.titulo}</p>
@@ -235,7 +235,7 @@ export function ListaDePresenca({ treinamentoId }: { treinamentoId: string }) {
                 )}
               </div>
 
-              <div className="overflow-x-auto rounded-xl ring-1 ring-black/5">
+              <div className="overflow-x-auto rounded-xl ring-1 ring-black/5 dark:ring-white/10">
                 <table className="w-full min-w-[900px] text-sm">
                   <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                     <tr>
@@ -250,7 +250,7 @@ export function ListaDePresenca({ treinamentoId }: { treinamentoId: string }) {
                       <th className="p-2.5 font-medium">Quem tocou nesta linha</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-black/5">
+                  <tbody className="divide-y divide-black/5 dark:divide-white/10">
                     {linhas.map((l) => (
                       <tr key={l.person_id} className="align-top">
                         <td className="p-2.5">
@@ -371,7 +371,7 @@ function Resumo({
           {fora.map((f) => `${f.titulo} (${f.motivo})`).join(" · ")}
         </p>
       )}
-      <div className="overflow-x-auto rounded-xl ring-1 ring-black/5">
+      <div className="overflow-x-auto rounded-xl ring-1 ring-black/5 dark:ring-white/10">
         <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
             <tr>
@@ -381,7 +381,7 @@ function Resumo({
               <th className="p-2.5 font-medium">Justificadas</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-black/5">
+          <tbody className="divide-y divide-black/5 dark:divide-white/10">
             {resumo.map((r) => (
               <tr key={r.person_id}>
                 <td className="p-2.5">

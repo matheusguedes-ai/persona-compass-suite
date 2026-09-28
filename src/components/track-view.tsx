@@ -130,7 +130,7 @@ export function TrackView({
         >
           <ArrowLeft className="size-3" /> Voltar para a Academy
         </Link>
-        <div className="overflow-hidden rounded-xl ring-1 ring-black/5">
+        <div className="overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10">
           <div className="relative h-40 w-full bg-muted">
             {data.track.cover_url && (
               <img src={data.track.cover_url} alt="" className="absolute inset-0 size-full object-cover grayscale" />
@@ -203,12 +203,12 @@ export function TrackView({
           pode baixar. Nunca na prévia "Ver como aluno" — meu_certificado só
           vem preenchido para o aluno de verdade (ver getTrack). */}
       {!podeEditar && data.meu_certificado && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200 dark:bg-emerald-950/30 dark:ring-emerald-900/50">
           <div className="flex items-center gap-3">
-            <Award className="size-6 shrink-0 text-emerald-600" />
+            <Award className="size-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <div>
-              <p className="text-sm font-semibold text-emerald-800">Certificado disponível</p>
-              <p className="text-xs text-emerald-700">
+              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Certificado disponível</p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-400">
                 Você concluiu esta trilha — baixe o seu certificado quando quiser.
               </p>
             </div>
@@ -217,7 +217,7 @@ export function TrackView({
             to="/certificado/$certificadoId"
             params={{ certificadoId: data.meu_certificado.id }}
             target="_blank"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-800"
           >
             <Printer className="size-4" /> Baixar certificado
           </Link>
@@ -227,7 +227,7 @@ export function TrackView({
       {/* #221 F1 — só quem edita vê quem concluiu; o aluno já tem a própria
           barra de progresso acima. */}
       {podeEditar && (
-        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+        <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Quem concluiu
           </h2>
@@ -242,7 +242,7 @@ export function TrackView({
         <div className="space-y-4">
           {aula ? (
             <>
-              <div className="overflow-hidden rounded-xl bg-black ring-1 ring-black/5">
+              <div className="overflow-hidden rounded-xl bg-black ring-1 ring-black/5 dark:ring-white/10">
                 {vid ? (
                   <iframe
                     key={vid}
@@ -266,7 +266,7 @@ export function TrackView({
                 )}
               </div>
 
-              <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+              <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold">{aula.title}</h2>
@@ -296,7 +296,7 @@ export function TrackView({
                   </p>
                 )}
 
-                <div className="mt-5 border-t border-black/5 pt-4">
+                <div className="mt-5 border-t border-black/5 dark:border-white/10 pt-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-medium">Materiais</h3>
                     {podeEditar && (
@@ -315,7 +315,7 @@ export function TrackView({
                           <li key={m.id} className="flex items-center gap-2">
                             <a
                               href={m.url} target="_blank" rel="noreferrer"
-                              className="flex flex-1 items-center gap-2 rounded-lg border border-black/5 px-3 py-2 text-sm hover:bg-muted/40"
+                              className="flex flex-1 items-center gap-2 rounded-lg border border-black/5 dark:border-white/10 px-3 py-2 text-sm hover:bg-muted/40"
                             >
                               <Icone className="size-4 shrink-0 text-muted-foreground" />
                               <span className="truncate">{m.title}</span>
@@ -335,7 +335,7 @@ export function TrackView({
               </div>
             </>
           ) : (
-            <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+            <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
               <Video className="mx-auto size-8 text-muted-foreground" />
               <h2 className="mt-4 text-base font-medium">Nenhuma aula ainda</h2>
               <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
@@ -416,8 +416,8 @@ function ModuloBloco({
   });
 
   return (
-    <div className={`rounded-xl bg-card ring-1 ring-black/5 ${nivel > 0 ? "ml-3" : ""}`}>
-      <div className="flex items-start justify-between gap-2 border-b border-black/5 p-3">
+    <div className={`rounded-xl bg-card ring-1 ring-black/5 dark:ring-white/10 ${nivel > 0 ? "ml-3" : ""}`}>
+      <div className="flex items-start justify-between gap-2 border-b border-black/5 dark:border-white/10 p-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{m.title}</p>
           <p className="text-[11px] text-muted-foreground">
@@ -453,7 +453,7 @@ function ModuloBloco({
         )}
       </div>
 
-      <ul className="divide-y divide-black/5">
+      <ul className="divide-y divide-black/5 dark:divide-white/10">
         {m.lessons.map((l) => (
           <li key={l.id}>
             <button
@@ -466,7 +466,7 @@ function ModuloBloco({
                 ? <CircleCheck className="size-4 shrink-0 text-emerald-600" />
                 : <Video className="size-4 shrink-0 text-muted-foreground" />}
               <span className="min-w-0 flex-1 truncate">{l.title}</span>
-              {!l.is_published && <span className="shrink-0 text-[10px] uppercase text-amber-700">rascunho</span>}
+              {!l.is_published && <span className="shrink-0 text-[10px] uppercase text-amber-700 dark:text-amber-400">rascunho</span>}
               {l.duration_min != null && (
                 <span className="shrink-0 text-[11px] text-muted-foreground">{l.duration_min}min</span>
               )}
@@ -490,7 +490,7 @@ function ModuloBloco({
       {podeEditar && nivel === 0 && (
         <button
           onClick={() => onNovoSub(m.id)}
-          className="w-full border-t border-black/5 px-3 py-2 text-left text-[11px] text-muted-foreground hover:bg-muted/40"
+          className="w-full border-t border-black/5 dark:border-white/10 px-3 py-2 text-left text-[11px] text-muted-foreground hover:bg-muted/40"
         >
           + submódulo
         </button>
@@ -869,7 +869,7 @@ function TrilhaDialog({
                   </button>
                 </div>
               ) : (
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 dark:border-white/20 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                   <ImageIcon className="size-4" />
                   {enviandoCapa ? "Enviando…" : "Escolher arquivo"}
                   <input type="file" accept={CAMPOS.capa_trilha.accept} className="hidden"
@@ -889,7 +889,7 @@ function TrilhaDialog({
                   <button
                     key={p.valor} type="button" onClick={() => setAudience(p.valor)}
                     className={`rounded-lg border p-3 text-left transition ${
-                      audience === p.valor ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-black/10 hover:bg-muted/40"
+                      audience === p.valor ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-black/10 dark:border-white/15 hover:bg-muted/40"
                     }`}
                   >
                     <p className="text-sm font-medium">{p.titulo}</p>
@@ -922,7 +922,7 @@ function TrilhaDialog({
                 quem já tinha concluído pela régua anterior.
               </p>
             </div>
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 p-3">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-black/5 dark:border-white/10 p-3">
               <div>
                 <p className="text-sm font-medium">Publicada</p>
                 <p className="text-[11px] text-muted-foreground">

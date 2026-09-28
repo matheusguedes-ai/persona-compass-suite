@@ -163,7 +163,7 @@ function PerfilAluno() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Meu perfil</h1>
         </div>
-        <div className="rounded-xl border border-dashed border-black/10 bg-card p-8 text-center ring-1 ring-black/5">
+        <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-8 text-center ring-1 ring-black/5 dark:ring-white/10">
           <Eye className="mx-auto size-8 text-muted-foreground" />
           <h2 className="mt-4 text-base font-medium">Área pessoal do aluno</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
@@ -180,7 +180,7 @@ function PerfilAluno() {
 
   if (!data?.pessoa) {
     return (
-      <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+      <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
         <AlertCircle className="mx-auto size-8 text-muted-foreground" />
         <h1 className="mt-4 text-base font-medium">Ainda não encontramos seu cadastro</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
@@ -215,7 +215,7 @@ function PerfilAluno() {
             site_url: site.trim() || null,
           });
         }}
-        className="space-y-5 rounded-xl bg-card p-6 ring-1 ring-black/5"
+        className="space-y-5 rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10"
       >
         <div className="space-y-2">
           <Label>Banner de capa</Label>
@@ -275,7 +275,7 @@ function PerfilAluno() {
           <Input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} maxLength={40} placeholder="(11) 99999-0000" />
         </div>
 
-        <div className="space-y-3 border-t border-black/5 pt-5">
+        <div className="space-y-3 border-t border-black/5 dark:border-white/10 pt-5">
           <Label className="text-xs text-muted-foreground">Redes sociais (opcional)</Label>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -305,7 +305,7 @@ function PerfilAluno() {
       </form>
 
       {/* -------- Acesso -------- */}
-      <div className="space-y-5 rounded-xl bg-card p-6 ring-1 ring-black/5">
+      <div className="space-y-5 rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10">
         <div>
           <h2 className="text-sm font-semibold">Acesso à conta</h2>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -331,7 +331,7 @@ function PerfilAluno() {
           </p>
         </form>
 
-        <form onSubmit={trocarSenha} className="space-y-2 border-t border-black/5 pt-5">
+        <form onSubmit={trocarSenha} className="space-y-2 border-t border-black/5 dark:border-white/10 pt-5">
           <Label>Nova senha</Label>
           <div className="grid gap-2 sm:grid-cols-2">
             <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} minLength={6} placeholder="Mínimo 6 caracteres" />
@@ -397,7 +397,7 @@ function VisibilidadeDoPerfil() {
   });
 
   return (
-    <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+    <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 id="perfil-visivel-titulo" className="text-sm font-medium">Meus dados para o grupo</h2>

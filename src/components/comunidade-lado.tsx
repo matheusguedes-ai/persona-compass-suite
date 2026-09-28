@@ -59,7 +59,7 @@ export function LadoDaComunidade({ grupos }: { grupos: Array<{ id: string; name:
         ))}
       </div>
 
-      <div className="rounded-xl bg-card p-4 ring-1 ring-black/5">
+      <div className="rounded-xl bg-card p-4 ring-1 ring-black/5 dark:ring-white/10">
         {aba === "ranking" ? (
           <>
             {grupos.length > 1 && (

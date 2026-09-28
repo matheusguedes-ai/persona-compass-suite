@@ -32,7 +32,7 @@ function Pagina() {
     // esperando por si mesmo. A comunidade não está quebrada: esta pessoa não
     // está em grupo nenhum, e é ele quem resolve isso.
     return (
-      <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+      <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
         <Users className="mx-auto size-8 text-muted-foreground" />
         <h1 className="mt-4 text-base font-medium">
           {ver ? "Esta pessoa não está em nenhum grupo" : "Você ainda não faz parte de nenhuma comunidade"}

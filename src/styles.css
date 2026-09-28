@@ -2,7 +2,18 @@
 @source "../src";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * #285B — só na TELA. Papel é sempre claro: o relatório e o certificado (que tem botão "Imprimir")
+ * saem claros mesmo com o tema escuro ligado, e sem isto as cores `dark:` das telas iriam para o
+ * papel branco (texto claro sobre branco). Os tokens do `.dark` são tratados no PRINT_CSS.
+ */
+@custom-variant dark {
+  @media screen {
+    &:is(.dark *) {
+      @slot;
+    }
+  }
+}
 
 /*
  * Design system definition.
@@ -97,7 +108,21 @@
   --sidebar-ring: oklch(0.55 0.11 195);
 }
 
+/*
+ * #285B — o bloco escuro veio pronto do shadcn (paleta "slate") e nunca foi medido. Três tokens
+ * reprovavam no cálculo de contraste do WCAG e foram trocados; o resto passa e ficou como estava:
+ * - --accent era um cinza-azulado quase igual ao fundo, pensado só para destaque de passar o mouse.
+ *   Aqui ele também é COR DE TEXTO (links, títulos do relatório): 1,2:1, não se lia. Agora é o
+ *   turquesa do tema claro (mesma matiz, oklch 0.55 0.11 195) clareado até se ler sobre o escuro.
+ * - --accent-foreground e --destructive-foreground eram quase brancos sobre cores claras (o
+ *   botão "Excluir" dava 2,8:1). Agora são escuros.
+ * - color-scheme: os controles do próprio navegador (bolinha de alternativa, caixa de marcar,
+ *   barra de rolagem, calendário de data) seguem o tema em vez de continuarem claros.
+ * A conta com marca própria troca --primary e --accent por cima disto: ver cores-da-marca.ts.
+ * Conferir com `python3 scripts/testar_pdf.py contraste` antes de trocar qualquer tom daqui.
+ */
 .dark {
+  color-scheme: dark;
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
   --card: oklch(0.208 0.042 265.755);
@@ -110,10 +135,10 @@
   --secondary-foreground: oklch(0.984 0.003 247.858);
   --muted: oklch(0.279 0.041 260.031);
   --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
+  --accent: oklch(0.72 0.11 195);
+  --accent-foreground: oklch(0.208 0.042 265.755);
   --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --destructive-foreground: oklch(0.208 0.042 265.755);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);

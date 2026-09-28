@@ -189,7 +189,7 @@ export function SourceBadge({ children }: { children: React.ReactNode }) {
 }
 
 export function Section({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`report-section rounded-xl bg-card p-8 ring-1 ring-black/5 ${className}`}>{children}</section>;
+  return <section className={`report-section rounded-xl bg-card p-8 ring-1 ring-black/5 dark:ring-white/10 ${className}`}>{children}</section>;
 }
 
 /** Introdução metodológica (DISC ou genérica). */
@@ -400,7 +400,7 @@ export function IntensidadeDoPerfil({
       )}
 
       {texto && perfil.sigla && (texto.estado === "publicado" ? (
-        <div className="mt-6 border-t border-black/5 pt-5">
+        <div className="mt-6 border-t border-black/5 dark:border-white/10 pt-5">
           <h3 className="text-base font-semibold">{texto.titulo ?? `Sobre o perfil ${perfil.sigla}`}</h3>
           <div className="mt-2 space-y-3 text-sm leading-relaxed text-muted-foreground">
             {texto.corpo.split(/\n{2,}/).map((p, i) => <p key={i}>{comNegrito(p)}</p>)}
@@ -434,10 +434,10 @@ function QuadranteSwot({
   rotulo, subtitulo, itens, bg, dot,
 }: { rotulo: string; subtitulo: string; itens: string[]; bg: string; dot: string }) {
   return (
-    <div className="overflow-hidden rounded-xl ring-1 ring-black/5">
+    <div className="overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10">
       <div className={`flex flex-wrap items-center justify-between gap-2 px-5 py-3 ${bg}`}>
         <span className="text-xs font-bold uppercase tracking-wider text-white">{rotulo}</span>
-        <span className="text-[10px] uppercase tracking-wider text-white/90">{subtitulo}</span>
+        <span className="text-[10px] uppercase tracking-wider text-white/90 dark:text-white">{subtitulo}</span>
       </div>
       <ul className="space-y-3 bg-muted/40 px-5 py-4">
         {itens.map((item, i) => (
@@ -470,10 +470,10 @@ function SwotComunicadorSection({ perfis }: { perfis: SwotComunicadorPorLetra[] 
             </span>
           )}
           <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${multiplas ? "mt-3" : ""}`}>
-            <QuadranteSwot rotulo={S.forcasRotulo} subtitulo={S.forcasSubtitulo} itens={swot.forcas} bg="bg-emerald-600" dot="bg-emerald-600" />
-            <QuadranteSwot rotulo={S.fragilidadesRotulo} subtitulo={S.fragilidadesSubtitulo} itens={swot.fragilidades} bg="bg-red-600" dot="bg-red-600" />
+            <QuadranteSwot rotulo={S.forcasRotulo} subtitulo={S.forcasSubtitulo} itens={swot.forcas} bg="bg-emerald-600 dark:bg-emerald-700" dot="bg-emerald-600" />
+            <QuadranteSwot rotulo={S.fragilidadesRotulo} subtitulo={S.fragilidadesSubtitulo} itens={swot.fragilidades} bg="bg-red-600 dark:bg-red-700" dot="bg-red-600" />
             <QuadranteSwot rotulo={S.oportunidadesRotulo} subtitulo={S.oportunidadesSubtitulo} itens={swot.oportunidades} bg="bg-blue-600" dot="bg-blue-600" />
-            <QuadranteSwot rotulo={S.ameacasRotulo} subtitulo={S.ameacasSubtitulo} itens={swot.ameacas} bg="bg-amber-600" dot="bg-amber-600" />
+            <QuadranteSwot rotulo={S.ameacasRotulo} subtitulo={S.ameacasSubtitulo} itens={swot.ameacas} bg="bg-amber-600 dark:bg-amber-700" dot="bg-amber-600" />
           </div>
         </div>
       ))}
@@ -489,7 +489,7 @@ function ColunaGanhosPerdas({
   rotulo, corPilula, corTexto, ganha, perde,
 }: { rotulo: string; corPilula: string; corTexto: string; ganha: string; perde: string }) {
   return (
-    <div className="rounded-xl bg-muted/40 p-5 ring-1 ring-black/5">
+    <div className="rounded-xl bg-muted/40 p-5 ring-1 ring-black/5 dark:ring-white/10">
       <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white ${corPilula}`}>
         {rotulo}
       </span>
@@ -521,8 +521,8 @@ function GanhosPerdasSection({ perfis }: { perfis: GanhosPerdasPorLetra[] }) {
             </span>
           )}
           <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${multiplas ? "mt-3" : ""}`}>
-            <ColunaGanhosPerdas rotulo={G.mantendoRotulo} corPilula="bg-emerald-600" corTexto="text-emerald-700" ganha={gp.mantendo.ganha} perde={gp.mantendo.perde} />
-            <ColunaGanhosPerdas rotulo={G.mudandoRotulo} corPilula="bg-blue-600" corTexto="text-blue-700" ganha={gp.mudando.ganha} perde={gp.mudando.perde} />
+            <ColunaGanhosPerdas rotulo={G.mantendoRotulo} corPilula="bg-emerald-600 dark:bg-emerald-700" corTexto="text-emerald-700 dark:text-emerald-400" ganha={gp.mantendo.ganha} perde={gp.mantendo.perde} />
+            <ColunaGanhosPerdas rotulo={G.mudandoRotulo} corPilula="bg-blue-600" corTexto="text-blue-700 dark:text-blue-400" ganha={gp.mudando.ganha} perde={gp.mudando.perde} />
           </div>
           <div className="mt-5 rounded-lg border-l-4 border-sky-400 bg-[#0B2239] p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">{G.fraseQueTeSeguraTitulo}</p>
@@ -536,7 +536,7 @@ function GanhosPerdasSection({ perfis }: { perfis: GanhosPerdasPorLetra[] }) {
 
 function CartaoAplicacao({ situacao, automatico, tecnica, letra }: { situacao: string; automatico: string; tecnica: string; letra?: string }) {
   return (
-    <div className="rounded-xl bg-muted/40 p-5 ring-1 ring-black/5">
+    <div className="rounded-xl bg-muted/40 p-5 ring-1 ring-black/5 dark:ring-white/10">
       <span className="inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
         {rotuloDaSituacao(situacao, letra)}
       </span>
@@ -736,7 +736,7 @@ export function ReportBody({
           <p className="mt-2 text-sm text-muted-foreground">
             Média das respostas de {data.external.count} observador(es) comparada à sua autoimagem.
           </p>
-          <div className="mt-5 overflow-x-auto rounded-lg ring-1 ring-black/5">
+          <div className="mt-5 overflow-x-auto rounded-lg ring-1 ring-black/5 dark:ring-white/10">
             {/* Motor ipsativo (#288 Etapa 2c): você e os observadores no MESMO conjunto — o adaptado, que é o
                 que a pessoa mostra e quem convive observa. O natural não entra aqui: está em outra régua. */}
             <table className={`w-full ${data.intensidade ? "min-w-[420px]" : "min-w-[520px]"} text-left text-sm`}>
@@ -755,7 +755,7 @@ export function ReportBody({
                   <th className="px-4 py-2 font-medium">Diferença</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-black/5">
+              <tbody className="divide-y divide-black/5 dark:divide-white/10">
                 {data.factors.map((f) => {
                   const ext = data.external?.scores[f.key];
                   const diff = ext == null ? null : Math.round(ext - f.natural_norm);
@@ -866,7 +866,7 @@ export function ReportBody({
                   {f.descritores.map((d, i) => (
                     <li
                       key={i}
-                      className={`rounded-md px-3 py-1.5 text-sm ${d.active ? "font-semibold text-foreground ring-1 ring-black/10" : "text-muted-foreground"}`}
+                      className={`rounded-md px-3 py-1.5 text-sm ${d.active ? "font-semibold text-foreground ring-1 ring-black/10 dark:ring-white/15" : "text-muted-foreground"}`}
                       style={d.active ? { background: `${f.color ?? "#888"}22` } : undefined}
                     >
                       {d.body}
@@ -1000,11 +1000,11 @@ export function AvisoDeConfiabilidade({ q }: { q?: QualidadeResposta | null }) {
   if (!q || q.nivel === "alta") return null;
   const grave = q.nivel === "baixa";
   return (
-    <div className={`report-section rounded-xl p-5 ring-1 ${grave ? "bg-amber-50 ring-amber-200" : "bg-muted/50 ring-black/5"}`}>
-      <p className={`text-sm font-medium ${grave ? "text-amber-900" : "text-foreground"}`}>
+    <div className={`report-section rounded-xl p-5 ring-1 ${grave ? "bg-amber-50 ring-amber-200 dark:bg-amber-950/30 dark:ring-amber-900/50" : "bg-muted/50 ring-black/5 dark:ring-white/10"}`}>
+      <p className={`text-sm font-medium ${grave ? "text-amber-900 dark:text-amber-200" : "text-foreground"}`}>
         {grave ? CONFIABILIDADE.tituloGrave : CONFIABILIDADE.tituloLeve}
       </p>
-      <p className={`mt-1 text-sm leading-relaxed ${grave ? "text-amber-800" : "text-muted-foreground"}`}>
+      <p className={`mt-1 text-sm leading-relaxed ${grave ? "text-amber-800 dark:text-amber-300" : "text-muted-foreground"}`}>
         {CONFIABILIDADE.corpo(q.motivos)}
       </p>
     </div>
@@ -1021,7 +1021,7 @@ export function ReportFooter({ brand }: { brand?: ReportBrand | null }) {
         {RODAPE_LEGAL}
       </p>
       {(nome || site || email) && (
-        <p className="border-t border-black/5 pt-3">
+        <p className="border-t border-black/5 dark:border-white/10 pt-3">
           {nome && <span className="font-medium text-foreground">{nome}</span>}
           {site && <> · <a href={site} className="hover:underline" target="_blank" rel="noreferrer">{site.replace(/^https?:\/\//, "")}</a></>}
           {email && <> · <a href={`mailto:${email}`} className="hover:underline">{email}</a></>}
@@ -1334,9 +1334,18 @@ export const PRINT_CSS = `
     --border: rgba(0,0,0,0.12) !important;
     --input: rgba(0,0,0,0.12) !important;
   }
-  /* Sem !important de propósito: a cor da marca do mentor (aplicada inline)
-     continua ganhando e sai impressa. */
+  /* Sem !important de propósito: a cor da marca do mentor (a folha de estilo
+     de applyBrand, que pesa mais que este seletor) continua ganhando e sai
+     impressa. */
   html.dark { --primary: oklch(0.38 0.06 210); --primary-foreground: #ffffff; }
+  /* #285B — os tokens que o tema escuro trocou voltam aos do claro no papel (mesma regra: a marca,
+     que no papel também usa as cores do claro, continua ganhando). */
+  html.dark {
+    color-scheme: light;
+    --accent: oklch(0.55 0.11 195);
+    --accent-foreground: oklch(0.985 0.002 247);
+    --destructive-foreground: oklch(0.984 0.003 247.858);
+  }
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .print\\:hidden { display: none !important; }
   .report-root { max-width: none !important; padding: 0 !important; gap: 0 !important; }

@@ -171,7 +171,7 @@ function Mentorias() {
       {!isLoading && pacotes.length > 0 && (
         <section className="space-y-3">
           {agendandoPacoteId ? (
-            <div className="rounded-xl border border-black/5 bg-card p-4">
+            <div className="rounded-xl border border-black/5 dark:border-white/10 bg-card p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-medium">
                   Agendar: {pacotes.find((p) => p.id === agendandoPacoteId)?.titulo || "sua mentoria"}
@@ -203,7 +203,7 @@ function Mentorias() {
           ) : (
             <div className="flex flex-wrap gap-3">
               {pacotes.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 rounded-xl border border-black/5 bg-card px-4 py-3">
+                <div key={p.id} className="flex items-center gap-3 rounded-xl border border-black/5 dark:border-white/10 bg-card px-4 py-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{p.titulo || "Mentoria"}</p>
                     {!p.podeAgendar.sim && (
@@ -248,7 +248,7 @@ function Mentorias() {
               const motivoCancelar = s.podeCancelar.sim ? null : s.podeCancelar.motivo;
               const motivoRemarcar = s.podeRemarcar.sim ? null : s.podeRemarcar.motivo;
               return (
-              <li key={s.id} className="rounded-xl border border-black/5 bg-card p-4">
+              <li key={s.id} className="rounded-xl border border-black/5 dark:border-white/10 bg-card p-4">
                 <p className="flex items-center gap-2 text-sm font-medium">
                   <CalendarClock className="size-4" /> {dataHoraBr(s.quando)}
                 </p>
@@ -262,7 +262,7 @@ function Mentorias() {
                 </p>
 
                 {remarcandoSessaoId === s.id ? (
-                  <div className="mt-3 space-y-3 border-t border-black/5 pt-3">
+                  <div className="mt-3 space-y-3 border-t border-black/5 dark:border-white/10 pt-3">
                     <p className="text-sm font-medium">Escolha o novo horário:</p>
                     {carregandoHorariosSessao && <p className="text-sm text-muted-foreground">Buscando horários livres…</p>}
                     {!carregandoHorariosSessao && diasSessao.length === 0 && (
@@ -291,7 +291,7 @@ function Mentorias() {
                   </div>
                 ) : (
                   (s.podeCancelar.sim || s.podeRemarcar.sim || motivoCancelar || motivoRemarcar) && (
-                    <div className="mt-3 space-y-1.5 border-t border-black/5 pt-3">
+                    <div className="mt-3 space-y-1.5 border-t border-black/5 dark:border-white/10 pt-3">
                       <div className="flex flex-wrap gap-2">
                         {s.podeRemarcar.sim && !ver && (
                           <Button size="sm" variant="outline" onClick={() => comecarRemarcarSessao(s.id)}>
@@ -400,7 +400,7 @@ function Mentorias() {
                   </div>
                 )}
 
-                <div className="mt-3 border-t border-black/5 pt-3">
+                <div className="mt-3 border-t border-black/5 dark:border-white/10 pt-3">
                   {s.avaliacao_estrelas ? (
                     <div>
                       <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">

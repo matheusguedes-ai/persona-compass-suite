@@ -211,7 +211,7 @@ export function BannersAcademy({
                       </button>
                     </div>
                   ) : (
-                    <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
+                    <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-black/15 dark:border-white/20 px-3 py-3 text-sm text-muted-foreground hover:bg-muted/50">
                       <ImagePlus className="size-4" />
                       {enviando ? "Enviando…" : "Escolher arquivo"}
                       <input type="file" accept={CAMPOS.banner_academy.accept} className="hidden"

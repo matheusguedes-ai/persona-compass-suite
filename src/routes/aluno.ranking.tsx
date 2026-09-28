@@ -47,7 +47,7 @@ function Pagina() {
 
   if (grupos.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+      <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
         <Users className="mx-auto size-8 text-muted-foreground" />
         <h1 className="mt-4 text-base font-medium">Você ainda não está em nenhum grupo</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
@@ -68,7 +68,7 @@ function Pagina() {
       </div>
 
       {meus && meus.total > 0 && (
-        <div className="rounded-xl border border-black/5 bg-card p-5">
+        <div className="rounded-xl border border-black/5 dark:border-white/10 bg-card p-5">
           <p className="text-sm text-muted-foreground">Seus pontos</p>
           <p className="mt-1 text-3xl font-semibold tabular-nums">{meus.total}</p>
           <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -93,8 +93,8 @@ function Pagina() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-black/5 bg-card">
-        <ul className="divide-y divide-black/5">
+      <div className="overflow-hidden rounded-xl border border-black/5 dark:border-white/10 bg-card">
+        <ul className="divide-y divide-black/5 dark:divide-white/10">
           {(rank?.ranking ?? []).map((r) => (
             <li key={r.person_id} className={cn("flex items-center gap-3 p-4", r.eu && "bg-primary/5")}>
               <span className={cn("w-6 shrink-0 text-center text-sm font-semibold tabular-nums",

@@ -25,7 +25,7 @@ function Pagina() {
 
   if (data?.kind !== "mentor") {
     return (
-      <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center">
+      <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center">
         <FolderKanban className="mx-auto size-8 text-muted-foreground" />
         <h1 className="mt-4 text-base font-medium">Esta área é de quem atua como mentor</h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -46,7 +46,7 @@ function Pagina() {
       </div>
 
       {grupos.length === 0 && (
-        <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center">
+        <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center">
           <FolderKanban className="mx-auto size-8 text-muted-foreground" />
           <h2 className="mt-4 text-base font-medium">Nenhum grupo atribuído ainda</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
@@ -58,7 +58,7 @@ function Pagina() {
 
       <ul className="space-y-3">
         {grupos.map((g) => (
-          <li key={g.group_id} className="rounded-xl border border-black/5 bg-card p-4">
+          <li key={g.group_id} className="rounded-xl border border-black/5 dark:border-white/10 bg-card p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{g.name}</p>

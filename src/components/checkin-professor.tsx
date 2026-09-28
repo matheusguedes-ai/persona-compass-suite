@@ -174,7 +174,7 @@ function QrAoVivo({
           inclusive.
         </div>
       )}
-      <div className="relative overflow-hidden rounded-xl bg-white p-3 ring-1 ring-black/10">
+      <div className="relative overflow-hidden rounded-xl bg-white p-3 ring-1 ring-black/10 dark:ring-white/15">
         {svg ? (
           <div
             className={cn("[&>svg]:h-auto [&>svg]:w-full", !aberta && "opacity-30")}
@@ -367,7 +367,7 @@ function Turma({
         </div>
       )}
 
-      <ul className="max-h-[46vh] divide-y divide-black/5 overflow-y-auto rounded-lg ring-1 ring-black/5">
+      <ul className="max-h-[46vh] divide-y divide-black/5 dark:divide-white/10 overflow-y-auto rounded-lg ring-1 ring-black/5 dark:ring-white/10">
         {turma.length === 0 && (
           <li className="p-4 text-xs text-muted-foreground">
             Nenhum grupo com acesso a este treinamento ainda — sem turma, não há quem confirmar.
@@ -383,7 +383,7 @@ function Turma({
               ) : ausente ? (
                 <UserX className="size-4 shrink-0 text-destructive" />
               ) : (
-                <span className="size-4 shrink-0 rounded-full border border-dashed border-black/20" />
+                <span className="size-4 shrink-0 rounded-full border border-dashed border-black/20 dark:border-white/25" />
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{t.nome}</p>

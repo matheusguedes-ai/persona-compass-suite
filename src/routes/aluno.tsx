@@ -220,7 +220,7 @@ function AlunoLayout() {
       {/* ------------------------------------------------ BARRA LATERAL --- */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-black/5 bg-card transition-[width] lg:flex",
+          "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-black/5 dark:border-white/10 bg-card transition-[width] lg:flex",
           larguraMenu,
         )}
       >
@@ -244,7 +244,7 @@ function AlunoLayout() {
       {menuAberto && (
         <>
           <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setMenuAberto(false)} />
-          <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-black/5 bg-card lg:hidden">
+          <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-black/5 dark:border-white/10 bg-card lg:hidden">
             <div className="flex h-16 items-center px-4"><BrandMark brand={brand} /></div>
             {navegacao}
           </aside>
@@ -252,7 +252,7 @@ function AlunoLayout() {
       )}
 
       <div className={cn("transition-[padding]", margemConteudo)}>
-        <header className="border-b border-black/5 bg-card">
+        <header className="border-b border-black/5 dark:border-white/10 bg-card">
           <div className="flex items-center gap-3 px-6 py-4">
             <button
               onClick={() => setMenuAberto(true)}
@@ -295,8 +295,8 @@ function AlunoLayout() {
             instante em que a URL ainda não foi corrigida (link colado sem o
             parâmetro, restaurado pela storage no efeito acima). */}
         {verResolvido && (
-          <div className="border-b border-amber-200 bg-amber-50">
-            <div className="flex flex-wrap items-center gap-3 px-6 py-2.5 text-sm text-amber-900">
+          <div className="border-b border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30">
+            <div className="flex flex-wrap items-center gap-3 px-6 py-2.5 text-sm text-amber-900 dark:text-amber-200">
               <Eye className="size-4 shrink-0" />
               <span>
                 Você está vendo a plataforma <strong>como o aluno vê</strong>. É só visualização — nada
@@ -319,7 +319,7 @@ function AlunoLayout() {
               digitasse o endereço. O banco também barra (aluno_pode); esta tela
               existe para dizer o motivo em vez de mostrar uma página vazia. */}
           {bloqueada ? (
-            <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+            <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
               <Lock className="mx-auto size-8 text-muted-foreground" />
               <h1 className="mt-4 text-base font-medium">Esta área não faz parte do seu acesso</h1>
               <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">

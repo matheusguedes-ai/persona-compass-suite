@@ -32,7 +32,7 @@ function MeusResultados() {
 
   if (!data?.vinculado) {
     return (
-      <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+      <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
         <MailQuestion className="mx-auto size-8 text-muted-foreground" />
         <h1 className="mt-4 text-base font-medium">Ainda não encontramos seu cadastro</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
@@ -98,7 +98,7 @@ function MeusResultados() {
       <ResultadosDoAluno previewPersonId={ver ?? null} />
 
       {linhas.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-black/10 bg-card p-12 text-center ring-1 ring-black/5">
+        <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-12 text-center ring-1 ring-black/5 dark:ring-white/10">
           <FileText className="mx-auto size-8 text-muted-foreground" />
           <h2 className="mt-4 text-base font-medium">Nenhum teste ainda</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -106,8 +106,8 @@ function MeusResultados() {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">
-          <ul className="divide-y divide-black/5">
+        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5 dark:ring-white/10">
+          <ul className="divide-y divide-black/5 dark:divide-white/10">
             {linhas.map((l) => (
               <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0">

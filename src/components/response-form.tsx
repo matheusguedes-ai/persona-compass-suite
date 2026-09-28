@@ -258,7 +258,7 @@ export function ResponseForm({
   return (
     <div className="space-y-4">
       {showHeader && (
-        <header className="rounded-xl bg-card p-6 ring-1 ring-black/5">
+        <header className="rounded-xl bg-card p-6 ring-1 ring-black/5 dark:ring-white/10">
           <h1 className="text-2xl font-semibold tracking-tight">{v?.title}</h1>
           {v?.description && <p className="mt-2 text-sm text-muted-foreground">{v.description}</p>}
           {!isObserver && payload.response.people && (
@@ -283,7 +283,7 @@ export function ResponseForm({
       {blocos && bloco && (
         <>
           <p className="text-xs font-medium text-muted-foreground">Bloco {blocoAtual + 1} de {blocos.length}</p>
-          <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+          <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10">
             <h2 className="text-lg font-semibold">{bloco.title}</h2>
             {bloco.description && <p className="mt-1 text-sm text-muted-foreground">{bloco.description}</p>}
           </div>
@@ -294,7 +294,7 @@ export function ResponseForm({
         const opts = payload.options.filter((o) => o.question_id === q.id);
         const i = payload.questions.findIndex((x) => x.id === q.id);
         return (
-          <div key={q.id} className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+          <div key={q.id} className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10">
             <Label className="text-sm font-medium">
               {i + 1}. {q.prompt} {q.required && <span className="text-destructive">*</span>}
             </Label>
