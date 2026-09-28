@@ -287,6 +287,15 @@ as respostas, inclusive DISC, Temperamentos e VAK — no DISC, a média das veze
 `ipsativo` chama de adaptado). Achado na #304, que por isso NÃO removeu o bloco nem nos instrumentos
 ipsativos: sem o DNA passar a ler o `ipsativo`, parar de gravar esvaziaria a tela do grupo.
 
+**DECIDIDO pelo dono em 28/09/2026: a média do DNA do grupo sai do NATURAL** — o natural do motor novo
+(`computed_scores.ipsativo`, os percentuais do gráfico natural), nos instrumentos ipsativos. Era a decisão
+que faltava para tirar o bloco antigo deles. **Ainda não foi feito** (é demanda própria). O caminho, nesta
+ordem (regra 5 da constituição — código no ar antes do que remove):
+1. o DNA passa a ler o natural do motor novo em DISC, Temperamentos e VAK (os demais instrumentos continuam
+   no `normalized`, que é o único formato deles);
+2. publicar e conferir a tela do grupo;
+3. só então o motor para de gravar o bloco antigo nesses três instrumentos.
+
 - `computed_scores.total`, `.natural`, `.adaptado`, `.normalized` (0–100).
   ⚠️ **Nome enganoso:** aqui `natural` = só os MAIS (a conta que o `ipsativo` chama de
   `adaptado`), e `normalized.natural`/`.adaptado` estão em réguas diferentes (média 25 × 50).

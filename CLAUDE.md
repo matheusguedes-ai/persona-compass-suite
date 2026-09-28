@@ -311,7 +311,10 @@ O scanner de segurança do Lovable já revogou isso uma vez e derrubou o app int
   personalizados, e a tela pós-envio (`/responder`); o relatório de DISC/Temperamentos/VAK já não
   o lê (Etapa 2b-i). Sai quando o último leitor migrar. ⚠️ Ali `natural` = só os MAIS, e
   `normalized.natural`/`.adaptado` estão em réguas diferentes (média 25 × 50): nunca comparar um
-  com o outro.
+  com o outro. Nos três instrumentos ipsativos o ÚLTIMO leitor é o **DNA do grupo** (`getGroupDna`,
+  que tira a média desse `natural` invertido). **Decisão do dono (28/09/2026): a média do DNA sai
+  do NATURAL do motor novo** — ainda NÃO feito. Caminho: o DNA passa a ler o `ipsativo` → publicar →
+  só então parar de gravar o bloco antigo em DISC/Temperamentos/VAK (`docs/motor-ipsativo.md`).
 - **Escolha forçada é medida IPSATIVA** (#288, Etapa 2a; DISC, Temperamentos e VAK — lista em
   `INSTRUMENTOS_IPSATIVOS`, `src/lib/escolha-forcada.ts`): só vale a posição relativa entre as
   letras da mesma pessoa. A conta é uma função pura e fica em `computed_scores.ipsativo`
@@ -588,8 +591,9 @@ sem teto (a escolha fica em `assistente_preferencias`, escopo `mentor`).
   dela citar essas tabelas. As policies de conversa do aluno (`user_id = auth.uid()`) não se afrouxam.
 - **Números**: as contagens do dia a dia vão PRONTAS no contexto ("contado pelo sistema"), cada seção
   diz de que tela vem. Do perfil, números SÓ do natural; do adaptado, sigla e ordem (mesma regra
-  calibrada da #305). Distribuição de uma turma = contagem das siglas do natural, nunca média — a
-  régua do DNA do grupo é decisão pendente do dono.
+  calibrada da #305). Distribuição de uma turma = contagem das siglas do natural, nunca média. A
+  régua do DNA do grupo foi DECIDIDA em 28/09/2026 — a média sai do natural do motor novo — mas a
+  tela do DNA ainda não mudou (ver "Motor de pontuação").
 - "Presença baixa" não existe na plataforma: ela mostra a frequência de todos, da menor para a maior,
   e deixa o corte com o mentor. Frequência (lista de presença) ≠ conclusão (régua do certificado).
 - Registro de acesso não existe, e `auth.users.last_sign_in_at` não é lido (pediria a chave de
