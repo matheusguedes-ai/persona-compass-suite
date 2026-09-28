@@ -22,6 +22,12 @@ teste passa a acrescentar algo em vez de repetir.
 - Alternativas com peso parecido: onde o Colérico "explode", o Fleumático
   "quase não se mexe" — nenhuma das duas é a resposta bonita.
 - 5 pares de checagem, e ordem embaralhada por quadrado latino.
+
+Curadoria de 24/09/2026 (aprovada pelo dono do produto; arquivo CONTEUDO_Temperamentos.md): 7 alternativas
+reescritas para as quatro opções de cada bloco terem o MESMO APELO — o Fleumático aparecia como AUSÊNCIA
+("quase sem mudar de cara", "não vale a briga") e o Melancólico como SOFRIMENTO ("entalado", "foi por minha
+causa"); agora são "regulado" e "profundo". Blocos 1, 4, 7, 10 e 11 (FLE) e 9 e 17 (MEL). Mudar alternativa
+muda o instrumento: entrou como VERSÃO NOVA (scripts/temperamentos_versao_nova.py), a antiga foi despublicada.
 """
 import os
 import sys
@@ -35,7 +41,7 @@ BLOCOS = [
         "COL": "Reajo na hora, e reajo forte.",
         "SAN": "Fico abalado rápido e passo rápido.",
         "MEL": "Fico remoendo por dias.",
-        "FLE": "Absorvo e sigo, quase sem mudar de cara.",
+        "FLE": "Sinto, mas mantenho o equilíbrio.",
     }, None),
 
     ("Uma alegria inesperada.", {
@@ -56,7 +62,7 @@ BLOCOS = [
         "COL": "Explodo e depois esqueço.",
         "SAN": "Fico chateado e no dia seguinte já passou.",
         "MEL": "Não esqueço, mesmo perdoando.",
-        "FLE": "Nem sempre a pessoa percebe que eu me magoei.",
+        "FLE": "Deixo passar sem que vire assunto.",
     }, "magoa"),
 
     ("Sua energia ao longo do dia:", {
@@ -77,7 +83,7 @@ BLOCOS = [
         "COL": "Domino a conversa sem perceber.",
         "SAN": "Falo com todo mundo.",
         "MEL": "Converso a fundo com uma ou duas pessoas.",
-        "FLE": "Escuto mais do que falo.",
+        "FLE": "Escuto primeiro e falo quando tenho o que dizer.",
     }, None),
 
     ("O que já reclamaram de você:", {
@@ -90,7 +96,7 @@ BLOCOS = [
     ("Diante de uma injustiça:", {
         "COL": "Me revolto e parto para cima.",
         "SAN": "Falo alto na hora e depois esfrio.",
-        "MEL": "Fico com aquilo entalado por muito tempo.",
+        "MEL": "Levo a sério e demoro a virar a página.",
         "FLE": "Acho ruim, mas não me mexo muito.",
     }, None),
 
@@ -98,14 +104,14 @@ BLOCOS = [
         "COL": "Fico irritado com o tempo perdido.",
         "SAN": "Puxo assunto com alguém.",
         "MEL": "Fico na minha, pensando.",
-        "FLE": "Não me incomodo nem um pouco.",
+        "FLE": "Uso o tempo sem pressa.",
     }, None),
 
     ("Alguém te contraria na frente dos outros.", {
         "COL": "Rebato na hora.",
         "SAN": "Levo na brincadeira.",
         "MEL": "Fico calado e magoado.",
-        "FLE": "Deixo quieto, não vale a briga.",
+        "FLE": "Escolho não entrar nessa.",
     }, None),
 
     ("O que te tira do sério:", {
@@ -146,7 +152,7 @@ BLOCOS = [
     ("Combinaram uma coisa com você e desmarcaram em cima da hora.", {
         "COL": "Fico bravo e falo.",
         "SAN": "Já arrumo outra coisa para fazer.",
-        "MEL": "Fico pensando se foi por minha causa.",
+        "MEL": "Reviso o que eu poderia ter feito diferente.",
         "FLE": "Tudo bem, aproveito para descansar.",
     }, None),
 

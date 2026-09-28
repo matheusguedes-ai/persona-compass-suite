@@ -107,6 +107,9 @@ def main(version_id, estrategia):
     finally:
         chamar("DELETE", f"test_responses?id=eq.{resp['id']}")
         chamar("DELETE", f"people?id=eq.{pessoa['id']}")
+        # O envio pelo endpoint público avisa o dono e a equipe no sino ("Simulação … respondeu …"). Sem
+        # isto, o aviso ficava apontando para um relatório que acabou de ser apagado.
+        chamar("DELETE", f"notificacoes?link=eq./relatorio/{resp['id']}")
 
 
 if __name__ == "__main__":

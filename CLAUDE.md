@@ -581,13 +581,23 @@ Nunca copiar. Conteúdo vive em `report_content` e `test_result_bands`, não no 
 
 Texto do perfil (página de intensidade, `<instrumento>_perfil_texto`, chave = sigla): fonte em
 `scripts/conteudo_perfil_texto.py`, com trava por `assert` contra frase copiada da referência.
-Em 19/09/2026: DISC S, CS e CI publicados (derivados da referência, com palavras nossas); as
-outras 13 siglas do DISC e todas as de Temperamentos (16) e VAK (9) **pendentes** — o dono do
-produto escreve ou aprova. Nada de inventar texto de personalidade para preencher.
+Estado em 28/09/2026: **DISC** — as 16 siglas publicadas (texto original aprovado em 24/09,
+`scripts/conteudo_perfil_texto_disc_v2.py`); **Temperamentos** — as 4 simples (SAN, COL, MEL, FLE)
+publicadas em 28/09 (`scripts/conteudo_temperamentos_perfis.py`, conferido palavra por palavra contra o
+arquivo aprovado), as 12 combinadas (SAN+COL…) **pendentes** porque ainda não foram escritas; **VAK** (9)
+pendentes. SWOT e Ganhos e Perdas dos Temperamentos estão GUARDADOS como `pendente` em
+`temperamentos_swot_comunicador`/`temperamentos_ganhos_perdas` — nenhum código lê essas seções; ligá-las
+no relatório é decisão do dono (a #302 ligou as seções novas só no DISC). Nada de inventar texto de
+personalidade para preencher.
 
 Templates populados (revisados em 28/07/2026, ver `scripts/conteudo_*.py`):
 DISC 28 blocos · Valores 30 · Temperamentos 28 · VAK 24 · MBTI 40 · Big Five 50
 itens de escala · QI 20 questões com gabarito (não revisado).
+**Temperamentos, versão nova (28/09/2026):** `e80be78f` publicada com 7 alternativas reescritas pela
+curadoria de 24/09 (Fleumático deixa de ser "ausente" e vira "regulado"; Melancólico deixa de ser
+"sofredor" e vira "profundo" — blocos 1, 4, 7, 9, 10, 11, 17); a de 24/07 (`58927961`) despublicada, com
+as respostas dela intactas. Cópia feita como o editor do app faz (`scripts/temperamentos_versao_nova.py`,
+com `desfazer`); `scripts/conteudo_temperamentos.py` (a fonte) já tem os textos novos.
 
 Regras que o conteúdo precisa respeitar, verificadas por `assert` nos scripts:
 - alternativas de **peso social parecido** — se uma delas é visivelmente a
