@@ -265,7 +265,7 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `test_questions` | `type`: `multiple_choice`, `checkboxes`, `linear_scale`, `ranking`, `drag_order`, `forced_choice`; `config` jsonb |
 | `test_options` / `option_scores` | opções e pontuação opção→dimensão |
 | `test_result_bands` | textos por faixa; `dimension_id` (NULL = geral) e `mode` (`natural`/`adaptado`) |
-| `people`, `groups`, `group_members`, `group_instruments`, `mentors`, `profiles` | cadastros do mentor |
+| `people`, `groups`, `group_members`, `group_instruments`, `mentors`, `profiles` | cadastros do mentor. ⚠️ `people` NÃO TEM policy de "mesmo grupo" — só a própria linha (`user_id`) ou quem o mentor cadastrou (`mentor_id`). De propósito: um `select("*")` ou um nested embed que esqueça disso vazaria e-mail/telefone. Quem precisa de identidade (nome/foto/cargo) de um colega de grupo passa por `colegas_de_grupo(group_ids)` (lista, #319) ou `perfil_do_colega(person_id)` (um, com o contato gated pela chavinha `perfil_visivel`, #308) — nunca um `people(...)` embutido direto |
 | `test_responses` | uma resposta de um teste. `kind` (`self`/`observer`), `parent_response_id`, `rater_name`, `assessment_response_id`, `assessment_sort`, `computed_scores` jsonb, `started_at`, `submitted_at` |
 | `assessment_responses` | **bateria**: agrupa várias `test_responses` num único link |
 | `report_content` | blocos de texto do relatório (607 globais em 27/09, `version_id` NULL; cresce a cada perfil cadastrado — o relatório lê em partes, #314) |

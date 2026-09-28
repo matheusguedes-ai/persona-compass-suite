@@ -226,12 +226,14 @@ export const rankingDoGrupo = createServerFn({ method: "GET" })
     // Visível para o grupo todo (aluno e mentor incluídos). Só falta barrar o
     // colaborador sem 'grupos' — mesma porta frouxa de `posso_ver_grupo()`.
     await exigirPermissaoOuVisitante(supabase, context.userId, "grupos");
+    // #319 — antes lia `people` embutido em `group_members`; a RLS de `people` não tem regra de
+    // "mesmo grupo", então voltava nulo para qualquer colega e sobrava só quem já pode ver (o
+    // mentor, ou o próprio aluno) — daí o relato de "só eu apareço, e em 1º lugar". `colegas_de_grupo`
+    // reconfere o grupo no banco e devolve nome/avatar/login de quem está lá, sem contato nenhum.
     const membros = await lerTodasOuRecusar(
       (de, ate) =>
         supabase
-          .from("group_members")
-          .select("person_id, people(full_name, user_id, avatar_url)", { count: "exact" })
-          .eq("group_id", data.group_id)
+          .rpc("colegas_de_grupo", { p_group_ids: [data.group_id] }, { count: "exact" })
           .order("person_id")
           .range(de, ate),
       "os membros do grupo",
@@ -243,25 +245,27 @@ export const rankingDoGrupo = createServerFn({ method: "GET" })
       .from("groups").select("mentor_id").eq("id", data.group_id).maybeSingle();
     if (eG) throw new Error(eG.message);
 
-    const comConta = membros.filter((m) => m.people?.user_id);
-    const ids = comConta.map((m) => m.people!.user_id!) as string[];
+    // Só quem já tem login entra na disputa — sem `user_id` não há como ter ganhado ponto nenhum
+    // (pontos são gravados pelo login). Mesmo corte de antes da #319, só mudou de onde vem o dado.
+    const comConta = membros.filter((m) => m.user_id);
+    const ids = comConta.map((m) => m.user_id!);
     // Sem o dono do grupo em mãos, não filtra por conta em vez de filtrar por
     // string vazia — um uuid inválido derrubaria a tela inteira do ranking.
     const pts = await lerPontos(supabase, { userIds: ids, conta: grupo?.mentor_id ?? null });
 
     const linhas = comConta.map((m) => {
-      const meus = pts.filter((p) => p.user_id === m.people!.user_id);
+      const meus = pts.filter((p) => p.user_id === m.user_id);
       return {
         person_id: m.person_id,
-        nome: m.people?.full_name ?? "—",
-        avatar_url: m.people?.avatar_url ?? null,
+        nome: m.full_name ?? "—",
+        avatar_url: m.avatar_url ?? null,
         // Na prévia "Ver como aluno" quem está autenticado é o dono, então
         // comparar com `context.userId` destacava a linha do dono (se ele
         // tivesse alguma), não a da pessoa pré-visualizada. Achado na
         // varredura da demanda #243.
         eu: data.preview_person_id
           ? m.person_id === data.preview_person_id
-          : m.people?.user_id === context.userId,
+          : m.user_id === context.userId,
         total: meus.reduce((a, b) => a + b.pontos, 0),
         acoes: meus.length,
       };
