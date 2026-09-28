@@ -1,24 +1,33 @@
 /**
- * As cores da marca do mentor nos DOIS temas (#285B).
+ * As cores da marca do mentor nos DOIS temas (#285B, #318).
  *
  * Até a #285B a marca entrava igual no claro e no escuro, e as duas cores foram escolhidas olhando
  * a tela clara. No escuro isso quebrava: a conta do dono tem `#000000` como cor secundária — preta
  * sobre o fundo quase preto, 1,0:1 pelo cálculo do WCAG — e todo link, título e borda pintados com
  * ela sumiam. A queixa que abriu a demanda ("no modo escuro botões e links somem") era isso.
  *
- * A regra agora:
- * - **claro**: EXATAMENTE como antes (a cor crua e o mesmo critério de texto por cima) — o critério
- *   da demanda é que o claro continue igual ao de hoje. O que o claro ainda reprova está anotado
- *   em `textoSobreNoClaro` e é decisão do dono, não deste arquivo.
- * - **escuro**: a mesma matiz, clareada o MÍNIMO para se ler sobre a superfície escura mais clara
- *   (o mesmo princípio que o PDF da #294 usou para escurecer os tons do claro), e o texto por cima
- *   é o que tiver mais contraste entre quase-preto e branco.
+ * A REGRA (decisão do dono na #318: "se o fundo for escuro, a cor do texto deve ser clara, e
+ * vice-versa"), a mesma nos dois temas:
+ * - a cor da marca vira texto sobre as superfícies do tema e fundo de texto nos botões. Ela fica como
+ *   está se já se lê sobre a superfície mais difícil do tema; se não, muda a CLARIDADE o mínimo,
+ *   mantendo a matiz — no escuro, clareia; no claro, escurece (a regra que o PDF da #294 aprovou: o
+ *   ciano escurece quando está atrás de letra branca);
+ * - o texto por cima de um fundo da marca é o que tiver MAIS contraste entre quase-preto e branco.
+ * O ciano `#00b0f0` da conta do dono dava 2,5:1 com letra branca no claro ("Responder", "Entrar",
+ * "Salvar"…); agora sai `#0076a3`, 5,1:1.
  *
  * Arquivo sem React e sem servidor de propósito: o teste de contraste
  * (`python3 scripts/testar_pdf.py contraste`) chama ESTAS funções, não uma cópia delas.
  */
 
 export const CONTRASTE_MINIMO = 4.5;
+
+/**
+ * A superfície clara mais escura onde texto com a cor da marca aparece: o `--muted` do `:root` de
+ * `src/styles.css`. Passar nela é passar também no `--card` e no `--background`, que são mais claros
+ * — e, com contraste simétrico, garante letra branca por cima. O teste confere que continua igual ao CSS.
+ */
+export const SUPERFICIE_CLARA_OKLCH: readonly [number, number, number] = [0.96, 0.005, 247];
 
 /**
  * A superfície escura mais clara onde texto com a cor da marca aparece: o `--muted` do bloco `.dark`
@@ -108,6 +117,41 @@ export function superficieEscura(): string {
   return oklchParaHex(...SUPERFICIE_ESCURA_OKLCH);
 }
 
+export function superficieClara(): string {
+  return oklchParaHex(...SUPERFICIE_CLARA_OKLCH);
+}
+
+/**
+ * A cor da marca para o tema claro (#318): a regra do PDF da #294. Se já se lê sobre a superfície
+ * clara mais escura, fica como está. Se não, DESCE a claridade mantendo a matiz, o mínimo para passar
+ * — o ciano do dono vira um ciano mais fundo, que carrega letra branca e se lê como texto.
+ * `null` quando a cor não é um hex (não dá para medir; aí o tema claro usa a cor dele).
+ */
+export function paraOTemaClaro(hex: string): string | null {
+  const rgb = hexParaRgb(hex);
+  if (!rgb) return null;
+  const fundo = superficieClara();
+  const original = rgbParaHex(rgb);
+  if (contraste(original, fundo) >= CONTRASTE_MINIMO) return original;
+
+  const [L, C, h] = rgbParaOklch(rgb);
+  let baixo = 0;
+  let alto = L;
+  for (let i = 0; i < 40; i++) {
+    const meio = (baixo + alto) / 2;
+    if (contraste(oklchParaHex(meio, C, h), fundo) >= CONTRASTE_MINIMO) baixo = meio;
+    else alto = meio;
+  }
+  let claridade = baixo;
+  let cor = oklchParaHex(claridade, C, h);
+  // O arredondamento para 8 bits pode deixar a cor um fio abaixo do mínimo.
+  while (contraste(cor, fundo) < CONTRASTE_MINIMO && claridade > 0) {
+    claridade = Math.max(0, claridade - 0.005);
+    cor = oklchParaHex(claridade, C, h);
+  }
+  return cor;
+}
+
 /**
  * A cor da marca para o tema escuro. Se já se lê sobre a superfície escura, fica como está (o ciano
  * da conta do dono fica). Se não, sobe a claridade mantendo a matiz: no mínimo o necessário para
@@ -145,17 +189,6 @@ export function textoSobre(hex: string): string {
   return contraste(QUASE_PRETO, hex) >= contraste(BRANCO, hex) ? QUASE_PRETO : BRANCO;
 }
 
-/**
- * O critério que o tema CLARO usa desde a marca aplicada, mantido de propósito (#285B, critério "o
- * claro continua igual ao de hoje"). ⚠️ O limiar 0,45 é alto demais: com ele o ciano `#00b0f0` da
- * conta do dono recebe texto branco, 2,5:1 — reprova. O limiar do WCAG que separa branco de preto é
- * ≈ 0,18 (`textoSobre` acima). Trocar muda a cara dos botões no claro: é decisão do dono.
- */
-export function textoSobreNoClaro(hex: string): string {
-  if (!hexParaRgb(hex)) return BRANCO;
-  return luminancia(hex) > 0.45 ? QUASE_PRETO : BRANCO;
-}
-
 /** Só aceita o que é cor — o valor vai para dentro de uma folha de estilo. */
 const COR_SEGURA = /^[#a-z0-9(),.%\s/-]{1,64}$/i;
 
@@ -171,10 +204,12 @@ export function tokensDaMarca(
 
   const principal = corPrincipal?.trim();
   if (principal && COR_SEGURA.test(principal)) {
-    const fg = textoSobreNoClaro(principal);
-    claro["--primary"] = principal;
+    // Cor que não é hex (não dá para medir) entra crua, com o texto branco de sempre.
+    const noClaro = paraOTemaClaro(principal) ?? principal;
+    const fg = hexParaRgb(noClaro) ? textoSobre(noClaro) : BRANCO;
+    claro["--primary"] = noClaro;
     claro["--primary-foreground"] = fg;
-    claro["--sidebar-primary"] = principal;
+    claro["--sidebar-primary"] = noClaro;
     claro["--sidebar-primary-foreground"] = fg;
     const noEscuro = paraOTemaEscuro(principal);
     if (noEscuro) {
@@ -188,8 +223,9 @@ export function tokensDaMarca(
 
   const secundaria = corSecundaria?.trim();
   if (secundaria && COR_SEGURA.test(secundaria)) {
-    claro["--accent"] = secundaria;
-    claro["--accent-foreground"] = textoSobreNoClaro(secundaria);
+    const noClaro = paraOTemaClaro(secundaria) ?? secundaria;
+    claro["--accent"] = noClaro;
+    claro["--accent-foreground"] = hexParaRgb(noClaro) ? textoSobre(noClaro) : BRANCO;
     const noEscuro = paraOTemaEscuro(secundaria);
     if (noEscuro) {
       escuro["--accent"] = noEscuro;

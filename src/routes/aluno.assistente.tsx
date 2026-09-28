@@ -50,7 +50,7 @@ function PaginaDaAssistente() {
   if (ver ?? lerPreviewSalvo()) {
     return (
       <Moldura>
-        <div className="rounded-xl border border-dashed border-black/10 bg-card p-10 text-center ring-1 ring-black/5">
+        <div className="rounded-xl border border-dashed border-black/10 dark:border-white/15 bg-card p-10 text-center ring-1 ring-black/5 dark:ring-white/10">
           <Lock className="mx-auto size-7 text-muted-foreground" />
           <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">{ASSISTENTE.previa}</p>
         </div>
@@ -100,7 +100,7 @@ function AssistenteDoAluno() {
         {data.termo ? (
           <TermoDeConsentimento termo={data.termo} onAceito={() => void refetch()} />
         ) : (
-          <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground ring-1 ring-black/5">
+          <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground ring-1 ring-black/5 dark:ring-white/10">
             {ASSISTENTE.indisponivel}
           </div>
         )}
@@ -154,10 +154,10 @@ function TermoDeConsentimento({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível registrar a autorização."),
   });
   return (
-    <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 sm:p-8">
+    <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10 sm:p-8">
       <h2 className="text-base font-semibold">{ASSISTENTE.tituloTermo}</h2>
       <p className="mt-1 text-sm text-muted-foreground">{ASSISTENTE.introTermo}</p>
-      <div className="mt-5 border-t border-black/5 pt-4">
+      <div className="mt-5 border-t border-black/5 dark:border-white/10 pt-4">
         <TextoDoTermo texto={termo.texto} />
       </div>
       <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-lg border border-input p-4">
@@ -384,10 +384,10 @@ function Conversas({
   return (
     <div className="flex h-[calc(100dvh-11rem)] min-h-[28rem] gap-4 sm:h-[calc(100dvh-13rem)]">
       {/* Lista de conversas: coluna no computador, gaveta no celular. */}
-      <aside className="hidden w-60 shrink-0 rounded-xl bg-card p-3 ring-1 ring-black/5 lg:block">{lista}</aside>
+      <aside className="hidden w-60 shrink-0 rounded-xl bg-card p-3 ring-1 ring-black/5 dark:ring-white/10 lg:block">{lista}</aside>
 
-      <section className="flex min-w-0 flex-1 flex-col rounded-xl bg-card ring-1 ring-black/5">
-        <div className="flex items-center gap-2 border-b border-black/5 px-3 py-2">
+      <section className="flex min-w-0 flex-1 flex-col rounded-xl bg-card ring-1 ring-black/5 dark:ring-white/10">
+        <div className="flex items-center gap-2 border-b border-black/5 dark:border-white/10 px-3 py-2">
           <Sheet open={gavetaAberta} onOpenChange={setGavetaAberta}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 lg:hidden">
@@ -443,7 +443,7 @@ function Conversas({
           <div ref={fim} />
         </div>
 
-        <div className="border-t border-black/5 p-3">
+        <div className="border-t border-black/5 dark:border-white/10 p-3">
           {podeEnviar && niveis.permitidas.length > 1 && (
             <div className="mb-1.5 flex">
               <SeletorDeNivel permitidas={niveis.permitidas} atual={nivel} onEscolher={escolher} desabilitado={enviar.isPending} />

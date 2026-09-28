@@ -332,7 +332,7 @@ export function TreinamentoView({
             to="/certificado/$certificadoId"
             params={{ certificadoId: data.meu_certificado.id }}
             target="_blank"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-800"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800"
           >
             <Printer className="size-4" /> Baixar certificado
           </Link>

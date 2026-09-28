@@ -94,14 +94,14 @@ export function NiveisDaAssistenteDaPessoa({ personId, nome }: { personId: strin
   if (isLoading) return null;
   if (error || !data) {
     return (
-      <div className="rounded-xl bg-card p-5 text-sm text-destructive ring-1 ring-black/5">
+      <div className="rounded-xl bg-card p-5 text-sm text-destructive ring-1 ring-black/5 dark:ring-white/10">
         {mensagemDeErro(error)}
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+    <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10">
       <div className="flex items-center gap-2">
         <Sparkles className="size-4 text-primary" />
         <h3 className="text-sm font-semibold">Assistente — níveis liberados</h3>
@@ -125,7 +125,7 @@ export function NiveisDaAssistenteDaPessoa({ personId, nome }: { personId: strin
         </ul>
       )}
 
-      <div className="mt-4 border-t border-black/5 pt-4">
+      <div className="mt-4 border-t border-black/5 dark:border-white/10 pt-4">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Liberação individual
         </p>

@@ -98,7 +98,7 @@ function Pagina() {
           {(rank?.ranking ?? []).map((r) => (
             <li key={r.person_id} className={cn("flex items-center gap-3 p-4", r.eu && "bg-primary/5")}>
               <span className={cn("w-6 shrink-0 text-center text-sm font-semibold tabular-nums",
-                r.posicao <= 3 ? "text-amber-600" : "text-muted-foreground")}>
+                r.posicao <= 3 ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground")}>
                 {r.posicao}
               </span>
               <Avatar url={r.avatar_url} nome={r.nome} size={32} />

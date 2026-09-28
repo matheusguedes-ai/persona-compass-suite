@@ -57,7 +57,7 @@ export function ObservacoesDaAssistente({ personId, nome }: { personId: string; 
   });
 
   return (
-    <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
+    <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10">
       <div className="flex items-start gap-2">
         <Sparkles className="mt-0.5 size-4 text-muted-foreground" />
         <div>

@@ -664,15 +664,16 @@ def cmd_contraste(_args):
 #   - a paleta do Tailwind, de `node_modules/tailwindcss/theme.css`;
 #   - a marca do mentor passa pela MESMA função da plataforma (`src/lib/cores-da-marca.ts`, via tsx).
 # Fundo translúcido (ex.: `bg-emerald-500/15`) é composto sobre a superfície de baixo, como o
-# navegador faz. Os pares que o tema CLARO já reprovava antes da #285B ficam marcados como
-# pendentes — a demanda pedia o claro igual ao de hoje; consertá-los é decisão do dono. Eles
-# aparecem como AVISO, não somem da lista.
+# navegador faz. Desde a #318 os DOIS temas seguem a mesma régua, sem pendência: o dono decidiu
+# ("se o fundo for escuro, a cor do texto deve ser clara, e vice-versa") e os 16 pares que o claro
+# reprovava foram consertados — qualquer par abaixo do mínimo, em qualquer tema, é FALHA.
 # =================================================================================================
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# O limiar 0,45 de `textoSobreNoClaro` e o ciano da conta do dono: o claro reprova desde a marca
-# aplicada, e trocar muda a cara dos botões — decisão do dono (ver o relatório da #285B).
-PENDENTE_CLARO = "já reprovava no claro antes da #285B — decisão do dono"
+# Marca de "pendente": um par que se sabe reprovado e aguarda decisão vira AVISO em vez de FALHA.
+# Desde a #318 nenhum par da lista a usa; o mecanismo fica para a próxima vez que uma pendência
+# precisar ser registrada sem esconder o número.
+PENDENTE_CLARO = "reprova no claro — aguarda decisão do dono"
 
 
 def _oklch_para_hex(L, C, h):
@@ -733,9 +734,9 @@ def _tokens_das_marcas(marcas):
     """Roda a função da plataforma (cores-da-marca.ts) para cada marca de teste."""
     import subprocess
     codigo = (
-        "import { tokensDaMarca, SUPERFICIE_ESCURA_OKLCH } from './src/lib/cores-da-marca.ts';"
+        "import { tokensDaMarca, SUPERFICIE_ESCURA_OKLCH, SUPERFICIE_CLARA_OKLCH } from './src/lib/cores-da-marca.ts';"
         f"const marcas = {json.dumps(marcas)};"
-        "console.log(JSON.stringify({ superficie: SUPERFICIE_ESCURA_OKLCH,"
+        "console.log(JSON.stringify({ superficie: SUPERFICIE_ESCURA_OKLCH, superficie_clara: SUPERFICIE_CLARA_OKLCH,"
         " marcas: marcas.map(([p, s]) => tokensDaMarca(p, s)) }));"
     )
     try:
@@ -779,7 +780,7 @@ PARES_DAS_TELAS = [
     ("certificado: título", "escuro", "tw:emerald-300", ["t:background", "tw:emerald-950/30"], False, None),
     ("certificado: texto", "claro", "tw:emerald-700", ["t:background", "tw:emerald-50"], False, None),
     ("certificado: texto", "escuro", "tw:emerald-400", ["t:background", "tw:emerald-950/30"], False, None),
-    ("certificado: botão Baixar", "claro", "tw:white", ["tw:emerald-600"], False, PENDENTE_CLARO),
+    ("certificado: botão Baixar", "claro", "tw:white", ["tw:emerald-700"], False, None),
     # Bateria: "Etapa N de M concluída" (bateria.$assessmentId.tsx)
     ("bateria: etapa concluída", "claro", "tw:emerald-700", ["t:background", "tw:emerald-50"], False, None),
     ("bateria: etapa concluída", "escuro", "tw:emerald-400", ["t:background", "tw:emerald-950/30"], False, None),
@@ -788,26 +789,26 @@ PARES_DAS_TELAS = [
     ("relatório: aviso de confiabilidade", "claro", "tw:amber-800", ["t:card", "tw:amber-50"], False, None),
     ("relatório: aviso de confiabilidade", "escuro", "tw:amber-300", ["t:card", "tw:amber-950/30"], False, None),
     # Relatório: Matriz SWOT — rótulo branco no cabeçalho colorido
-    ("SWOT: Forças", "claro", "tw:white", ["tw:emerald-600"], False, PENDENTE_CLARO),
+    ("SWOT: Forças", "claro", "tw:white", ["tw:emerald-700"], False, None),
     ("SWOT: Forças", "escuro", "tw:white", ["tw:emerald-700"], False, None),
-    ("SWOT: Fragilidades", "claro", "tw:white", ["tw:red-600"], False, None),
+    ("SWOT: Fragilidades", "claro", "tw:white", ["tw:red-700"], False, None),
     ("SWOT: Fragilidades", "escuro", "tw:white", ["tw:red-700"], False, None),
     ("SWOT: Oportunidades", "claro", "tw:white", ["tw:blue-600"], False, None),
     ("SWOT: Oportunidades", "escuro", "tw:white", ["tw:blue-600"], False, None),
-    ("SWOT: Ameaças", "claro", "tw:white", ["tw:amber-600"], False, PENDENTE_CLARO),
+    ("SWOT: Ameaças", "claro", "tw:white", ["tw:amber-700"], False, None),
     ("SWOT: Ameaças", "escuro", "tw:white", ["tw:amber-700"], False, None),
-    # O subtítulo do cabeçalho é branco a 90% no claro; no escuro, branco pleno (a 90% o âmbar dava 4,39 —
+    # O subtítulo do cabeçalho é branco pleno nos dois temas (#318; a 90% o âmbar dava 4,39 no escuro —
     # achado pela medição na tela, `scripts/contraste_na_tela.js`, no relatório do DISC).
-    ("SWOT: subtítulo (Forças)", "claro", "tw:white/90", ["tw:emerald-600"], False, PENDENTE_CLARO),
+    ("SWOT: subtítulo (Forças)", "claro", "tw:white", ["tw:emerald-700"], False, None),
     ("SWOT: subtítulo (Forças)", "escuro", "tw:white", ["tw:emerald-700"], False, None),
-    ("SWOT: subtítulo (Fragilidades)", "claro", "tw:white/90", ["tw:red-600"], False, PENDENTE_CLARO),
+    ("SWOT: subtítulo (Fragilidades)", "claro", "tw:white", ["tw:red-700"], False, None),
     ("SWOT: subtítulo (Fragilidades)", "escuro", "tw:white", ["tw:red-700"], False, None),
-    ("SWOT: subtítulo (Oportunidades)", "claro", "tw:white/90", ["tw:blue-600"], False, None),
+    ("SWOT: subtítulo (Oportunidades)", "claro", "tw:white", ["tw:blue-600"], False, None),
     ("SWOT: subtítulo (Oportunidades)", "escuro", "tw:white", ["tw:blue-600"], False, None),
-    ("SWOT: subtítulo (Ameaças)", "claro", "tw:white/90", ["tw:amber-600"], False, PENDENTE_CLARO),
+    ("SWOT: subtítulo (Ameaças)", "claro", "tw:white", ["tw:amber-700"], False, None),
     ("SWOT: subtítulo (Ameaças)", "escuro", "tw:white", ["tw:amber-700"], False, None),
     # Relatório: Ganhos e Perdas
-    ("ganhos/perdas: pílula verde", "claro", "tw:white", ["tw:emerald-600"], False, PENDENTE_CLARO),
+    ("ganhos/perdas: pílula verde", "claro", "tw:white", ["tw:emerald-700"], False, None),
     ("ganhos/perdas: pílula verde", "escuro", "tw:white", ["tw:emerald-700"], False, None),
     ("ganhos/perdas: VOCÊ GANHA verde", "claro", "tw:emerald-700", ["t:card", "t:muted/40"], False, None),
     ("ganhos/perdas: VOCÊ GANHA verde", "escuro", "tw:emerald-400", ["t:card", "t:muted/40"], False, None),
@@ -816,8 +817,15 @@ PARES_DAS_TELAS = [
     ("frase que te segura (título)", "escuro", "tw:sky-300", ["#0b2239"], False, None),
     ("frase que te segura (texto)", "escuro", "tw:white", ["#0b2239"], False, None),
     # Relatório: "Como ler" / "Técnica" — texto na cor de destaque (token), sobre o fundo translúcido dela
-    ("relatório: título 'Como ler'", "claro", "t:accent", ["t:card", "t:accent/10"], False, PENDENTE_CLARO),
+    ("relatório: título 'Como ler'", "claro", "t:accent", ["t:card", "t:accent/10"], False, None),
     ("relatório: título 'Como ler'", "escuro", "t:accent", ["t:card", "t:accent/10"], False, None),
+    # #318: o texto de dentro dessas caixas era o cinza secundário — 4,37 sobre o preto a 10% da marca do dono
+    # (medido na tela). Fundo tingido pede o texto principal.
+    ("relatório: texto 'Como ler'", "claro", "t:foreground", ["t:card", "t:accent/10"], False, None),
+    ("relatório: texto 'Como ler'", "escuro", "t:foreground", ["t:card", "t:accent/10"], False, None),
+    # Ranking do aluno: número das três primeiras posições, também sobre a faixa "você" (primary/5) — #318
+    ("ranking: posição do pódio", "claro", "tw:amber-700", ["t:card", "t:primary/5"], False, None),
+    ("ranking: posição do pódio", "escuro", "tw:amber-400", ["t:card", "t:primary/5"], False, None),
     # Comunidade: curtida
     ("comunidade: 'curtir' marcado", "claro", "tw:red-600", ["t:card"], False, None),
     ("comunidade: 'curtir' marcado", "escuro", "tw:red-400", ["t:card"], False, None),
@@ -844,11 +852,9 @@ PARES_DE_TOKEN = [
     ("accent", "background", False), ("accent", "card", False), ("accent", "muted", False),
     ("destructive", "background", False), ("destructive", "card", False),
 ]
-# O que o tema CLARO já reprovava antes da #285B (medido em 28/09/2026). Fica como aviso.
-TOKENS_PENDENTES_NO_CLARO = {
-    ("muted-foreground", "muted"), ("accent-foreground", "accent"),
-    ("accent", "background"), ("accent", "card"), ("accent", "muted"),
-}
+# O que o tema CLARO reprovava antes da #318 (muted-foreground sobre muted; accent em quatro pares) foi
+# consertado em src/styles.css — nada mais fica como aviso.
+TOKENS_PENDENTES_NO_CLARO: set = set()
 
 
 def contraste_das_telas():
@@ -903,24 +909,23 @@ def contraste_das_telas():
 
     print("  — marca do mentor (a função da plataforma, cores-da-marca.ts):")
     saida = _tokens_das_marcas([[p, s] for _, p, s in MARCAS_DE_TESTE])
-    muted_css = temas["escuro"]["muted"][0]
-    muted_ts = _oklch_para_hex(*saida["superficie"])
-    if muted_css != muted_ts:
-        falhas.append(f"SUPERFICIE_ESCURA_OKLCH de cores-da-marca.ts ({muted_ts}) não é mais o --muted do "
-                      f".dark em styles.css ({muted_css}) — atualizar os dois juntos")
+    for tema, chave, nome in (("escuro", "superficie", "SUPERFICIE_ESCURA_OKLCH"),
+                              ("claro", "superficie_clara", "SUPERFICIE_CLARA_OKLCH")):
+        muted_css = temas[tema]["muted"][0]
+        muted_ts = _oklch_para_hex(*saida[chave])
+        if muted_css != muted_ts:
+            falhas.append(f"{nome} de cores-da-marca.ts ({muted_ts}) não é mais o --muted do tema {tema} em "
+                          f"styles.css ({muted_css}) — atualizar os dois juntos")
     for (rotulo, _p, _s), marca in zip(MARCAS_DE_TESTE, saida["marcas"]):
-        # As marcas inventadas provam a regra do ESCURO; no claro elas só repetiriam que o claro não
-        # protege cor nenhuma — mede-se ali só a marca que existe (a conta do dono).
-        for tema in (("claro", "escuro") if rotulo == "marca da conta do dono" else ("escuro",)):
+        # Desde a #318 a regra vale nos dois temas: toda marca de teste passa no claro e no escuro.
+        for tema in ("claro", "escuro"):
             tokens = dict(temas[tema])
             for k, v in marca[tema].items():
                 tokens[k.lstrip("-")] = (v.lower(), 1.0)
             for fg, bg in (("primary-foreground", "primary"), ("accent-foreground", "accent"),
-                           ("primary", "card"), ("primary", "background"), ("accent", "card"), ("accent", "background")):
-                # No claro a marca sai como sempre saiu: se reprova, já reprovava antes.
-                pendente = PENDENTE_CLARO if tema == "claro" else None
-                medir(f"{rotulo}: {fg} sobre {bg}", tema, tokens, f"t:{fg}", [f"t:{bg}"], False, pendente,
-                      avisar_se_ja_passa=False)
+                           ("primary", "card"), ("primary", "background"), ("primary", "muted"),
+                           ("accent", "card"), ("accent", "background"), ("accent", "muted")):
+                medir(f"{rotulo}: {fg} sobre {bg}", tema, tokens, f"t:{fg}", [f"t:{bg}"], False, None)
 
     print("  — cores fixas das telas do aluno:")
     for nome, tema, texto, camadas, grande, pendente in PARES_DAS_TELAS:

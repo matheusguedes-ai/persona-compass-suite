@@ -591,7 +591,7 @@ function AcessoDoGrupo({
     <div className="space-y-4 rounded-xl bg-card p-6 ring-1 ring-black/5">
       <AreasDoAluno areas={areas} setAreas={setAreas} biblioteca={{ ligado: biblioteca, onChange: setBiblioteca }} />
       {assistenteAtual && (
-        <div className="border-t border-black/5 pt-4">
+        <div className="border-t border-black/5 pt-4 dark:border-white/10">
           <p className="text-sm font-medium">Assistente do Método Intenção</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Quais níveis este grupo pode usar. Nenhum marcado = a assistente não aparece para o grupo. Quem tiver mais

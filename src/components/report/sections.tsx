@@ -437,7 +437,7 @@ function QuadranteSwot({
     <div className="overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10">
       <div className={`flex flex-wrap items-center justify-between gap-2 px-5 py-3 ${bg}`}>
         <span className="text-xs font-bold uppercase tracking-wider text-white">{rotulo}</span>
-        <span className="text-[10px] uppercase tracking-wider text-white/90 dark:text-white">{subtitulo}</span>
+        <span className="text-[10px] uppercase tracking-wider text-white">{subtitulo}</span>
       </div>
       <ul className="space-y-3 bg-muted/40 px-5 py-4">
         {itens.map((item, i) => (
@@ -470,16 +470,16 @@ function SwotComunicadorSection({ perfis }: { perfis: SwotComunicadorPorLetra[] 
             </span>
           )}
           <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${multiplas ? "mt-3" : ""}`}>
-            <QuadranteSwot rotulo={S.forcasRotulo} subtitulo={S.forcasSubtitulo} itens={swot.forcas} bg="bg-emerald-600 dark:bg-emerald-700" dot="bg-emerald-600" />
-            <QuadranteSwot rotulo={S.fragilidadesRotulo} subtitulo={S.fragilidadesSubtitulo} itens={swot.fragilidades} bg="bg-red-600 dark:bg-red-700" dot="bg-red-600" />
+            <QuadranteSwot rotulo={S.forcasRotulo} subtitulo={S.forcasSubtitulo} itens={swot.forcas} bg="bg-emerald-700" dot="bg-emerald-600" />
+            <QuadranteSwot rotulo={S.fragilidadesRotulo} subtitulo={S.fragilidadesSubtitulo} itens={swot.fragilidades} bg="bg-red-700" dot="bg-red-600" />
             <QuadranteSwot rotulo={S.oportunidadesRotulo} subtitulo={S.oportunidadesSubtitulo} itens={swot.oportunidades} bg="bg-blue-600" dot="bg-blue-600" />
-            <QuadranteSwot rotulo={S.ameacasRotulo} subtitulo={S.ameacasSubtitulo} itens={swot.ameacas} bg="bg-amber-600 dark:bg-amber-700" dot="bg-amber-600" />
+            <QuadranteSwot rotulo={S.ameacasRotulo} subtitulo={S.ameacasSubtitulo} itens={swot.ameacas} bg="bg-amber-700" dot="bg-amber-600" />
           </div>
         </div>
       ))}
       <div className="mt-5 rounded-lg border-l-4 border-accent bg-accent/10 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-accent">{S.comoLerTitulo}</p>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{S.comoLerTexto}</p>
+        <p className="mt-1 text-sm leading-relaxed text-foreground">{S.comoLerTexto}</p>
       </div>
     </Section>
   );
@@ -521,7 +521,7 @@ function GanhosPerdasSection({ perfis }: { perfis: GanhosPerdasPorLetra[] }) {
             </span>
           )}
           <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${multiplas ? "mt-3" : ""}`}>
-            <ColunaGanhosPerdas rotulo={G.mantendoRotulo} corPilula="bg-emerald-600 dark:bg-emerald-700" corTexto="text-emerald-700 dark:text-emerald-400" ganha={gp.mantendo.ganha} perde={gp.mantendo.perde} />
+            <ColunaGanhosPerdas rotulo={G.mantendoRotulo} corPilula="bg-emerald-700" corTexto="text-emerald-700 dark:text-emerald-400" ganha={gp.mantendo.ganha} perde={gp.mantendo.perde} />
             <ColunaGanhosPerdas rotulo={G.mudandoRotulo} corPilula="bg-blue-600" corTexto="text-blue-700 dark:text-blue-400" ganha={gp.mudando.ganha} perde={gp.mudando.perde} />
           </div>
           <div className="mt-5 rounded-lg border-l-4 border-sky-400 bg-[#0B2239] p-5">
@@ -587,7 +587,7 @@ function ComunicadoresSemelhantesSection({ cs }: { cs: ComunicadoresSemelhantes 
       </ul>
       <div className="mt-5 rounded-lg border-l-4 border-accent bg-accent/10 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-accent">{C.ressalvaTitulo}</p>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{C.ressalva}</p>
+        <p className="mt-1 text-sm leading-relaxed text-foreground">{C.ressalva}</p>
       </div>
     </Section>
   );

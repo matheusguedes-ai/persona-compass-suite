@@ -72,6 +72,16 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * #318 — o claro passou a ser medido também, pela mesma regra do escuro: a cor do texto é decidida
+ * pelo fundo, e nenhuma combinação fica abaixo de 4,5:1. Dois tokens reprovavam e desceram a
+ * claridade o mínimo, mantendo a matiz:
+ * - --muted-foreground (texto secundário) 0.55 → 0.52: dava 4,30:1 sobre o --muted e 4,0:1 sobre o
+ *   --sidebar-accent; agora 4,9 e 4,6.
+ * - --accent (links, títulos "Como ler") 0.55 → 0.51: dava 3,98:1 sobre o --muted; agora 4,7 (e 4,6 no
+ *   fundo translúcido do "Como ler", o par mais apertado).
+ * O --ring, que é contorno de foco e não texto, ficou onde estava.
+ */
 :root {
   --radius: 0.625rem;
   --background: oklch(0.985 0.002 247);
@@ -85,8 +95,8 @@
   --secondary: oklch(0.96 0.005 247);
   --secondary-foreground: oklch(0.25 0.03 240);
   --muted: oklch(0.96 0.005 247);
-  --muted-foreground: oklch(0.55 0.02 250);
-  --accent: oklch(0.55 0.11 195);
+  --muted-foreground: oklch(0.52 0.02 250);
+  --accent: oklch(0.51 0.11 195);
   --accent-foreground: oklch(0.985 0.002 247);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);

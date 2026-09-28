@@ -670,8 +670,18 @@ com dados reais; revisão do QI.
   variante `dark:` só vale na TELA (`@custom-variant` em `styles.css`): papel é sempre claro, e o certificado e o
   relatório têm impressão pelo navegador. Conferir: `python3 scripts/testar_pdf.py contraste` (paleta dos dois
   temas, com a marca passando pela função de verdade) e `scripts/contraste_na_tela.js` na página aberta, logado
-  com a conta de `python3 scripts/fixture_contraste.py`. ⚠️ O claro tem pares que reprovam desde antes (o ciano
-  `#00b0f0` com texto branco dá 2,5:1): decisão do dono, listada como AVISO no teste. O painel do mentor ainda
-  tem ≈ 286 cores fixas sem par (pendência da #285B).
+  com a conta de `python3 scripts/fixture_contraste.py`. O painel do mentor ainda tem ≈ 286 cores fixas sem
+  par (pendência da #285B). O claro deixou de ter exceção na #318 (regra abaixo).
+- ⚠️ **REGRA DO DONO (#318): a cor do texto é decidida pelo fundo, sempre — fundo escuro pede texto claro,
+  fundo claro pede texto escuro. Nenhuma combinação da plataforma pode ficar abaixo do mínimo aceitável, em
+  nenhum dos dois temas.** Mínimo = 4,5:1 (WCAG AA). A marca segue a regra do PDF (#294): o tom da marca
+  vale como MANCHA; quando vira FUNDO de texto ("Responder", "Enviar respostas", "Entrar", "Salvar") ou
+  texto sobre o fundo claro, `paraOTemaClaro` (`cores-da-marca.ts`) escurece o mínimo, mesma matiz, até
+  passar — o ciano `#00b0f0` (2,5:1 com branco) sai `#0076a3` (5,1:1) — e o texto de cima sai de
+  `textoSobre(fundo)`, nunca fixo. Verde, vermelho e âmbar como fundo de texto branco: tom 700 (o 500/600
+  reprova). No teste da paleta não existe mais AVISO: par novo abaixo de 4,5 em qualquer tema é FALHA. Em
+  28/09 a área do aluno passou inteira (0 reprovações em 1.584 textos no claro, 375 px, e as telas da
+  assistente, do relatório e do ranking no escuro). ⚠️ Ficou para depois: as ≈ 286 cores fixas do painel
+  do mentor, que não foram medidas uma a uma.
 - Exclusões destrutivas exigem `AlertDialog` de confirmação.
 - Endpoints públicos: devolver o mínimo necessário (sem e-mail, `mentor_id` ou scores alheios).

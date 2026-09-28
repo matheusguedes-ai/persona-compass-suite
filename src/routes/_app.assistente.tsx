@@ -74,7 +74,7 @@ function PaginaDaAssistenteDoMentor() {
   if (!data.liberada) {
     return (
       <Moldura>
-        <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground ring-1 ring-black/5">{TXT.indisponivel}</div>
+        <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground ring-1 ring-black/5 dark:ring-white/10">{TXT.indisponivel}</div>
       </Moldura>
     );
   }
@@ -309,10 +309,10 @@ function Conversas({ conversas, niveis }: { conversas: ConversaDoMentor[]; nivei
   return (
     <div className="flex h-[calc(100dvh-13rem)] min-h-[28rem] gap-4">
       {/* Lista de conversas: coluna no computador, gaveta no celular. */}
-      <aside className="hidden w-60 shrink-0 rounded-xl bg-card p-3 ring-1 ring-black/5 lg:block">{lista}</aside>
+      <aside className="hidden w-60 shrink-0 rounded-xl bg-card p-3 ring-1 ring-black/5 dark:ring-white/10 lg:block">{lista}</aside>
 
-      <section className="flex min-w-0 flex-1 flex-col rounded-xl bg-card ring-1 ring-black/5">
-        <div className="flex items-center gap-2 border-b border-black/5 px-3 py-2">
+      <section className="flex min-w-0 flex-1 flex-col rounded-xl bg-card ring-1 ring-black/5 dark:ring-white/10">
+        <div className="flex items-center gap-2 border-b border-black/5 dark:border-white/10 px-3 py-2">
           <Sheet open={gavetaAberta} onOpenChange={setGavetaAberta}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5 lg:hidden">
@@ -365,7 +365,7 @@ function Conversas({ conversas, niveis }: { conversas: ConversaDoMentor[]; nivei
           <div ref={fim} />
         </div>
 
-        <div className="border-t border-black/5 p-3">
+        <div className="border-t border-black/5 dark:border-white/10 p-3">
           <div className="mb-1.5 flex">
             <SeletorDeNivel permitidas={niveis.permitidas} atual={nivel} onEscolher={escolher} desabilitado={enviar.isPending} />
           </div>
