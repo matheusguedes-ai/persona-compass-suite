@@ -428,9 +428,10 @@ export type Database = {
       }
       biblioteca_materiais: {
         // #312 — indexacao_status/indexacao_erro/indexado_em/paginas/trechos_count: estado do texto extraído (só PDF).
-        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; url: string; kind: string; categoria: string | null; capa_url: string | null; pasta_id: string | null; created_at: string; arquivo_proprio: boolean; indexacao_status: string; indexacao_erro: string | null; indexado_em: string | null; paginas: number | null; trechos_count: number | null }
-        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; url: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean; indexacao_status?: string; indexacao_erro?: string | null; indexado_em?: string | null; paginas?: number | null; trechos_count?: number | null }
-        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; url?: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean; indexacao_status?: string; indexacao_erro?: string | null; indexado_em?: string | null; paginas?: number | null; trechos_count?: number | null }
+        // #320 — resumo/resumo_status/resumo_erro/resumo_gerado_em: estado do resumo do livro inteiro (só PDF).
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; url: string; kind: string; categoria: string | null; capa_url: string | null; pasta_id: string | null; created_at: string; arquivo_proprio: boolean; indexacao_status: string; indexacao_erro: string | null; indexado_em: string | null; paginas: number | null; trechos_count: number | null; resumo: string | null; resumo_status: string; resumo_erro: string | null; resumo_gerado_em: string | null }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; url: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean; indexacao_status?: string; indexacao_erro?: string | null; indexado_em?: string | null; paginas?: number | null; trechos_count?: number | null; resumo?: string | null; resumo_status?: string; resumo_erro?: string | null; resumo_gerado_em?: string | null }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; url?: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean; indexacao_status?: string; indexacao_erro?: string | null; indexado_em?: string | null; paginas?: number | null; trechos_count?: number | null; resumo?: string | null; resumo_status?: string; resumo_erro?: string | null; resumo_gerado_em?: string | null }
         Relationships: [
           {
             foreignKeyName: "biblioteca_materiais_pasta_id_fkey"
@@ -2664,6 +2665,11 @@ export type Database = {
           material_id: string; titulo: string; ordem: number; conteudo: string
           pagina_inicio: number | null; pagina_fim: number | null
         }>
+      }
+      // #320 — o resumo (gerado uma vez, no upload/backfill) de UM material, filtrado por bib_visiveis().
+      bib_resumo_material: {
+        Args: { _material_id: string }
+        Returns: Array<{ titulo: string; resumo: string | null; resumo_status: string }>
       }
       bib_quem_ve: {
         Args: { _pasta_id: string | null; _material_id: string | null }

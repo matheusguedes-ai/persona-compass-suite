@@ -75,8 +75,14 @@ export const salvarMaterial = createServerFn({ method: "POST" })
       capa_url: capaUrl,
       pasta_id: campos.pasta_id ?? null,
       arquivo_proprio: campos.arquivo_proprio,
-      // Só no CRIAR: editar não pisa num status que a indexação já esteja escrevendo por baixo.
-      ...(id ? {} : { indexacao_status: campos.kind === "pdf" ? "pendente" : "nao_aplicavel" }),
+      // Só no CRIAR: editar não pisa num status que a indexação (ou o resumo, #320) já esteja
+      // escrevendo por baixo.
+      ...(id
+        ? {}
+        : {
+            indexacao_status: campos.kind === "pdf" ? "pendente" : "nao_aplicavel",
+            resumo_status: campos.kind === "pdf" ? "pendente" : "nao_aplicavel",
+          }),
     };
     if (campos.pasta_id) await conferirPasta(context.supabase, campos.pasta_id);
 
@@ -96,14 +102,26 @@ export const salvarMaterial = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { indexarMaterialPdf } = await import("@/lib/biblioteca-indexacao.server");
       const resultado = await indexarMaterialPdf(supabaseAdmin, { id: row.id, mentor_id: row.mentor_id, url });
-      if (!resultado.ok) console.error("[biblioteca] indexação falhou:", resultado.erro);
+      if (!resultado.ok) {
+        console.error("[biblioteca] indexação falhou:", resultado.erro);
+      } else {
+        // #320: só depois de indexar — o resumo é gerado a partir dos trechos que acabaram de ser
+        // extraídos, nunca do PDF de novo. Falha aqui também não derruba o salvamento: o material fica
+        // buscável por trecho mesmo sem resumo (registrado em resumo_erro; reprocessa pelo backfill).
+        const { gerarResumoDoMaterial } = await import("@/lib/biblioteca-resumo.server");
+        const doResumo = await gerarResumoDoMaterial(supabaseAdmin, { id: row.id, titulo: campos.titulo });
+        if (!doResumo.ok) console.error("[biblioteca] resumo falhou:", doResumo.erro);
+      }
     } else if (anterior?.kind === "pdf" && campos.kind !== "pdf") {
-      // Deixou de ser PDF: os trechos velhos não têm mais dono de verdade.
+      // Deixou de ser PDF: os trechos e o resumo velhos não têm mais dono de verdade.
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await supabaseAdmin.from("biblioteca_material_trechos").delete().eq("material_id", row.id);
       await supabaseAdmin
         .from("biblioteca_materiais")
-        .update({ indexacao_status: "nao_aplicavel", indexacao_erro: null, indexado_em: null, paginas: null, trechos_count: null })
+        .update({
+          indexacao_status: "nao_aplicavel", indexacao_erro: null, indexado_em: null, paginas: null, trechos_count: null,
+          resumo_status: "nao_aplicavel", resumo: null, resumo_erro: null, resumo_gerado_em: null,
+        })
         .eq("id", row.id);
     }
     return { ok: true, id: row.id };
