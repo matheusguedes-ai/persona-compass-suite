@@ -630,14 +630,10 @@ Estado em 28/09/2026: **DISC** — as 16 siglas publicadas (texto original aprov
 — a ordem importa, SAN+COL ≠ COL+SAN; combinado tem SÓ descrição, sem SWOT/ganhos próprios), cada script
 conferido palavra por palavra contra o seu arquivo aprovado; **VAK** (9) pendentes. `conteudo_perfil_texto.py`
 só reescreve o VAK (`FONTE_ATUAL`): rodá-lo com `--sobrescrever` apagava os 32 textos publicados de DISC e
-Temperamentos. **SWOT e Ganhos e Perdas dos Temperamentos: LIGADOS em 28/09/2026 por decisão do dono** —
-`temperamentos_swot_comunicador`/`temperamentos_ganhos_perdas` publicados (`conteudo_temperamentos_perfis.py`,
-`STATUS_DAS_SECOES`) e lidos por `disc-secoes-extra.ts` com `instrumento: "temperamentos"`: a sigla se separa
-pelas CHAVES (SAN+COL → SAN, COL — nunca letra a letra) e o combinado mostra o NOME do temperamento
-("Sanguíneo") e o aviso "dois temperamentos". Onde Isso Aparece e Comunicadores: só DISC (não há conteúdo).
-⚠️ Numa bateria com DISC e Temperamentos, ambos combinados, são 4 matrizes SWOT + 4 blocos de Ganhos e Perdas
-(medido: 31 → 35 páginas) e os itens do DISC e do temperamento vizinho se repetem (C × Melancólico: "Perder a
-janela da decisão" nos dois). Nada de inventar texto de personalidade para preencher.
+Temperamentos. SWOT e Ganhos e Perdas dos Temperamentos estão GUARDADOS como `pendente` em
+`temperamentos_swot_comunicador`/`temperamentos_ganhos_perdas` — nenhum código lê essas seções; ligá-las
+no relatório é decisão do dono (a #302 ligou as seções novas só no DISC). Nada de inventar texto de
+personalidade para preencher.
 
 Templates populados (revisados em 28/07/2026, ver `scripts/conteudo_*.py`):
 DISC 28 blocos · Valores 30 · Temperamentos 28 · VAK 24 · MBTI 40 · Big Five 50

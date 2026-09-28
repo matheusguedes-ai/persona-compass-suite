@@ -17,12 +17,10 @@
  * coisas diferentes com o mesmo nome curto; todo identificador aqui carrega
  * "comunicador" para não ambiguar.
  *
- * DISC e, desde 28/09/2026 (decisão do dono), TEMPERAMENTOS — só a SWOT e os
- * Ganhos e Perdas, que é o conteúdo que existe para eles (`temperamentos_swot_comunicador`,
- * `temperamentos_ganhos_perdas`). O prefixo da `section` é o instrumento; quem decide
- * se a seção aparece continua sendo o CHAMADOR (`report.server.ts`). Nos Temperamentos a
- * chave é um temperamento de três letras (SAN) e o motor escreve o combinado com "+"
- * (SAN+COL) — por isso a sigla se separa pelas CHAVES do instrumento, nunca letra a letra.
+ * SÓ PARA O DISC nesta demanda (item 5) — a estrutura é genérica (poderia
+ * servir Temperamentos/VAK no futuro com outro prefixo de `section`), mas
+ * quem decide se a seção aparece é o CHAMADOR (`report.server.ts`), gateado
+ * por `isDisc`. Este módulo não sabe nem precisa saber disso.
  *
  * REGRA DE HONESTIDADE (item 3 da demanda): ao contrário do texto do perfil
  * (#288), que mostra um AVISO no lugar quando está pendente, estas seções
@@ -58,12 +56,8 @@ export type SwotComunicador = {
   ameacas: string[];
 };
 
-/**
- * Uma entrada por letra do perfil natural — 1 entrada nos simples (D/I/S/C), 2 nas combinadas.
- * `rotulo`: o nome a mostrar no lugar da chave (Temperamentos: "Sanguíneo" em vez de "SAN"). Ausente =
- * mostra a letra, como o DISC sempre fez.
- */
-export type SwotComunicadorPorLetra = { letra: string; rotulo?: string; swot: SwotComunicador };
+/** Uma entrada por letra do perfil natural — 1 entrada nos simples (D/I/S/C), 2 nas combinadas. */
+export type SwotComunicadorPorLetra = { letra: string; swot: SwotComunicador };
 
 export type GanhosPerdas = {
   mantendo: { ganha: string; perde: string };
@@ -71,7 +65,7 @@ export type GanhosPerdas = {
   frase_que_te_segura: string;
 };
 
-export type GanhosPerdasPorLetra = { letra: string; rotulo?: string; gp: GanhosPerdas };
+export type GanhosPerdasPorLetra = { letra: string; gp: GanhosPerdas };
 
 export type Aplicacao = {
   situacao: string;
@@ -127,13 +121,6 @@ export const SECAO_GANHOS_PERDAS = "disc_ganhos_perdas";
 export const SECAO_ONDE_APARECE = "disc_onde_aparece";
 export const SECAO_COMUNICADORES_SEMELHANTES = "disc_comunicadores_semelhantes";
 
-/** Instrumentos com SWOT do Comunicador e Ganhos e Perdas. Onde Isso Aparece e Comunicadores: só DISC. */
-export type InstrumentoComSecoes = "disc" | "temperamentos";
-
-function secaoDo(instrumento: InstrumentoComSecoes, secaoDoDisc: string): string {
-  return instrumento === "disc" ? secaoDoDisc : secaoDoDisc.replace(/^disc_/, `${instrumento}_`);
-}
-
 /** Item 3: os quatro quadrantes precisam estar completos juntos — 3 de 4 preenchidos
  *  ainda é "pendente" pra não sair um quadrante manco no relatório. */
 function swotValido(v: unknown): v is SwotComunicador {
@@ -144,13 +131,8 @@ function swotValido(v: unknown): v is SwotComunicador {
   );
 }
 
-export function montarSwotComunicador(
-  sigla: string,
-  versionId: string,
-  linhas: LinhaDeConteudo[],
-  instrumento: InstrumentoComSecoes = "disc",
-): SwotComunicador | null {
-  const json = jsonDaSigla(secaoDo(instrumento, SECAO_SWOT_COMUNICADOR), sigla, versionId, linhas);
+export function montarSwotComunicador(sigla: string, versionId: string, linhas: LinhaDeConteudo[]): SwotComunicador | null {
+  const json = jsonDaSigla(SECAO_SWOT_COMUNICADOR, sigla, versionId, linhas);
   return swotValido(json) ? json : null;
 }
 
@@ -164,13 +146,8 @@ function ganhosPerdasValido(v: unknown): v is GanhosPerdas {
   return coluna(o.mantendo) && coluna(o.mudando) && textoValido(o.frase_que_te_segura);
 }
 
-export function montarGanhosPerdasDisc(
-  sigla: string,
-  versionId: string,
-  linhas: LinhaDeConteudo[],
-  instrumento: InstrumentoComSecoes = "disc",
-): GanhosPerdas | null {
-  const json = jsonDaSigla(secaoDo(instrumento, SECAO_GANHOS_PERDAS), sigla, versionId, linhas);
+export function montarGanhosPerdasDisc(sigla: string, versionId: string, linhas: LinhaDeConteudo[]): GanhosPerdas | null {
+  const json = jsonDaSigla(SECAO_GANHOS_PERDAS, sigla, versionId, linhas);
   return ganhosPerdasValido(json) ? json : null;
 }
 
@@ -220,36 +197,20 @@ export function montarComunicadoresSemelhantes(sigla: string, versionId: string,
 // combinada vira "uma consulta por letra componente".
 // ------------------------------------------------------------------------------------------
 
-/**
- * As chaves que compõem a sigla, na ordem dela. O motor junta chaves de UMA letra sem separador (DI) e
- * chaves de mais de uma com "+" (SAN+COL) — `escolha-forcada.ts`. Uma chave inteira do instrumento (SAN,
- * ou D) é ela mesma; sem `chaves`, vale a leitura do DISC, letra a letra.
- */
-export function letrasDoNatural(siglaNatural: string, chaves?: readonly string[]): string[] {
-  if (chaves?.includes(siglaNatural)) return [siglaNatural];
-  if (siglaNatural.includes("+")) return siglaNatural.split("+");
+function letrasDoNatural(siglaNatural: string): string[] {
   return [...siglaNatural];
 }
-
-/** Para qual instrumento, com quais chaves, e o nome a mostrar de cada uma (Temperamentos). */
-export type OpcoesDasSecoes = {
-  instrumento?: InstrumentoComSecoes;
-  chaves?: readonly string[];
-  rotulos?: ReadonlyMap<string, string>;
-};
 
 export function montarSwotComunicadorDoNatural(
   siglaNatural: string,
   versionId: string,
   linhas: LinhaDeConteudo[],
-  opcoes: OpcoesDasSecoes = {},
 ): SwotComunicadorPorLetra[] | null {
   const resultado: SwotComunicadorPorLetra[] = [];
-  for (const letra of letrasDoNatural(siglaNatural, opcoes.chaves)) {
-    const swot = montarSwotComunicador(letra, versionId, linhas, opcoes.instrumento);
+  for (const letra of letrasDoNatural(siglaNatural)) {
+    const swot = montarSwotComunicador(letra, versionId, linhas);
     if (!swot) return null;
-    const rotulo = opcoes.rotulos?.get(letra);
-    resultado.push(rotulo ? { letra, rotulo, swot } : { letra, swot });
+    resultado.push({ letra, swot });
   }
   return resultado;
 }
@@ -258,14 +219,12 @@ export function montarGanhosPerdasDoNatural(
   siglaNatural: string,
   versionId: string,
   linhas: LinhaDeConteudo[],
-  opcoes: OpcoesDasSecoes = {},
 ): GanhosPerdasPorLetra[] | null {
   const resultado: GanhosPerdasPorLetra[] = [];
-  for (const letra of letrasDoNatural(siglaNatural, opcoes.chaves)) {
-    const gp = montarGanhosPerdasDisc(letra, versionId, linhas, opcoes.instrumento);
+  for (const letra of letrasDoNatural(siglaNatural)) {
+    const gp = montarGanhosPerdasDisc(letra, versionId, linhas);
     if (!gp) return null;
-    const rotulo = opcoes.rotulos?.get(letra);
-    resultado.push(rotulo ? { letra, rotulo, gp } : { letra, gp });
+    resultado.push({ letra, gp });
   }
   return resultado;
 }

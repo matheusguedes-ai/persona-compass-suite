@@ -6,12 +6,11 @@ O QUE ENTRA NO RELATÓRIO: só a DESCRIÇÃO, no lugar onde o texto do perfil j�
 seção `temperamentos_perfil_texto` (chave = SAN/COL/MEL/FLE). As 12 combinações (SAN+COL etc.) têm arquivo
 aprovado e script próprios desde 28/09: `conteudo_temperamentos_combinados.py` — este aqui não as toca.
 
-A SWOT E OS GANHOS E PERDAS: guardados desde 24/09 como `pendente` em `temperamentos_swot_comunicador` e
-`temperamentos_ganhos_perdas` (a #302 tinha ligado essas seções só no DISC — num relatório de bateria, mais de
-uma SWOT podia cansar). Em 28/09/2026 o dono DECIDIU ligar: as 8 linhas passam a `publicado` e o relatório dos
-Temperamentos as mostra (`disc-secoes-extra.ts`, instrumento "temperamentos"), com a mesma regra de herança do
-DISC: perfil combinado (SAN+COL) mostra a leitura de cada temperamento, separada. Mesmo formato estruturado
-(content_json) das do DISC.
+O QUE FICA GUARDADO SEM APARECER: a SWOT e os Ganhos e Perdas. A #302 ligou essas seções só no DISC, por
+decisão do dono (num relatório de bateria, quatro SWOTs cansariam). Aqui elas nascem em
+`temperamentos_swot_comunicador` e `temperamentos_ganhos_perdas`, SEMPRE com status `pendente`, no mesmo
+formato estruturado (content_json) das do DISC — prontas para ligar, e ligar é decisão do dono. Nenhum
+código lê essas duas seções hoje (as do DISC têm nome fixo "disc_" e só rodam no DISC).
 
 Uso:
     python3 scripts/conteudo_temperamentos_perfis.py                # só confere (e contra o arquivo aprovado, se achar)
@@ -31,8 +30,6 @@ SECAO_TEXTO = "temperamentos_perfil_texto"
 SECAO_SWOT = "temperamentos_swot_comunicador"
 SECAO_GANHOS = "temperamentos_ganhos_perdas"
 CHAVES = ["SAN", "COL", "MEL", "FLE"]  # a ordem das dimensões no instrumento
-# SWOT e Ganhos e Perdas: "pendente" até 28/09/2026; o dono decidiu ligar. Voltar a "pendente" = a seção some.
-STATUS_DAS_SECOES = "publicado"
 NOMES = {"SAN": "SANGUÍNEO", "COL": "COLÉRICO", "MEL": "MELANCÓLICO", "FLE": "FLEUMÁTICO"}
 
 DESCRICOES = {
@@ -265,22 +262,21 @@ def aplicar():
                         {"body": DESCRICOES[chave], "status": "publicado"})
         assert feito and feito[0]["body"] == DESCRICOES[chave]
         print(f"  descrição {chave}  publicada  [{atual['id']}]")
-    # 2. SWOT e Ganhos e Perdas: publicados desde 28/09/2026 (decisão do dono — ver o topo do arquivo).
+    # 2. SWOT e Ganhos e Perdas: guardados, SEMPRE pendentes.
     for secao, dados in ((SECAO_SWOT, SWOT), (SECAO_GANHOS, GANHOS)):
         ja = _chamar(url, key, "GET", f"report_content?version_id=is.null&section=eq.{secao}&select=id,dimension_key")
         ja_por_chave = {r["dimension_key"]: r["id"] for r in ja}
         for i, chave in enumerate(CHAVES, start=1):
             linha = {"section": secao, "dimension_key": chave, "mode": "natural", "title": None, "body": "",
-                     "content_json": dados[chave], "status": STATUS_DAS_SECOES, "version_id": None,
+                     "content_json": dados[chave], "status": "pendente", "version_id": None,
                      "band_min": None, "band_max": None, "sort_order": i}
             if chave in ja_por_chave:
-                feito = _chamar(url, key, "PATCH", f"report_content?id=eq.{ja_por_chave[chave]}",
-                                {"content_json": dados[chave], "status": STATUS_DAS_SECOES})
-                assert feito and feito[0]["content_json"] == dados[chave] and feito[0]["status"] == STATUS_DAS_SECOES
-                print(f"  {secao} {chave}  {STATUS_DAS_SECOES}  [{ja_por_chave[chave]}]")
+                _chamar(url, key, "PATCH", f"report_content?id=eq.{ja_por_chave[chave]}",
+                        {"content_json": dados[chave], "status": "pendente"})
+                print(f"  {secao} {chave}  atualizada (pendente)  [{ja_por_chave[chave]}]")
             else:
                 criado = _chamar(url, key, "POST", "report_content", [linha])[0]
-                print(f"  {secao} {chave}  criada ({STATUS_DAS_SECOES})  [{criado['id']}]")
+                print(f"  {secao} {chave}  guardada (pendente)  [{criado['id']}]")
     # 3. Conferência pelo que o banco DEVOLVEU.
     depois = _chamar(url, key, "GET", f"report_content?version_id=is.null&section=eq.{SECAO_TEXTO}"
                                       "&select=dimension_key,status,body")
@@ -290,8 +286,8 @@ def aplicar():
     assert len(set(pub.values())) == len(pub), "o banco tem dois perfis com o MESMO texto"
     guardadas = _chamar(url, key, "GET", f"report_content?version_id=is.null&section=in.({SECAO_SWOT},{SECAO_GANHOS})"
                                          "&select=section,dimension_key,status")
-    assert len(guardadas) == 8 and all(g["status"] == STATUS_DAS_SECOES for g in guardadas), guardadas
-    print(f"\nNo banco: {len(pub)} descrições publicadas {sorted(pub)} · 8 seções (SWOT e Ganhos e Perdas) {STATUS_DAS_SECOES}")
+    assert len(guardadas) == 8 and all(g["status"] == "pendente" for g in guardadas), guardadas
+    print(f"\nNo banco: {len(pub)} descrições publicadas {sorted(pub)} · 8 seções guardadas como pendente")
 
 
 if __name__ == "__main__":
