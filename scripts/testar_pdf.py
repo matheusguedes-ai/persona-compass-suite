@@ -916,6 +916,18 @@ def contraste_das_telas():
         if muted_css != muted_ts:
             falhas.append(f"{nome} de cores-da-marca.ts ({muted_ts}) não é mais o --muted do tema {tema} em "
                           f"styles.css ({muted_css}) — atualizar os dois juntos")
+    # #285B — o PRINT_CSS do relatório repõe, no papel, os tokens do claro que o escuro trocou (quem
+    # imprime com o escuro ligado). Se o claro mudar — a #318 escureceu o --accent —, o papel acompanha.
+    relatorio = open(os.path.join(RAIZ, "src", "components", "report", "sections.tsx"), encoding="utf-8").read()
+    bloco = re.search(r"#285B — os tokens que o tema escuro trocou.*?html\.dark \{(.*?)\}", relatorio, re.S)
+    if not bloco:
+        falhas.append("não achei, no PRINT_CSS de sections.tsx, o bloco que repõe os tokens do claro no papel")
+    else:
+        for nome, valor in re.findall(r"--([\w-]+):\s*(oklch\([^)]*\))", bloco.group(1)):
+            no_papel, no_claro = _ler_oklch(valor)[0], temas["claro"].get(nome, (None,))[0]
+            if no_papel != no_claro:
+                falhas.append(f"o PRINT_CSS repõe --{nome} = {no_papel} no papel, mas o claro de styles.css usa "
+                              f"{no_claro} — atualizar os dois juntos")
     for (rotulo, _p, _s), marca in zip(MARCAS_DE_TESTE, saida["marcas"]):
         # Desde a #318 a regra vale nos dois temas: toda marca de teste passa no claro e no escuro.
         for tema in ("claro", "escuro"):

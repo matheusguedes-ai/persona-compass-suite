@@ -1339,10 +1339,11 @@ export const PRINT_CSS = `
      impressa. */
   html.dark { --primary: oklch(0.38 0.06 210); --primary-foreground: #ffffff; }
   /* #285B — os tokens que o tema escuro trocou voltam aos do claro no papel (mesma regra: a marca,
-     que no papel também usa as cores do claro, continua ganhando). */
+     que no papel também usa as cores do claro, continua ganhando). Os valores são os do :root de
+     styles.css — o teste de contraste (testar_pdf.py contraste) acusa se os dois se separarem. */
   html.dark {
     color-scheme: light;
-    --accent: oklch(0.55 0.11 195);
+    --accent: oklch(0.51 0.11 195);
     --accent-foreground: oklch(0.985 0.002 247);
     --destructive-foreground: oklch(0.984 0.003 247.858);
   }
