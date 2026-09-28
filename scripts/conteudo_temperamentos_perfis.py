@@ -3,8 +3,8 @@ Temperamentos — os 4 perfis (Sanguíneo, Colérico, Melancólico, Fleumático)
 24/09/2026 (arquivo CONTEUDO_Temperamentos.md, escrito pelo chat). Mesmo formato do DISC.
 
 O QUE ENTRA NO RELATÓRIO: só a DESCRIÇÃO, no lugar onde o texto do perfil já vive — a página de intensidade,
-seção `temperamentos_perfil_texto` (chave = SAN/COL/MEL/FLE). As 12 combinações (SAN+COL etc.) continuam
-pendentes: as descrições delas ainda não foram escritas, e a página mostra o aviso de texto pendente.
+seção `temperamentos_perfil_texto` (chave = SAN/COL/MEL/FLE). As 12 combinações (SAN+COL etc.) têm arquivo
+aprovado e script próprios desde 28/09: `conteudo_temperamentos_combinados.py` — este aqui não as toca.
 
 O QUE FICA GUARDADO SEM APARECER: a SWOT e os Ganhos e Perdas. A #302 ligou essas seções só no DISC, por
 decisão do dono (num relatório de bateria, quatro SWOTs cansariam). Aqui elas nascem em
@@ -281,8 +281,9 @@ def aplicar():
     depois = _chamar(url, key, "GET", f"report_content?version_id=is.null&section=eq.{SECAO_TEXTO}"
                                       "&select=dimension_key,status,body")
     pub = {r["dimension_key"]: r["body"] for r in depois if r["status"] == "publicado"}
-    assert set(pub) == set(CHAVES), f"publicadas: {sorted(pub)} — esperava só as 4 simples"
-    assert len(set(pub.values())) == 4, "o banco tem dois perfis com o MESMO texto"
+    # Os 4 simples com o texto daqui; as combinadas, se publicadas, são de `conteudo_temperamentos_combinados.py`.
+    assert all(pub.get(chave) == DESCRICOES[chave] for chave in CHAVES), f"publicadas: {sorted(pub)} — faltou um simples"
+    assert len(set(pub.values())) == len(pub), "o banco tem dois perfis com o MESMO texto"
     guardadas = _chamar(url, key, "GET", f"report_content?version_id=is.null&section=in.({SECAO_SWOT},{SECAO_GANHOS})"
                                          "&select=section,dimension_key,status")
     assert len(guardadas) == 8 and all(g["status"] == "pendente" for g in guardadas), guardadas

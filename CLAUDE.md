@@ -603,10 +603,12 @@ Nunca copiar. Conteúdo vive em `report_content` e `test_result_bands`, não no 
 Texto do perfil (página de intensidade, `<instrumento>_perfil_texto`, chave = sigla): fonte em
 `scripts/conteudo_perfil_texto.py`, com trava por `assert` contra frase copiada da referência.
 Estado em 28/09/2026: **DISC** — as 16 siglas publicadas (texto original aprovado em 24/09,
-`scripts/conteudo_perfil_texto_disc_v2.py`); **Temperamentos** — as 4 simples (SAN, COL, MEL, FLE)
-publicadas em 28/09 (`scripts/conteudo_temperamentos_perfis.py`, conferido palavra por palavra contra o
-arquivo aprovado), as 12 combinadas (SAN+COL…) **pendentes** porque ainda não foram escritas; **VAK** (9)
-pendentes. SWOT e Ganhos e Perdas dos Temperamentos estão GUARDADOS como `pendente` em
+`scripts/conteudo_perfil_texto_disc_v2.py`); **Temperamentos** — as 16 publicadas em 28/09: as 4 simples
+(`scripts/conteudo_temperamentos_perfis.py`) e as 12 combinadas (`scripts/conteudo_temperamentos_combinados.py`
+— a ordem importa, SAN+COL ≠ COL+SAN; combinado tem SÓ descrição, sem SWOT/ganhos próprios), cada script
+conferido palavra por palavra contra o seu arquivo aprovado; **VAK** (9) pendentes. `conteudo_perfil_texto.py`
+só reescreve o VAK (`FONTE_ATUAL`): rodá-lo com `--sobrescrever` apagava os 32 textos publicados de DISC e
+Temperamentos. SWOT e Ganhos e Perdas dos Temperamentos estão GUARDADOS como `pendente` em
 `temperamentos_swot_comunicador`/`temperamentos_ganhos_perdas` — nenhum código lê essas seções; ligá-las
 no relatório é decisão do dono (a #302 ligou as seções novas só no DISC). Nada de inventar texto de
 personalidade para preencher.

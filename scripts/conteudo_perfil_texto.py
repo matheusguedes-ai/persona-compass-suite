@@ -37,12 +37,21 @@ Uso
     python3 scripts/conteudo_perfil_texto.py aplicar --sobrescrever
 `aplicar` só CRIA as linhas que faltam e AVISA quando o banco difere deste arquivo — não sobrescreve,
 porque o texto pode ter sido editado direto no banco (é para isso que ele vive lá). `--sobrescrever`
-faz este arquivo valer sobre o banco.
+faz este arquivo valer sobre o banco — só no VAK: DISC e Temperamentos têm fonte nova (FONTE_ATUAL), e
+este script nunca mais reescreve aquelas linhas.
 """
 import itertools
 import json
 import os
 import sys
+
+# Seções cujos textos saíram deste arquivo. Aqui elas aparecem como "pendentes"; aplicar com --sobrescrever
+# apagaria o que está publicado. Esta trava existe desde 28/09/2026, quando os 12 combinados de Temperamentos
+# foram publicados.
+FONTE_ATUAL = {
+    "disc_perfil_texto": "conteudo_perfil_texto_disc_v2.py",
+    "temperamentos_perfil_texto": "conteudo_temperamentos_perfis.py + conteudo_temperamentos_combinados.py",
+}
 import urllib.error
 import urllib.request
 
@@ -238,7 +247,12 @@ def aplicar(sobrescrever=False):
         for r in criados:
             print(f"  criado   {r['id']}  {r['section']:<28} {r['dimension_key']:<8} {r['status']}")
     for atual, b in diferentes:
-        if sobrescrever:
+        if b["section"] in FONTE_ATUAL:
+            # Os textos desta seção vêm hoje de outro script; daqui eles parecem "pendentes", e o
+            # --sobrescrever apagaria o texto publicado (os 16 do DISC; os 16 dos Temperamentos).
+            print(f"  MANTIDO  {atual['id']}  {b['section']:<28} {b['dimension_key']:<8} "
+                  f"(a fonte é {FONTE_ATUAL[b['section']]})")
+        elif sobrescrever:
             _chamar(url, key, "PATCH", f"report_content?id=eq.{atual['id']}",
                     {"body": b["body"], "status": b["status"], "title": b["title"]})
             print(f"  REESCRITO {atual['id']}  {b['section']:<28} {b['dimension_key']:<8} {b['status']}")
