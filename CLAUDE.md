@@ -497,6 +497,24 @@ foram reveladas e revogadas por terem passado por aqui).
   **Relato de comportamento? Reproduza ANTES de mexer no texto**: `--pergunta "…" --vezes 3` com a
   fixture montada como o aluno do relato, e confira em `assistente_uso` o tamanho da entrada das
   chamadas relatadas — o "não tenho acesso" de 25/09 veio da versão ANTERIOR ainda no ar, não do texto.
+- **#318 — as regras do método valem nos TRÊS níveis, e quem prova é a BATERIA DE QUALIDADE.** A Básica
+  (e a Smart, que é o mesmo modelo pensando mais) comparava natural × adaptado em palavra ("mais forte e
+  mais sozinho do que…") e citava número do adaptado; a Pro, quase nunca. Causa: o contexto trazia os
+  números dos DOIS gráficos lado a lado, e a regra dependia de uma conferência no fim que o modelo mais
+  simples não faz — pensar mais (Smart) não resolveu. Conserto: o contexto do aluno leva do adaptado só a
+  SIGLA e a ORDEM das letras (idem a liderança, que é o adaptado com outro nome) — os números ficam na
+  tela, como já era na assistente do mentor —, e "Natural e adaptado" nas orientações virou três regras
+  que se cumprem enquanto se escreve, um formato de resposta e as frases erradas REAIS. Número do natural
+  só na frase do natural. Critério: `npx tsx scripts/bateria_qualidade_assistente.ts --vezes 2` — 20
+  casos × 2 em cada nível, 6 regras (nunca comparar os gráficos; nenhum número de um ao falar do outro;
+  consultiva, nunca "você é"; sem diagnóstico; sem conteúdo fechado; sem a observação reservada),
+  conferidos por regra escrita, não por outro modelo. Cria e APAGA a própria pessoa fictícia (cita os
+  ids); ≈ US$ 1,70 e ≈ 25 min a rodada. `--autoteste` confere o verificador contra respostas reais (as
+  reprovadas têm de reprovar, as certas passar); `--reavaliar <saída>` reconfere uma rodada guardada com a
+  régua atual, sem gastar. Reprovou? Leia a resposta antes de mexer no texto: o verificador também erra,
+  e cada erro dele vira exemplo no autoteste. **Mexeu em `instrucoes.server.ts` ou `contexto.ts`? Rode a
+  bateria nos três níveis antes de publicar.** Nível que continuar reprovando depois de ajustado: a
+  recomendação é tirá-lo, e a decisão é do dono.
 - **Fechada por padrão**: aparece só com linha em `assistente_liberacoes` (grupo ou login) + relatório
   concluído + termo publicado. Abrir para a turma = marcar ao menos um nível na aba Acesso do grupo
   (#317), decisão do dono.

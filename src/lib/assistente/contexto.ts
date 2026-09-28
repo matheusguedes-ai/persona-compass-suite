@@ -16,6 +16,13 @@
  *   pessoa; as outras 17 frases de cada régua são a escala, não o resultado;
  * - se o aluno respondeu o inventário de tipos psicológicos de verdade, a estimativa derivada do
  *   DISC sai (o relatório da bateria faz a mesma troca).
+ *
+ * E uma diferença DE PROPÓSITO em relação à tela (#318): do gráfico ADAPTADO vão só a sigla e a ordem
+ * das letras — nunca os números, nem onde eles reaparecem com outro nome (a leitura de cada fator e os
+ * percentuais do estilo de liderança, que são os do adaptado). É a mesma regra da assistente do mentor
+ * (#307). Com os números dos dois gráficos lado a lado, o nível Básica comparava um com o outro em 4 de
+ * cada 8 respostas, com a regra escrita e tudo (bateria de qualidade, 28/09): sem dois números lado a
+ * lado, não sobra conta a fazer. Os números do adaptado continuam no relatório, na tela.
  */
 import type { Derived, Factor, JungPares, Report } from "@/components/report/sections";
 import type { GraficoDoConjunto } from "@/lib/intensidade";
@@ -62,12 +69,30 @@ function grafico(nome: string, explica: string, g: GraficoDoConjunto, externo?: 
     titulo,
     `  Como se lê: ${explica}`,
     ...g.letras.map((l) => {
-      const marcas = [l.na_sigla ? "entra na sigla" : null, l.pouca_informacao ? `marcada como "${INTENSIDADE.poucaInformacao}"` : null]
-        .filter(Boolean)
-        .join("; ");
       const ext = externo?.[l.key] != null ? ` · percepção externa ${n(externo[l.key])}` : "";
-      return `  - ${l.label} (${l.key}): ${n(l.percentual)}${marcas ? ` — ${marcas}` : ""}${ext}`;
+      return `  - ${l.label} (${l.key}): ${n(l.percentual)}${marcasDaLetra(l) ? ` — ${marcasDaLetra(l)}` : ""}${ext}`;
     }),
+  ];
+}
+
+function marcasDaLetra(l: GraficoDoConjunto["letras"][number]): string {
+  return [l.na_sigla ? "entra na sigla" : null, l.pouca_informacao ? `marcada como "${INTENSIDADE.poucaInformacao}"` : null]
+    .filter(Boolean)
+    .join("; ");
+}
+
+/** #318 — o gráfico ADAPTADO sem número: a sigla e a ordem das letras, da mais alta para a mais baixa. */
+function graficoSemNumeros(nome: string, explica: string, g: GraficoDoConjunto): string[] {
+  const titulo = g.sigla
+    ? `${nome}: sigla ${g.sigla} (${g.faixa ? FAIXA_DO_GRAFICO[g.faixa] : "sem faixa"})`
+    : `${nome}: sem sigla — sem predominância clara`;
+  return [
+    titulo,
+    `  Como se lê: ${explica}`,
+    "  Ordem das letras, da mais alta para a mais baixa (os números deste gráfico ficam no relatório, na tela — você não os recebe):",
+    ...[...g.letras]
+      .sort((a, b) => a.posicao - b.posicao)
+      .map((l, i) => `  ${i + 1}º ${l.label} (${l.key})${marcasDaLetra(l) ? ` — ${marcasDaLetra(l)}` : ""}`),
   ];
 }
 
@@ -91,11 +116,19 @@ function eixosMbti(jung: { tipo: string; pares: JungPares }, doTeste: boolean): 
 function derivados(d: Derived, mbtiReal: { tipo: string; pares: JungPares } | null, graficoAdaptado: boolean): string[] {
   const selo = graficoAdaptado ? DERIVADOS.seloAdaptado : DERIVADOS.selo;
   const umaSerie = d.competencias.every((c) => c.adaptado == null);
+  // #318: os percentuais dos estilos de liderança SÃO os do gráfico adaptado com outro nome (Executivo = D,
+  // Motivador = I…) — com o adaptado, vai a ordem dos estilos, sem número.
+  const lideranca = graficoAdaptado
+    ? [
+        `Dominante: ${d.dominant.label}`,
+        "Na ordem, do mais presente ao menos presente (os percentuais ficam no relatório, na tela):",
+        ...[...d.leadership].sort((a, b) => b.pct - a.pct).map((s, i) => `${i + 1}º ${s.label}`),
+      ]
+    : [`Dominante: ${d.dominant.label} (${n(d.dominant.pct)}%)`, ...d.leadership.map((s) => `- ${s.label}: ${n(s.pct)}%`)];
   return [
     mbtiReal ? eixosMbti(mbtiReal, true) : eixosMbti(d.jung, false),
     bloco(`${DERIVADOS.liderancaTitulo} (${selo})`, [
-      `Dominante: ${d.dominant.label} (${n(d.dominant.pct)}%)`,
-      ...d.leadership.map((s) => `- ${s.label}: ${n(s.pct)}%`),
+      ...lideranca,
       d.leadership_content.strengths &&
         `${d.leadership_content.strengths.title ?? DERIVADOS.pontosFortes}: ${d.leadership_content.strengths.body}`,
       d.leadership_content.attention &&
@@ -173,7 +206,7 @@ export function textoDoRelatorio(r: Report, mbtiReal: { tipo: string; pares: Jun
           ),
           indices.length > 0 && INTENSIDADE.indicesRodape,
           ...grafico(INTENSIDADE.naturalTitulo, INTENSIDADE.naturalExplica, it.natural),
-          ...grafico(INTENSIDADE.adaptadoTitulo, INTENSIDADE.adaptadoExplica, it.adaptado, r.external?.scores ?? null),
+          ...graficoSemNumeros(INTENSIDADE.adaptadoTitulo, INTENSIDADE.adaptadoExplica, it.adaptado),
           `${INTENSIDADE.reguasTitulo}: ${INTENSIDADE.reguasSeparadas}`,
           it.sinal_baixo.length > 0 && avisoDeSinal(it.sinal_baixo, it.marcacoes_no_teste),
           r.external &&
@@ -303,10 +336,9 @@ export function textoDoRelatorio(r: Report, mbtiReal: { tipo: string; pares: Jun
         ...r.factors.map((f: Factor) => {
           const e = ext.scores[f.key];
           const dif = e == null ? "—" : `${Math.round(e - f.natural_norm) > 0 ? "+" : ""}${Math.round(e - f.natural_norm)}`;
-          const voce = r.intensidade
-            ? `você (adaptado) ${n(f.natural_norm)}`
-            : `natural ${n(f.natural_norm)}, adaptado ${n(f.adaptado_norm ?? 0)}`;
-          return `- ${f.label}: ${voce} · externo ${e == null ? "—" : n(e)} · diferença ${dif}`;
+          // #318: com a página de intensidade, o "você" daqui é o número do ADAPTADO — ele não vai.
+          if (r.intensidade) return `- ${f.label}: externo ${e == null ? "—" : n(e)} · diferença para o seu adaptado ${dif}`;
+          return `- ${f.label}: natural ${n(f.natural_norm)}, adaptado ${n(f.adaptado_norm ?? 0)} · externo ${e == null ? "—" : n(e)} · diferença ${dif}`;
         }),
         ...OBSERVADORES.paragrafos(!!r.intensidade),
       ]),
@@ -326,9 +358,8 @@ export function textoDoRelatorio(r: Report, mbtiReal: { tipo: string; pares: Jun
       if (!f) continue;
       partes.push(
         bloco(theme.title, [
-          r.intensidade
-            ? `${CORPO.leituraDoAdaptado} Adaptado: ${n(f.natural_norm)}`
-            : `Natural: ${n(f.natural_norm)} · Adaptado: ${n(f.adaptado_norm ?? 0)}`,
+          // #318: a leitura do fator é do adaptado — vai a faixa (o texto abaixo), não o número.
+          r.intensidade ? CORPO.leituraDoAdaptado : `Natural: ${n(f.natural_norm)} · Adaptado: ${n(f.adaptado_norm ?? 0)}`,
           f.band_natural && `${f.band_natural.title}${f.band_natural.description ? ` — ${f.band_natural.description}` : ""}`,
           f.adaptacao &&
             `${f.adaptacao.title ?? (f.gap_mode === "gap_up" ? CORPO.elevou : CORPO.conteve)} (${(f.gap ?? 0) > 0 ? "+" : ""}${f.gap ?? 0} pontos): ${f.adaptacao.body}`,
