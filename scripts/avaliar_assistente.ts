@@ -22,6 +22,8 @@
  *       npx tsx scripts/avaliar_assistente.ts <resposta_id> --pergunta "Tem a palestra X?" --pergunta "E do TED?"
  *                                                  # uma conversa avulsa, com essas perguntas, na ordem
  *       … --vezes 3                                # repete cada conversa (o modelo varia de uma vez para outra)
+ *       … --categoria pro                          # #317: o nível (basica|smart|pro); precisa estar no teto
+ *                                                  # do login fictício — sem a opção, vale o mais baixo dele
  * Rodar da raiz do repositório, com o servidor local no ar (localhost:8080, ou APP_URL): o relatório
  * vem do mesmo endpoint da tela.
  *
@@ -29,8 +31,8 @@
  * chamada à Anthropic — a chave nos secrets da edge function, não o script. Ele para no primeiro.
  *
  * As marcas automáticas (⚑) são pistas para a leitura, não veredito: quem decide se a resposta
- * serve é quem lê. Custo impresso no fim (Sonnet 5: US$ 2/M entrada, 10/M saída, cache 0,20/M leitura
- * e 2,50/M escrita).
+ * serve é quem lê. Custo impresso no fim, pelo preço do modelo que DE FATO respondeu (a edge function
+ * devolve qual foi) — tabela em `PRECOS`, US$ por milhão de tokens, conferida em 28/09/2026.
  */
 import { readFileSync } from "node:fs";
 import type { Report } from "@/components/report/sections";
@@ -48,6 +50,7 @@ import {
 // #312: a MESMA função que assistente.functions.ts usa em produção — senão esta avaliação testaria
 // uma assistente mais burra que a real (ela responderia sem os trechos do acervo).
 import { perguntaComTrechosDaBiblioteca } from "@/lib/assistente/biblioteca-busca.server";
+import { ehCategoria, type Categoria } from "@/lib/assistente/niveis";
 
 const APP = process.env.APP_URL ?? "http://localhost:8080";
 const DOMINIO_FICTICIO = "@exemplo.invalido";
@@ -177,10 +180,23 @@ const CASOS: Caso[] = [
   { n: 29, nome: "conteúdo que existe, depois de uma negação legítima", turnos: ["Tem alguma aula de oratória em inglês?", "E a palestra ou fala ou foge, eu tenho?"], espera: /OU FALA, OU FOGE/i },
 ];
 
-const PRECO = { entrada: 2, saida: 10, cacheLe: 0.2, cacheEscreve: 2.5 };
-const custo = (u: RespostaDoModelo["uso"]) =>
-  (u.input_tokens * PRECO.entrada + u.output_tokens * PRECO.saida +
-    u.cache_read_input_tokens * PRECO.cacheLe + u.cache_creation_input_tokens * PRECO.cacheEscreve) / 1e6;
+// US$ por milhão de tokens (preço público da Anthropic em 28/09/2026). Cache escrito = 5 minutos.
+const PRECOS: Record<string, { entrada: number; saida: number; cacheLe: number; cacheEscreve: number }> = {
+  "claude-sonnet-5": { entrada: 2, saida: 10, cacheLe: 0.2, cacheEscreve: 2.5 },
+  "claude-opus-5": { entrada: 5, saida: 25, cacheLe: 0.5, cacheEscreve: 6.25 },
+  "claude-opus-4-8": { entrada: 5, saida: 25, cacheLe: 0.5, cacheEscreve: 6.25 },
+  "claude-haiku-4-5": { entrada: 1, saida: 5, cacheLe: 0.1, cacheEscreve: 1.25 },
+};
+function custo(r: RespostaDoModelo): number {
+  const p = PRECOS[r.modelo];
+  if (!p) {
+    console.error(`   (sem preço cadastrado para "${r.modelo}" — fora da soma)`);
+    return 0;
+  }
+  const u = r.uso;
+  return (u.input_tokens * p.entrada + u.output_tokens * p.saida +
+    u.cache_read_input_tokens * p.cacheLe + u.cache_creation_input_tokens * p.cacheEscreve) / 1e6;
+}
 
 function marcas(texto: string, caso: Caso, turno: number): string[] {
   const m: string[] = [];
@@ -244,6 +260,12 @@ async function main() {
   // para outra, e um acerto só não prova nada.
   const avulsas = resto.flatMap((a, i) => (a === "--pergunta" && resto[i + 1] ? [resto[i + 1]] : []));
   const vezes = resto.includes("--vezes") ? Math.max(1, Number(resto[resto.indexOf("--vezes") + 1]) || 1) : 1;
+  let categoria: Categoria | undefined;
+  if (resto.includes("--categoria")) {
+    const pedida = resto[resto.indexOf("--categoria") + 1];
+    if (!ehCategoria(pedida)) throw new Error(`--categoria precisa ser basica, smart ou pro (veio "${pedida}")`);
+    categoria = pedida;
+  }
   const base: Caso[] = avulsas.length
     ? [{ n: 0, nome: "perguntas avulsas", turnos: avulsas }]
     : CASOS.filter((c) => !so || so.has(c.n));
@@ -260,7 +282,7 @@ async function main() {
       historico[historico.length - 1].content = await perguntaComTrechosDaBiblioteca(doAluno, pergunta);
       let resp: RespostaDoModelo;
       try {
-        resp = await perguntarAoModelo(contexto, historico, token);
+        resp = await perguntarAoModelo(contexto, historico, token, categoria ? { categoria } : undefined);
       } catch (e) {
         if (e instanceof AssistenteDesligada) {
           console.error(
@@ -275,7 +297,8 @@ async function main() {
         throw e;
       }
       historico.push({ role: "assistant", content: resp.texto });
-      total += custo(resp.uso);
+      const custoDaResposta = custo(resp);
+      total += custoDaResposta;
       const ms = marcas(resp.texto, caso, i);
       console.log(`» ${pergunta}`);
       console.log(resp.texto);
@@ -284,9 +307,10 @@ async function main() {
       const entradaTotal =
         resp.uso.input_tokens + resp.uso.cache_creation_input_tokens + resp.uso.cache_read_input_tokens;
       console.log(
-        `   [${resp.stopReason} · ${resp.ms} ms · entrada total ${entradaTotal} (fora do cache ${resp.uso.input_tokens}` +
-          ` · cache lido ${resp.uso.cache_read_input_tokens} · cache escrito ${resp.uso.cache_creation_input_tokens})` +
-          ` · saída ${resp.uso.output_tokens}]` +
+        `   [${resp.categoria ?? "?"} · ${resp.modelo} · ${resp.stopReason} · ${resp.ms} ms · entrada total ${entradaTotal}` +
+          ` (fora do cache ${resp.uso.input_tokens} · cache lido ${resp.uso.cache_read_input_tokens}` +
+          ` · cache escrito ${resp.uso.cache_creation_input_tokens}) · saída ${resp.uso.output_tokens}` +
+          ` · US$ ${custoDaResposta.toFixed(4)}]` +
           (ms.length ? `  ⚑ ${ms.join(" · ")}` : ""),
       );
     }

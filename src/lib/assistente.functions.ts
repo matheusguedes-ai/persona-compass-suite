@@ -22,6 +22,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ERROS_DA_ASSISTENTE } from "@/lib/assistente/textos";
 import { avisoDeHistoricoCortado } from "@/lib/assistente/historico";
 import { perguntaComTrechosDaBiblioteca } from "@/lib/assistente/biblioteca-busca.server";
+import { CATEGORIAS, naOrdem, nivelEmUso, type Categoria } from "@/lib/assistente/niveis";
+import { escolhaLembrada, niveisDaTela } from "@/lib/assistente/niveis.server";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -34,6 +36,8 @@ type Situacao = {
   termo_publicado: boolean;
   consentimento_ativo: boolean;
   tem_historico: boolean;
+  /** #317 — o teto do aluno, na ordem da escada. Vazio ⇔ `liberada` falso. */
+  categorias: Categoria[];
 };
 
 export type SituacaoDaAssistente = Situacao & {
@@ -48,7 +52,9 @@ type Cliente = SupabaseClient<Database>;
 async function lerSituacao(supabase: Cliente): Promise<SituacaoDaAssistente> {
   const { data, error } = await supabase.rpc("assistente_situacao");
   if (error) throw new Error(`Não foi possível consultar a assistente (${error.message}).`);
-  const s = data as unknown as Situacao;
+  const bruta = data as unknown as Omit<Situacao, "categorias"> & { categorias?: unknown[] };
+  // Com o app novo no ar antes do banco (ou o contrário), a chave pode faltar: vazio, nunca `undefined`.
+  const s: Situacao = { ...bruta, categorias: naOrdem(bruta.categorias) };
   const pode_comecar = s.liberada && s.tem_relatorio && s.termo_publicado;
   return { ...s, pode_comecar, no_menu: pode_comecar || s.consentimento_ativo || s.tem_historico };
 }
@@ -107,6 +113,8 @@ export const carregarAssistente = createServerFn({ method: "GET" })
       consentimento: consentimento ?? null,
       termo,
       conversas: (conversas ?? []) as ConversaResumo[],
+      // #317 — o seletor de nível: só aparece na tela quando há mais de um liberado.
+      niveis: await niveisDaTela(supabase, userId, "aluno", situacao.categorias),
     };
   });
 
@@ -177,6 +185,10 @@ function tituloDe(texto: string): string {
 /**
  * Uma pergunta do aluno. Se o modelo falhar, a pergunta NÃO fica guardada (a tela devolve o texto
  * para a caixa e o aluno tenta de novo) — nada de histórico com pergunta sem resposta.
+ *
+ * #317 — `categoria` é o nível escolhido na tela. Vale se estiver dentro do teto dele AGORA; se o mentor
+ * tirou aquele nível depois que a tela abriu, a pergunta sai no mais baixo liberado (nunca erro) e a
+ * resposta diz qual nível respondeu, para a tela acompanhar.
  */
 export const enviarMensagem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -184,6 +196,7 @@ export const enviarMensagem = createServerFn({ method: "POST" })
     z.object({
       conversa_id: z.string().uuid().nullable().optional(),
       texto: z.string().trim().min(1).max(4000),
+      categoria: z.enum(CATEGORIAS).optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -193,6 +206,8 @@ export const enviarMensagem = createServerFn({ method: "POST" })
     const situacao = await lerSituacao(supabase);
     if (!situacao.consentimento_ativo) throw new Error(ERROS_DA_ASSISTENTE.semConsentimento);
     if (!situacao.liberada) throw new Error(ERROS_DA_ASSISTENTE.naoLiberada);
+    const categoria = nivelEmUso(situacao.categorias, data.categoria ?? (await escolhaLembrada(supabase, userId, "aluno")));
+    if (!categoria) throw new Error(ERROS_DA_ASSISTENTE.naoLiberada);
     // Não dá mais para checar "tem chave?" antes de montar o contexto — a chave mora na edge
     // function, do outro lado da rede. Se estiver desligada, `perguntarAoModelo` cai no catch
     // abaixo com AssistenteDesligada, exatamente com o mesmo aviso final para o aluno.
@@ -260,13 +275,15 @@ export const enviarMensagem = createServerFn({ method: "POST" })
       resposta = await servidor.perguntarAoModelo(
         historicoCortado ? `${contexto}\n\n${avisoDeHistoricoCortado(MAX_HISTORICO)}` : contexto,
         historico,
+        undefined,
+        { categoria },
       );
     } catch (e) {
       await db.from("assistente_mensagens").delete().eq("id", pergunta.id);
       if (conversaNova) await db.from("assistente_conversas").delete().eq("id", conversaId);
       await db.from("assistente_uso").insert({
         user_id: userId, conta_id: conta, conversa_id: conversaNova ? null : conversaId,
-        modelo: servidor.MODELO_DA_ASSISTENTE, erro: servidor.resumoDoErro(e),
+        modelo: servidor.modeloDoErro(e), categoria, erro: servidor.resumoDoErro(e),
       });
       console.error("[assistente] falha ao responder:", servidor.resumoDoErro(e));
       throw new Error(e instanceof servidor.AssistenteDesligada ? ERROS_DA_ASSISTENTE.desligada : ERROS_DA_ASSISTENTE.falhou);
@@ -282,10 +299,11 @@ export const enviarMensagem = createServerFn({ method: "POST" })
       .single();
     if (aErr || !dita) throw new Error(`Não foi possível guardar a resposta (${aErr?.message}).`);
 
+    const respondeu = resposta.categoria ?? categoria;
     const [{ error: uErr }, { error: cErr }] = await Promise.all([
       db.from("assistente_uso").insert({
         user_id: userId, conta_id: conta, conversa_id: conversaId,
-        modelo: servidor.MODELO_DA_ASSISTENTE, stop_reason: resposta.stopReason, duracao_ms: resposta.ms,
+        modelo: resposta.modelo, categoria: respondeu, stop_reason: resposta.stopReason, duracao_ms: resposta.ms,
         ...resposta.uso,
       }),
       db.from("assistente_conversas").update({ atualizada_em: new Date().toISOString() }).eq("id", conversaId),
@@ -293,7 +311,7 @@ export const enviarMensagem = createServerFn({ method: "POST" })
     if (uErr) console.error("[assistente] registro de uso falhou:", uErr.message);
     if (cErr) console.error("[assistente] data da conversa não atualizou:", cErr.message);
 
-    return { conversa_id: conversaId as string, mensagens: [pergunta, dita] as Mensagem[] };
+    return { conversa_id: conversaId as string, mensagens: [pergunta, dita] as Mensagem[], categoria: respondeu };
   });
 
 export const apagarConversa = createServerFn({ method: "POST" })

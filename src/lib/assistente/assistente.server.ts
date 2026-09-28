@@ -18,7 +18,7 @@ import { agoraArredondado, contextoDaPlataforma, contextoDasObservacoes } from "
 export {
   AssistenteDesligada,
   AssistenteFalhou,
-  MODELO_DA_ASSISTENTE,
+  modeloDoErro,
   perguntarAoModelo,
   resumoDoErro,
   type MensagemDoHistorico,

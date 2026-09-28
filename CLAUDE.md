@@ -275,7 +275,8 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `fusoes_pessoas` | #300: registro de cada unificação — a linha inteira do cadastro absorvido, o que mudou de dono e o que foi descartado. É o que torna uma fusão desfazível à mão |
 | `assistente_termos` / `assistente_consentimentos` | #289: termo da assistente, versionado (publicado não se edita — o banco recusa); aceite com versão, data e CÓPIA do texto aceito. Revogar marca `revogado_em` e apaga o histórico |
 | `assistente_conversas` / `assistente_mensagens` | #289: conversas do aluno com a assistente. Dono = `user_id` (o LOGIN do aluno, não `people`) + `conta_id`. **Só o próprio aluno lê** |
-| `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga). ⚠️ A entrada que o modelo recebeu é `entrada_total_tokens` — `input_tokens` é só o pedaço fora do cache (uns 2 tokens). `escopo` (`aluno`/`mentor`, #307) diz de qual assistente veio; `conversa_id` é só de aluno, `conversa_mentor_id` só de mentor (constraint) |
+| `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga). ⚠️ A entrada que o modelo recebeu é `entrada_total_tokens` — `input_tokens` é só o pedaço fora do cache (uns 2 tokens). `escopo` (`aluno`/`mentor`, #307) diz de qual assistente veio; `conversa_id` é só de aluno, `conversa_mentor_id` só de mentor (constraint). #317: `assistente_liberacoes.categorias` = os níveis que a linha libera (nunca vazio: sem nível = sem linha); `assistente_uso.categoria` = o nível que respondeu (NULL = antes de 28/09/2026, tudo Sonnet 5 esforço baixo = a Básica) |
+| `assistente_preferencias` | #317: o nível que a pessoa escolheu por último, por assistente (`escopo` aluno/mentor). Dono = `user_id` + `conta_id`. Não é permissão — o teto é conferido a cada pergunta. Só o próprio login lê; grava a chave de serviço, depois de conferir o teto |
 | `assistente_observacoes` | #305: o que o mentor quer que a assistente tenha em mente sobre um aluno. Dono = `conta_id` (preenchido pelo banco, = conta do cadastro) + `person_id`. **O aluno NUNCA lê** — nenhuma policy para ele, e a da equipe exclui o próprio login. Não usar `people.notes` para isso: o aluno lê a própria linha de `people` |
 | `assistente_mentor_conversas` / `assistente_mentor_mensagens` | #307: conversas do DONO DA CONTA com a assistente do painel. Dono = `user_id` (quem perguntou) + `conta_id` (hoje iguais — gatilho confere). **Só quem perguntou lê.** Separadas das do aluno de propósito: nenhuma tela, função ou policy olha as duas |
 | `biblioteca_pastas` / `biblioteca_materiais` | #313: o acervo da Biblioteca (menu próprio, fora da Academy). Pasta em até 3 níveis (`pasta_mae_id`; limite e ciclo barrados por gatilho). Material por arquivo (bucket privado `biblioteca`) ou link |
@@ -497,7 +498,26 @@ foram reveladas e revogadas por terem passado por aqui).
   fixture montada como o aluno do relato, e confira em `assistente_uso` o tamanho da entrada das
   chamadas relatadas — o "não tenho acesso" de 25/09 veio da versão ANTERIOR ainda no ar, não do texto.
 - **Fechada por padrão**: aparece só com linha em `assistente_liberacoes` (grupo ou login) + relatório
-  concluído + termo publicado. Abrir para a turma = inserir a linha do grupo, decisão do dono.
+  concluído + termo publicado. Abrir para a turma = marcar ao menos um nível na aba Acesso do grupo
+  (#317), decisão do dono.
+- **#317 — três níveis: Básica, Smart, Pro.** O MAPA nível → modelo mora SÓ na edge function (`NIVEIS`
+  em `supabase/functions/assistente-chat/index.ts`): Básica = `claude-sonnet-5` esforço baixo (a
+  assistente de sempre), Smart = `claude-sonnet-5` esforço alto, Pro = `claude-opus-5` esforço alto (com
+  `fallbacks: "default"`). Trocar o modelo de um nível = mexer só ali e publicar a função — o app registra
+  o modelo que ela DEVOLVE, nunca uma cópia do mapa. Contexto, acervo e orientações são os MESMOS nos três.
+  - **Teto** = a soma das linhas do login e dos grupos dele (`assistente_categorias()`; `liberada() ⇔
+    teto não vazio`), conferido no servidor do app E de novo na edge function (aluno chamando a função
+    direto com "pro" é recusado). Liberar: aba Acesso do grupo e ficha da pessoa (esta, só com login) —
+    só o DONO grava (`assistente-niveis.functions.ts`); colaborador vê travado. Linha sem nível configurado
+    (as de antes da #317) = Básica.
+  - **Escolha**: seletor na tela (só com 2+ níveis), vale a partir da próxima pergunta, lembrada em
+    `assistente_preferencias`. Teto que encolheu = cai no mais baixo liberado, sem erro, e a tela avisa.
+    Mentor: os três, sem teto.
+  - ⚠️ **O custo vem do MODELO, não do esforço**: medido em 28/09, Básica ≈ Smart por pergunta (mesmo
+    modelo; a Smart só pensa mais e demora ~2×) e Pro ≈ 2,5–3×. Trocar de nível no meio da conversa faz a
+    1ª pergunta no nível novo pagar o contexto inteiro de novo (o cache é por modelo e por esforço).
+  - Medir um nível: `npx tsx scripts/avaliar_assistente.ts <resposta> --categoria pro` (a fixture precisa
+    ter o nível no teto; o custo sai pelo preço do modelo que respondeu).
 - **Medidor (`assistente_uso`)**: com o cache de prompt ligado, a Anthropic devolve em `input_tokens` SÓ
   o pedaço fora do cache (uns 2 tokens) — o grosso vem em `cache_creation_input_tokens` (gravado no cache)
   e `cache_read_input_tokens` (lido do cache). **Prova de que o contexto chegou = `entrada_total_tokens`**,
@@ -529,7 +549,8 @@ foram reveladas e revogadas por terem passado por aqui).
 O dono da conta pergunta sobre os alunos DELE (`/assistente`, item "Assistente" do menu, `soDono`).
 Código em `src/lib/assistente-mentor/` + `src/lib/assistente-mentor.functions.ts` +
 `src/routes/_app.assistente.tsx`. Mesmo modelo e mesma edge function da do aluno: o corpo leva
-`escopo: "mentor"` e ela troca de portão.
+`escopo: "mentor"` e ela troca de portão. #317: o mentor escolhe entre os três níveis no seletor da tela,
+sem teto (a escolha fica em `assistente_preferencias`, escopo `mentor`).
 
 - **Portão**: `assistente_mentor_liberada()` = logado, agindo pela própria conta
   (`acting_account() = auth.uid()`) e com alunos (`people.mentor_id`). Aluno, mentor convidado e

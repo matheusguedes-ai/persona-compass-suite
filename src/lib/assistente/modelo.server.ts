@@ -12,19 +12,33 @@
  */
 import { getRequest } from "@tanstack/react-start/server";
 import { INSTRUCOES_DA_ASSISTENTE } from "@/lib/assistente/instrucoes.server";
+import { ehCategoria, type Categoria } from "@/lib/assistente/niveis";
 
-export const MODELO_DA_ASSISTENTE = "claude-sonnet-5";
+/**
+ * #317 — o app NÃO sabe qual modelo atende cada nível: o mapa mora só na edge function, que devolve o
+ * modelo usado em cada resposta (e em cada erro, quando chegou a escolher). Isto é só o que vai para o
+ * registro de uso quando nem isso voltou (a edge function não respondeu).
+ */
+export const MODELO_NAO_INFORMADO = "não informado";
 
 export type MensagemDoHistorico = { role: "user" | "assistant"; content: string };
 
 /** A edge function existe mas não respondeu (sem a chave configurada, ou o provedor fora do ar). */
-export class AssistenteDesligada extends Error {}
+export class AssistenteDesligada extends Error {
+  constructor(
+    message: string,
+    public modelo?: string,
+  ) {
+    super(message);
+  }
+}
 
 /** Qualquer outra falha ao chamar a edge function (rede, sessão, corpo inesperado). */
 export class AssistenteFalhou extends Error {
   constructor(
     message: string,
     public status?: number,
+    public modelo?: string,
   ) {
     super(message);
   }
@@ -40,7 +54,17 @@ export type RespostaDoModelo = {
     cache_read_input_tokens: number;
   };
   ms: number;
+  /** #317 — o modelo que DE FATO respondeu, como a edge function devolveu. */
+  modelo: string;
+  /** #317 — o nível que a edge function usou: o pedido, ou o mais baixo do teto quando nenhum foi pedido. */
+  categoria: Categoria | null;
 };
+
+/**
+ * #317 — quanto esperar a edge function. Smart e Pro pensam mais antes de responder; a Básica fica com a
+ * espera de sempre. A edge function tem até 150 s para devolver a resposta (limite da plataforma).
+ */
+const ESPERA_MAXIMA_MS: Record<Categoria, number> = { basica: 90_000, smart: 150_000, pro: 150_000 };
 
 /**
  * A URL do `.env` do repo, que o Vite fixa no build — é ela que vale no servidor: na hospedagem do
@@ -74,9 +98,10 @@ function tokenDaSessao(): string {
 
 /**
  * #307 — a assistente do MENTOR usa a mesma chamada, com as orientações DELA e `escopo: "mentor"`: a
- * edge function troca de portão (`assistente_mentor_liberada`). Sem opções, é a do aluno, como sempre.
+ * edge function troca de portão (`assistente_mentor_liberada`). Sem `escopo`, é a do aluno, como sempre.
+ * #317 — `categoria` é o nível pedido. Sem ela, a edge function usa o mais baixo que a pessoa tem.
  */
-export type OpcoesDoModelo = { instrucoes: string; escopo: "mentor" };
+export type OpcoesDoModelo = { instrucoes?: string; escopo?: "mentor"; categoria?: Categoria };
 
 /**
  * Uma pergunta ao modelo, via a Supabase Edge Function `assistente-chat`. O prefixo em cache é:
@@ -95,18 +120,23 @@ export async function perguntarAoModelo(
   opcoes?: OpcoesDoModelo,
 ): Promise<RespostaDoModelo> {
   const sessao = token ?? tokenDaSessao();
+  const doMentor = opcoes?.escopo === "mentor";
+  if (doMentor && !opcoes?.instrucoes) throw new AssistenteFalhou("assistente do mentor chamada sem as orientações dela");
   const controle = new AbortController();
-  const tempoEsgotado = setTimeout(() => controle.abort(), 90_000);
+  const espera = opcoes?.categoria ? ESPERA_MAXIMA_MS[opcoes.categoria] : Math.max(...Object.values(ESPERA_MAXIMA_MS));
+  const tempoEsgotado = setTimeout(() => controle.abort(), espera);
   let resp: globalThis.Response;
   try {
     resp = await fetch(`${urlDoSupabase()}/functions/v1/assistente-chat`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${sessao}` },
-      body: JSON.stringify(
-        opcoes
-          ? { instrucoes: opcoes.instrucoes, contexto, historico, escopo: opcoes.escopo }
-          : { instrucoes: INSTRUCOES_DA_ASSISTENTE, contexto, historico },
-      ),
+      body: JSON.stringify({
+        instrucoes: doMentor ? opcoes?.instrucoes : INSTRUCOES_DA_ASSISTENTE,
+        contexto,
+        historico,
+        ...(doMentor ? { escopo: "mentor" } : {}),
+        ...(opcoes?.categoria ? { categoria: opcoes.categoria } : {}),
+      }),
       signal: controle.signal,
     });
   } catch (e) {
@@ -116,10 +146,11 @@ export async function perguntarAoModelo(
   }
 
   const corpo = await resp.json().catch(() => null);
+  const modeloDoCorpo = typeof corpo?.modelo === "string" ? (corpo.modelo as string) : undefined;
   if (!resp.ok) {
     const mensagem = (corpo?.error as string | undefined) ?? `a assistente respondeu ${resp.status}`;
-    if (resp.status === 503 || resp.status === 502) throw new AssistenteDesligada(mensagem);
-    throw new AssistenteFalhou(mensagem, resp.status);
+    if (resp.status === 503 || resp.status === 502) throw new AssistenteDesligada(mensagem, modeloDoCorpo);
+    throw new AssistenteFalhou(mensagem, resp.status, modeloDoCorpo);
   }
   if (!corpo || typeof corpo.texto !== "string" || !corpo.usage) {
     throw new AssistenteFalhou("a assistente devolveu uma resposta em formato inesperado");
@@ -135,7 +166,14 @@ export async function perguntarAoModelo(
       cache_read_input_tokens: corpo.usage.cache_read_input_tokens ?? 0,
     },
     ms: typeof corpo.ms === "number" ? corpo.ms : 0,
+    modelo: modeloDoCorpo ?? MODELO_NAO_INFORMADO,
+    categoria: ehCategoria(corpo.categoria) ? corpo.categoria : null,
   };
+}
+
+/** O modelo para o registro de uso de uma chamada que falhou: o que a edge function disse, se disse. */
+export function modeloDoErro(e: unknown): string {
+  return (e instanceof AssistenteDesligada || e instanceof AssistenteFalhou) && e.modelo ? e.modelo : MODELO_NAO_INFORMADO;
 }
 
 /** O erro em poucas palavras, para o registro de custo — nunca vai para a tela, e nunca carrega a chave. */

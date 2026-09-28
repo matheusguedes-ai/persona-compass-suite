@@ -17,6 +17,9 @@ import {
   enviarMensagem, meusDadosDaAssistente, revogarAssistente, type ConversaResumo, type Mensagem,
 } from "@/lib/assistente.functions";
 import { ASSISTENTE } from "@/lib/assistente/textos";
+import type { NiveisDaTela } from "@/lib/assistente/niveis";
+import { SeletorDeNivel } from "@/components/seletor-de-nivel";
+import { useNivelDaAssistente } from "@/hooks/use-nivel-da-assistente";
 import { lerPreviewSalvo } from "@/lib/preview-mode";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -110,6 +113,7 @@ function AssistenteDoAluno() {
         conversas={data.conversas}
         consentimento={data.consentimento}
         podeEnviar={data.situacao.liberada && data.situacao.tem_relatorio}
+        niveis={data.niveis}
       />
     </Moldura>
   );
@@ -298,11 +302,12 @@ function ListaDeConversas({
 }
 
 function Conversas({
-  conversas, consentimento, podeEnviar,
+  conversas, consentimento, podeEnviar, niveis,
 }: {
   conversas: ConversaResumo[];
   consentimento: { termo_versao: number; aceito_em: string };
   podeEnviar: boolean;
+  niveis: NiveisDaTela;
 }) {
   const qc = useQueryClient();
   const [ativa, setAtiva] = useState<string | null>(null);
@@ -310,6 +315,8 @@ function Conversas({
   const [texto, setTexto] = useState("");
   const [gavetaAberta, setGavetaAberta] = useState(false);
   const fim = useRef<HTMLDivElement>(null);
+  // #317 — o nível desta tela: só há o que escolher quando o mentor liberou mais de um.
+  const { nivel, escolher, conferirResposta } = useNivelDaAssistente("aluno", niveis);
 
   const abrirFn = useServerFn(abrirConversa);
   const { data: carregadas, isFetching } = useQuery({
@@ -320,7 +327,8 @@ function Conversas({
 
   const enviarFn = useServerFn(enviarMensagem);
   const enviar = useMutation({
-    mutationFn: (pergunta: string) => enviarFn({ data: { conversa_id: ativa, texto: pergunta } }),
+    mutationFn: (pergunta: string) =>
+      enviarFn({ data: { conversa_id: ativa, texto: pergunta, categoria: nivel ?? undefined } }),
     onMutate: (pergunta) => {
       setLocais((l) => [...l, { papel: "aluno", conteudo: pergunta }]);
       setTexto("");
@@ -332,6 +340,7 @@ function Conversas({
       ]);
       setLocais([]);
       setAtiva(r.conversa_id);
+      conferirResposta(r.categoria);
       void qc.invalidateQueries({ queryKey: ["assistente"] });
     },
     onError: (e, pergunta) => {
@@ -435,6 +444,11 @@ function Conversas({
         </div>
 
         <div className="border-t border-black/5 p-3">
+          {podeEnviar && niveis.permitidas.length > 1 && (
+            <div className="mb-1.5 flex">
+              <SeletorDeNivel permitidas={niveis.permitidas} atual={nivel} onEscolher={escolher} desabilitado={enviar.isPending} />
+            </div>
+          )}
           {podeEnviar ? (
             <form
               className="flex items-end gap-2"

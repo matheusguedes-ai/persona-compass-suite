@@ -23,6 +23,11 @@ import {
   setGroupInstruments, listPeople, listInstruments, updateGroup, AREAS_DO_ALUNO,
 } from "@/lib/data.functions";
 import { definirMenuBibliotecaDoGrupo } from "@/lib/biblioteca.functions";
+import {
+  definirNivelDaAssistenteDoGrupo, nivelDaAssistenteDoGrupo, type NivelDoGrupo,
+} from "@/lib/assistente-niveis.functions";
+import { EscolhaDeNiveis } from "@/components/niveis-da-assistente";
+import type { Categoria } from "@/lib/assistente/niveis";
 import { AreasDoAluno } from "@/components/areas-do-aluno";
 import { listResponses } from "@/lib/tests.functions";
 import { toast } from "sonner";
@@ -61,6 +66,12 @@ function GroupDetail() {
   const { data: allInstruments = [] } = useQuery({
     queryKey: ["instruments"],
     queryFn: () => instrListFn(),
+  });
+  // #317 — os níveis da assistente liberados para este grupo (aba Acesso).
+  const nivelFn = useServerFn(nivelDaAssistenteDoGrupo);
+  const nivelDaAssistente = useQuery({
+    queryKey: ["assistente-niveis-grupo", id],
+    queryFn: () => nivelFn({ data: { group_id: id } }),
   });
 
   const del = useMutation({
@@ -246,11 +257,16 @@ function GroupDetail() {
           </div>
         </TabsContent>
         <TabsContent value="acesso" className="mt-4">
-          <AcessoDoGrupo
-            groupId={id}
-            atual={(group.areas_aluno as string[] | null) ?? null}
-            bibliotecaAtual={data.bibliotecaLiberada}
-          />
+          {nivelDaAssistente.isLoading ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">Carregando…</div>
+          ) : (
+            <AcessoDoGrupo
+              groupId={id}
+              atual={(group.areas_aluno as string[] | null) ?? null}
+              bibliotecaAtual={data.bibliotecaLiberada}
+              assistenteAtual={nivelDaAssistente.data ?? null}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="ranking" className="mt-4">
@@ -523,36 +539,48 @@ function GroupDna({ groupId }: { groupId: string }) {
  * própria (`biblioteca_menu_grupos`, por `definirMenuBibliotecaDoGrupo`) — não em `areas_aluno`, que
  * o banco nem aceitaria. As duas gravações rodam à parte: se uma falhar (ex.: falta a permissão
  * "educacao", que só o dono/quem administra Academy tem) a outra ainda vale, e o aviso diz qual não foi.
+ *
+ * A Assistente (#317) segue o mesmo desenho: os níveis liberados moram na linha do grupo em
+ * `assistente_liberacoes` (`definirNivelDaAssistenteDoGrupo`), e é o mesmo botão que salva. Só o dono
+ * muda — é ele quem arca com o consumo; para os outros papéis a caixa aparece travada.
  */
 function AcessoDoGrupo({
-  groupId, atual, bibliotecaAtual,
-}: { groupId: string; atual: string[] | null; bibliotecaAtual: boolean }) {
+  groupId, atual, bibliotecaAtual, assistenteAtual,
+}: { groupId: string; atual: string[] | null; bibliotecaAtual: boolean; assistenteAtual: NivelDoGrupo | null }) {
   const qc = useQueryClient();
   const saveFn = useServerFn(updateGroup);
   const bibFn = useServerFn(definirMenuBibliotecaDoGrupo);
+  const nivelFn = useServerFn(definirNivelDaAssistenteDoGrupo);
   const [areas, setAreas] = useState<string[] | null>(atual);
   const [biblioteca, setBiblioteca] = useState(bibliotecaAtual);
+  const niveisAtuais = assistenteAtual?.categorias ?? [];
+  const [niveis, setNiveis] = useState<Categoria[]>(niveisAtuais);
 
   const areasMudaram = JSON.stringify(areas) !== JSON.stringify(atual);
   const bibliotecaMudou = biblioteca !== bibliotecaAtual;
-  const mudou = areasMudaram || bibliotecaMudou;
+  const niveisMudaram = niveis.join() !== niveisAtuais.join();
+  const mudou = areasMudaram || bibliotecaMudou || niveisMudaram;
 
   const salvar = useMutation({
     mutationFn: async () => {
-      const [areasOk, bibOk] = await Promise.all([
+      const [areasOk, bibOk, nivelOk] = await Promise.all([
         !areasMudaram
           ? null
           : saveFn({ data: { id: groupId, areas_aluno: areas } }).then(() => true).catch((e: unknown) => mensagemDeErro(e)),
         !bibliotecaMudou
           ? null
           : bibFn({ data: { group_id: groupId, ligado: biblioteca } }).then(() => true).catch((e: unknown) => mensagemDeErro(e)),
+        !niveisMudaram
+          ? null
+          : nivelFn({ data: { group_id: groupId, categorias: niveis } }).then(() => true).catch((e: unknown) => mensagemDeErro(e)),
       ]);
-      return { areasOk, bibOk };
+      return { areasOk, bibOk, nivelOk };
     },
-    onSuccess: ({ areasOk, bibOk }) => {
+    onSuccess: ({ areasOk, bibOk, nivelOk }) => {
       qc.invalidateQueries({ queryKey: ["group", groupId] });
       qc.invalidateQueries({ queryKey: ["groups"] });
-      const falhas = [areasOk, bibOk].filter((r): r is string => typeof r === "string");
+      qc.invalidateQueries({ queryKey: ["assistente-niveis-grupo", groupId] });
+      const falhas = [areasOk, bibOk, nivelOk].filter((r): r is string => typeof r === "string");
       if (falhas.length === 0) toast.success("Acesso do grupo atualizado");
       else toast.error(`Nem tudo salvou: ${falhas.join(" · ")}`);
     },
@@ -562,6 +590,21 @@ function AcessoDoGrupo({
   return (
     <div className="space-y-4 rounded-xl bg-card p-6 ring-1 ring-black/5">
       <AreasDoAluno areas={areas} setAreas={setAreas} biblioteca={{ ligado: biblioteca, onChange: setBiblioteca }} />
+      {assistenteAtual && (
+        <div className="border-t border-black/5 pt-4">
+          <p className="text-sm font-medium">Assistente do Método Intenção</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Quais níveis este grupo pode usar. Nenhum marcado = a assistente não aparece para o grupo. Quem tiver mais
+            de um nível liberado (por este grupo, outro grupo ou liberação individual) escolhe na tela da assistente.
+          </p>
+          <div className="mt-3 max-w-xl">
+            <EscolhaDeNiveis valor={niveis} onChange={setNiveis} desabilitado={!assistenteAtual.podeEditar || salvar.isPending} />
+          </div>
+          {!assistenteAtual.podeEditar && (
+            <p className="mt-2 text-xs text-muted-foreground">Só o dono da conta muda os níveis da assistente.</p>
+          )}
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <Button onClick={() => salvar.mutate()} disabled={!mudou || salvar.isPending}>
           {salvar.isPending ? "Salvando…" : "Salvar acesso"}
@@ -569,7 +612,7 @@ function AcessoDoGrupo({
         {mudou && (
           <button
             className="text-xs text-muted-foreground hover:underline"
-            onClick={() => { setAreas(atual); setBiblioteca(bibliotecaAtual); }}
+            onClick={() => { setAreas(atual); setBiblioteca(bibliotecaAtual); setNiveis(niveisAtuais); }}
           >
             Desfazer
           </button>

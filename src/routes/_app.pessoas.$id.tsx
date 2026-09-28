@@ -27,6 +27,7 @@ import { getMyMembership } from "@/lib/team.functions";
 import { authorizeRetake, authorizeRetakeAssessment } from "@/lib/tests.functions";
 import { toast } from "sonner";
 import { ObservacoesDaAssistente } from "@/components/observacoes-assistente";
+import { NiveisDaAssistenteDaPessoa } from "@/components/niveis-da-assistente";
 
 export const Route = createFileRoute("/_app/pessoas/$id")({
   head: () => ({
@@ -179,6 +180,7 @@ function PersonProfile() {
             </div>
           )}
           <ObservacoesDaAssistente personId={person.id} nome={person.full_name} />
+          <NiveisDaAssistenteDaPessoa personId={person.id} nome={person.full_name} />
         </TabsContent>
         <TabsContent value="relatorios" className="mt-4">
           <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5">

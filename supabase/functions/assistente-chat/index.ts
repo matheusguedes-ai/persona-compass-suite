@@ -18,23 +18,49 @@
 // painel do mentor); então o portão é `assistente_mentor_liberada()` (dono da conta, com alunos) em vez
 // de `assistente_liberada()`. Sem o campo, é a do aluno — exatamente como sempre. Um aluno que mande
 // "mentor" cai no portão do mentor e é recusado; um mentor que mande "aluno", no do aluno.
+//
+// #317 — TRÊS NÍVEIS (Básica, Smart, Pro). O corpo pode trazer `categoria`. O MAPA nível → modelo mora
+// SÓ AQUI (`NIVEIS`): é o único lugar que chama a Anthropic, e o app registra o modelo que ESTA função
+// devolve — nunca uma cópia do mapa. O teto é conferido aqui de novo, com o token de quem pergunta
+// (`assistente_categorias()`), não só no servidor do app: um aluno que chamasse esta função direto
+// com "pro" sem ter a Pro liberada é recusado. O mentor (portão do mentor) tem as três. Sem
+// `categoria` no corpo = o nível mais baixo que a pessoa tem — com os tetos de hoje, a Básica, que é
+// exatamente a configuração de sempre (o app publicado antes da #317 continua funcionando igual).
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const MODELO = "claude-sonnet-5";
 const TENTATIVAS = 3;
 
-type Mensagem = { role: "user" | "assistant"; content: string };
-type Corpo = { instrucoes?: string; contexto?: string; historico?: Mensagem[]; escopo?: string };
+type Categoria = "basica" | "smart" | "pro";
+const ORDEM: Categoria[] = ["basica", "smart", "pro"];
 
-function erro(mensagem: string, status: number): Response {
-  return new Response(JSON.stringify({ error: mensagem }), {
+type Nivel = {
+  modelo: string;
+  esforco: "low" | "medium" | "high";
+  maxTokens: number;
+  // Opus 5: os classificadores de segurança podem recusar um pedido; com `fallbacks: "default"` a
+  // própria API refaz o pedido no modelo recomendado para aquela categoria de recusa, na mesma chamada.
+  fallback: boolean;
+};
+
+const NIVEIS: Record<Categoria, Nivel> = {
+  // A assistente de sempre — nada muda para quem já usa (mesmo modelo, esforço e teto de saída).
+  basica: { modelo: "claude-sonnet-5", esforco: "low", maxTokens: 8000, fallback: false },
+  smart: { modelo: "claude-sonnet-5", esforco: "high", maxTokens: 16000, fallback: false },
+  pro: { modelo: "claude-opus-5", esforco: "high", maxTokens: 16000, fallback: true },
+};
+
+type Mensagem = { role: "user" | "assistant"; content: string };
+type Corpo = { instrucoes?: string; contexto?: string; historico?: Mensagem[]; escopo?: string; categoria?: string };
+
+function erro(mensagem: string, status: number, extra: Record<string, unknown> = {}): Response {
+  return new Response(JSON.stringify({ error: mensagem, ...extra }), {
     status,
     headers: { "content-type": "application/json" },
   });
 }
 
-function corpoValido(c: unknown): c is Required<Corpo> {
+function corpoValido(c: unknown): c is Required<Omit<Corpo, "categoria" | "escopo">> & Corpo {
   const o = c as Corpo;
   return (
     !!o &&
@@ -46,7 +72,8 @@ function corpoValido(c: unknown): c is Required<Corpo> {
     o.historico.length > 0 &&
     o.historico.every(
       (m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.length > 0,
-    )
+    ) &&
+    (o.categoria === undefined || ORDEM.includes(o.categoria as Categoria))
   );
 }
 
@@ -83,7 +110,7 @@ Deno.serve(async (req) => {
   }
   if (!corpoValido(corpo)) return erro("corpo inválido", 400);
 
-  const doMentor = (corpo as Corpo).escopo === "mentor";
+  const doMentor = corpo.escopo === "mentor";
   const { data: liberada, error: liberadaErro } = await supabase.rpc(
     doMentor ? "assistente_mentor_liberada" : "assistente_liberada",
   );
@@ -91,19 +118,35 @@ Deno.serve(async (req) => {
     return erro(doMentor ? "assistente do mentor não liberada para este login" : "assistente não liberada para este login", 403);
   }
 
+  // #317 — o teto de quem pergunta. Mentor: as três. Aluno: a soma das liberações dele, pelo banco.
+  let permitidas: Categoria[] = ORDEM;
+  if (!doMentor) {
+    const { data: teto, error: tetoErro } = await supabase.rpc("assistente_categorias");
+    if (tetoErro) {
+      console.error("[assistente-chat] teto de níveis:", tetoErro.message);
+      return erro("não foi possível conferir o nível liberado", 500);
+    }
+    permitidas = ORDEM.filter((c) => ((teto ?? []) as string[]).includes(c));
+    if (!permitidas.length) return erro("nenhum nível liberado para este login", 403);
+  }
+  const categoria: Categoria = (corpo.categoria as Categoria | undefined) ?? permitidas[0];
+  if (!permitidas.includes(categoria)) return erro("nível não liberado para este login", 403, { categoria });
+  const nivel = NIVEIS[categoria];
+
   const chave = Deno.env.get("ANTHROPIC_API_KEY");
   if (!chave) {
     // Sem a chave, a função existe mas não pode responder — a mensagem NÃO diz "sem chave" para
     // quem chama; só o log do lado de dentro sabe o motivo exato.
     console.error("[assistente-chat] ANTHROPIC_API_KEY não configurada nos secrets desta função");
-    return erro("modelo indisponível", 503);
+    return erro("modelo indisponível", 503, { categoria, modelo: nivel.modelo });
   }
 
   const corpoAnthropic = JSON.stringify({
-    model: MODELO,
-    max_tokens: 8000,
+    model: nivel.modelo,
+    max_tokens: nivel.maxTokens,
     thinking: { type: "adaptive" },
-    output_config: { effort: "low" },
+    output_config: { effort: nivel.esforco },
+    ...(nivel.fallback ? { fallbacks: "default" } : {}),
     cache_control: { type: "ephemeral" },
     system: [
       { type: "text", text: corpo.instrucoes, cache_control: { type: "ephemeral" } },
@@ -111,6 +154,12 @@ Deno.serve(async (req) => {
     ],
     messages: corpo.historico,
   });
+  const cabecalhos: Record<string, string> = {
+    "x-api-key": chave,
+    "anthropic-version": "2023-06-01",
+    "content-type": "application/json",
+    ...(nivel.fallback ? { "anthropic-beta": "server-side-fallback-2026-07-01" } : {}),
+  };
 
   const inicio = Date.now();
   let resposta: globalThis.Response | null = null;
@@ -120,11 +169,7 @@ Deno.serve(async (req) => {
     try {
       resposta = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: {
-          "x-api-key": chave,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
+        headers: cabecalhos,
         body: corpoAnthropic,
       });
     } catch (e) {
@@ -139,15 +184,15 @@ Deno.serve(async (req) => {
 
   if (falhaDeRede || !resposta) {
     console.error("[assistente-chat] falha de rede ao chamar a Anthropic:", String(falhaDeRede).slice(0, 200));
-    return erro("modelo indisponível", 502);
+    return erro("modelo indisponível", 502, { categoria, modelo: nivel.modelo });
   }
 
   if (!resposta.ok) {
     // O corpo do erro do provedor NÃO é repassado ao chamador — só o `type`, que é seguro (não
     // carrega segredo nenhum), fica no log daqui, para eu conseguir diagnosticar depois.
     const corpoErro = await resposta.json().catch(() => null);
-    console.error(`[assistente-chat] Anthropic respondeu ${resposta.status}:`, corpoErro?.error?.type ?? "sem detalhe");
-    return erro("modelo indisponível", 502);
+    console.error(`[assistente-chat] Anthropic respondeu ${resposta.status} (${nivel.modelo}):`, corpoErro?.error?.type ?? "sem detalhe");
+    return erro("modelo indisponível", 502, { categoria, modelo: nivel.modelo });
   }
 
   const dados = await resposta.json();
@@ -168,6 +213,9 @@ Deno.serve(async (req) => {
         cache_read_input_tokens: dados.usage?.cache_read_input_tokens ?? 0,
       },
       ms: Date.now() - inicio,
+      // O modelo que DE FATO respondeu (com fallback, pode não ser o pedido) e o nível usado.
+      modelo: typeof dados.model === "string" ? dados.model : nivel.modelo,
+      categoria,
     }),
     { headers: { "content-type": "application/json" } },
   );

@@ -16,7 +16,7 @@ import { contextoDaConta } from "@/lib/assistente-mentor/contexto";
 export {
   AssistenteDesligada,
   AssistenteFalhou,
-  MODELO_DA_ASSISTENTE,
+  modeloDoErro,
   perguntarAoModelo,
   resumoDoErro,
 } from "@/lib/assistente/modelo.server";

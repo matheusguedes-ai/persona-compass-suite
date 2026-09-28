@@ -116,6 +116,7 @@ export type Database = {
       }
       assistente_liberacoes: {
         Row: {
+          categorias: string[]
           conta_id: string
           criado_em: string
           group_id: string | null
@@ -123,6 +124,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          categorias?: string[]
           conta_id: string
           criado_em?: string
           group_id?: string | null
@@ -130,6 +132,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          categorias?: string[]
           conta_id?: string
           criado_em?: string
           group_id?: string | null
@@ -255,10 +258,35 @@ export type Database = {
         }
         Relationships: []
       }
+      assistente_preferencias: {
+        Row: {
+          atualizada_em: string
+          categoria: string
+          conta_id: string
+          escopo: string
+          user_id: string
+        }
+        Insert: {
+          atualizada_em?: string
+          categoria: string
+          conta_id: string
+          escopo: string
+          user_id: string
+        }
+        Update: {
+          atualizada_em?: string
+          categoria?: string
+          conta_id?: string
+          escopo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       assistente_uso: {
         Row: {
           cache_creation_input_tokens: number
           cache_read_input_tokens: number
+          categoria: string | null
           conta_id: string
           conversa_id: string | null
           conversa_mentor_id: string | null
@@ -277,6 +305,7 @@ export type Database = {
         Insert: {
           cache_creation_input_tokens?: number
           cache_read_input_tokens?: number
+          categoria?: string | null
           conta_id: string
           conversa_id?: string | null
           conversa_mentor_id?: string | null
@@ -295,6 +324,7 @@ export type Database = {
         Update: {
           cache_creation_input_tokens?: number
           cache_read_input_tokens?: number
+          categoria?: string | null
           conta_id?: string
           conversa_id?: string | null
           conversa_mentor_id?: string | null
@@ -2563,6 +2593,7 @@ export type Database = {
       }
       acting_account: { Args: Record<string, never>; Returns: string }
       conta_do_autor: { Args: { p_author_id: string }; Returns: string }
+      assistente_categorias: { Args: never; Returns: string[] }
       assistente_liberada: { Args: never; Returns: boolean }
       assistente_mentor_liberada: { Args: never; Returns: boolean }
       assistente_revogar: { Args: never; Returns: undefined }

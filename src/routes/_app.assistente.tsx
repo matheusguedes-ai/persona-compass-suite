@@ -16,6 +16,9 @@ import {
   enviarMensagemDoMentor, type ConversaDoMentor, type MensagemDoMentor,
 } from "@/lib/assistente-mentor.functions";
 import { ASSISTENTE_DO_MENTOR as TXT } from "@/lib/assistente-mentor/textos";
+import type { NiveisDaTela } from "@/lib/assistente/niveis";
+import { SeletorDeNivel } from "@/components/seletor-de-nivel";
+import { useNivelDaAssistente } from "@/hooks/use-nivel-da-assistente";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,7 +80,7 @@ function PaginaDaAssistenteDoMentor() {
   }
   return (
     <Moldura>
-      <Conversas conversas={data.conversas} />
+      <Conversas conversas={data.conversas} niveis={data.niveis} />
     </Moldura>
   );
 }
@@ -233,13 +236,15 @@ function ListaDeConversas({
   );
 }
 
-function Conversas({ conversas }: { conversas: ConversaDoMentor[] }) {
+function Conversas({ conversas, niveis }: { conversas: ConversaDoMentor[]; niveis: NiveisDaTela }) {
   const qc = useQueryClient();
   const [ativa, setAtiva] = useState<string | null>(null);
   const [locais, setLocais] = useState<Pick<MensagemDoMentor, "papel" | "conteudo">[]>([]);
   const [texto, setTexto] = useState("");
   const [gavetaAberta, setGavetaAberta] = useState(false);
   const fim = useRef<HTMLDivElement>(null);
+  // #317 — o mentor escolhe livremente entre os três níveis.
+  const { nivel, escolher, conferirResposta } = useNivelDaAssistente("mentor", niveis);
 
   const abrirFn = useServerFn(abrirConversaDoMentor);
   const { data: carregadas, isFetching } = useQuery({
@@ -250,7 +255,8 @@ function Conversas({ conversas }: { conversas: ConversaDoMentor[] }) {
 
   const enviarFn = useServerFn(enviarMensagemDoMentor);
   const enviar = useMutation({
-    mutationFn: (pergunta: string) => enviarFn({ data: { conversa_id: ativa, texto: pergunta } }),
+    mutationFn: (pergunta: string) =>
+      enviarFn({ data: { conversa_id: ativa, texto: pergunta, categoria: nivel ?? undefined } }),
     onMutate: (pergunta) => {
       setLocais((l) => [...l, { papel: "mentor", conteudo: pergunta }]);
       setTexto("");
@@ -262,6 +268,7 @@ function Conversas({ conversas }: { conversas: ConversaDoMentor[] }) {
       ]);
       setLocais([]);
       setAtiva(r.conversa_id);
+      conferirResposta(r.categoria);
       void qc.invalidateQueries({ queryKey: ["assistente-mentor"] });
     },
     onError: (e, pergunta) => {
@@ -359,6 +366,9 @@ function Conversas({ conversas }: { conversas: ConversaDoMentor[] }) {
         </div>
 
         <div className="border-t border-black/5 p-3">
+          <div className="mb-1.5 flex">
+            <SeletorDeNivel permitidas={niveis.permitidas} atual={nivel} onEscolher={escolher} desabilitado={enviar.isPending} />
+          </div>
           <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); mandar(texto); }}>
             <Textarea
               value={texto}

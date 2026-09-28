@@ -23,6 +23,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { MensagemDoHistorico } from "@/lib/assistente/modelo.server";
 import { ERROS_DA_ASSISTENTE_DO_MENTOR as ERROS } from "@/lib/assistente-mentor/textos";
 import { perguntaComTrechosDaBiblioteca } from "@/lib/assistente/biblioteca-busca.server";
+import { CATEGORIAS, nivelEmUso } from "@/lib/assistente/niveis";
+import { escolhaLembrada, niveisDaTela } from "@/lib/assistente/niveis.server";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -58,7 +60,9 @@ export const carregarAssistenteDoMentor = createServerFn({ method: "GET" })
       .order("atualizada_em", { ascending: false })
       .order("id");
     if (error) throw new Error(`Não foi possível ler as suas conversas (${error.message}).`);
-    return { liberada: ok, conversas: (data ?? []) as ConversaDoMentor[] };
+    // #317 — o mentor escolhe livremente entre os três níveis (não há teto para ele).
+    const niveis = await niveisDaTela(supabase, userId, "mentor");
+    return { liberada: ok, conversas: (data ?? []) as ConversaDoMentor[], niveis };
   });
 
 export const abrirConversaDoMentor = createServerFn({ method: "GET" })
@@ -89,6 +93,9 @@ function tituloDe(texto: string): string {
  * Uma pergunta do mentor. Os dados da conta são lidos DE NOVO a cada pergunta (com o login dele), então
  * a resposta sai do estado de agora. Se o modelo falhar, a pergunta NÃO fica guardada — a tela devolve
  * o texto para a caixa.
+ *
+ * #317 — `categoria` é o nível escolhido na tela (qualquer um dos três). Sem ela, vale a última escolha
+ * dele, ou a Básica.
  */
 export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -96,6 +103,7 @@ export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
     z.object({
       conversa_id: z.string().uuid().nullable().optional(),
       texto: z.string().trim().min(1).max(4000),
+      categoria: z.enum(CATEGORIAS).optional(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -104,6 +112,7 @@ export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
     // O portão acima garante acting_account() = o próprio login: a conta é ele.
     const conta = userId;
     const servidor = await import("@/lib/assistente-mentor/assistente.server");
+    const categoria = nivelEmUso(CATEGORIAS, data.categoria ?? (await escolhaLembrada(supabase, userId, "mentor"))) ?? "basica";
 
     let contexto: string;
     try {
@@ -172,14 +181,14 @@ export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
         historicoCortado ? `${contexto}\n\n${servidor.avisoDeHistoricoCortado(MAX_HISTORICO)}` : contexto,
         historico,
         undefined,
-        { instrucoes: servidor.INSTRUCOES_DO_MENTOR, escopo: "mentor" },
+        { instrucoes: servidor.INSTRUCOES_DO_MENTOR, escopo: "mentor", categoria },
       );
     } catch (e) {
       await db.from("assistente_mentor_mensagens").delete().eq("id", pergunta.id);
       if (conversaNova) await db.from("assistente_mentor_conversas").delete().eq("id", conversaId);
       await db.from("assistente_uso").insert({
         user_id: userId, conta_id: conta, escopo: "mentor", conversa_mentor_id: conversaNova ? null : conversaId,
-        modelo: servidor.MODELO_DA_ASSISTENTE, erro: servidor.resumoDoErro(e),
+        modelo: servidor.modeloDoErro(e), categoria, erro: servidor.resumoDoErro(e),
       });
       console.error("[assistente-mentor] falha ao responder:", servidor.resumoDoErro(e));
       throw new Error(e instanceof servidor.AssistenteDesligada ? ERROS.desligada : ERROS.falhou);
@@ -194,10 +203,11 @@ export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
       .single();
     if (aErr || !dita) throw new Error(`Não foi possível guardar a resposta (${aErr?.message}).`);
 
+    const respondeu = resposta.categoria ?? categoria;
     const [{ error: uErr }, { error: cErr }] = await Promise.all([
       db.from("assistente_uso").insert({
         user_id: userId, conta_id: conta, escopo: "mentor", conversa_mentor_id: conversaId,
-        modelo: servidor.MODELO_DA_ASSISTENTE, stop_reason: resposta.stopReason, duracao_ms: resposta.ms,
+        modelo: resposta.modelo, categoria: respondeu, stop_reason: resposta.stopReason, duracao_ms: resposta.ms,
         ...resposta.uso,
       }),
       db.from("assistente_mentor_conversas").update({ atualizada_em: new Date().toISOString() }).eq("id", conversaId),
@@ -205,7 +215,7 @@ export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
     if (uErr) console.error("[assistente-mentor] registro de uso falhou:", uErr.message);
     if (cErr) console.error("[assistente-mentor] data da conversa não atualizou:", cErr.message);
 
-    return { conversa_id: conversaId as string, mensagens: [pergunta, dita] as MensagemDoMentor[] };
+    return { conversa_id: conversaId as string, mensagens: [pergunta, dita] as MensagemDoMentor[], categoria: respondeu };
   });
 
 export const apagarConversaDoMentor = createServerFn({ method: "POST" })
