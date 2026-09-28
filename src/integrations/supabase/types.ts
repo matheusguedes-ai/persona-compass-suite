@@ -2602,6 +2602,17 @@ export type Database = {
       rebaixar_mentor: { Args: { p_person_id: string }; Returns: undefined }
       meus_grupos_como_avaliado: { Args: Record<string, never>; Returns: string[] }
       posso_ver_grupo: { Args: { p_group_id: string }; Returns: boolean }
+      colegas_de_grupo: {
+        Args: { p_group_ids: string[] }
+        Returns: Array<{
+          group_id: string
+          person_id: string
+          full_name: string
+          avatar_url: string | null
+          role_at_company: string | null
+          user_id: string | null
+        }>
+      }
       posso_ver_treinamento: { Args: { p_trein: string }; Returns: boolean }
       posso_dar_aula: { Args: { p_aula: string }; Returns: boolean }
       nome_do_mentor: { Args: { p_user_id: string }; Returns: string | null }

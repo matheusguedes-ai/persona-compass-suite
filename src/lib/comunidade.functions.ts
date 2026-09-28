@@ -17,6 +17,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { exigirPermissao, exigirPermissaoOuVisitante } from "@/lib/permissao.server";
+import { lerTodasOuRecusar } from "@/lib/ler-todas";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { darPonto, contaDaPessoa } from "@/lib/pontos.functions";
@@ -263,15 +264,22 @@ async function notificarMencoes(
   if (mencoes.length === 0 || args.groupIds.length === 0) return;
   const idsMencionados = [...new Set(mencoes.map((m) => m.personId))];
 
-  const { data: validos } = await supabase
-    .from("group_members")
-    .select("person_id, people(user_id)")
-    .in("group_id", args.groupIds)
-    .in("person_id", idsMencionados);
+  // #319 — mesma correção de `membrosDosGrupos`: o nested select em `people` voltava nulo para
+  // qualquer colega (sem regra de "mesmo grupo" na RLS), então nenhuma menção de aluno notificava
+  // ninguém — a checagem de segurança do comentário acima funcionava, só que também zerava a
+  // funcionalidade. `colegas_de_grupo` já reconfere o grupo no banco; aqui só filtra pelos ids
+  // marcados no texto.
+  const { data: colegasRaw, error: cErr } = await (supabase.rpc as never as (
+    n: string, a: unknown,
+  ) => Promise<{ data: Array<{ person_id: string; user_id: string | null }> | null; error: { message: string } | null }>)(
+    "colegas_de_grupo", { p_group_ids: args.groupIds },
+  );
+  if (cErr) throw new Error(cErr.message);
+  const validos = (colegasRaw ?? []).filter((v) => idsMencionados.includes(v.person_id));
 
   const alvos = new Set<string>();
-  for (const v of validos ?? []) {
-    const uid = v.people?.user_id;
+  for (const v of validos) {
+    const uid = v.user_id;
     if (uid && uid !== args.autorUserId) alvos.add(uid);
   }
   if (alvos.size === 0) return;
@@ -584,6 +592,13 @@ export const apagarComentario = createServerFn({ method: "POST" })
  * perfil comportamental de todo mundo do grupo a um clique. Se um dia isso
  * mudar, tem de ser decisão explícita — não pode vazar por eu ter escrito
  * `select("*")` sem pensar.
+ *
+ * #319 — antes disto o nested select em `people` (dentro de `group_members`) voltava nulo para
+ * QUALQUER colega: a RLS de `people` só libera a própria linha ou quem o MENTOR cadastrou, sem
+ * regra de "mesmo grupo" — um aluno via só a si mesmo. A identidade vem agora de
+ * `colegas_de_grupo` (RPC), que reconfere no banco, grupo a grupo, se quem pediu pode ver aquele
+ * grupo (não confia no array vindo do navegador) e devolve só as colunas de identidade — nunca
+ * e-mail/telefone/profissão, que continuam só em `perfil_do_colega`, com a chavinha.
  */
 export const membrosDosGrupos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -595,24 +610,30 @@ export const membrosDosGrupos = createServerFn({ method: "GET" })
     // Mesmo motivo de `listarFeed`: a aba Membros é a mesma tela do aluno.
     await exigirPermissaoOuVisitante(supabase, context.userId, "grupos");
 
-    // A RLS de `group_members` já barra grupo que a pessoa não pode ver, então
-    // não há como pedir a lista de um grupo alheio passando o id.
-    const { data: vinculos, error } = await supabase
-      .from("group_members")
-      .select("group_id, person_id, people(id, full_name, avatar_url, role_at_company), groups(name)")
-      .in("group_id", data.group_ids);
-    if (error) throw new Error(error.message);
+    const vinculos = await lerTodasOuRecusar(
+      (de, ate) =>
+        supabase
+          .rpc("colegas_de_grupo", { p_group_ids: data.group_ids }, { count: "exact" })
+          .order("group_id")
+          .order("person_id")
+          .range(de, ate),
+      "os membros dos grupos",
+    );
+
+    const { data: grupos, error: gErr } = await supabase.from("groups").select("id, name").in("id", data.group_ids);
+    if (gErr) throw new Error(gErr.message);
+    const nomeDoGrupo = new Map((grupos ?? []).map((g) => [g.id, g.name]));
 
     // Quem está em dois grupos do mesmo feed aparece uma vez só.
     const vistos = new Set<string>();
-    const membros = (vinculos ?? [])
-      .filter((v) => v.people && !vistos.has(v.person_id) && vistos.add(v.person_id))
+    const membros = vinculos
+      .filter((v) => !vistos.has(v.person_id) && vistos.add(v.person_id))
       .map((v) => ({
         person_id: v.person_id,
-        nome: v.people!.full_name,
-        avatar_url: v.people!.avatar_url ?? null,
-        cargo: v.people!.role_at_company ?? null,
-        grupo: v.groups?.name ?? null,
+        nome: v.full_name,
+        avatar_url: v.avatar_url ?? null,
+        cargo: v.role_at_company ?? null,
+        grupo: nomeDoGrupo.get(v.group_id) ?? null,
       }))
       .sort((a, b) => a.nome.localeCompare(b.nome));
 
