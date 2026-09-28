@@ -397,9 +397,10 @@ export type Database = {
         Relationships: []
       }
       biblioteca_materiais: {
-        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; url: string; kind: string; categoria: string | null; capa_url: string | null; pasta_id: string | null; created_at: string; arquivo_proprio: boolean }
-        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; url: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean }
-        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; url?: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean }
+        // #312 — indexacao_status/indexacao_erro/indexado_em/paginas/trechos_count: estado do texto extraído (só PDF).
+        Row: { id: string; mentor_id: string; titulo: string; descricao: string | null; url: string; kind: string; categoria: string | null; capa_url: string | null; pasta_id: string | null; created_at: string; arquivo_proprio: boolean; indexacao_status: string; indexacao_erro: string | null; indexado_em: string | null; paginas: number | null; trechos_count: number | null }
+        Insert: { id?: string; mentor_id: string; titulo: string; descricao?: string | null; url: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean; indexacao_status?: string; indexacao_erro?: string | null; indexado_em?: string | null; paginas?: number | null; trechos_count?: number | null }
+        Update: { id?: string; mentor_id?: string; titulo?: string; descricao?: string | null; url?: string; kind?: string; categoria?: string | null; capa_url?: string | null; pasta_id?: string | null; created_at?: string; arquivo_proprio?: boolean; indexacao_status?: string; indexacao_erro?: string | null; indexado_em?: string | null; paginas?: number | null; trechos_count?: number | null }
         Relationships: [
           {
             foreignKeyName: "biblioteca_materiais_pasta_id_fkey"
@@ -457,6 +458,21 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "biblioteca_material_destinos_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "biblioteca_materiais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // #312 — o texto do PDF, em pedaços. Sem policy para authenticated: só bib_buscar_trechos/bib_amostra_trechos leem.
+      biblioteca_material_trechos: {
+        Row: { id: string; mentor_id: string; material_id: string; ordem: number; pagina_inicio: number | null; pagina_fim: number | null; conteudo: string; created_at: string }
+        Insert: { id?: string; mentor_id: string; material_id: string; ordem: number; pagina_inicio?: number | null; pagina_fim?: number | null; conteudo: string; created_at?: string }
+        Update: { id?: string; mentor_id?: string; material_id?: string; ordem?: number; pagina_inicio?: number | null; pagina_fim?: number | null; conteudo?: string; created_at?: string }
+        Relationships: [
+          {
+            foreignKeyName: "biblioteca_material_trechos_material_id_fkey"
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "biblioteca_materiais"
@@ -2603,6 +2619,21 @@ export type Database = {
       bib_pode_ver_material: { Args: { _material_id: string }; Returns: boolean }
       bib_pode_ver_pasta: { Args: { _pasta_id: string }; Returns: boolean }
       bib_visiveis: { Args: { _person_id?: string | null }; Returns: Array<{ tipo: string; id: string }> }
+      // #312 — busca nos trechos extraídos dos PDFs, já filtrada por bib_visiveis().
+      bib_buscar_trechos: {
+        Args: { _query: string; _material_id?: string | null; _limite?: number }
+        Returns: Array<{
+          material_id: string; titulo: string; ordem: number; conteudo: string
+          pagina_inicio: number | null; pagina_fim: number | null; relevancia: number
+        }>
+      }
+      bib_amostra_trechos: {
+        Args: { _material_id: string; _limite?: number }
+        Returns: Array<{
+          material_id: string; titulo: string; ordem: number; conteudo: string
+          pagina_inicio: number | null; pagina_fim: number | null
+        }>
+      }
       bib_quem_ve: {
         Args: { _pasta_id: string | null; _material_id: string | null }
         Returns: Array<{

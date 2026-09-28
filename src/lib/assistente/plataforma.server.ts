@@ -146,7 +146,7 @@ async function biblioteca(supabase: Cliente): Promise<PlataformaDoAluno["bibliot
   if (!ids.length) return [];
   const { data, error } = await supabase
     .from("biblioteca_materiais")
-    .select("id, titulo, descricao, kind, categoria, pasta_id, biblioteca_pastas(titulo)")
+    .select("id, titulo, descricao, kind, categoria, pasta_id, indexacao_status, biblioteca_pastas(titulo)")
     .in("id", ids)
     .order("titulo")
     .order("id");
@@ -157,6 +157,9 @@ async function biblioteca(supabase: Cliente): Promise<PlataformaDoAluno["bibliot
     tipo: b.kind,
     categoria: b.categoria,
     pasta: (b.biblioteca_pastas as { titulo: string } | null)?.titulo ?? null,
+    // #312: só PDF tem conteúdo para ler; os demais tipos nunca chegam a "pendente"/"erro" (nasceram nao_aplicavel).
+    conteudoLegivel: b.indexacao_status === "pronto",
+    aindaProcessando: b.kind === "pdf" && b.indexacao_status !== "pronto" && b.indexacao_status !== "erro",
   }));
 }
 

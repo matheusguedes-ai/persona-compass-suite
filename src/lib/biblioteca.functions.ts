@@ -54,12 +54,15 @@ export const salvarMaterial = createServerFn({ method: "POST" })
     const { ehUrlAssinadaNossa } = await import("@/lib/storage-assinado.server");
     let url = campos.url;
     let capaUrl = campos.capa_url ?? null;
+    // #312: o "antes" também diz se o PDF é novo ou trocou de arquivo — é o que decide se reindexa.
+    let anterior: { url: string; kind: string } | null = null;
     // Editar sem trocar o arquivo/capa reenvia o valor ASSINADO que a
     // listagem mostrou (é o que está no campo do formulário) — preserva o que
     // já estava gravado em vez de persistir um link que expira em minutos.
-    if (id && (ehUrlAssinadaNossa(url) || ehUrlAssinadaNossa(capaUrl))) {
+    if (id) {
       const { data: atual } = await context.supabase
-        .from("biblioteca_materiais").select("url, capa_url").eq("id", id).maybeSingle();
+        .from("biblioteca_materiais").select("url, capa_url, kind").eq("id", id).maybeSingle();
+      if (atual) anterior = { url: atual.url, kind: atual.kind };
       if (ehUrlAssinadaNossa(url)) url = atual?.url ?? url;
       if (ehUrlAssinadaNossa(capaUrl)) capaUrl = atual?.capa_url ?? null;
     }
@@ -72,6 +75,8 @@ export const salvarMaterial = createServerFn({ method: "POST" })
       capa_url: capaUrl,
       pasta_id: campos.pasta_id ?? null,
       arquivo_proprio: campos.arquivo_proprio,
+      // Só no CRIAR: editar não pisa num status que a indexação já esteja escrevendo por baixo.
+      ...(id ? {} : { indexacao_status: campos.kind === "pdf" ? "pendente" : "nao_aplicavel" }),
     };
     if (campos.pasta_id) await conferirPasta(context.supabase, campos.pasta_id);
 
@@ -80,8 +85,27 @@ export const salvarMaterial = createServerFn({ method: "POST" })
       : context.supabase
           .from("biblioteca_materiais")
           .insert({ ...linha, mentor_id: context.userId });
-    const { data: row, error } = await q.select("id").single();
+    const { data: row, error } = await q.select("id, mentor_id").single();
     if (error) throw new Error(error.message);
+
+    // #312: PDF novo, ou que trocou de arquivo, ganha o texto indexado sem ninguém pedir. Falha na
+    // extração não derruba o salvamento — o material fica salvo, só sem conteúdo buscável (registrado
+    // em indexacao_erro; reprocessa rodando de novo, ou pelo script de backfill).
+    const precisaIndexar = campos.kind === "pdf" && (!anterior || anterior.url !== url || anterior.kind !== "pdf");
+    if (precisaIndexar) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { indexarMaterialPdf } = await import("@/lib/biblioteca-indexacao.server");
+      const resultado = await indexarMaterialPdf(supabaseAdmin, { id: row.id, mentor_id: row.mentor_id, url });
+      if (!resultado.ok) console.error("[biblioteca] indexação falhou:", resultado.erro);
+    } else if (anterior?.kind === "pdf" && campos.kind !== "pdf") {
+      // Deixou de ser PDF: os trechos velhos não têm mais dono de verdade.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("biblioteca_material_trechos").delete().eq("material_id", row.id);
+      await supabaseAdmin
+        .from("biblioteca_materiais")
+        .update({ indexacao_status: "nao_aplicavel", indexacao_erro: null, indexado_em: null, paginas: null, trechos_count: null })
+        .eq("id", row.id);
+    }
     return { ok: true, id: row.id };
   });
 

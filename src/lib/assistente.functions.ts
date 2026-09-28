@@ -21,6 +21,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ERROS_DA_ASSISTENTE } from "@/lib/assistente/textos";
 import { avisoDeHistoricoCortado } from "@/lib/assistente/historico";
+import { perguntaComTrechosDaBiblioteca } from "@/lib/assistente/biblioteca-busca.server";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -249,6 +250,9 @@ export const enviarMensagem = createServerFn({ method: "POST" })
       .map((m) => ({ role: m.papel === "aluno" ? ("user" as const) : ("assistant" as const), content: m.conteudo }));
     while (historico.length && historico[0].role !== "user") historico.shift();
     historico.push({ role: "user", content: data.texto });
+    // #312: busca nos trechos do acervo (com a sessão do aluno — a permissão é a mesma da tela) e, se
+    // achar algo, entra na ÚLTIMA mensagem do histórico — nunca no `contexto` (que fica em cache).
+    historico[historico.length - 1].content = await perguntaComTrechosDaBiblioteca(supabase, data.texto);
 
     let resposta: Awaited<ReturnType<typeof servidor.perguntarAoModelo>>;
     try {

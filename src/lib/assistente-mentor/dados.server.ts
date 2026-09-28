@@ -40,6 +40,7 @@ import { lerTodas } from "@/lib/ler-todas";
 import {
   leituraDoRelatorio,
   type AulaDoTreinamento,
+  type BibliotecaDaConta,
   type CampanhaDaConta,
   type CompromissoDaAgenda,
   type DadosDaConta,
@@ -599,6 +600,43 @@ async function certificados(supabase: Cliente, conta: string) {
 }
 
 /**
+ * #312 — o acervo da Biblioteca da conta. Com a sessão do MENTOR, `bib_visiveis()` já devolve tudo
+ * (ele é o dono/equipe — a mesma regra de `bib_pode_ver_material`): sem o limite de permissão do
+ * aluno, e sem função separada — é a mesma porta, só chamada com outro login.
+ */
+async function biblioteca(supabase: Cliente) {
+  const { data: liberados, error: lErr } = await supabase.rpc("bib_materiais_liberados", { _person_id: null });
+  if (lErr) falhou("biblioteca", lErr);
+  const ids = [...new Set((liberados ?? []) as string[])];
+  if (!ids.length) {
+    return {
+      biblioteca: [] as BibliotecaDaConta[],
+      cobertura: { area: "biblioteca", texto: "a conta não tem material na Biblioteca", parcial: false } as ItemDaCobertura,
+    };
+  }
+  const { data, error } = await supabase
+    .from("biblioteca_materiais")
+    .select("id, titulo, descricao, kind, categoria, pasta_id, indexacao_status, biblioteca_pastas(titulo)")
+    .in("id", ids)
+    .order("titulo")
+    .order("id");
+  if (error) falhou("biblioteca", error);
+  const lista: BibliotecaDaConta[] = (data ?? []).map((b) => ({
+    titulo: b.titulo,
+    descricao: b.descricao,
+    tipo: b.kind,
+    categoria: b.categoria,
+    pasta: (b.biblioteca_pastas as { titulo: string } | null)?.titulo ?? null,
+    conteudoLegivel: b.indexacao_status === "pronto",
+    aindaProcessando: b.kind === "pdf" && b.indexacao_status !== "pronto" && b.indexacao_status !== "erro",
+  }));
+  return {
+    biblioteca: lista,
+    cobertura: { area: "biblioteca", texto: `todos os ${mil(lista.length)} materiais da Biblioteca`, parcial: false } as ItemDaCobertura,
+  };
+}
+
+/**
  * Os eventos da Agenda do painel (a mesma tabela da tela Agenda), a partir de `desde` — e QUANTOS
  * existem antes disso, para o texto dizer "há mais antigos que não recebi" em vez de calar.
  */
@@ -711,7 +749,7 @@ export async function lerDadosDaConta(
     }
   }
   const nada = (area: ItemDaCobertura["area"]): ItemDaCobertura => ({ area, texto: "não foi possível ler agora", parcial: true });
-  const [rp, trs, tls, cps, pts, mts, cts, ev] = await Promise.all([
+  const [rp, trs, tls, cps, pts, mts, cts, bib, ev] = await Promise.all([
     tenta("resultados dos testes", () => resultadosEPendentes(supabase, conta, ids, relatorio), {
       resultados: [], pendentes: [], cobertura: [nada("resultados"), nada("envios")],
     }),
@@ -721,6 +759,7 @@ export async function lerDadosDaConta(
     tenta("ranking", () => pontos(supabase, conta), { pontos: [], cobertura: nada("ranking") }),
     tenta("mentorias", () => mentorias(supabase, conta), { mentorias: [], cobertura: nada("mentorias") }),
     tenta("certificados", () => certificados(supabase, conta), []),
+    tenta("Biblioteca", () => biblioteca(supabase), { biblioteca: [], cobertura: nada("biblioteca") }),
     tenta("Agenda", () => eventosDaAgenda(supabase, conta, desde), null),
   ]);
   const agenda = montarAgenda(desde, ev, trs.treinamentos, mts.mentorias);
@@ -757,6 +796,7 @@ export async function lerDadosDaConta(
     })),
     mentorias: mts.mentorias,
     certificados: cts,
+    biblioteca: bib.biblioteca,
     agenda: { desde, anteriores, itens: agenda.itens },
     cobertura: [
       ...base.cobertura,
@@ -767,6 +807,7 @@ export async function lerDadosDaConta(
       pts.cobertura,
       cps.cobertura,
       mts.cobertura,
+      bib.cobertura,
     ],
     indisponiveis: indisponiveis.sort(),
   };

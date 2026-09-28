@@ -175,12 +175,23 @@ export type MentoriaDaConta = {
 
 export type CertificadoDaConta = { pessoaId: string; item: string; tipo: "treinamento" | "trilha"; emitidoEm: string; percentual: number };
 
+/** #312: o acervo da Biblioteca — todo o da conta (o dono vê tudo, sem o limite de permissão do aluno). */
+export type BibliotecaDaConta = {
+  titulo: string;
+  descricao: string | null;
+  tipo: string;
+  categoria: string | null;
+  pasta: string | null;
+  conteudoLegivel: boolean;
+  aindaProcessando: boolean;
+};
+
 /**
  * #310 — o que a leitura cobriu, área por área. É o que separa "isto é tudo o que existe" de "isto é
  * tudo o que eu recebi": cada área diz quantos itens existem e se todos chegaram.
  */
 export type AreaDaCobertura =
-  | "alunos" | "resultados" | "envios" | "classroom" | "academy" | "agenda" | "ranking" | "campanhas" | "mentorias";
+  | "alunos" | "resultados" | "envios" | "classroom" | "academy" | "agenda" | "ranking" | "campanhas" | "mentorias" | "biblioteca";
 
 export type ItemDaCobertura = {
   area: AreaDaCobertura;
@@ -219,6 +230,7 @@ export type DadosDaConta = {
   regrasDePontos: Array<{ acao: string; rotulo: string; pontos: number; tetoDiario: number | null }>;
   mentorias: MentoriaDaConta[];
   certificados: CertificadoDaConta[];
+  biblioteca: BibliotecaDaConta[];
   /** O calendário: a partir de `desde`; `anteriores` = quantos compromissos mais antigos existem e NÃO vieram. */
   agenda: { desde: string; anteriores: number; itens: CompromissoDaAgenda[] };
   cobertura: ItemDaCobertura[];
@@ -745,6 +757,20 @@ function certificadosEmTexto(d: DadosDaConta, ix: Indice): string {
   );
 }
 
+function bibliotecaEmTexto(d: DadosDaConta): string {
+  if (!d.biblioteca.length) return secao("Biblioteca", ["Nenhum material cadastrado."]);
+  return secao("Biblioteca (fonte: Biblioteca)", [
+    avisoDaArea(d, "biblioteca"),
+    "Os marcados \"conteúdo disponível\" podem vir com trechos do texto na sua pergunta (bloco <trechos_da_biblioteca>, quando a busca achar algo). Dos demais você só tem título e descrição — não invente o que dizem.",
+    ...d.biblioteca.map(
+      (b) =>
+        `- "${b.titulo}" (${b.tipo}${b.categoria ? `, ${b.categoria}` : ""}${b.pasta ? `, pasta "${b.pasta}"` : ""})` +
+        (b.conteudoLegivel ? " — conteúdo disponível" : b.aindaProcessando ? " — ainda sendo processado" : "") +
+        (curto(b.descricao, 300) ? ` — ${curto(b.descricao, 300)}` : ""),
+    ),
+  ]);
+}
+
 function legendaEmTexto(): string {
   return secao("Como ler os números dos testes", [
     "- DISC, Temperamentos e VAK (escolha forçada): cada gráfico divide 100 pontos entre as letras; o que vale é a ORDEM. \"PERFIL\" é a sigla do gráfico natural (uma letra, ou duas quando empatam de perto).",
@@ -792,6 +818,7 @@ const ROTULO_DA_AREA: Record<AreaDaCobertura, string> = {
   ranking: "Ranking",
   campanhas: "Campanhas",
   mentorias: "Mentorias",
+  biblioteca: "Biblioteca",
 };
 
 /** O mapa do que chegou: primeira coisa do bloco, para "tudo o que existe" nunca ser confundido com "tudo o que recebi". */
@@ -882,6 +909,7 @@ export function contextoDaConta(d: DadosDaConta, agora: number): string {
     mentoriasEmTexto(d, ix, agora),
     campanhasEmTexto(d, ix),
     certificadosEmTexto(d, ix),
+    bibliotecaEmTexto(d),
     limitesEmTexto(d),
   ].filter((x) => !!x);
   return `<dados_da_conta>\n${partes.join("\n\n")}\n</dados_da_conta>`;

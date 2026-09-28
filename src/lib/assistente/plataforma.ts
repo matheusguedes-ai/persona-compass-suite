@@ -63,7 +63,17 @@ export type PlataformaDoAluno = {
   /** Áreas abertas para o aluno que falharam ao ler agora. */
   indisponiveis: string[];
   trilhas: TrilhaDoAluno[];
-  biblioteca: Array<{ titulo: string; descricao: string | null; tipo: string; categoria: string | null; pasta: string | null }>;
+  biblioteca: Array<{
+    titulo: string;
+    descricao: string | null;
+    tipo: string;
+    categoria: string | null;
+    pasta: string | null;
+    /** #312: true quando dá para ler e citar o CONTEÚDO (só PDF já processado); senão, só o título/descrição. */
+    conteudoLegivel: boolean;
+    /** #312: PDF que ainda está sendo processado — ela sabe do material, mas ainda não pode ler o texto dele. */
+    aindaProcessando: boolean;
+  }>;
   treinamentos: TreinamentoDoAluno[];
   agenda: Array<{ titulo: string; descricao: string | null; quando: string; terminaEm: string | null; temLink: boolean; deAula: boolean }>;
   /** #310 — a janela que a agenda cobre: fora dela, a assistente não recebeu nada (e precisa saber disso). */
@@ -231,12 +241,17 @@ function agendaEmTexto(ag: PlataformaDoAluno["agenda"], agora: number, janela: P
 function bibliotecaEmTexto(bib: PlataformaDoAluno["biblioteca"]): string {
   return secao(
     "Biblioteca — materiais liberados para o aluno",
-    bib.map((b) =>
-      [
-        `- "${b.titulo}" (${b.tipo}${b.categoria ? `, ${b.categoria}` : ""}${b.pasta ? `, pasta "${b.pasta}"` : ""})`,
-        curto(b.descricao, 300) && `  Sobre: ${curto(b.descricao, 300)}`,
-      ].filter(Boolean).join("\n"),
-    ),
+    [
+      // #312: ela pode ler o CONTEÚDO só destes — o resto do bloco é sempre só título/descrição.
+      "Os que estiverem marcados \"conteúdo disponível\" abaixo podem vir com trechos do texto na sua pergunta (bloco <trechos_da_biblioteca>, quando a busca achar algo). Os demais você só conhece pelo título e pela descrição — não invente o que eles dizem.",
+      ...bib.map((b) =>
+        [
+          `- "${b.titulo}" (${b.tipo}${b.categoria ? `, ${b.categoria}` : ""}${b.pasta ? `, pasta "${b.pasta}"` : ""})` +
+            (b.conteudoLegivel ? " — conteúdo disponível" : b.aindaProcessando ? " — ainda sendo processado, o conteúdo ainda não está disponível" : ""),
+          curto(b.descricao, 300) && `  Sobre: ${curto(b.descricao, 300)}`,
+        ].filter(Boolean).join("\n"),
+      ),
+    ],
   );
 }
 

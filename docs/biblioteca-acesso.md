@@ -104,10 +104,54 @@ o conjunto inteiro, sem repetir nem pular.
 - **Link de arquivo já aberto**: o link assinado de um PDF vale 10 minutos (os leitores de PDF buscam o
   arquivo em pedaços enquanto a pessoa rola). Bloquear alguém que está com o material aberto naquele
   instante não fecha a aba dele; o próximo clique já é recusado.
-- ~~**Assistente (#312)**: `plataforma.server.ts` só consulta a Biblioteca quando o aluno tem a área
+- ~~**Assistente**: `plataforma.server.ts` só consulta a Biblioteca quando o aluno tem a área
   Academy~~ — **corrigido na #315**: `areasDoAluno()` agora soma "biblioteca" ao conjunto perguntando a
   `bib_visiveis` (a mesma checagem de `minhasAreas()`), e a leitura da Biblioteca passou a olhar essa área
-  em vez de "academy".
+  em vez de "academy". (Nota: o rótulo "#312" que estava aqui era engano — #312 é a demanda do parágrafo
+  abaixo, que só chegou depois.)
+
+## A assistente lê o conteúdo, não só o título (#312)
+
+Antes: a assistente sabia o TÍTULO e a DESCRIÇÃO de cada material (já bastava para ligar um livro a
+uma fragilidade do relatório). Agora, quando o material é um PDF já processado, ela também busca no
+TEXTO e cita trechos, sempre parafraseados.
+
+- **Indexação, uma vez, no upload**: `salvarMaterial` (só quando `kind = "pdf"` e o arquivo é novo ou
+  trocou) chama `indexarMaterialPdf` (`src/lib/biblioteca-indexacao.server.ts`), que assina a URL
+  (`assinarUrl` — o bucket é privado), baixa o PDF, extrai o texto com **`unpdf`** e grava em
+  `biblioteca_material_trechos`: pedaços de ~200 palavras, com 25 de sobra do trecho anterior (uma
+  ideia não fica cortada bem no meio), cada um sabendo a página onde começa e termina.
+  `biblioteca_materiais.indexacao_status` diz o estado: `pendente` → `pronto` (ou `erro`, com o motivo
+  em `indexacao_erro`); não-PDF nasce `nao_aplicavel`. Roda DENTRO da mesma requisição do upload — o
+  medido em produção: o maior PDF do acervo (308 páginas) levou **2,5 s** no workerd real.
+- **`unpdf`, não `pdf-lib`**: `pdf-lib` (já usado no projeto) só DESENHA PDF; para LER texto era preciso
+  outro pacote. `unpdf` foi escolhido por rodar em qualquer runtime JS, Cloudflare Workers incluído —
+  testado de verdade com `wrangler dev` antes de publicar (regra do projeto), não só no `vite dev`.
+- **Busca por TEXTO, não por embedding**: `bib_buscar_trechos(_query, _material_id?, _limite?)` transforma
+  a pergunta num OR entre as palavras significativas dela (`to_tsvector('portuguese', …)`) e ordena por
+  `ts_rank` — favorece achar algo relevante a ser exigente demais, com só 9 livros no acervo hoje. Zero
+  custo de indexação (nada de API de terceiro: só Postgres) e nenhum provedor novo além da Anthropic.
+  Para "resuma o livro inteiro", `bib_amostra_trechos(_material_id, _limite?)` troca relevância por
+  cobertura: uma amostra espalhada por igual do começo ao fim do livro.
+- **A MESMA regra de permissão, sem caminho paralelo**: as duas funções filtram
+  `material_id IN (SELECT id FROM bib_visiveis() WHERE tipo='material')` — a MESMA porta de sempre.
+  Livro bloqueado ou fora do menu não aparece na busca, nem para dizer que existe.
+  `biblioteca_material_trechos` **não tem policy nenhuma para `authenticated`**: ninguém lê o texto
+  cru pela API — só as duas funções, que conferem a permissão antes.
+- **Onde os trechos entram na conversa**: na ÚLTIMA MENSAGEM do histórico, montada por
+  `perguntaComTrechosDaBiblioteca` (`src/lib/assistente/biblioteca-busca.server.ts`) — NUNCA no bloco de
+  sistema (`<plataforma_do_aluno>`, `<dados_da_conta>`), que fica em cache na API. Se os trechos
+  entrassem lá, cada pergunta nova pagaria de novo o relatório e a plataforma inteiros. Função ÚNICA
+  para o aluno E o mentor (o mentor vê o acervo inteiro da conta — é o dono, sem o limite de permissão
+  de aluno) e para `scripts/avaliar_assistente.ts`, que precisa chamar a MESMA função, senão avaliaria
+  uma assistente mais fraca que a real.
+- **Direito autoral**: instrução no texto de sistema, não trava de código — cita no máximo uma frase
+  curta (~20 palavras) por resposta, sempre entre aspas, o resto parafraseado; pedido de "transcreva o
+  capítulo" é recusado em uma frase, com o motivo.
+- **Material que ainda não foi processado**: `PlataformaDoAluno["biblioteca"]` carrega
+  `conteudoLegivel`/`aindaProcessando` (de `biblioteca_materiais.indexacao_status`) — a assistente sabe
+  dizer "esse eu ainda não consigo ler" em vez de fingir que leu.
+- Backfill dos PDFs que já existiam: `npx tsx scripts/indexar_biblioteca_existente.ts [--forcar]`.
 
 ## Testar
 

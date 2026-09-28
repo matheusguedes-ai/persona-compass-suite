@@ -445,6 +445,24 @@ Contrato completo em `docs/biblioteca-acesso.md`.
   para divergir. Detalhe em `docs/biblioteca-acesso.md`. A assistente do aluno também foi corrigida: lia
   Biblioteca por `areas.has("academy")` (sobra de antes da #313); agora soma "biblioteca" via
   `bib_visiveis` em `areasDoAluno()` (`assistente/plataforma.server.ts`).
+- **#312 — a assistente (aluno E mentor) lê o CONTEÚDO dos PDFs**, não só o título. No upload (ou na
+  edição, se o arquivo trocar), `salvarMaterial` chama `indexarMaterialPdf` (`biblioteca-indexacao.server.ts`):
+  extrai o texto com `unpdf` (único pacote de PDF que roda no Cloudflare Workers — `pdf-lib` só
+  DESENHA PDF, não lê), quebra em trechos de ~200 palavras com sobreposição, grava em
+  `biblioteca_material_trechos` (`indexacao_status` em `biblioteca_materiais` diz se já processou).
+  Busca é TEXTO (tsvector em português), não embedding — o acervo é pequeno e isso evita depender de
+  outro provedor além da Anthropic. Duas portas, as DUAS filtrando por `bib_visiveis()` (nunca um
+  caminho paralelo de permissão): `bib_buscar_trechos` (por tema) e `bib_amostra_trechos` (amostra
+  espalhada pelo livro, para "resuma o livro inteiro"). `biblioteca_material_trechos` não tem policy
+  para `authenticated` — só as duas funções leem.
+  Os trechos entram na ÚLTIMA MENSAGEM do histórico (`perguntaComTrechosDaBiblioteca`,
+  `assistente/biblioteca-busca.server.ts`), nunca no bloco de sistema: aquele fica em cache e uma
+  pergunta nova não pode invalidar o cache das anteriores. `scripts/avaliar_assistente.ts` chama a
+  MESMA função (senão a avaliação testaria uma assistente mais burra que a real). Direito autoral:
+  instrução no texto de sistema (citação curta, sempre parafraseada; recusa a "transcreva o capítulo").
+  ⚠️ O bucket `biblioteca` é PRIVADO desde 31/07 — extrair o PDF precisa assinar a URL pelo servidor
+  primeiro (`assinarUrl`), nunca `fetch` direto em `biblioteca_materiais.url`.
+  Backfill dos que já existiam: `npx tsx scripts/indexar_biblioteca_existente.ts [--forcar]`.
 
 ## Assistente do Método Intenção (#289)
 
@@ -486,7 +504,8 @@ foram reveladas e revogadas por terem passado por aqui).
   coluna que o banco calcula somando as três (migração `20260925210000`; comentário em cada coluna).
   Nunca usar `input_tokens` sozinho como tamanho de entrada.
 - **Nível 2 (#305) — o que mais ela lê**: `plataforma.server.ts` lê Academy (só trilha publicada E
-  liberada — trancada nem aparece), Biblioteca (só material liberado), Classroom (aulas, presença dele,
+  liberada — trancada nem aparece), Biblioteca (só material liberado; #312 — CONTEÚDO também, ver a
+  seção Biblioteca), Classroom (aulas, presença dele,
   encontros perdidos), Agenda, Mentorias (sem `mentorias.observacoes`), Comunidade (colegas SÓ por
   `perfil_do_colega`, a função que corta contato de quem não marcou `perfil_visivel`) e pontos —
   **tudo com o login do aluno**, e só das áreas de `minhas_areas()`. Nada ali usa service role. Tela
@@ -520,8 +539,10 @@ Código em `src/lib/assistente-mentor/` + `src/lib/assistente-mentor.functions.t
   grupos, testes liberados, resultado VIGENTE de cada teste (via `buildReport`, a mesma tela),
   envios sem resposta, Classroom (`montarTabelaPresenca` + `calcularConclusoesDoTreinamento`),
   Academy (`calcularConclusoesDaTrilha` + `learning_progress`), ranking, mentorias (sem observações
-  nem resumos do mentor), campanhas (a mesma conta de `listCampanhas`) e certificados. ⚠️ As cascas
-  `listaDeConcluidos*` EMITEM certificado — a assistente chama só as funções que leem.
+  nem resumos do mentor), campanhas (a mesma conta de `listCampanhas`), certificados e, desde a #312,
+  a Biblioteca inteira da conta (título e, quando indexado, CONTEÚDO — sem o limite de permissão de
+  aluno, é o dono). ⚠️ As cascas `listaDeConcluidos*` EMITEM certificado — a assistente chama só as
+  funções que leem.
 - **O que ela NUNCA lê — fonte (b)**: `assistente_conversas`, `assistente_mensagens`,
   `assistente_consentimentos`, `assistente_observacoes`, `assistente_liberacoes`; e não lê
   `assistente_uso` (só grava número). `testar_assistente_mentor.ts estatico` falha se algum arquivo

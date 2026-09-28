@@ -22,6 +22,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { MensagemDoHistorico } from "@/lib/assistente/modelo.server";
 import { ERROS_DA_ASSISTENTE_DO_MENTOR as ERROS } from "@/lib/assistente-mentor/textos";
+import { perguntaComTrechosDaBiblioteca } from "@/lib/assistente/biblioteca-busca.server";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -160,6 +161,9 @@ export const enviarMensagemDoMentor = createServerFn({ method: "POST" })
       .map((m) => ({ role: m.papel === "mentor" ? ("user" as const) : ("assistant" as const), content: m.conteudo }));
     while (historico.length && historico[0].role !== "user") historico.shift();
     historico.push({ role: "user", content: data.texto });
+    // #312: mesma busca da assistente do aluno — com a sessão do mentor, bib_visiveis() devolve TODO
+    // o acervo dele (é o dono; sem o limite de permissão de aluno), pela mesma bib_buscar_trechos.
+    historico[historico.length - 1].content = await perguntaComTrechosDaBiblioteca(supabase, data.texto);
 
     let resposta: Awaited<ReturnType<typeof servidor.perguntarAoModelo>>;
     try {

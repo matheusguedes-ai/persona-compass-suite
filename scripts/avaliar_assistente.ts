@@ -45,6 +45,9 @@ import {
   perguntarAoModelo,
   type RespostaDoModelo,
 } from "@/lib/assistente/modelo.server";
+// #312: a MESMA função que assistente.functions.ts usa em produção — senão esta avaliação testaria
+// uma assistente mais burra que a real (ela responderia sem os trechos do acervo).
+import { perguntaComTrechosDaBiblioteca } from "@/lib/assistente/biblioteca-busca.server";
 
 const APP = process.env.APP_URL ?? "http://localhost:8080";
 const DOMINIO_FICTICIO = "@exemplo.invalido";
@@ -253,6 +256,8 @@ async function main() {
     const historico: { role: "user" | "assistant"; content: string }[] = [];
     for (const [i, pergunta] of caso.turnos.entries()) {
       historico.push({ role: "user", content: pergunta });
+      // #312: a mesma busca na Biblioteca que a produção faz antes de chamar o modelo.
+      historico[historico.length - 1].content = await perguntaComTrechosDaBiblioteca(doAluno, pergunta);
       let resp: RespostaDoModelo;
       try {
         resp = await perguntarAoModelo(contexto, historico, token);
