@@ -12,6 +12,14 @@ decisão do dono (num relatório de bateria, quatro SWOTs cansariam). Aqui elas 
 formato estruturado (content_json) das do DISC — prontas para ligar, e ligar é decisão do dono. Nenhum
 código lê essas duas seções hoje (as do DISC têm nome fixo "disc_" e só rodam no DISC).
 
+28/09/2026 — LIGADAS E DESLIGADAS NO MESMO DIA, por decisão do dono. Ligadas (commit 7955479), mostraram o
+problema na bateria real do Robson: a SWOT do DISC (letra C) e a do Melancólico diziam quase o mesmo ("Perder
+a janela da decisão" nas duas). A SWOT responde "o que você tem de forte e de frágil como comunicador" — UMA
+resposta por pessoa, não uma por instrumento, e quem responde melhor é o DISC. Duas matrizes que parecem
+diferentes e dizem o mesmo não cansam: desacreditam. Por isso seguem pendentes e o código foi revertido
+(6f32d6b). Uso futuro possível, em demanda própria: só no relatório INDIVIDUAL de Temperamentos, onde não há
+DISC competindo — o ponto de partida é o 7955479 (separa a sigla SAN+COL pelas chaves e mostra o nome).
+
 Uso:
     python3 scripts/conteudo_temperamentos_perfis.py                # só confere (e contra o arquivo aprovado, se achar)
     python3 scripts/conteudo_temperamentos_perfis.py aplicar

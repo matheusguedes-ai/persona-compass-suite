@@ -631,9 +631,13 @@ Estado em 28/09/2026: **DISC** — as 16 siglas publicadas (texto original aprov
 conferido palavra por palavra contra o seu arquivo aprovado; **VAK** (9) pendentes. `conteudo_perfil_texto.py`
 só reescreve o VAK (`FONTE_ATUAL`): rodá-lo com `--sobrescrever` apagava os 32 textos publicados de DISC e
 Temperamentos. SWOT e Ganhos e Perdas dos Temperamentos estão GUARDADOS como `pendente` em
-`temperamentos_swot_comunicador`/`temperamentos_ganhos_perdas` — nenhum código lê essas seções; ligá-las
-no relatório é decisão do dono (a #302 ligou as seções novas só no DISC). Nada de inventar texto de
-personalidade para preencher.
+`temperamentos_swot_comunicador`/`temperamentos_ganhos_perdas` — nenhum código lê essas seções.
+⚠️ **Decisão do dono (28/09/2026): SWOT e Ganhos e Perdas só no DISC.** Foram ligadas nos Temperamentos
+(`7955479`) e desligadas no mesmo dia (`6f32d6b` + texto de volta a `pendente`): na bateria real, a SWOT do
+DISC (C) e a do Melancólico diziam quase o mesmo. A SWOT responde "o que você tem de forte e de frágil como
+comunicador" — UMA resposta por pessoa, e quem responde é o DISC; duas matrizes que dizem o mesmo
+desacreditam. Uso futuro possível, em demanda própria: só no relatório INDIVIDUAL de Temperamentos (sem DISC
+competindo), partindo do `7955479`. Nada de inventar texto de personalidade para preencher.
 
 Templates populados (revisados em 28/07/2026, ver `scripts/conteudo_*.py`):
 DISC 28 blocos · Valores 30 · Temperamentos 28 · VAK 24 · MBTI 40 · Big Five 50

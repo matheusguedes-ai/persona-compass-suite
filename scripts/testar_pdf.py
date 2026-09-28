@@ -480,8 +480,11 @@ def limpar_notificacoes_de_teste():
     A fixture CONCLUI uma bateria — e bateria concluída avisa o dono no sino ("fulano concluiu a
     bateria"). Até 25/09 esses avisos ficavam lá: ~110 acumulados de rodadas deste teste. Agora saem
     junto com a fixture, citando os ids antes de apagar. Só os do PREFIXO de teste, nunca outro.
+    28/09: o 360° da fixture também avisa ("Um observador respondeu o 360° sobre <PREFIXO> …") — o
+    nome vem no MEIO do título, e o filtro antigo (título começando pelo prefixo) deixava esses para
+    trás: 36 acumulados no sino de 3 pessoas da equipe. Agora o prefixo pode estar em qualquer lugar.
     """
-    achadas = rest("GET", "notificacoes", {"titulo": f"like.{PREFIXO}*", "select": "id,titulo"}) or []
+    achadas = rest("GET", "notificacoes", {"titulo": f"like.*{PREFIXO}*", "select": "id,titulo"}) or []
     for n in achadas:
         print(f"  notificação de teste apagada: {n['id']} ({n['titulo']})")
         rest("DELETE", "notificacoes", {"id": f"eq.{n['id']}"}, retorno=False)
