@@ -10,7 +10,7 @@ import { listaDeIndices, type ResultadoComIndices } from "@/lib/indices";
 import { montarIntensidade } from "@/lib/intensidade";
 import {
   montarSwotComunicadorDoNatural, montarGanhosPerdasDoNatural, montarOndeApareceDoNatural,
-  montarComunicadoresSemelhantesDoNatural,
+  montarComunicadoresSemelhantesDoNatural, type InstrumentoComSecoes,
 } from "@/lib/disc-secoes-extra";
 import { obterIpsativo } from "@/lib/ipsativo.server";
 import { lerTodasOuRecusar } from "@/lib/ler-todas";
@@ -695,13 +695,22 @@ export async function buildReport(id: string) {
         })
       : null;
 
-  // --- Seções extras do DISC (#302): SWOT do Comunicador, Ganhos e Perdas, Onde Isso
-  // Aparece, Comunicadores com Traços Semelhantes ---
-  // Só DISC (item 5 da demanda), e só quando há sigla declarada — é a MESMA sigla do
-  // título "PERFIL <sigla>" da intensidade, não recalculada aqui.
-  const siglaDisc = isDisc ? (intensidade?.natural.sigla ?? null) : null;
-  const swotComunicador = siglaDisc ? montarSwotComunicadorDoNatural(siglaDisc, versionId, content ?? []) : null;
-  const ganhosPerdas = siglaDisc ? montarGanhosPerdasDoNatural(siglaDisc, versionId, content ?? []) : null;
+  // --- Seções extras (#302): SWOT do Comunicador, Ganhos e Perdas, Onde Isso Aparece,
+  // Comunicadores com Traços Semelhantes ---
+  // Só quando há sigla declarada — é a MESMA sigla do título "PERFIL <sigla>" da intensidade,
+  // não recalculada aqui. As quatro no DISC; nos TEMPERAMENTOS (decisão do dono, 28/09/2026) só
+  // SWOT e Ganhos e Perdas, que é o conteúdo que existe para eles — com o nome do temperamento
+  // ("Sanguíneo") no lugar da chave quando o perfil é combinado.
+  const instrumentoComSecoes: InstrumentoComSecoes | null = isDisc ? "disc" : instrumentId === "temperamentos" ? "temperamentos" : null;
+  const siglaNatural = instrumentoComSecoes ? (intensidade?.natural.sigla ?? null) : null;
+  const siglaDisc = isDisc ? siglaNatural : null;
+  const opcoesDasSecoes = {
+    instrumento: instrumentoComSecoes ?? undefined,
+    chaves: (dims ?? []).map((d) => d.key),
+    rotulos: isDisc ? undefined : new Map((dims ?? []).map((d) => [d.key, d.label] as const)),
+  };
+  const swotComunicador = siglaNatural ? montarSwotComunicadorDoNatural(siglaNatural, versionId, content ?? [], opcoesDasSecoes) : null;
+  const ganhosPerdas = siglaNatural ? montarGanhosPerdasDoNatural(siglaNatural, versionId, content ?? [], opcoesDasSecoes) : null;
   const ondeAparece = siglaDisc ? montarOndeApareceDoNatural(siglaDisc, versionId, content ?? []) : null;
   const comunicadoresSemelhantes = siglaDisc ? montarComunicadoresSemelhantesDoNatural(siglaDisc, versionId, content ?? []) : null;
 
@@ -735,8 +744,9 @@ export async function buildReport(id: string) {
       // Só nos instrumentos do motor ipsativo. A chave nem aparece nos demais: o relatório deles sai
       // idêntico ao de antes.
       ...(intensidade ? { intensidade } : {}),
-      // #302 — só DISC, e só quando a sigla tem a seção cadastrada e publicada. Chave
-      // ausente = seção não aparece, no MBTI/dimensional e em qualquer sigla ainda sem conteúdo.
+      // #302 — DISC (as quatro) e Temperamentos (SWOT e Ganhos e Perdas, 28/09/2026), só quando a
+      // sigla tem a seção cadastrada e publicada. Chave ausente = seção não aparece, nos demais
+      // instrumentos e em qualquer sigla ainda sem conteúdo.
       ...(swotComunicador ? { swot_comunicador: swotComunicador } : {}),
       ...(ganhosPerdas ? { ganhos_perdas: ganhosPerdas } : {}),
       ...(ondeAparece ? { onde_aparece: ondeAparece } : {}),

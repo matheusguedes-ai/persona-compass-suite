@@ -460,13 +460,13 @@ function SwotComunicadorSection({ perfis }: { perfis: SwotComunicadorPorLetra[] 
         {S.titulo1} <span className="text-muted-foreground">{S.titulo2}</span>
       </h2>
       {multiplas && (
-        <p className="mt-2 text-sm text-muted-foreground">{PERFIL_COMBINADO.aviso(perfis[0].letra, perfis[1].letra)}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{PERFIL_COMBINADO.avisoDoPar(perfis)}</p>
       )}
-      {perfis.map(({ letra, swot }) => (
+      {perfis.map(({ letra, rotulo, swot }) => (
         <div key={letra} className="mt-5">
           {multiplas && (
             <span className="mb-3 inline-flex rounded-md bg-muted px-2.5 py-0.5 text-sm font-semibold tracking-[0.15em]">
-              {letra}
+              {rotulo ?? letra}
             </span>
           )}
           <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${multiplas ? "mt-3" : ""}`}>
@@ -511,13 +511,13 @@ function GanhosPerdasSection({ perfis }: { perfis: GanhosPerdasPorLetra[] }) {
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">{G.abertura}</p>
       {multiplas && (
-        <p className="mt-1 text-sm text-muted-foreground">{PERFIL_COMBINADO.aviso(perfis[0].letra, perfis[1].letra)}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{PERFIL_COMBINADO.avisoDoPar(perfis)}</p>
       )}
-      {perfis.map(({ letra, gp }) => (
+      {perfis.map(({ letra, rotulo, gp }) => (
         <div key={letra} className="mt-5">
           {multiplas && (
             <span className="mb-3 inline-flex rounded-md bg-muted px-2.5 py-0.5 text-sm font-semibold tracking-[0.15em]">
-              {letra}
+              {rotulo ?? letra}
             </span>
           )}
           <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${multiplas ? "mt-3" : ""}`}>
@@ -723,8 +723,9 @@ export function ReportBody({
         </Section>
       )}
 
-      {/* #302 — seções extras do DISC. Chave ausente no payload = seção some inteira, sem
-          buraco visual (a sigla ainda não tem o conteúdo cadastrado, ou o instrumento não é DISC). */}
+      {/* #302 — seções extras (DISC; SWOT e Ganhos e Perdas também nos Temperamentos, 28/09/2026). Chave
+          ausente no payload = seção some inteira, sem buraco visual (a sigla ainda não tem o conteúdo
+          cadastrado, ou o instrumento não tem a seção). */}
       {data.swot_comunicador && <SwotComunicadorSection perfis={data.swot_comunicador} />}
       {data.ganhos_perdas && <GanhosPerdasSection perfis={data.ganhos_perdas} />}
       {data.onde_aparece && <OndeApareceSection oa={data.onde_aparece} />}

@@ -189,9 +189,20 @@ export const ONDE_APARECE = {
  * a leitura das duas letras separadas — esta frase abre as duas seções nesse caso. Nos 4
  * perfis simples (D/I/S/C) ela não aparece.
  */
+const avisoDeLetras = (primeira: string, segunda: string) =>
+  `Seu perfil combina duas letras — ${primeira} e ${segunda}. Veja a leitura de cada uma, separadamente.`;
+/** Temperamentos (28/09/2026): a chave é um temperamento, não uma letra — o aviso fala dele pelo nome. */
+const avisoDeTemperamentos = (primeiro: string, segundo: string) =>
+  `Seu perfil combina dois temperamentos — ${primeiro} e ${segundo}. Veja a leitura de cada um, separadamente.`;
+
 export const PERFIL_COMBINADO = {
-  aviso: (primeira: string, segunda: string) =>
-    `Seu perfil combina duas letras — ${primeira} e ${segunda}. Veja a leitura de cada uma, separadamente.`,
+  aviso: avisoDeLetras,
+  avisoTemperamentos: avisoDeTemperamentos,
+  /** O aviso certo para as entradas da SWOT/Ganhos e Perdas: com nome (Temperamentos) ou com letra (DISC). */
+  avisoDoPar: (perfis: ReadonlyArray<{ letra: string; rotulo?: string }>) =>
+    perfis[0].rotulo && perfis[1].rotulo
+      ? avisoDeTemperamentos(perfis[0].rotulo, perfis[1].rotulo)
+      : avisoDeLetras(perfis[0].letra, perfis[1].letra),
 };
 
 export const COMUNICADORES_SEMELHANTES = {

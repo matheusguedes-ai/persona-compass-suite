@@ -747,10 +747,10 @@ function blocosDoSwotComunicador(perfis: SwotComunicadorPorLetra[], ctx: Context
   const multiplas = perfis.length > 1;
   const out: Bloco[] = [tituloGrande(S.titulo1, S.titulo2, t, 0)];
   if (multiplas) {
-    out.push(paragrafo(PERFIL_COMBINADO.aviso(perfis[0].letra, perfis[1].letra), t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 10 }));
+    out.push(paragrafo(PERFIL_COMBINADO.avisoDoPar(perfis), t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 10 }));
   }
-  perfis.forEach(({ letra, swot }, i) => {
-    if (multiplas) out.push(rotuloDeSubsecao(letra, t, i === 0 ? 18 : 24));
+  perfis.forEach(({ letra, rotulo, swot }, i) => {
+    if (multiplas) out.push(rotuloDeSubsecao(rotulo ?? letra, t, i === 0 ? 18 : 24));
     out.push(
       colunas(
         [
@@ -787,10 +787,10 @@ function blocosDeGanhosPerdas(perfis: GanhosPerdasPorLetra[], ctx: Contexto): Bl
     paragrafo(G.abertura, t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 10 }),
   ];
   if (multiplas) {
-    out.push(paragrafo(PERFIL_COMBINADO.aviso(perfis[0].letra, perfis[1].letra), t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 6 }));
+    out.push(paragrafo(PERFIL_COMBINADO.avisoDoPar(perfis), t, { tamanho: 9.6, cor: GRAFITE, entrelinha: 1.55, antes: 6 }));
   }
-  perfis.forEach(({ letra, gp }, i) => {
-    if (multiplas) out.push(rotuloDeSubsecao(letra, t, i === 0 ? 18 : 24));
+  perfis.forEach(({ letra, rotulo, gp }, i) => {
+    if (multiplas) out.push(rotuloDeSubsecao(rotulo ?? letra, t, i === 0 ? 18 : 24));
     out.push(
       colunas(
         [
@@ -1138,9 +1138,10 @@ export function blocosDoRelatorio(
     }
   }
 
-  // --- seções extras do DISC (#302): SWOT do Comunicador, Ganhos e Perdas, Onde Isso
-  // Aparece, Comunicadores com Traços Semelhantes — só aparecem quando a sigla tem o
-  // conteúdo cadastrado (chave ausente no payload), e só no DISC (item 5 da demanda). ---
+  // --- seções extras (#302): SWOT do Comunicador, Ganhos e Perdas, Onde Isso Aparece,
+  // Comunicadores com Traços Semelhantes — só aparecem quando a sigla tem o conteúdo cadastrado
+  // (chave ausente no payload). DISC tem as quatro; Temperamentos, desde 28/09/2026, SWOT e Ganhos
+  // e Perdas (quem decide é `report.server.ts`). ---
   if (r.swot_comunicador) out.push(...blocosDoSwotComunicador(r.swot_comunicador, ctx));
   if (r.ganhos_perdas) out.push(...blocosDeGanhosPerdas(r.ganhos_perdas, ctx));
   if (r.onde_aparece) out.push(...blocosDeOndeAparece(r.onde_aparece, ctx));
