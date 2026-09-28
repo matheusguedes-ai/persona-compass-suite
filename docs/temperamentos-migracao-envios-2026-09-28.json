@@ -1,0 +1,49 @@
+{
+  "o_que": "Decisão do dono (28/09/2026): os envios abertos e as campanhas ATIVAS dos Temperamentos passam da versão antiga (despublicada) para a nova, com as 7 alternativas corrigidas. Nenhum dos envios tinha resposta gravada (test_answers = 0, nem rascunho).",
+  "versao_antiga": "58927961-a8de-4a60-8928-860f0c9e7788",
+  "versao_nova": "e80be78f-8ec4-470f-b6e7-1feb9f87d7dd",
+  "respostas_abertas_movidas": [
+    "af6cdafa-6a45-4c7a-8105-1760248c21df",
+    "5abe28ad-0488-476a-9f3c-f65077106e70",
+    "827a4e57-fb51-4f0c-bba2-a7299ef29433",
+    "18e6f57f-0b68-478e-92cf-28aee08d6836",
+    "b7410965-0f29-45f2-84a5-bcbc00c6f3e6",
+    "952b65ab-8b03-47f8-afb3-8d08ffdd2249",
+    "61d1db90-9903-4349-8dda-c91f4d3fa45d",
+    "c73632d4-e0ac-4f54-b11a-fff4d22ce6f4",
+    "b7c50d60-f951-450d-9e6c-1f202f528c58",
+    "ecdc734d-5ee2-44c6-8c1c-246a789c3cad",
+    "b4adf4a4-79e7-4f1e-9855-7bc4a5d285c6",
+    "b777a4c0-d431-4dd6-9102-66d2d031add0",
+    "d23fcaf8-7449-4d04-838e-98271be762cf",
+    "d09e5b00-3923-43a6-8726-35d1431fce52",
+    "f6fcd00f-47e1-4be5-a9fd-93676aff8e77"
+  ],
+  "campanhas_ativas_antes": {
+    "d0a6f07d-5c23-4489-b5e7-75074d7d9e75": [
+      "f9c6aba8-115b-4c59-9d35-9c1f995b3eb9",
+      "fda8d1f0-3613-40cf-ac70-cdfb204f03d4",
+      "facb3043-ae0a-4162-81da-1262680939f5",
+      "58927961-a8de-4a60-8928-860f0c9e7788"
+    ],
+    "3b99575b-3bcb-46d1-a8e9-8c09e4650065": [
+      "f9c6aba8-115b-4c59-9d35-9c1f995b3eb9",
+      "fda8d1f0-3613-40cf-ac70-cdfb204f03d4",
+      "58927961-a8de-4a60-8928-860f0c9e7788",
+      "facb3043-ae0a-4162-81da-1262680939f5"
+    ]
+  },
+  "nao_tocado": {
+    "respostas_ja_enviadas_na_versao_antiga": [
+      "7808abe0 (avulsa, sem campanha)",
+      "e4333421 (bateria da campanha 9b2eef2e, 28/07)",
+      "83debb98 (bateria da campanha 3b99575b)",
+      "b4435f95 (bateria da campanha d0a6f07d)"
+    ],
+    "campanhas_encerradas": [
+      "9b2eef2e-9244-43fc-a024-18d59e1de6e1 (28/07 — tem 1 dos envios movidos, af6cdafa; encerrada, não recebe ninguém)",
+      "364529c6-b0ba-4326-9ada-8b4495437d86 (encerrada, sem resposta)"
+    ]
+  },
+  "desfazer": "UPDATE test_responses SET version_id = '58927961-a8de-4a60-8928-860f0c9e7788' WHERE id IN (<respostas_abertas_movidas>) AND submitted_at IS NULL AND NOT EXISTS (SELECT 1 FROM test_answers a WHERE a.response_id = test_responses.id); UPDATE invite_links SET version_ids = array_replace(version_ids, 'e80be78f-8ec4-470f-b6e7-1feb9f87d7dd', '58927961-a8de-4a60-8928-860f0c9e7788') WHERE id IN ('d0a6f07d-5c23-4489-b5e7-75074d7d9e75', '3b99575b-3bcb-46d1-a8e9-8c09e4650065'); — só enquanto ninguém tiver respondido na nova."
+}

@@ -19,6 +19,7 @@ import { baixarPdf } from "@/lib/baixar-pdf";
 import {
   getCampanha, setInviteLinkActive, startResponse, startAssessment,
   setResponseCanceled, setAssessmentCanceled, deleteResponse, deleteAssessment,
+  versoesAnterioresDaCampanha,
 } from "@/lib/tests.functions";
 import { AcoesDoEnvio } from "@/components/acoes-do-envio";
 import { Button } from "@/components/ui/button";
@@ -184,6 +185,7 @@ function DetalheCampanha() {
 
   // ---- Exportar a campanha inteira em planilha (reaproveita a #280) ----
   const planilhaFn = useServerFn(baixarPlanilhaDeRespostas);
+  const versoesAnterioresFn = useServerFn(versoesAnterioresDaCampanha);
   const exportar = useMutation({
     mutationFn: async () => {
       if (!data) throw new Error("Campanha não carregada.");
@@ -192,10 +194,17 @@ function DetalheCampanha() {
       const usados = new Set<string>();
       let totalLinhas = 0;
       let semDados = 0;
-      for (const versionId of data.campanha.version_ids) {
+      // Quem respondeu numa versão que a campanha não oferece mais (ex.: os Temperamentos antes de 28/09)
+      // ganha uma aba própria, marcada "Antiga" — senão sumiria da planilha.
+      const anteriores = await versoesAnterioresFn({ data: { id: campanhaId } });
+      const alvos = [
+        ...data.campanha.version_ids.map((id) => ({ id, anterior: false })),
+        ...anteriores.map((id) => ({ id, anterior: true })),
+      ];
+      for (const alvo of alvos) {
         let r: Awaited<ReturnType<typeof planilhaFn>>;
         try {
-          r = await planilhaFn({ data: { version_id: versionId, invite_link_id: campanhaId } });
+          r = await planilhaFn({ data: { version_id: alvo.id, invite_link_id: campanhaId } });
         } catch {
           // Teste desta campanha ainda sem resposta suficiente (vazio, ou
           // anônimo com menos de 3) — pula a aba dele, não aborta o resto.
@@ -203,7 +212,7 @@ function DetalheCampanha() {
           continue;
         }
         const aba = XLSX.utils.json_to_sheet(r.linhas);
-        const limpo = r.titulo.replace(/[:\\/?*[\]]/g, "").trim() || "Respostas";
+        const limpo = `${alvo.anterior ? "Antiga · " : ""}${r.titulo}`.replace(/[:\\/?*[\]]/g, "").trim() || "Respostas";
         let nomeAba = limpo.slice(0, 31);
         let n = 2;
         while (usados.has(nomeAba)) nomeAba = `${limpo.slice(0, 28)} (${n++})`;

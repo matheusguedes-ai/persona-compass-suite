@@ -5,6 +5,7 @@ import { exigirPermissao } from "@/lib/permissao.server";
 import { membershipDoUsuario } from "@/lib/team.functions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
+import { lerTodasOuRecusar } from "@/lib/ler-todas";
 
 // ============================================================
 // Types
@@ -1702,6 +1703,39 @@ export const getCampanha = createServerFn({ method: "GET" })
       total: recipientes.filter((r) => !r.canceled_at).length,
       respondidos: recipientes.filter((r) => !r.canceled_at && r.submitted_at).length,
     };
+  });
+
+/**
+ * As versões que as respostas ENVIADAS desta campanha usaram e que ela não oferece mais. Em 28/09/2026 o
+ * dono passou os envios abertos e as campanhas ativas dos Temperamentos para a versão nova; quem JÁ tinha
+ * respondido ficou, com razão, na antiga. A planilha da campanha é montada versão a versão
+ * (`baixarPlanilhaDeRespostas`), então sem isto essas respostas sumiriam da exportação — continuariam no
+ * relatório e na lista da campanha, só não na planilha. Chamada só na hora de exportar: se um dia não der
+ * para ler tudo, quem falha é a exportação (com aviso), nunca a página da campanha.
+ */
+export const versoesAnterioresDaCampanha = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "envios");
+    const { supabase } = context;
+    const { data: conta, error: cErr } = await supabase.rpc("acting_account");
+    if (cErr) throw new Error(cErr.message);
+    const mentorId = conta ?? context.userId;
+
+    const { data: link, error } = await supabase
+      .from("invite_links").select("id, version_ids").eq("id", data.id).eq("mentor_id", mentorId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!link) throw new Error("Campanha não encontrada ou não pertence a você.");
+
+    const enviadas = await lerTodasOuRecusar(
+      (de, ate) =>
+        supabase.from("test_responses").select("id, version_id", { count: "exact" })
+          .eq("invite_link_id", data.id).not("submitted_at", "is", null)
+          .order("id").range(de, ate),
+      "as respostas desta campanha",
+    );
+    return [...new Set(enviadas.map((r) => r.version_id))].filter((v) => !link.version_ids.includes(v)).sort();
   });
 
 // ============================================================
