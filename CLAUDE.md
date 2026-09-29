@@ -464,6 +464,18 @@ Contrato completo em `docs/biblioteca-acesso.md`.
   ⚠️ O bucket `biblioteca` é PRIVADO desde 31/07 — extrair o PDF precisa assinar a URL pelo servidor
   primeiro (`assinarUrl`), nunca `fetch` direto em `biblioteca_materiais.url`.
   Backfill dos que já existiam: `npx tsx scripts/indexar_biblioteca_existente.ts [--forcar]`.
+- **#320 — resumo de verdade de cada livro, gerado UMA vez** (`biblioteca_materiais.resumo`, `resumo_status`,
+  `resumo_gerado_em`). A partir dos trechos já indexados (nunca o PDF de novo), em mapa-e-junção: grupos de
+  40 trechos viram resumos parciais e os parciais, em ordem, o final (`biblioteca-resumo.server.ts`). Quem
+  fala com a Anthropic é a edge function `biblioteca-resumo` (Sonnet 5), só com a CHAVE DE SERVIÇO — ⚠️ a
+  deste projeto é a NOVA (`sb_secret_…`), que não é JWT: a função prova que é o servidor listando usuários
+  do Auth, não lendo papel de dentro de um JWT (a versão 1 recusava toda chamada por isso). Resumo que bate
+  no teto de tamanho vira erro, nunca "pronto"; `limparResumo` tira título em Markdown e apêndice depois de
+  "---" (o modelo inventou um "Sobre esse relatório" no do Schafer). Backfill: `npx tsx
+  scripts/gerar_resumos_biblioteca.ts [--forcar|--limpar]` — 29/09: 9 livros, 90 chamadas, US$ 4,27, 20 min.
+  Na assistente, só PEDIDO DE RESUMO de livro identificado usa o resumo pronto (`bib_resumo_material`, mesma
+  porta `bib_visiveis`); o livro é reconhecido pelo autor OU pelo nome (cada lado do título vale sozinho, e
+  só um livro pode vencer — "o livro do Goleman" com os dois liberados não escolhe). Tema continua em trechos.
 
 ## Assistente do Método Intenção (#289)
 
