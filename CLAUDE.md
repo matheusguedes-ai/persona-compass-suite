@@ -479,6 +479,12 @@ Contrato completo em `docs/biblioteca-acesso.md`.
   Na assistente, só PEDIDO DE RESUMO de livro identificado usa o resumo pronto (`bib_resumo_material`, mesma
   porta `bib_visiveis`); o livro é reconhecido pelo autor OU pelo nome (cada lado do título vale sozinho, e
   só um livro pode vencer — "o livro do Goleman" com os dois liberados não escolhe). Tema continua em trechos.
+  Publicada em 29/09 (deploy `4b9e881f`). **Upload provado em produção**: cópia do Carnegie (148 págs) lida em
+  5 s, 10 chamadas, resumo pronto 1 min 55 s depois — a geração roda DENTRO do salvar, então a tela fica em
+  "Salvando…" até lá (livro de ~500 págs ≈ 5 min). Fechar a aba no meio PODE deixar o resumo `pendente`
+  (não testado; o material continua buscável por trecho e o backfill resolve). ⚠️ Esse deploy levou entre 6
+  e 12 min para valer; sonda sem custo: material do tipo link — o código da #320 grava `resumo_status =
+  'nao_aplicavel'`, o anterior deixava o padrão `pendente`.
 
 ## Assistente do Método Intenção (#289)
 
