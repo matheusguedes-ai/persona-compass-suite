@@ -260,7 +260,7 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | Tabela | Papel |
 |---|---|
 | `instruments` | catálogo de testes (id texto: `disc`, `bigfive`, `valores`…) |
-| `test_versions` | versão de um teste; `is_template` (global, `mentor_id` NULL) ou cópia do mentor; `derived_config` jsonb opcional |
+| `test_versions` | versão de um teste; `is_template` (global, `mentor_id` NULL) ou cópia do mentor; `derived_config` jsonb opcional. #278: publicar (`is_published→true`) despublica sozinho, por GATILHO no banco (`test_versions_despublica_anterior`, roda em qualquer caminho — tela, script, SQL), toda outra versão do mesmo `instrument_id`+`mentor_id`. **Exceto `instrument_id = 'personalizado'`**: é o balde de todo teste feito do zero (#212 F1), não um instrumento com versões — hoje já tem duas linhas publicadas sem relação nenhuma entre si. A tela avisa antes com `previa_publicacao`/`publicar_versao` (RPCs) e só migra envio aberto (sem resposta salva) e campanha ativa se o mentor pedir |
 | `test_dimensions` | dimensões da versão (`key`: D/I/S/C, ECO/TEO/…, E/I/S/N/T/F/J/P) |
 | `test_questions` | `type`: `multiple_choice`, `checkboxes`, `linear_scale`, `ranking`, `drag_order`, `forced_choice`; `config` jsonb |
 | `test_options` / `option_scores` | opções e pontuação opção→dimensão |

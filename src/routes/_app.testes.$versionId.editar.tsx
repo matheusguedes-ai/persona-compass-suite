@@ -10,6 +10,7 @@ import {
   upsertDimension, deleteDimension, reorderDimensions,
   upsertBand, deleteBand,
   upsertSection, deleteSection, reorderSections,
+  previaPublicacao, publicarVersao,
   TIPOS_SEM_INTERPRETACAO,
 } from "@/lib/tests.functions";
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown,
   CheckSquare, Circle, SlidersHorizontal, ListOrdered, GripVertical, Scale, AlignLeft,
@@ -116,6 +121,33 @@ function EditorPage() {
     onSuccess: () => { inv(); toast.success("Salvo"); },
     onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
+
+  // #278 — publicar despublica sozinho a versão anterior do mesmo instrumento (o banco garante
+  // isto por qualquer caminho). O que a tela decide é avisar ANTES o que vai acontecer com quem
+  // ainda aponta pra versão antiga, e perguntar se migra — nunca decidir por conta própria.
+  const [confirmarPublicar, setConfirmarPublicar] = useState(false);
+  const [migrarPendentes, setMigrarPendentes] = useState(true);
+  const previaFn = useServerFn(previaPublicacao);
+  const publicarFn = useServerFn(publicarVersao);
+  const { data: previa, isLoading: carregandoPrevia } = useQuery({
+    queryKey: ["previa-publicacao", versionId],
+    queryFn: () => previaFn({ data: { version_id: versionId } }),
+    enabled: confirmarPublicar,
+  });
+  const publicar = useMutation({
+    mutationFn: () => publicarFn({ data: { version_id: versionId, migrar_pendentes: migrarPendentes } }),
+    onSuccess: (r) => {
+      inv();
+      setConfirmarPublicar(false);
+      const anterior = r.versoes_despublicadas[0]?.title;
+      const partes = [anterior ? `"${anterior}" saiu do ar.` : "Publicado."];
+      if (r.respostas_migradas.length) partes.push(`${r.respostas_migradas.length} envio(s) movido(s) para esta versão.`);
+      if (r.campanhas_migradas.length) partes.push(`${r.campanhas_migradas.length} campanha(s) atualizada(s).`);
+      toast.success(partes.join(" "), { duration: 8000 });
+    },
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
+  });
+  const temPendentes = !!previa && (previa.abertos_migraveis > 0 || previa.campanhas_ativas.length > 0);
   const hasInterp = useMutation({
     mutationFn: (v: boolean) => hasInterpFn({ data: { version_id: versionId, has_interpretation: v } }),
     onSuccess: (r) => { avisaSeForkou(r); inv(); },
@@ -406,11 +438,85 @@ function EditorPage() {
             </span>
           )}
           <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-1.5">
-            <Switch checked={version.is_published} onCheckedChange={(v) => updVersion.mutate({ is_published: v })} />
+            <Switch
+              checked={version.is_published}
+              onCheckedChange={(v) => {
+                // #278 — "personalizado" é o balde de todo teste feito do zero, não um instrumento
+                // com versões: não existe "versão anterior" para avisar aqui (ver a migração). Esse
+                // tipo continua publicando direto, como sempre publicou.
+                if (v && version.instrument_id !== "personalizado") setConfirmarPublicar(true);
+                else updVersion.mutate({ is_published: v });
+              }}
+            />
             <span className="text-xs font-medium">{version.is_published ? "Publicado" : "Rascunho"}</span>
           </div>
         </div>
       </div>
+
+      <Dialog open={confirmarPublicar} onOpenChange={(o) => !publicar.isPending && setConfirmarPublicar(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Publicar "{version.title}"</DialogTitle>
+            <DialogDescription>
+              {carregandoPrevia
+                ? "Conferindo o que vai acontecer…"
+                : !previa || previa.versoes_anteriores.length === 0
+                ? "Nenhuma outra versão deste instrumento está publicada. Publicar libera este teste para novos envios."
+                : "Ao publicar, a versão abaixo sai do ar automaticamente — quem já respondeu continua vendo o relatório dela normalmente."}
+            </DialogDescription>
+          </DialogHeader>
+          {!carregandoPrevia && previa && previa.versoes_anteriores.length > 0 && (
+            <div className="space-y-3 text-sm">
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="font-medium">
+                  Vai despublicar: {previa.versoes_anteriores.map((v) => `"${v.title}"`).join(", ")}
+                </p>
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  <li>
+                    {previa.respostas} resposta{previa.respostas === 1 ? "" : "s"} já entregue
+                    {previa.respostas === 1 ? "" : "s"} — continua{previa.respostas === 1 ? "" : "m"} com essa versão, nunca muda.
+                  </li>
+                  <li>
+                    {previa.abertos_migraveis} envio{previa.abertos_migraveis === 1 ? "" : "s"} aberto
+                    {previa.abertos_migraveis === 1 ? "" : "s"} (ninguém começou a responder ainda).
+                  </li>
+                  {previa.em_andamento > 0 && (
+                    <li>
+                      {previa.em_andamento} envio{previa.em_andamento === 1 ? "" : "s"} já em andamento (alguém já
+                      respondeu parte) — esse{previa.em_andamento === 1 ? "" : "s"} nunca migra, continua na versão antiga.
+                    </li>
+                  )}
+                  <li>
+                    {previa.campanhas_ativas.length} campanha{previa.campanhas_ativas.length === 1 ? "" : "s"} ativa
+                    {previa.campanhas_ativas.length === 1 ? "" : "s"} ainda aponta{previa.campanhas_ativas.length === 1 ? "" : "m"} para ela
+                    {previa.campanhas_ativas.length > 0 && `: ${previa.campanhas_ativas.map((c) => `"${c.title}"`).join(", ")}`}.
+                  </li>
+                </ul>
+              </div>
+              {temPendentes && (
+                <label className="flex items-start gap-2 rounded-lg ring-1 ring-black/5 p-3">
+                  <Checkbox checked={migrarPendentes} onCheckedChange={(v) => setMigrarPendentes(v === true)} className="mt-0.5" />
+                  <span>
+                    Mover os envios abertos e as campanhas ativas para esta versão nova.
+                    <span className="block text-xs text-muted-foreground">
+                      Desmarcado, eles continuam apontando para a versão despublicada — quem responder por ali recebe o
+                      conteúdo antigo.
+                    </span>
+                  </span>
+                </label>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmarPublicar(false)} disabled={publicar.isPending}>
+              Cancelar
+            </Button>
+            <Button onClick={() => publicar.mutate()} disabled={carregandoPrevia || publicar.isPending}>
+              Publicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className={semInterpretacao ? "grid grid-cols-1 gap-6" : "grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]"}>
         {/* CANVAS */}

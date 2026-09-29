@@ -2699,6 +2699,8 @@ export type Database = {
       release_invite_link: { Args: { link_id: string }; Returns: undefined }
       previa_fusao: { Args: { p_manter: string; p_absorver: string }; Returns: Json }
       fundir_pessoas: { Args: { p_manter: string; p_absorver: string; p_por: string }; Returns: Json }
+      previa_publicacao: { Args: { p_version_id: string }; Returns: Json }
+      publicar_versao: { Args: { p_version_id: string; p_migrar_pendentes?: boolean }; Returns: Json }
       option_version_id: { Args: { _option_id: string }; Returns: string }
       owns_test_version: { Args: { _version_id: string }; Returns: boolean }
       question_version_id: { Args: { _question_id: string }; Returns: string }

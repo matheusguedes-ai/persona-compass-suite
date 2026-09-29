@@ -239,6 +239,51 @@ export const updateTestVersion = createServerFn({ method: "POST" })
     return row;
   });
 
+// #278 — publicar despublica a versão anterior do mesmo instrumento sozinho (o gatilho
+// `test_versions_despublica_anterior` no banco garante isto por QUALQUER caminho, não só este). O
+// que só a tela decide é o que fazer com o que ainda aponta pra versão antiga: `previaPublicacao`
+// mostra os números ANTES (item b da demanda — "avise antes, não depois"), e `publicarVersao` só
+// migra envio aberto e campanha ativa se o mentor pedir.
+//
+// Não cobre teste "personalizado" (instrument_id do balde de todo teste feito do zero, não um
+// instrumento com versões — o editor pula esta prévia para ele, ver o Switch em
+// `_app.testes.$versionId.editar.tsx`).
+export type PreviaPublicacao = {
+  versoes_anteriores: Array<{ id: string; title: string }>;
+  respostas: number;
+  abertos_migraveis: number;
+  em_andamento: number;
+  campanhas_ativas: Array<{ id: string; title: string }>;
+};
+
+export const previaPublicacao = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ version_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    const { data: previa, error } = await context.supabase.rpc("previa_publicacao", { p_version_id: data.version_id });
+    if (error) throw new Error(error.message);
+    return previa as unknown as PreviaPublicacao;
+  });
+
+export const publicarVersao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ version_id: z.string().uuid(), migrar_pendentes: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await exigirPermissao(context.supabase, context.userId, "testes");
+    await validarPublicacao(context.supabase, data.version_id);
+    const { data: resultado, error } = await context.supabase.rpc("publicar_versao", {
+      p_version_id: data.version_id,
+      p_migrar_pendentes: data.migrar_pendentes,
+    });
+    if (error) throw new Error(error.message);
+    return resultado as unknown as {
+      versoes_despublicadas: Array<{ id: string; title: string }>;
+      respostas_migradas: string[];
+      campanhas_migradas: string[];
+    };
+  });
+
 /** #212 F3 — a chavinha que liga o motor de interpretação (dimensão/
  * pontuação/faixa) já usado pelos 7 templates, agora também no construtor.
  * A mesma trava que já existe no banco (test_versions_anonimo_sem_interpretacao)
