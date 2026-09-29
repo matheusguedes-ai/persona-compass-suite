@@ -23,7 +23,6 @@ import type { Database } from "@/integrations/supabase/types";
 type Cliente = SupabaseClient<Database>;
 
 const LIMITE_TEMA = 6;
-const LIMITE_RESUMO = 12;
 
 /** "resuma o livro X", "sobre o que fala Y", "do que trata Z" — sinal de que é o livro inteiro, não um tema. */
 const PISTA_DE_RESUMO =
@@ -49,6 +48,34 @@ function materialCitado(
     if (achadas.length / palavras.length >= 0.5) return m.id;
   }
   return null;
+}
+
+/**
+ * #320 — qual livro um PEDIDO DE RESUMO cita. A regra de `materialCitado` (metade das palavras do título
+ * inteiro) é boa para restringir a busca por tema, mas perde as frases mais naturais: "resumo do livro do
+ * Dale Carnegie" tem 2 de 7 palavras do título "Dale Carnegie - Como Falar em Publico e Encantar as
+ * Pessoas", e "resuma Como Falar em Público", 3 de 7 — medido em 29/09, as duas caíam na busca por
+ * trechos soltos, o que a #320 existe para acabar. Aqui cada LADO do título ("autor - nome", em qualquer
+ * ordem) vale sozinho: metade das palavras de um lado basta. Só um livro pode vencer — "o livro do
+ * Goleman" bate nos dois dele e fica sem escolha (volta à regra de sempre), em vez de resumir um ao acaso.
+ */
+function livroDoPedidoDeResumo(
+  pergunta: string,
+  materiais: Array<{ id: string; titulo: string }>,
+): string | null {
+  const alvo = semAcento(pergunta);
+  const nota = (titulo: string) =>
+    Math.max(
+      ...titulo.split(/\s+-\s+/).map((lado) => {
+        const palavras = semAcento(lado).split(/\s+/).filter((w) => w.length > 3);
+        return palavras.length ? palavras.filter((w) => alvo.includes(w)).length / palavras.length : 0;
+      }),
+    );
+  const notas = materiais.map((m) => ({ id: m.id, nota: nota(m.titulo) })).filter((m) => m.nota >= 0.5);
+  if (!notas.length) return null;
+  const melhor = Math.max(...notas.map((m) => m.nota));
+  const vencedores = notas.filter((m) => m.nota === melhor);
+  return vencedores.length === 1 ? vencedores[0].id : null;
 }
 
 export type TrechoDaBusca = {
@@ -81,14 +108,30 @@ function normalizarLinhas(data: unknown): TrechoDaBusca[] {
 }
 
 /**
- * Os trechos relevantes para esta pergunta, só do que quem pergunta pode ver. Pedido de resumo de um
- * livro identificado vira amostra espalhada pelo livro inteiro; o resto é busca por tema (com o
- * material citado, se algum, restringindo a busca a ele).
+ * Os trechos relevantes para esta pergunta, só do que quem pergunta pode ver — busca por tema, com o
+ * material citado, se algum, restringindo a busca a ele. Pedido de RESUMO de um livro identificado
+ * não passa por aqui — vai por `buscarResumoDaBiblioteca` (#320): resumo de verdade, não amostra.
  */
 export async function buscarTrechosDaBiblioteca(
   supabase: Cliente,
   pergunta: string,
+  materialId: string | null,
 ): Promise<TrechoDaBusca[]> {
+  const { data, error } = await supabase.rpc("bib_buscar_trechos", {
+    _query: pergunta,
+    _material_id: materialId,
+    _limite: LIMITE_TEMA,
+  });
+  if (error) throw error;
+  return normalizarLinhas(data);
+}
+
+/**
+ * #320 — os materiais liberados para quem pergunta, com id e título (mesma porta de sempre,
+ * `bib_materiais_liberados`/`bib_visiveis`). Usado para achar qual material a pergunta cita, antes de
+ * decidir entre resumo e busca por trecho.
+ */
+async function materiaisLiberados(supabase: Cliente): Promise<Array<{ id: string; titulo: string }>> {
   const { data: liberados, error: eLib } = await supabase.rpc("bib_materiais_liberados", {
     _person_id: null,
   });
@@ -101,25 +144,19 @@ export async function buscarTrechosDaBiblioteca(
     .select("id, titulo")
     .in("id", ids);
   if (eMat) throw eMat;
+  return materiais ?? [];
+}
 
-  const materialId = materialCitado(pergunta, materiais ?? []);
+/** #320 — o resumo de UM material (ou "ainda preparando"), só se `bib_visiveis()` deixaria ver. */
+export type ResumoDaBusca = { titulo: string } & ({ pronto: true; resumo: string } | { pronto: false });
 
-  if (materialId && PISTA_DE_RESUMO.test(pergunta)) {
-    const { data, error } = await supabase.rpc("bib_amostra_trechos", {
-      _material_id: materialId,
-      _limite: LIMITE_RESUMO,
-    });
-    if (error) throw error;
-    return normalizarLinhas(data);
-  }
-
-  const { data, error } = await supabase.rpc("bib_buscar_trechos", {
-    _query: pergunta,
-    _material_id: materialId,
-    _limite: LIMITE_TEMA,
-  });
+async function buscarResumoDaBiblioteca(supabase: Cliente, materialId: string): Promise<ResumoDaBusca | null> {
+  const { data, error } = await supabase.rpc("bib_resumo_material", { _material_id: materialId });
   if (error) throw error;
-  return normalizarLinhas(data);
+  const linha = (data ?? [])[0] as { titulo: string; resumo: string | null; resumo_status: string } | undefined;
+  if (!linha) return null; // não visível para quem pergunta — bib_visiveis já barrou (nem existência)
+  if (linha.resumo_status === "pronto" && linha.resumo) return { titulo: linha.titulo, pronto: true, resumo: linha.resumo };
+  return { titulo: linha.titulo, pronto: false };
 }
 
 /** Os trechos, agrupados por livro, prontos para entrar na mensagem — com o lembrete de uso junto do conteúdo. */
@@ -159,17 +196,65 @@ export function blocoDeTrechos(trechos: TrechoDaBusca[]): string {
 }
 
 /**
- * A pergunta, pronta para virar a última mensagem do histórico: com os trechos relevantes na frente,
- * quando existem, ou sem alteração nenhuma quando não há (livro ainda não indexado, nada bateu, aluno
- * sem Biblioteca liberada). Nunca lança — falha na busca não derruba a conversa, só sai sem os trechos.
+ * #320 — o resumo pronto de um livro, ou o aviso de que ele ainda está sendo preparado. Nunca a amostra
+ * de trechos: essa dava resultado parcial com cara de resumo completo — a causa desta demanda.
+ */
+function blocoDeResumo(r: ResumoDaBusca): string {
+  if (r.pronto) {
+    return [
+      "<resumo_do_livro>",
+      `Resumo de "${r.titulo}" — já em palavras próprias, gerado uma vez a partir do livro inteiro. ` +
+        "Use-o para responder ao pedido de resumo (pode reformular, mas não é uma citação do livro: " +
+        "não coloque entre aspas como se fosse trecho original). Se pedirem para transcrever um " +
+        "trecho maior, colar o texto ou 'ler o capítulo', recuse em uma frase e explique que é uma " +
+        "obra comercial protegida — você explica e indica onde encontrar, não substitui a leitura.",
+      r.resumo,
+      "</resumo_do_livro>",
+    ].join("\n\n");
+  }
+  return [
+    "<resumo_do_livro>",
+    `O resumo de "${r.titulo}" ainda está sendo preparado. Diga isso a quem perguntou, sem rodeios — ` +
+      "não invente um resumo nem use pedaços soltos do livro como se já fossem o livro inteiro. " +
+      "Ofereça responder uma pergunta mais específica sobre um tema do livro, se a pessoa quiser.",
+    "</resumo_do_livro>",
+  ].join("\n\n");
+}
+
+/**
+ * O bloco de conteúdo da Biblioteca para esta pergunta: resumo pronto (ou "ainda preparando") quando é
+ * um pedido de resumo de um livro identificado; busca por tema (trechos) em qualquer outro caso.
+ */
+async function blocoDaBiblioteca(supabase: Cliente, pergunta: string): Promise<string> {
+  const materiais = await materiaisLiberados(supabase);
+  if (!materiais.length) return "";
+  const materialId = materialCitado(pergunta, materiais);
+  const livroDoResumo = PISTA_DE_RESUMO.test(pergunta)
+    ? (materialId ?? livroDoPedidoDeResumo(pergunta, materiais))
+    : null;
+
+  if (livroDoResumo) {
+    const resumo = await buscarResumoDaBiblioteca(supabase, livroDoResumo);
+    if (resumo) return blocoDeResumo(resumo);
+    // bib_resumo_material não devolveu linha (não deveria acontecer, já que materialId veio de
+    // materiaisLiberados — mas se bib_visiveis mudar entre as duas chamadas, cai na busca por tema).
+  }
+
+  const trechos = await buscarTrechosDaBiblioteca(supabase, pergunta, materialId);
+  return blocoDeTrechos(trechos);
+}
+
+/**
+ * A pergunta, pronta para virar a última mensagem do histórico: com o bloco da Biblioteca na frente,
+ * quando existe, ou sem alteração nenhuma quando não há (livro ainda não indexado, nada bateu, aluno
+ * sem Biblioteca liberada). Nunca lança — falha na busca não derruba a conversa, só sai sem o bloco.
  */
 export async function perguntaComTrechosDaBiblioteca(
   supabase: Cliente,
   pergunta: string,
 ): Promise<string> {
   try {
-    const trechos = await buscarTrechosDaBiblioteca(supabase, pergunta);
-    const bloco = blocoDeTrechos(trechos);
+    const bloco = await blocoDaBiblioteca(supabase, pergunta);
     return bloco ? `${bloco}\n\n<pergunta>\n${pergunta}\n</pergunta>` : pergunta;
   } catch (e) {
     console.error(
