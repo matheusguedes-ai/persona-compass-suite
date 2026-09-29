@@ -32,7 +32,22 @@ const REGRAS_DE_AUTORIA =
   "palavras — nunca copie ou cole frases do texto original, nem monte uma colagem de trechos. O " +
   "resumo explica as ideias e o argumento do livro, em português do Brasil, de um jeito que ajuda " +
   "alguém a entender do que o livro trata e decidir se quer lê-lo — nunca substitui a leitura. Não " +
-  "invente conteúdo que não está no texto de entrada.";
+  "invente conteúdo que não está no texto de entrada. Entregue SÓ o texto do resumo: sem título, sem " +
+  "Markdown (#, **, ---), sem notas, links ou comentários sobre o próprio resumo.";
+
+/**
+ * O que o modelo às vezes acrescenta fora do resumo pedido — visto no backfill de 29/09/2026, no livro do
+ * Schafer: um título em Markdown na primeira linha ("# Resumo — …") e, depois de uma linha "---", um
+ * apêndice inventado ("Sobre esse relatório: Título: [nome do post]"), que não existe no PDF. O resumo é
+ * texto corrido; isso sai antes de gravar (e antes de um parcial alimentar a junção).
+ */
+export function limparResumo(texto: string): string {
+  let t = texto.trim();
+  t = t.replace(/^#{1,6}[^\n]*\n+/, "");
+  const separador = t.search(/\n[ \t]*(-{3,}|\*{3,}|_{3,})[ \t]*(\n|$)/);
+  if (separador >= 0) t = t.slice(0, separador);
+  return t.trim();
+}
 
 function instrucoesParcial(titulo: string): string {
   return [
@@ -100,6 +115,11 @@ async function chamarResumo(
   if (!data || typeof data.texto !== "string" || !data.usage) {
     throw new Error("biblioteca-resumo devolveu uma resposta em formato inesperado");
   }
+  // Resposta que bateu no teto de tamanho sai CORTADA no meio — gravar isso como "pronto" seria entregar
+  // meio resumo com cara de inteiro. Vira erro (o material continua utilizável pela busca por trecho).
+  if (data.stop_reason === "max_tokens") {
+    throw new Error("o resumo saiu cortado (bateu no limite de tamanho da resposta)");
+  }
   return { texto: data.texto as string, uso: data.usage as Uso, modelo: (data.modelo as string) ?? "?" };
 }
 
@@ -142,7 +162,7 @@ export async function gerarResumoDoMaterial(
       const textoInteiro = trechos.map((t) => t.conteudo).join("\n\n");
       const r = await chamarResumo(admin, instrucoesResumoDireto(material.titulo), textoInteiro, "medium");
       registrar(r);
-      resumo = r.texto;
+      resumo = limparResumo(r.texto);
     } else {
       const grupos: string[][] = [];
       for (let i = 0; i < trechos.length; i += GRUPO_TRECHOS) {
@@ -152,7 +172,7 @@ export async function gerarResumoDoMaterial(
       for (const grupo of grupos) {
         const r = await chamarResumo(admin, instrucoesParcial(material.titulo), grupo.join("\n\n"), "low");
         registrar(r);
-        parciais.push(r.texto);
+        parciais.push(limparResumo(r.texto));
       }
       const r = await chamarResumo(
         admin,
@@ -161,7 +181,7 @@ export async function gerarResumoDoMaterial(
         "medium",
       );
       registrar(r);
-      resumo = r.texto;
+      resumo = limparResumo(r.texto);
     }
 
     if (!resumo.trim()) throw new Error("a chamada devolveu um resumo vazio");

@@ -9,11 +9,13 @@
  *
  *   npx tsx scripts/gerar_resumos_biblioteca.ts            # só os que ainda não estão "pronto"
  *   npx tsx scripts/gerar_resumos_biblioteca.ts --forcar   # todos os PDFs indexados, de novo
+ *   npx tsx scripts/gerar_resumos_biblioteca.ts --limpar   # só passa `limparResumo` nos já gravados
+ *                                                           # (sem chamar o modelo, custo zero)
  */
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { custoDoResumo, gerarResumoDoMaterial } from "@/lib/biblioteca-resumo.server";
+import { custoDoResumo, gerarResumoDoMaterial, limparResumo } from "@/lib/biblioteca-resumo.server";
 
 function doEnvLocal(nome: string): string {
   for (const linha of readFileSync(".env.local", "utf8").split("\n")) {
@@ -29,7 +31,33 @@ const admin = createClient<Database>(SUPABASE_URL, CHAVE_DE_SERVICO, {
   auth: { persistSession: false },
 });
 
+/**
+ * Passa a mesma limpeza da geração (`limparResumo`) nos resumos JÁ gravados — para os que saíram com
+ * título em Markdown ou apêndice inventado antes de a limpeza existir (29/09/2026: o do Schafer). Não
+ * chama o modelo; cita cada material que mudou, com o tamanho antes e depois.
+ */
+async function limparGravados() {
+  const { data, error } = await admin
+    .from("biblioteca_materiais")
+    .select("id, titulo, resumo")
+    .eq("kind", "pdf")
+    .not("resumo", "is", null)
+    .order("titulo");
+  if (error) throw new Error(error.message);
+  let mudaram = 0;
+  for (const m of data ?? []) {
+    const limpo = limparResumo(m.resumo ?? "");
+    if (!limpo || limpo === m.resumo) continue;
+    const { error: e } = await admin.from("biblioteca_materiais").update({ resumo: limpo }).eq("id", m.id);
+    if (e) throw new Error(`${m.titulo}: ${e.message}`);
+    mudaram += 1;
+    console.log(`- "${m.titulo}" [${m.id}]: ${m.resumo?.length} → ${limpo.length} caracteres`);
+  }
+  console.log(`${mudaram} de ${data?.length ?? 0} resumo(s) limpo(s); os demais já estavam limpos.`);
+}
+
 async function main() {
+  if (process.argv.includes("--limpar")) return limparGravados();
   const forcar = process.argv.includes("--forcar");
   let q = admin
     .from("biblioteca_materiais")

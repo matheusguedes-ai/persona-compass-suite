@@ -6,14 +6,20 @@
 //
 // AUTENTICAÇÃO: diferente de `assistente-chat` (que confere sessão de um ALUNO/MENTOR de verdade),
 // aqui quem chama é sempre código do servidor com a CHAVE DE SERVIÇO — não existe usuário para checar
-// `assistente_liberada()`. A chave de serviço já É um JWT assinado pelo Supabase com `role:
-// "service_role"`; com `verify_jwt = true` no `config.toml`, a borda já confere a ASSINATURA antes de
-// a função rodar — aqui só falta conferir que o PAPEL do token é `service_role`, não um usuário comum
-// (um aluno logado nunca teria isso no próprio token). Índice [1] do JWT decodificado, sem verificar
-// assinatura de novo (a borda já fez isso) — é só ler o que já foi validado.
+// `assistente_liberada()`. Como a função confere que é mesmo a chave de serviço: ver o ajuste abaixo
+// (a versão 1 lia o papel de dentro de um JWT, e a chave deste projeto não é JWT).
 //
 // A chave da Anthropic é a MESMA guardada nos secrets deste projeto (secrets de Edge Function são do
 // PROJETO, não de uma função isolada) — nada de duplicar segredo.
+//
+// AJUSTE AO TERMINAR A #320 (29/09/2026, a versão 1 nunca tinha sido chamada de verdade): este projeto
+// usa as chaves NOVAS do Supabase — a de serviço é `sb_secret_…`, que NÃO é um JWT. A versão 1 só
+// aceitava o JWT antigo com role=service_role e respondia "sem sessão" a TODA chamada do servidor
+// (backfill e upload). A prova de que quem chama é o servidor agora é pedir ao Auth algo que só a chave
+// de serviço pode fazer (listar usuários): vale para a chave antiga e para a nova, e recusa a
+// publicável, a anônima e a sessão de qualquer aluno ou mentor. A chave nova pode chegar como Bearer ou
+// só no cabeçalho `apikey`. E a resposta passa a dizer `stop_reason`: resumo que bateu no limite de
+// tamanho sai CORTADO, e quem chama não pode gravá-lo como pronto.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -35,6 +41,16 @@ function papelDoToken(token: string): string | null {
   }
 }
 
+/** Só a chave de serviço deste projeto (antiga ou nova) consegue listar os usuários do Auth. */
+async function eChaveDeServico(supabaseUrl: string, chave: string): Promise<boolean> {
+  if (!chave || chave.startsWith("sb_publishable_")) return false;
+  const papel = papelDoToken(chave);
+  if (papel !== null && papel !== "service_role") return false; // sessão de usuário ou chave anônima
+  const admin = createClient(supabaseUrl, chave, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+  return !error;
+}
+
 type Corpo = { instrucoes?: string; texto?: string; esforco?: string };
 
 function corpoValido(c: unknown): c is Required<Corpo> {
@@ -50,30 +66,30 @@ function corpoValido(c: unknown): c is Required<Corpo> {
 }
 
 const MODELO = "claude-sonnet-5";
-const MAX_TOKENS = 2200;
+// O pensamento adaptativo conta dentro deste teto. Com 2.200 (versão 1), um resumo final de até 700
+// palavras podia ser cortado no meio; a margem não custa nada se não for usada.
+const MAX_TOKENS = 8000;
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return erro("método não permitido", 405);
 
-  const auth = req.headers.get("authorization") ?? "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  if (!token || papelDoToken(token) !== "service_role") {
-    // Nunca diz "seu token não é de serviço" — a mesma mensagem genérica de sempre para quem não devia
-    // estar aqui.
-    return erro("sem sessão", 401);
-  }
-
-  // Confirma que o token realmente veio DESTE projeto (não é só um JWT qualquer com role=service_role
-  // fabricado por quem já tivesse o segredo de outro projeto) — criar um cliente com ele e pedir algo
-  // trivial ao banco confere a assinatura contra o segredo de verdade.
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   if (!supabaseUrl) {
     console.error("[biblioteca-resumo] SUPABASE_URL ausente no ambiente da função");
     return erro("configuração ausente", 500);
   }
-  const admin = createClient(supabaseUrl, token, { auth: { persistSession: false } });
-  const { error: pingErro } = await admin.from("biblioteca_materiais").select("id").limit(1);
-  if (pingErro) return erro("sem sessão", 401);
+  const auth = req.headers.get("authorization") ?? "";
+  const candidatas = [auth.startsWith("Bearer ") ? auth.slice(7).trim() : "", (req.headers.get("apikey") ?? "").trim()];
+  let autorizado = false;
+  for (const chave of candidatas) {
+    if (chave && (await eChaveDeServico(supabaseUrl, chave))) {
+      autorizado = true;
+      break;
+    }
+  }
+  // Nunca diz "sua chave não é de serviço" — a mesma mensagem genérica de sempre para quem não devia
+  // estar aqui.
+  if (!autorizado) return erro("sem sessão", 401);
 
   let corpo: unknown;
   try {
@@ -141,6 +157,7 @@ Deno.serve(async (req) => {
         cache_read_input_tokens: dados.usage?.cache_read_input_tokens ?? 0,
       },
       modelo: typeof dados.model === "string" ? dados.model : MODELO,
+      stop_reason: typeof dados.stop_reason === "string" ? dados.stop_reason : null,
     }),
     { headers: { "content-type": "application/json" } },
   );

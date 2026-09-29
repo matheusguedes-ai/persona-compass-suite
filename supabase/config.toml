@@ -9,7 +9,7 @@ project_id = "ycprhrbotcyrewewbwvm"
 verify_jwt = true
 
 [functions.biblioteca-resumo]
-# #320 — mesma trava, e por dentro a função ainda exige role=service_role no token: só o servidor
-# (upload de material, backfill) chama, nunca um aluno ou mentor logado. Ver o comentário no topo do
-# arquivo.
+# #320 — mesma trava, e por dentro a função ainda exige a CHAVE DE SERVIÇO (a antiga, JWT, ou a nova,
+# sb_secret_…): só o servidor (upload de material, backfill) chama, nunca um aluno ou mentor logado. Ver
+# o comentário no topo do arquivo.
 verify_jwt = true
