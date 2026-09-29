@@ -42,7 +42,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { contextoDoAluno } from "@/lib/assistente/contexto";
 import { plataformaDoAluno } from "@/lib/assistente/plataforma.server";
 import { agoraArredondado, contextoDaPlataforma, contextoDasObservacoes } from "@/lib/assistente/plataforma";
-import { perguntarAoModelo, type RespostaDoModelo } from "@/lib/assistente/modelo.server";
+import { AssistenteFalhou, perguntarAoModelo, type RespostaDoModelo } from "@/lib/assistente/modelo.server";
 import { perguntaComTrechosDaBiblioteca } from "@/lib/assistente/biblioteca-busca.server";
 import { CATEGORIAS, NIVEL, ehCategoria, type Categoria } from "@/lib/assistente/niveis";
 import { COMPETENCIAS } from "@/lib/derivations";
@@ -495,6 +495,25 @@ async function sessaoDoLogin(userId: string): Promise<string> {
   return token;
 }
 
+/**
+ * Falha PASSAGEIRA do lado da Anthropic (sobrecarga, 529 — a edge function responde "modelo indisponível",
+ * 502/503) derrubava a rodada inteira: em 29/09 uma única sobrecarga da Opus parou a bateria depois de 73
+ * respostas aprovadas. Aqui a mesma pergunta é refeita até 3 vezes, com espera crescente, e a nova
+ * tentativa fica registrada na saída. Qualquer outra falha (recusa, 401, 403) continua parando tudo.
+ */
+async function comNovaTentativa<T>(chamar: () => Promise<T>): Promise<T> {
+  for (let tentativa = 1; ; tentativa++) {
+    try {
+      return await chamar();
+    } catch (e) {
+      const passageira = e instanceof AssistenteFalhou && (e.status === 502 || e.status === 503);
+      if (!passageira || tentativa >= 3) throw e;
+      process.stderr.write(`↻`);
+      await new Promise((r) => setTimeout(r, 20000 * tentativa));
+    }
+  }
+}
+
 /** A versão do DISC que `fixture_assistente.py` responde (a mesma constante de lá). */
 const VERSAO_DISC_DA_FIXTURE = "f9c6aba8-115b-4c59-9d35-9c1f995b3eb9";
 
@@ -602,7 +621,7 @@ async function rodarNivel(
       for (const pergunta of caso.turnos) {
         historico.push({ role: "user", content: pergunta });
         historico[historico.length - 1].content = await perguntaComTrechosDaBiblioteca(doAluno, pergunta);
-        const r = await perguntarAoModelo(contexto, historico, token, { categoria: nivel });
+        const r = await comNovaTentativa(() => perguntarAoModelo(contexto, historico, token, { categoria: nivel }));
         gastos.total += custo(r);
         historico.push({ role: "assistant", content: r.texto });
         respostas.push(r.texto);

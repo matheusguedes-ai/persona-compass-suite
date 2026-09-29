@@ -50,6 +50,34 @@ function materialCitado(
   return null;
 }
 
+/**
+ * #320 — qual livro um PEDIDO DE RESUMO cita. A regra de `materialCitado` (metade das palavras do título
+ * inteiro) é boa para restringir a busca por tema, mas perde as frases mais naturais: "resumo do livro do
+ * Dale Carnegie" tem 2 de 7 palavras do título "Dale Carnegie - Como Falar em Publico e Encantar as
+ * Pessoas", e "resuma Como Falar em Público", 3 de 7 — medido em 29/09, as duas caíam na busca por
+ * trechos soltos, o que a #320 existe para acabar. Aqui cada LADO do título ("autor - nome", em qualquer
+ * ordem) vale sozinho: metade das palavras de um lado basta. Só um livro pode vencer — "o livro do
+ * Goleman" bate nos dois dele e fica sem escolha (volta à regra de sempre), em vez de resumir um ao acaso.
+ */
+function livroDoPedidoDeResumo(
+  pergunta: string,
+  materiais: Array<{ id: string; titulo: string }>,
+): string | null {
+  const alvo = semAcento(pergunta);
+  const nota = (titulo: string) =>
+    Math.max(
+      ...titulo.split(/\s+-\s+/).map((lado) => {
+        const palavras = semAcento(lado).split(/\s+/).filter((w) => w.length > 3);
+        return palavras.length ? palavras.filter((w) => alvo.includes(w)).length / palavras.length : 0;
+      }),
+    );
+  const notas = materiais.map((m) => ({ id: m.id, nota: nota(m.titulo) })).filter((m) => m.nota >= 0.5);
+  if (!notas.length) return null;
+  const melhor = Math.max(...notas.map((m) => m.nota));
+  const vencedores = notas.filter((m) => m.nota === melhor);
+  return vencedores.length === 1 ? vencedores[0].id : null;
+}
+
 export type TrechoDaBusca = {
   materialId: string;
   titulo: string;
@@ -201,9 +229,12 @@ async function blocoDaBiblioteca(supabase: Cliente, pergunta: string): Promise<s
   const materiais = await materiaisLiberados(supabase);
   if (!materiais.length) return "";
   const materialId = materialCitado(pergunta, materiais);
+  const livroDoResumo = PISTA_DE_RESUMO.test(pergunta)
+    ? (materialId ?? livroDoPedidoDeResumo(pergunta, materiais))
+    : null;
 
-  if (materialId && PISTA_DE_RESUMO.test(pergunta)) {
-    const resumo = await buscarResumoDaBiblioteca(supabase, materialId);
+  if (livroDoResumo) {
+    const resumo = await buscarResumoDaBiblioteca(supabase, livroDoResumo);
     if (resumo) return blocoDeResumo(resumo);
     // bib_resumo_material não devolveu linha (não deveria acontecer, já que materialId veio de
     // materiaisLiberados — mas se bib_visiveis mudar entre as duas chamadas, cai na busca por tema).
