@@ -13,7 +13,7 @@
  * O token e o id da instância vivem SÓ em variáveis de ambiente do servidor. Nada daqui vai ao
  * navegador, ao banco ou a log — as mensagens de erro passam por `limpar()` antes de sair.
  */
-import type { AdaptadorDeCanal, EstadoDaConexao, ResultadoEnvioCanal } from "./tipos";
+import type { AdaptadorDeCanal, Botao, EstadoDaConexao, ResultadoEnvioCanal } from "./tipos";
 
 const BASE = "https://api.zapsterapi.com/v1";
 const TEMPO_LIMITE_MS = 15_000;
@@ -82,14 +82,28 @@ export const adaptadorZapster: AdaptadorDeCanal = {
     return !!token() && !!instancia();
   },
 
-  async enviarTexto(destino, texto): Promise<ResultadoEnvioCanal> {
+  async enviarTexto(destino, texto, botoes?: Botao[]): Promise<ResultadoEnvioCanal> {
     if (!this.configurado()) return { ok: false, motivo: "WhatsApp ainda não está configurado (faltam as variáveis da Zapster)" };
+    const enviar = async (corpo: Record<string, unknown>) => {
+      const r = await chamar("/wa/messages", { method: "POST", headers: cabecalhos(), body: JSON.stringify(corpo) });
+      return r;
+    };
     try {
-      const r = await chamar("/wa/messages", {
-        method: "POST",
-        headers: cabecalhos(),
-        body: JSON.stringify({ recipient: destino, text: texto }),
-      });
+      // M1c — botões de RESPOSTA (documentação oficial: `buttons: [{label ≤ 20, type: "reply", id ≤ 256}]`, até 3;
+      // `buttons_mode: "interactive"`). Se a Zapster recusar os botões, cai para só o texto — o texto do lembrete já diz
+      // "responda OK", então nada se perde.
+      if (botoes && botoes.length > 0) {
+        const lista = botoes.slice(0, 3).map((b) => ({ label: b.rotulo.slice(0, 20), type: "reply", id: b.id.slice(0, 256) }));
+        const r1 = await enviar({ recipient: destino, text: texto, buttons: lista, buttons_mode: "interactive" });
+        if (r1.ok) { const c = (await r1.json().catch(() => ({}))) as { message_id?: string }; return { ok: true, idNoFornecedor: c.message_id ?? null }; }
+        const r2 = await enviar({ recipient: destino, text: texto, buttons: lista });
+        if (r2.ok) { const c = (await r2.json().catch(() => ({}))) as { message_id?: string }; return { ok: true, idNoFornecedor: c.message_id ?? null }; }
+        const r3 = await enviar({ recipient: destino, text: texto });
+        if (!r3.ok) return { ok: false, motivo: await motivoDaResposta(r3) };
+        const c3 = (await r3.json().catch(() => ({}))) as { message_id?: string };
+        return { ok: true, idNoFornecedor: c3.message_id ?? null, semBotoes: true };
+      }
+      const r = await enviar({ recipient: destino, text: texto });
       if (!r.ok) return { ok: false, motivo: await motivoDaResposta(r) };
       const corpo = (await r.json().catch(() => ({}))) as { message_id?: string };
       return { ok: true, idNoFornecedor: corpo.message_id ?? null };

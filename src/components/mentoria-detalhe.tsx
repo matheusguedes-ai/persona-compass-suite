@@ -313,6 +313,13 @@ export function MentoriaDetalhe({ id }: { id: string }) {
                     </span>
                   )}
                 </p>
+                {s.status === "agendada" && s.link_id && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {s.confirmada_pelo_aluno_em
+                      ? `Confirmada pelo aluno em ${dataHoraBr(s.confirmada_pelo_aluno_em)}${s.confirmada_via ? " via WhatsApp" : ""}`
+                      : "Aguardando confirmação"}
+                  </p>
+                )}
                 {s.status === "cancelada" && s.cancelamento_motivo && (
                   <p className="mt-1 text-xs text-muted-foreground">Motivo: {s.cancelamento_motivo}</p>
                 )}

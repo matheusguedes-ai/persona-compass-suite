@@ -55,6 +55,12 @@ function diasEntre(de: Date, ate: Date): number {
   return Math.round((Date.UTC(+b.ano, +b.mes - 1, +b.dia) - Date.UTC(+a.ano, +a.mes - 1, +a.dia)) / 86_400_000);
 }
 
+/** "quinta-feira, 02/10, às 14:30" — como a plataforma escreve o dia e a hora de uma sessão nas mensagens (M1c). */
+export function quandoPorExtenso(d: Date): string {
+  const p = partes(d);
+  return `${p.semana}, ${p.dia}/${p.mes}, às ${String(p.hora).padStart(2, "0")}:${p.minuto}`;
+}
+
 // ------------------------------------------------------------------------------------------ texto (puro)
 /** Os mesmos dados de local/link que o e-mail de lembrete usa (`ondeTexto`), no formato curto da mensagem. */
 export function ondeParaWhatsapp(modalidade: string, local: string | null, linkUrl: string | null): string {
@@ -77,6 +83,7 @@ export function textoDoLembrete(a: {
   ];
   if (a.linkDaSessao) linhas.push(`Se precisar remarcar, é por aqui: ${a.linkDaSessao}`);
   linhas.push("Até lá! — Método Intenção");
+  linhas.push("Toque em OK para confirmar (ou responda OK).");
   return linhas.join("\n");
 }
 
@@ -204,7 +211,13 @@ export async function lembreteWhatsapp(
   });
   const r6 = await enviarMensagem(admin, {
     contaId: sessao.mentor_id, criadoPor: null, canal: "whatsapp", tipo: TIPO_LEMBRETE_MENTORIA,
-    destino: pessoa.phone ?? "", texto, personId: pessoa.id,
+    destino: pessoa.phone ?? "", texto, personId: pessoa.id, sessaoId: sessao.id,
+    // M1c: [OK] sempre; [Remarcar] só se o link de agendamento dessa sessão PERMITE remarcar. O id do botão aponta para
+    // ESTE envio (o clique volta com ele). Nunca se mistura botão de resposta com botão de link.
+    botoes: (registroId) => [
+      { rotulo: "OK", id: `lembrete:${registroId}:ok` },
+      ...(link.permite_remarcar ? [{ rotulo: "Remarcar", id: `lembrete:${registroId}:remarcar` }] : []),
+    ],
   });
   if (r6.status === "enviado") return "enviado";
   await avisarMentorDaFalha(r, sessao, { id: pessoa.id, full_name: pessoa.full_name ?? "O aluno" }, r6.motivo);

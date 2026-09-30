@@ -11,7 +11,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adaptadorZapster } from "./zapster.server";
 import { normalizarTelefoneBR } from "./telefone";
-import type { AdaptadorDeCanal, Canal } from "./tipos";
+import type { AdaptadorDeCanal, Botao, Canal } from "./tipos";
 
 /** O canal → adaptador. É aqui (e só aqui) que se troca de fornecedor. */
 export function adaptadorDoCanal(canal: Canal): AdaptadorDeCanal | null {
@@ -20,7 +20,7 @@ export function adaptadorDoCanal(canal: Canal): AdaptadorDeCanal | null {
 }
 
 export type ResultadoDoEnvio =
-  | { status: "enviado"; registroId: string }
+  | { status: "enviado"; registroId: string; semBotoes?: boolean }
   | { status: "falhou"; registroId: string | null; motivo: string };
 
 export async function enviarMensagem(
@@ -34,6 +34,10 @@ export async function enviarMensagem(
     destino: string;
     texto: string;
     personId?: string | null;
+    /** M1c: de qual sessão é o envio (é por ele que a resposta "OK" acha a sessão certa). */
+    sessaoId?: string | null;
+    /** M1c: botões de resposta. Recebe o id do REGISTRO, para o id do botão poder apontar para este envio. */
+    botoes?: (registroId: string) => Botao[];
   },
 ): Promise<ResultadoDoEnvio> {
   const fone = normalizarTelefoneBR(args.destino);
@@ -45,6 +49,7 @@ export async function enviarMensagem(
       conta_id: args.contaId,
       criado_por: args.criadoPor,
       person_id: args.personId ?? null,
+      sessao_id: args.sessaoId ?? null,
       canal: args.canal,
       tipo: args.tipo,
       destino_mascarado: fone.mascarado,
@@ -71,7 +76,7 @@ export async function enviarMensagem(
   // Número inválido: NÃO chama o fornecedor.
   if (!fone.ok) return falhar(fone.motivo);
 
-  const r = await adaptador.enviarTexto(fone.internacional, args.texto);
+  const r = await adaptador.enviarTexto(fone.internacional, args.texto, args.botoes ? args.botoes(reg.id) : undefined);
   if (!r.ok) return falhar(r.motivo);
 
   const { error: updErr } = await admin
@@ -79,7 +84,7 @@ export async function enviarMensagem(
     .update({ status: "enviado", fornecedor_msg_id: r.idNoFornecedor, enviado_em: new Date().toISOString() })
     .eq("id", reg.id);
   if (updErr) console.error("[canal] enviado, mas não consegui atualizar o registro:", updErr.message);
-  return { status: "enviado", registroId: reg.id };
+  return { status: "enviado", registroId: reg.id, ...(r.semBotoes ? { semBotoes: true } : {}) };
 }
 
 /**
