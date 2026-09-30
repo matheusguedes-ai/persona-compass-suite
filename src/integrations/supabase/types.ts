@@ -311,9 +311,9 @@ export type Database = {
       }
       // #291 F1a — registro de todo envio (whatsapp/email). Só o servidor grava; só o dono lê.
       envios_mensagens: {
-        Row: { id: string; conta_id: string; criado_por: string | null; person_id: string | null; canal: string; tipo: string; destino_mascarado: string | null; status: string; motivo_falha: string | null; fornecedor: string | null; fornecedor_msg_id: string | null; criado_em: string; enviado_em: string | null }
-        Insert: { id?: string; conta_id: string; criado_por?: string | null; person_id?: string | null; canal: string; tipo: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null }
-        Update: { id?: string; conta_id?: string; criado_por?: string | null; person_id?: string | null; canal?: string; tipo?: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null }
+        Row: { id: string; conta_id: string; criado_por: string | null; person_id: string | null; canal: string; tipo: string; destino_mascarado: string | null; status: string; motivo_falha: string | null; fornecedor: string | null; fornecedor_msg_id: string | null; criado_em: string; enviado_em: string | null; entregue_em: string | null; lido_em: string | null }
+        Insert: { id?: string; conta_id: string; criado_por?: string | null; person_id?: string | null; canal: string; tipo: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null; entregue_em?: string | null; lido_em?: string | null }
+        Update: { id?: string; conta_id?: string; criado_por?: string | null; person_id?: string | null; canal?: string; tipo?: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null; entregue_em?: string | null; lido_em?: string | null }
         Relationships: []
       }
       // dono-central — quem é DONO de conta. Só a service role grava.
@@ -334,6 +334,13 @@ export type Database = {
         Row: { id: string; conta_id: string; person_id: string; user_id: string; nivel: string; telefone_mascarado: string; codigo_hash: string; sal: string; criado_em: string; expira_em: string; tentativas: number; enviado: boolean; invalidado_em: string | null; consumido_em: string | null }
         Insert: { id?: string; conta_id: string; person_id: string; user_id: string; nivel: string; telefone_mascarado: string; codigo_hash: string; sal: string; criado_em?: string; expira_em: string; tentativas?: number; enviado?: boolean; invalidado_em?: string | null; consumido_em?: string | null }
         Update: { tentativas?: number; enviado?: boolean; invalidado_em?: string | null; consumido_em?: string | null }
+        Relationships: []
+      }
+      // Menu Mensagens M1a — mensagens recebidas pelo WhatsApp (webhook da Zapster). Comprovante. Só o dono lê; só o servidor grava.
+      mensagens_recebidas: {
+        Row: { id: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id: string | null; remetente_nome: string | null; candidatos: Json | null; tipo: string; texto: string | null; botao_id: string | null; botao_rotulo: string | null; citada_texto: string | null; recebida_em: string; criado_em: string }
+        Insert: { id?: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id?: string | null; remetente_nome?: string | null; candidatos?: Json | null; tipo: string; texto?: string | null; botao_id?: string | null; botao_rotulo?: string | null; citada_texto?: string | null; recebida_em: string; criado_em?: string }
+        Update: { person_id?: string | null }
         Relationships: []
       }
       assistente_uso: {

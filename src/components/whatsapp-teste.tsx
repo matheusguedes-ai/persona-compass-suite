@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mensagemDeErro } from "@/lib/erro-legivel";
-import { getWhatsappPainel, sendWhatsappTest, TEXTO_DO_TESTE } from "@/lib/canal.functions";
+import { getWhatsappPainel, listarMensagensRecebidas, sendWhatsappTest, TEXTO_DO_TESTE } from "@/lib/canal.functions";
 
 const ESTADO: Record<string, { titulo: string; ok: boolean; ajuda: string }> = {
   conectada: { titulo: "Conectado", ok: true, ajuda: "A instância está conectada ao WhatsApp." },
@@ -27,6 +27,7 @@ const ESTADO: Record<string, { titulo: string; ok: boolean; ajuda: string }> = {
 export function AbaWhatsapp() {
   const painelFn = useServerFn(getWhatsappPainel);
   const testeFn = useServerFn(sendWhatsappTest);
+  const recebidasFn = useServerFn(listarMensagensRecebidas);
   const qc = useQueryClient();
   const [numero, setNumero] = useState("");
 
@@ -35,6 +36,8 @@ export function AbaWhatsapp() {
     queryFn: () => painelFn(),
     retry: false,
   });
+
+  const recebidas = useQuery({ queryKey: ["whatsapp-recebidas"], queryFn: () => recebidasFn(), retry: false, refetchInterval: 30_000 });
 
   const testar = useMutation({
     mutationFn: () => testeFn({ data: { numero } }),
@@ -128,12 +131,52 @@ export function AbaWhatsapp() {
                 </div>
                 <div className="flex items-center gap-3 text-xs">
                   <span className={l.status === "enviado" ? "text-emerald-700 dark:text-emerald-300" : l.status === "falhou" ? "text-destructive" : "text-muted-foreground"}>
-                    {l.status === "enviado" ? "aceito pela Zapster" : l.status}
+                    {l.status === "enviado" ? (l.lido_em ? "lido" : l.entregue_em ? "entregue" : "aceito pela Zapster") : l.status}
                   </span>
                   <span className="text-muted-foreground">{new Date(l.criado_em).toLocaleString("pt-BR")}</span>
                 </div>
               </li>
             ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="overflow-hidden rounded-xl bg-card ring-1 ring-black/5 dark:ring-white/10">
+        <div className="border-b border-black/5 px-5 py-3 dark:border-white/10">
+          <h2 className="text-sm font-semibold">Mensagens recebidas</h2>
+          <p className="text-xs text-muted-foreground">
+            As 50 últimas que chegaram ao WhatsApp da plataforma. Só leitura.
+            {!data.webhook.configurado && " O recebimento ainda não está ligado: faltam ZAPSTER_WEBHOOK_SEGREDO e ZAPSTER_NUMERO nos Secrets, e o endereço no painel da Zapster."}
+          </p>
+        </div>
+        {recebidas.isLoading ? (
+          <p className="p-6 text-sm text-muted-foreground">Carregando…</p>
+        ) : recebidas.isError ? (
+          <p className="p-6 text-sm text-destructive">Não consegui carregar as mensagens recebidas.</p>
+        ) : (recebidas.data ?? []).length === 0 ? (
+          <p className="p-6 text-sm text-muted-foreground">Nenhuma mensagem recebida ainda.</p>
+        ) : (
+          <ul className="divide-y divide-black/5 text-sm dark:divide-white/10">
+            {(recebidas.data ?? []).map((m) => {
+              const quem =
+                m.remetente === "desconhecido" ? `Desconhecido · ${m.telefone_mascarado}`
+                : m.remetente === "ambiguo" ? `Número em mais de um cadastro (${((m.candidatos as { nome: string }[] | null) ?? []).map((c) => c.nome).join(", ")}) · ${m.telefone_mascarado}`
+                : `${m.remetente_nome ?? "Sem nome"}${m.remetente === "equipe" ? " (equipe)" : ""}`;
+              const tipos: Record<string, string> = { audio: "Áudio recebido", imagem: "Imagem recebida", video: "Vídeo recebido", documento: "Documento recebido", sticker: "Figurinha recebida", localizacao: "Localização recebida", contato: "Contato recebido", formulario: "Formulário respondido", outro: "Mensagem de outro tipo" };
+              const conteudo =
+                m.tipo === "botao" ? `Clicou no botão “${m.botao_rotulo ?? m.texto ?? "?"}”${m.citada_texto ? ` — em resposta a: ${m.citada_texto}` : ""}`
+                : m.tipo === "lista" ? `Escolheu “${m.botao_rotulo ?? m.texto ?? "?"}”`
+                : m.texto ?? tipos[m.tipo] ?? "Mensagem";
+              return (
+                <li key={m.id} className="flex flex-wrap items-start justify-between gap-2 px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="font-medium">{quem}</p>
+                    <p className="break-words text-muted-foreground">{conteudo}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground">{new Date(m.recebida_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

@@ -36,3 +36,15 @@ export function normalizarTelefoneBR(bruto: string | null | undefined): Telefone
   if (!valido) return { ok: false, motivo: MOTIVO_TELEFONE_INVALIDO, mascarado };
   return { ok: true, internacional: `55${nacional}`, mascarado };
 }
+
+/**
+ * Chave para COMPARAR telefones escritos de jeitos diferentes (#M1a): DDD + os 8 últimos dígitos. Ignora o 55, o 9 do
+ * celular (número antigo de 8 dígitos casa com o novo de 9), símbolos e espaços. Só serve para achar o cadastro de quem
+ * mandou uma mensagem — nunca para enviar (o envio exige DDD + 9 + número, ver `normalizarTelefoneBR`).
+ */
+export function chaveDoTelefone(bruto: string | null | undefined): string | null {
+  let d = (bruto ?? "").replace(/\D/g, "");
+  if ((d.length === 12 || d.length === 13) && d.startsWith("55")) d = d.slice(2);
+  if (d.length !== 10 && d.length !== 11) return null;
+  return `${d.slice(0, 2)}${d.slice(-8)}`;
+}

@@ -47,16 +47,22 @@ export const getWhatsappPainel = createServerFn({ method: "GET" })
 
     const { data: recentes, error } = await supabase
       .from("envios_mensagens")
-      .select("id, canal, tipo, destino_mascarado, status, motivo_falha, fornecedor, fornecedor_msg_id, criado_em, enviado_em")
+      .select("id, canal, tipo, destino_mascarado, status, motivo_falha, fornecedor, fornecedor_msg_id, criado_em, enviado_em, entregue_em, lido_em")
       .order("criado_em", { ascending: false })
       .limit(10);
     if (error) throw new Error(error.message);
 
     const usados = await contarTestesDeHoje(userId);
+    // Menu Mensagens M1a: o webhook está configurado? (só se as duas variáveis existem a porta responde) e quando chegou
+    // a última mensagem. Nunca devolve os valores — só se existem.
+    const webhookConfigurado = !!(process.env.ZAPSTER_WEBHOOK_SEGREDO || process.env.APP_ZAPSTER_WEBHOOK_SEGREDO)
+      && !!(process.env.ZAPSTER_NUMERO || process.env.APP_ZAPSTER_NUMERO);
+    const { data: ultima } = await supabase.from("mensagens_recebidas").select("recebida_em").order("recebida_em", { ascending: false }).limit(1);
     return {
       conexao,
       recentes: recentes ?? [],
       testes: { usados, limite: LIMITE_TESTES_POR_DIA },
+      webhook: { configurado: webhookConfigurado, ultimaRecebidaEm: (ultima ?? [])[0]?.recebida_em ?? null },
     };
   });
 
@@ -84,4 +90,23 @@ export const sendWhatsappTest = createServerFn({ method: "POST" })
       destino: data.numero,
       texto: TEXTO_DO_TESTE,
     });
+  });
+
+/**
+ * As últimas 50 mensagens recebidas (Menu Mensagens M1a). Só o DONO; só leitura. O telefone completo NUNCA sai do
+ * servidor: para quem não foi identificado vai só a versão mascarada.
+ */
+export const listarMensagensRecebidas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    await exigirDono(supabase);
+    const { data, error } = await supabase
+      .from("mensagens_recebidas")
+      .select("id, recebida_em, remetente, remetente_nome, telefone, candidatos, tipo, texto, botao_rotulo, citada_texto")
+      .order("recebida_em", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    const { mascararTelefone } = await import("@/lib/canal/telefone");
+    return (data ?? []).map(({ telefone, ...m }) => ({ ...m, telefone_mascarado: mascararTelefone(telefone) }));
   });
