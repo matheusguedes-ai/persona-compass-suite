@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mensagemDeErro } from "@/lib/erro-legivel";
-import { getWhatsappPainel, listarMensagensRecebidas, sendWhatsappTest, TEXTO_DO_TESTE } from "@/lib/canal.functions";
+import { cadastrarWebhookNaZapster, getWhatsappPainel, listarMensagensRecebidas, sendWhatsappTest, TEXTO_DO_TESTE, verificarWebhookNaZapster } from "@/lib/canal.functions";
 
 const ESTADO: Record<string, { titulo: string; ok: boolean; ajuda: string }> = {
   conectada: { titulo: "Conectado", ok: true, ajuda: "A instância está conectada ao WhatsApp." },
@@ -28,6 +28,8 @@ export function AbaWhatsapp() {
   const painelFn = useServerFn(getWhatsappPainel);
   const testeFn = useServerFn(sendWhatsappTest);
   const recebidasFn = useServerFn(listarMensagensRecebidas);
+  const verificarHookFn = useServerFn(verificarWebhookNaZapster);
+  const cadastrarHookFn = useServerFn(cadastrarWebhookNaZapster);
   const qc = useQueryClient();
   const [numero, setNumero] = useState("");
 
@@ -38,6 +40,13 @@ export function AbaWhatsapp() {
   });
 
   const recebidas = useQuery({ queryKey: ["whatsapp-recebidas"], queryFn: () => recebidasFn(), retry: false, refetchInterval: 30_000 });
+
+  const hook = useQuery({ queryKey: ["whatsapp-webhook-zapster"], queryFn: () => verificarHookFn(), retry: false });
+  const cadastrarHook = useMutation({
+    mutationFn: () => cadastrarHookFn(),
+    onSuccess: (r) => { qc.invalidateQueries({ queryKey: ["whatsapp-webhook-zapster"] }); if (r.criado) toast.success("Webhook cadastrado na Zapster."); else if (r.jaExistia) toast.message("O webhook já estava cadastrado."); else toast.error("A Zapster não aceitou. Veja o detalhe abaixo."); },
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
+  });
 
   const testar = useMutation({
     mutationFn: () => testeFn({ data: { numero } }),
@@ -153,6 +162,24 @@ export function AbaWhatsapp() {
               Conferência do cadastro: segredo com {data.webhook.segredoTamanho} caracteres (o certo é 64)
               {data.webhook.segredoComEspacoNasPontas ? ", com espaço sobrando nas pontas (ignorado)" : ""}; número da linha com {data.webhook.numeroDigitos} dígitos (o certo é 12 ou 13).
             </p>
+          )}
+          {data.webhook.configurado && (
+            <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+              <p className="font-medium">Webhook na Zapster:</p>
+              {hook.isLoading ? <p>conferindo…</p> : hook.data && hook.data.ok ? (
+                hook.data.nossos.length === 0
+                  ? <p>NÃO está cadastrado ({hook.data.total} webhook(s) na conta).</p>
+                  : hook.data.nossos.map((w, i) => (
+                      <p key={i}>cadastrado · {w.enabled === false ? "DESATIVADO" : w.enabled ? "ativado" : "ativação não informada"} · {w.doNossoEndereco ? "endereço confere" : "endereço DIFERENTE do esperado"} · instâncias: {w.instancias}</p>
+                    ))
+              ) : <p>não consegui conferir: {hook.data && !hook.data.ok ? hook.data.motivo : "erro"}</p>}
+              <button type="button" className="underline" disabled={cadastrarHook.isPending} onClick={() => cadastrarHook.mutate()}>
+                {cadastrarHook.isPending ? "Cadastrando…" : "Cadastrar o webhook na Zapster"}
+              </button>
+              {cadastrarHook.data && !cadastrarHook.data.criado && (
+                <ul>{cadastrarHook.data.tentativas.map((t, i) => <li key={i}>{t.formato}: {t.resultado}</li>)}</ul>
+              )}
+            </div>
           )}
           {data.webhook.configurado && (
             <div className="mt-2 text-[11px] text-muted-foreground">

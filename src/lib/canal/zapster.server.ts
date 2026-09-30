@@ -115,3 +115,77 @@ export const adaptadorZapster: AdaptadorDeCanal = {
     }
   },
 };
+
+// ------------------------------------------------------------------------------------------ webhook (Menu Mensagens M1a)
+// A documentação da Zapster só descreve LISTAR (GET /webhooks) e ATUALIZAR (PATCH /webhooks/{id}: enabled, name, url,
+// events). A chamada de CRIAR não está documentada; por isso `cadastrarWebhook` tenta alguns formatos, para no primeiro
+// que a Zapster aceitar e devolve o que ela respondeu — sempre SEM o segredo nem o endereço (que carrega o segredo).
+
+type Obj = Record<string, unknown>;
+
+/** Resposta de erro da Zapster resumida e sem nada sensível (o endereço do webhook leva o segredo). */
+async function resumoSeguro(r: Response, proibidos: string[]): Promise<string> {
+  let t = "";
+  try { t = JSON.stringify(await r.json()); } catch { /* sem corpo */ }
+  for (const x of [...proibidos, token(), instancia()]) if (x && x.length >= 4) t = t.split(x).join("[oculto]");
+  return `${r.status}${t ? ` ${t.slice(0, 240)}` : ""}`;
+}
+
+export type WebhookNaZapster = { id: string | null; enabled: boolean | null; doNossoEndereco: boolean; campos: string[]; instancias: string };
+
+/** Lista os webhooks da conta e diz, SEM mostrar o endereço, qual é o nosso. */
+export async function verificarWebhookZapster(nossoEndereco: string): Promise<
+  { ok: true; total: number; nossos: WebhookNaZapster[] } | { ok: false; motivo: string }
+> {
+  if (!adaptadorZapster.configurado()) return { ok: false, motivo: "Zapster não configurada (faltam as variáveis)" };
+  try {
+    const r = await chamar("/webhooks", { method: "GET", headers: cabecalhos() });
+    if (!r.ok) return { ok: false, motivo: await resumoSeguro(r, [nossoEndereco]) };
+    const j = (await r.json().catch(() => ({}))) as { webhooks?: Obj[] };
+    const lista = Array.isArray(j.webhooks) ? j.webhooks : Array.isArray(j) ? (j as unknown as Obj[]) : [];
+    const nossos = lista
+      .filter((w) => typeof w.url === "string" && (w.url === nossoEndereco || (w.url as string).includes("/api/webhook/zapster/")))
+      .map((w): WebhookNaZapster => {
+        const ligadoAInstancia = Object.entries(w).find(([k]) => /instanc/i.test(k));
+        const v = ligadoAInstancia?.[1];
+        return {
+          id: typeof w.id === "string" ? w.id : null,
+          enabled: typeof w.enabled === "boolean" ? w.enabled : null,
+          doNossoEndereco: w.url === nossoEndereco,
+          campos: Object.keys(w),
+          instancias: v === undefined ? "a resposta não traz o vínculo com instâncias" : Array.isArray(v) ? `${v.length} instância(s)` : String(v === null ? "nenhuma" : "informada"),
+        };
+      });
+    return { ok: true, total: lista.length, nossos };
+  } catch {
+    return { ok: false, motivo: "Falha de conexão com a Zapster" };
+  }
+}
+
+export type TentativaDeCadastro = { formato: string; resultado: string };
+
+/** Tenta cadastrar o webhook. Para no primeiro formato aceito (2xx). Nunca devolve o endereço nem o segredo. */
+export async function cadastrarWebhookZapster(args: { url: string; nome: string; eventos: string[] }): Promise<
+  { criado: boolean; tentativas: TentativaDeCadastro[] }
+> {
+  const inst = instancia() ?? "";
+  const base = { name: args.nome, url: args.url, events: args.eventos, enabled: true };
+  const formatos: { nome: string; caminho: string; corpo: Obj }[] = [
+    { nome: "POST /webhooks (com instance_id)", caminho: "/webhooks", corpo: { ...base, instance_id: inst } },
+    { nome: "POST /webhooks (com instances)", caminho: "/webhooks", corpo: { ...base, instances: [inst] } },
+    { nome: "POST /webhooks (com instance_ids)", caminho: "/webhooks", corpo: { ...base, instance_ids: [inst] } },
+    { nome: "POST /wa/instances/{id}/webhooks", caminho: `/wa/instances/${encodeURIComponent(inst)}/webhooks`, corpo: base },
+    { nome: "POST /webhooks (sem vínculo)", caminho: "/webhooks", corpo: base },
+  ];
+  const tentativas: TentativaDeCadastro[] = [];
+  for (const f of formatos) {
+    try {
+      const r = await chamar(f.caminho, { method: "POST", headers: cabecalhos(), body: JSON.stringify(f.corpo) });
+      tentativas.push({ formato: f.nome, resultado: r.ok ? `aceito (${r.status})` : await resumoSeguro(r, [args.url]) });
+      if (r.ok) return { criado: true, tentativas };
+    } catch {
+      tentativas.push({ formato: f.nome, resultado: "falha de conexão" });
+    }
+  }
+  return { criado: false, tentativas };
+}
