@@ -1599,21 +1599,29 @@ const JANELA_MAX_LEMBRETE_HORAS = 999;
  * pontos.functions.ts, depois de uma falha que passou meses sem ninguém notar
  * porque o erro era engolido junto com o 23505.
  */
-export async function enviarLembretesDevidos(supabaseAdmin: Cliente): Promise<{ enviados: number; avaliados: number }> {
-  const agora = new Date();
+export async function enviarLembretesDevidos(
+  supabaseAdmin: Cliente,
+  // `somenteSessoes`: usado só pelos testes, para a simulação nunca encostar em sessão real.
+  opcoes?: { agora?: Date; somenteSessoes?: string[] },
+): Promise<{ enviados: number; avaliados: number; whatsapp: Record<string, number> }> {
+  const agora = opcoes?.agora ?? new Date();
+  // #291 F1c: o que o WhatsApp fez nesta rodada, por resultado (o e-mail segue contado em `enviados`, como sempre).
+  const whatsapp: Record<string, number> = {};
   const limite = new Date(agora.getTime() + JANELA_MAX_LEMBRETE_HORAS * 3_600_000);
 
-  const { data: sessoes, error } = await supabaseAdmin
+  let consultaSessoes = supabaseAdmin
     .from("mentoria_sessoes")
     .select("id, mentor_id, mentoria_id, quando, termina_em, link_id, modalidade, local, link_url")
     .eq("status", "agendada")
     .gte("quando", agora.toISOString())
     .lte("quando", limite.toISOString());
+  if (opcoes?.somenteSessoes) consultaSessoes = consultaSessoes.in("id", opcoes.somenteSessoes);
+  const { data: sessoes, error } = await consultaSessoes;
   if (error) throw new Error(error.message);
-  if (!sessoes || sessoes.length === 0) return { enviados: 0, avaliados: 0 };
+  if (!sessoes || sessoes.length === 0) return { enviados: 0, avaliados: 0, whatsapp };
 
   const linkIds = [...new Set(sessoes.map((s) => s.link_id).filter((id): id is string => !!id))];
-  if (linkIds.length === 0) return { enviados: 0, avaliados: 0 };
+  if (linkIds.length === 0) return { enviados: 0, avaliados: 0, whatsapp };
   const { data: links } = await supabaseAdmin
     .from("mentoria_links")
     .select("id, titulo, duracao_min, lembrete_horas, permite_cancelar, permite_remarcar")
@@ -1622,6 +1630,7 @@ export async function enviarLembretesDevidos(supabaseAdmin: Cliente): Promise<{ 
 
   let enviados = 0;
   let avaliados = 0;
+  let rodadaWhatsapp: import("@/lib/canal/lembrete-whatsapp.server").RodadaWhatsapp | undefined;
 
   for (const sessao of sessoes) {
     if (!sessao.link_id) continue; // sessão criada fora do link não tem lembrete_horas configurado
@@ -1645,10 +1654,22 @@ export async function enviarLembretesDevidos(supabaseAdmin: Cliente): Promise<{ 
         }
         if (await enviarLembreteEmail(supabaseAdmin, sessao, link, destinatario)) enviados++;
       }
+
+      // #291 F1c: o WhatsApp do aluno é SOMADO ao e-mail acima, que não mudou. Roda a cada rodada (e não só quando o
+      // e-mail acaba de sair): um lembrete vencido às 22h espera a janela das 8h. Nunca derruba o ciclo.
+      try {
+        const { novaRodada, lembreteWhatsapp } = await import("@/lib/canal/lembrete-whatsapp.server");
+        rodadaWhatsapp ??= novaRodada(supabaseAdmin as never, agora);
+        const resultado = await lembreteWhatsapp(rodadaWhatsapp, { sessao, link, horas });
+        whatsapp[resultado] = (whatsapp[resultado] ?? 0) + 1;
+      } catch (e) {
+        console.error(`[lembretes] whatsapp falhou para sessão ${sessao.id} (${horas}h):`, e instanceof Error ? e.message : "erro");
+        whatsapp.erro = (whatsapp.erro ?? 0) + 1;
+      }
     }
   }
 
-  return { enviados, avaliados };
+  return { enviados, avaliados, whatsapp };
 }
 
 async function enviarLembreteEmail(
