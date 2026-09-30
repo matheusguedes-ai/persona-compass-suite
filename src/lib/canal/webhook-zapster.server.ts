@@ -120,7 +120,11 @@ export async function processarEventoZapster(admin: SupabaseClient, evento: Even
     const zapsterId = txt(data.id);
     const telefone = soDigitos(de.id);
     if (!zapsterId || !telefone) return "invalido";
-    if (soDigitos(para.id) !== ctx.numero) return "outra_instancia";   // não foi mandada para a NOSSA linha
+    // ⚠️ Conferido em produção (30/09/2026): neste aviso a Zapster põe em `recipient.id` o PRÓPRIO interlocutor (o mesmo
+    // número de `sender.id`), e NÃO a linha da plataforma — o exemplo da documentação, com os dois iguais, já insinuava
+    // isso. Por isso a linha não é conferida aqui. A prova de origem é o segredo no endereço + o webhook estar ligado a
+    // UMA só instância (a nossa), o que a própria Zapster mostra ("Usado por 1 instância").
+    if (telefone === ctx.numero) return "ignorada";                      // eco da nossa própria linha
     if (para.type === "group" || de.type === "group") return "ignorada"; // só conversa 1 a 1
 
     const c = conteudoDaMensagem(data);
@@ -189,11 +193,13 @@ export async function registrarEventoDoWebhook(
   admin: SupabaseClient, contaId: string, evento: EventoZapster, acao: Acao | "erro", numero: string, erro?: string,
 ) {
   const d = obj(evento.data);
+  // Só NOMES de campos (nunca valores): mostra se a Zapster manda algo que identifique a instância.
+  const forma = `campos: ${Object.keys(evento).join(",")} | data: ${Object.keys(d).join(",")} | sender: ${Object.keys(obj(d.sender)).join(",")} | recipient: ${Object.keys(obj(d.recipient)).join(",")}`.slice(0, 280);
   const detalhe = acao === "outra_instancia"
-    ? `destino do evento ${fim(obj(d.recipient).id ?? d.id)}; remetente ${fim(obj(d.sender).id)}; linha esperada ${fim(numero)}`
+    ? `número do evento ${fim(obj(d.recipient).id ?? d.id)}; remetente ${fim(obj(d.sender).id)}; linha esperada ${fim(numero)}`
     : acao === "erro" ? `falha: ${(erro ?? "erro").slice(0, 120)}`
     : acao === "invalido" ? "faltou o identificador da mensagem ou o remetente"
-    : null;
+    : forma;
   await admin.from("webhook_eventos").insert({ conta_id: contaId, tipo: String(evento.type ?? "?").slice(0, 60), acao, detalhe });
   const { data: velhos } = await admin.from("webhook_eventos").select("id").eq("conta_id", contaId)
     .order("recebido_em", { ascending: false }).range(200, 400);

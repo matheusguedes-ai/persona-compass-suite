@@ -48,7 +48,8 @@ async function pessoa(dono: string, nome: string, phone: string | null, userId: 
 }
 const recebida = (id: string, de: string, data: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
   type: "message.received", created_at: "2026-10-01T15:00:00.000Z",
-  data: { id, sender: { id: de, name: "Nome Do Celular" }, recipient: { id: NUMERO, type: "chat", name: "Plataforma" }, sent_at: "2026-10-01T15:00:00.000Z", ...data, ...extra },
+  // como a Zapster manda DE VERDADE: `recipient` é o próprio interlocutor (o mesmo número de `sender`)
+  data: { id, sender: { id: de, name: "Nome Do Celular" }, recipient: { id: de, type: "chat", name: "Nome Do Celular" }, sent_at: "2026-10-01T15:00:00.000Z", ...data, ...extra },
 });
 const texto = (t: string) => ({ type: "text", content: { text: t } });
 
@@ -127,8 +128,9 @@ try {
   // ---------- (e) o que a porta recusa ----------
   console.log("\n== (e) outra instância / eventos que não interessam");
   const antes2 = (await linhas()).length;
-  r = await processarEventoZapster(admin as never, { ...recebida("MSG-E1", "5511911112222", texto("x")), data: { ...recebida("MSG-E1", "5511911112222", texto("x")).data, recipient: { id: "5511000000000", type: "chat" } } }, ctx);
-  confere("mensagem para OUTRA linha: recusada, nada gravado", r === "outra_instancia" && (await linhas()).length === antes2);
+  confere("(a Zapster põe o interlocutor em 'recipient': a linha NÃO é conferida em mensagem recebida)", true);
+  r = await processarEventoZapster(admin as never, recebida("MSG-E1", NUMERO, texto("eco da nossa linha")), ctx);
+  confere("mensagem que sai da NOSSA própria linha (eco): ignorada, nada gravado", r === "ignorada" && (await linhas()).length === antes2);
   r = await processarEventoZapster(admin as never, recebida("MSG-E2", "5511911112222", texto("grupo"), { recipient: { id: "120363000000000", type: "group" } }), ctx);
   confere("mensagem de grupo: ignorada", r === "outra_instancia" || r === "ignorada");
   r = await processarEventoZapster(admin as never, { type: "message.received", data: { sender: { id: "5511911112222" }, recipient: { id: NUMERO } } }, ctx);
@@ -187,13 +189,15 @@ try {
   const evOutra = { type: "message.received", data: { id: "DIAG-1", sender: { id: "5511977778888" }, recipient: { id: "5511900000001", type: "chat" } } };
   await registrarEventoDoWebhook(admin as never, dono.id, evOutra as never, "outra_instancia", NUMERO);
   await registrarEventoDoWebhook(admin as never, dono.id, { type: "message.read", data: { id: "OUT-1" } } as never, "status", NUMERO);
+  await registrarEventoDoWebhook(admin as never, dono.id, { type: "message.received", created_at: "x", data: { id: "Z", sender: { id: "5511977778888" }, recipient: { id: "5511977778888" } } } as never, "gravada", NUMERO);
   const dg = (await admin.from("webhook_eventos").select("tipo, acao, detalhe").eq("conta_id", dono.id)).data ?? [];
   const dOutra = dg.find((x) => x.acao === "outra_instancia");
-  confere("registra o tipo e o resultado de cada chamada", dg.length === 2 && dg.some((x) => x.tipo === "message.read" && x.acao === "status"));
-  confere("quando é de outra linha, guarda só o FIM dos números (para achar erro de cadastro)", !!dOutra && /destino do evento …0001; remetente …8888; linha esperada …0001/.test(dOutra.detalhe ?? ""), dOutra?.detalhe ?? "");
+  confere("registra o tipo e o resultado de cada chamada", dg.length === 3 && dg.some((x) => x.tipo === "message.read" && x.acao === "status"));
+  confere("quando é de outra linha, guarda só o FIM dos números (para achar erro de cadastro)", !!dOutra && /número do evento …0001; remetente …8888; linha esperada …0001/.test(dOutra.detalhe ?? ""), dOutra?.detalhe ?? "");
+  confere("registra só os NOMES dos campos do evento (para saber se a Zapster identifica a instância), nunca valores", dg.some((x) => (x.detalhe ?? "").startsWith("campos: type,created_at,data | data: id,sender,recipient")) && !JSON.stringify(dg).includes("5511977778888"));
   confere("nenhum telefone inteiro nem texto no diagnóstico", !JSON.stringify(dg).includes("55119777") && !JSON.stringify(dg).includes("5511955500001"));
   confere("o ALUNO não lê o diagnóstico", ((await cAluno.from("webhook_eventos").select("id")).data ?? []).length === 0);
-  confere("o dono lê o diagnóstico da conta dele", ((await cDono.from("webhook_eventos").select("id")).data ?? []).length === 2);
+  confere("o dono lê o diagnóstico da conta dele", ((await cDono.from("webhook_eventos").select("id")).data ?? []).length === 3);
 
   // ---------- fusão ----------
   console.log("\n== a fusão de cadastros leva as mensagens junto");
