@@ -170,7 +170,11 @@ export function AbaWhatsapp() {
                 hook.data.nossos.length === 0
                   ? <p>NÃO está cadastrado ({hook.data.total} webhook(s) na conta).</p>
                   : hook.data.nossos.map((w, i) => (
-                      <p key={i}>cadastrado · {w.enabled === false ? "DESATIVADO" : w.enabled ? "ativado" : "ativação não informada"} · {w.doNossoEndereco ? "endereço confere" : "endereço DIFERENTE do esperado"} · instâncias: {w.instancias}</p>
+                      <div key={i}>
+                        <p>cadastrado · {w.enabled === false ? "DESATIVADO" : w.enabled ? "ativado" : "ativação não informada"} · {w.doNossoEndereco ? "endereço confere" : "endereço DIFERENTE do esperado"} · instâncias: {w.instancias}</p>
+                        <p>nome: {w.nome ?? "—"} · eventos: {w.eventos}</p>
+                        <p>campos que a Zapster devolve: {w.campos.join(", ")} · valores: {Object.entries(w.outrosCampos).map(([k, v]) => `${k}=${v}`).join("; ") || "—"}</p>
+                      </div>
                     ))
               ) : <p>não consegui conferir: {hook.data && !hook.data.ok ? hook.data.motivo : "erro"}</p>}
               <button type="button" className="underline" disabled={cadastrarHook.isPending} onClick={() => cadastrarHook.mutate()}>
