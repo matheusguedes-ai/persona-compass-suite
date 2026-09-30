@@ -25,7 +25,8 @@ export const Route = createFileRoute("/api/webhook/zapster/$segredo")({
   server: {
     handlers: {
       POST: async ({ request, params }) => {
-        const esperado = process.env.ZAPSTER_WEBHOOK_SEGREDO || process.env.APP_ZAPSTER_WEBHOOK_SEGREDO;
+        // `.trim()`: um espaço ou quebra de linha colado por engano no fim do segredo não pode derrubar a porta.
+        const esperado = (process.env.ZAPSTER_WEBHOOK_SEGREDO || process.env.APP_ZAPSTER_WEBHOOK_SEGREDO || "").trim();
         const numero = (process.env.ZAPSTER_NUMERO || process.env.APP_ZAPSTER_NUMERO || "").replace(/\D/g, "");
         if (!esperado || !numero || !iguais(String(params.segredo ?? ""), esperado)) return nao();
 

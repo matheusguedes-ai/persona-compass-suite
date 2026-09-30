@@ -55,14 +55,22 @@ export const getWhatsappPainel = createServerFn({ method: "GET" })
     const usados = await contarTestesDeHoje(userId);
     // Menu Mensagens M1a: o webhook está configurado? (só se as duas variáveis existem a porta responde) e quando chegou
     // a última mensagem. Nunca devolve os valores — só se existem.
-    const webhookConfigurado = !!(process.env.ZAPSTER_WEBHOOK_SEGREDO || process.env.APP_ZAPSTER_WEBHOOK_SEGREDO)
-      && !!(process.env.ZAPSTER_NUMERO || process.env.APP_ZAPSTER_NUMERO);
+    const segredoBruto = process.env.ZAPSTER_WEBHOOK_SEGREDO || process.env.APP_ZAPSTER_WEBHOOK_SEGREDO || "";
+    const numeroBruto = process.env.ZAPSTER_NUMERO || process.env.APP_ZAPSTER_NUMERO || "";
+    const webhookConfigurado = segredoBruto.trim() !== "" && numeroBruto.replace(/\D/g, "") !== "";
     const { data: ultima } = await supabase.from("mensagens_recebidas").select("recebida_em").order("recebida_em", { ascending: false }).limit(1);
     return {
       conexao,
       recentes: recentes ?? [],
       testes: { usados, limite: LIMITE_TESTES_POR_DIA },
-      webhook: { configurado: webhookConfigurado, ultimaRecebidaEm: (ultima ?? [])[0]?.recebida_em ?? null },
+      webhook: {
+        configurado: webhookConfigurado,
+        // Só TAMANHOS (nunca os valores), para achar erro de colagem: o segredo nasce com 64 caracteres, o número tem 12 ou 13 dígitos.
+        segredoTamanho: segredoBruto.length,
+        segredoComEspacoNasPontas: segredoBruto !== segredoBruto.trim(),
+        numeroDigitos: numeroBruto.replace(/\D/g, "").length,
+        ultimaRecebidaEm: (ultima ?? [])[0]?.recebida_em ?? null,
+      },
     };
   });
 
