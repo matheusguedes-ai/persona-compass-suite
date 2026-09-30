@@ -1,3 +1,4 @@
+import { StatusWhatsapp } from "@/components/status-whatsapp";
 import { mensagemDeErro } from "@/lib/erro-legivel";
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -173,6 +174,7 @@ function PersonProfile() {
             <InfoBox label="Cargo" value={person.role_at_company} />
             <InfoBox label="Cadastrada em" value={new Date(person.created_at).toLocaleDateString("pt-BR")} />
           </div>
+          <StatusWhatsapp personId={person.id} />
           {person.notes && (
             <div className="rounded-xl bg-card p-5 ring-1 ring-black/5">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">Observações</p>
