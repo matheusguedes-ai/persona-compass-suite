@@ -121,3 +121,41 @@ export const listarMensagensRecebidas = createServerFn({ method: "GET" })
     const { mascararTelefone } = await import("@/lib/canal/telefone");
     return (data ?? []).map(({ telefone, ...m }) => ({ ...m, telefone_mascarado: mascararTelefone(telefone) }));
   });
+
+// ------------------------------------------------------------------------------------------ webhook na Zapster
+export const EVENTOS_DO_WEBHOOK = ["message.received", "message.delivered", "message.read", "instance.disconnected"];
+
+async function enderecoDoWebhook(): Promise<string | null> {
+  const segredo = (process.env.ZAPSTER_WEBHOOK_SEGREDO || process.env.APP_ZAPSTER_WEBHOOK_SEGREDO || "").trim();
+  if (!segredo) return null;
+  const { siteUrl } = await import("@/lib/site-url.server");
+  return `${siteUrl()}/api/webhook/zapster/${segredo}`;
+}
+
+/** O webhook está cadastrado na Zapster? Só o dono. Nunca devolve o endereço (ele leva o segredo). */
+export const verificarWebhookNaZapster = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirDono(context.supabase);
+    const url = await enderecoDoWebhook();
+    if (!url) return { ok: false as const, motivo: "Falta ZAPSTER_WEBHOOK_SEGREDO nos Secrets" };
+    const { verificarWebhookZapster } = await import("@/lib/canal/zapster.server");
+    return verificarWebhookZapster(url);
+  });
+
+/** Cadastra o webhook na Zapster pelo servidor (o endereço com o segredo nunca passa pela tela). Só o dono. */
+export const cadastrarWebhookNaZapster = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirDono(context.supabase);
+    const url = await enderecoDoWebhook();
+    if (!url) return { criado: false as const, tentativas: [{ formato: "—", resultado: "Falta ZAPSTER_WEBHOOK_SEGREDO nos Secrets" }] };
+    const { verificarWebhookZapster, cadastrarWebhookZapster } = await import("@/lib/canal/zapster.server");
+    // Já existe o nosso? Não cria outro (dois webhooks iguais fariam o mesmo aviso chegar duas vezes).
+    const antes = await verificarWebhookZapster(url);
+    if (antes.ok && antes.nossos.some((w) => w.doNossoEndereco)) {
+      return { criado: false as const, jaExistia: true as const, tentativas: [{ formato: "—", resultado: "já existe um webhook com o nosso endereço" }] };
+    }
+    const r = await cadastrarWebhookZapster({ url, nome: "Plataforma Método Intenção", eventos: EVENTOS_DO_WEBHOOK });
+    return { ...r, jaExistia: false as const };
+  });
