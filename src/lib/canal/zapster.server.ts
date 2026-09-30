@@ -131,7 +131,7 @@ async function resumoSeguro(r: Response, proibidos: string[]): Promise<string> {
   return `${r.status}${t ? ` ${t.slice(0, 240)}` : ""}`;
 }
 
-export type WebhookNaZapster = { id: string | null; enabled: boolean | null; doNossoEndereco: boolean; campos: string[]; instancias: string };
+export type WebhookNaZapster = { id: string | null; enabled: boolean | null; doNossoEndereco: boolean; campos: string[]; instancias: string; eventos: string; nome: string | null; outrosCampos: Record<string, string> };
 
 /** Lista os webhooks da conta e diz, SEM mostrar o endereço, qual é o nosso. */
 export async function verificarWebhookZapster(nossoEndereco: string): Promise<
@@ -154,6 +154,11 @@ export async function verificarWebhookZapster(nossoEndereco: string): Promise<
           doNossoEndereco: w.url === nossoEndereco,
           campos: Object.keys(w),
           instancias: v === undefined ? "a resposta não traz o vínculo com instâncias" : Array.isArray(v) ? `${v.length} instância(s)` : String(v === null ? "nenhuma" : "informada"),
+          // Eventos marcados (se a Zapster devolver) e o TIPO/valor simples dos demais campos — nunca a url nem o que for texto longo.
+          eventos: Array.isArray(w.events) ? (w.events as unknown[]).map(String).join(", ") : w.events === undefined ? "a resposta não traz os eventos" : String(w.events),
+          nome: typeof w.name === "string" ? w.name : null,
+          outrosCampos: Object.fromEntries(Object.entries(w).filter(([k]) => !["url", "events", "id", "name"].includes(k)).map(([k, val]) =>
+            [k, Array.isArray(val) ? `lista(${val.length})` : val === null ? "null" : typeof val === "object" ? "objeto" : typeof val === "string" && val.length > 40 ? "texto longo" : String(val)])),
         };
       });
     return { ok: true, total: lista.length, nossos };
