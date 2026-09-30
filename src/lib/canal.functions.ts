@@ -114,7 +114,7 @@ export const listarMensagensRecebidas = createServerFn({ method: "GET" })
     await exigirDono(supabase);
     const { data, error } = await supabase
       .from("mensagens_recebidas")
-      .select("id, recebida_em, remetente, remetente_nome, telefone, candidatos, tipo, texto, botao_rotulo, citada_texto")
+      .select("id, recebida_em, remetente, remetente_nome, telefone, candidatos, tipo, texto, botao_rotulo, citada_texto, tratamento")
       .order("recebida_em", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);

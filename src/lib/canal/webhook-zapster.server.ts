@@ -130,14 +130,26 @@ export async function processarEventoZapster(admin: SupabaseClient, evento: Even
     const c = conteudoDaMensagem(data);
     const quem = await identificarRemetente(admin, ctx.contaId, telefone);
     const enviadaEm = txt(data.sent_at) && !Number.isNaN(Date.parse(String(data.sent_at))) ? new Date(String(data.sent_at)).toISOString() : quando;
-    const { error } = await admin.from("mensagens_recebidas").insert({
+    const { data: linha, error } = await admin.from("mensagens_recebidas").insert({
       conta_id: ctx.contaId, zapster_id: zapsterId, telefone, remetente: quem.remetente, person_id: quem.personId,
       remetente_nome: quem.nome ?? txt(de.name), candidatos: quem.candidatos, tipo: c.tipo, texto: c.texto,
       botao_id: c.botaoId, botao_rotulo: c.botaoRotulo, citada_texto: c.citadaTexto, recebida_em: enviadaEm,
-    });
+    }).select("id").single();
     if (error) {
-      if (error.code === "23505") return "duplicada"; // o mesmo evento de novo: já está registrado
+      if (error.code === "23505") return "duplicada"; // o mesmo evento de novo: já está registrado (e já foi tratado)
       throw new Error(error.message);
+    }
+    // M1b: o que a plataforma FAZ com a mensagem (SAIR, resposta automática, aviso ao mentor). Só para mensagem nova:
+    // o reenvio é "duplicada" e nunca chega aqui. Uma falha aqui NÃO derruba o webhook (a mensagem já está guardada).
+    try {
+      const { tratarMensagemRecebida } = await import("./resposta-whatsapp.server");
+      const feitos = await tratarMensagemRecebida(admin, {
+        contaId: ctx.contaId, agora: ctx.agora,
+        msg: { id: linha!.id as string, telefone, remetente: quem.remetente, personId: quem.personId, nome: quem.nome, candidatos: quem.candidatos, tipo: c.tipo, texto: c.texto, recebidaEm: enviadaEm },
+      });
+      if (feitos.length > 0) await admin.from("mensagens_recebidas").update({ tratamento: feitos.join(",") }).eq("id", linha!.id);
+    } catch (e) {
+      console.error("[webhook-zapster] tratamento da mensagem falhou:", e instanceof Error ? e.message : "erro");
     }
     return "gravada";
   }

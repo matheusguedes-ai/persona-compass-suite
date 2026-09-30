@@ -223,6 +223,11 @@ export function AbaWhatsapp() {
                   <div className="min-w-0">
                     <p className="font-medium">{quem}</p>
                     <p className="break-words text-muted-foreground">{conteudo}</p>
+                    {m.tratamento && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {m.tratamento.split(",").map((t) => ({ sair: "pediu para sair: WhatsApp desligado", confirmacao_enviada: "confirmação enviada", resposta_automatica: "resposta automática enviada", mentor_avisado: "mentor avisado", mentor_ja_avisado: "mentor já avisado há pouco", antiga_so_registrada: "mensagem antiga: só registrada" } as Record<string, string>)[t] ?? t).join(" · ")}
+                      </p>
+                    )}
                   </div>
                   <span className="shrink-0 text-xs text-muted-foreground">{new Date(m.recebida_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</span>
                 </li>
