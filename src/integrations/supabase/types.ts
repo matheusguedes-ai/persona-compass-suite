@@ -309,6 +309,13 @@ export type Database = {
         }
         Relationships: []
       }
+      // #291 F1a — registro de todo envio (whatsapp/email). Só o servidor grava; só o dono lê.
+      envios_mensagens: {
+        Row: { id: string; conta_id: string; criado_por: string | null; person_id: string | null; canal: string; tipo: string; destino_mascarado: string | null; status: string; motivo_falha: string | null; fornecedor: string | null; fornecedor_msg_id: string | null; criado_em: string; enviado_em: string | null }
+        Insert: { id?: string; conta_id: string; criado_por?: string | null; person_id?: string | null; canal: string; tipo: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null }
+        Update: { id?: string; conta_id?: string; criado_por?: string | null; person_id?: string | null; canal?: string; tipo?: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null }
+        Relationships: []
+      }
       assistente_uso: {
         Row: {
           cache_creation_input_tokens: number
@@ -2624,6 +2631,7 @@ export type Database = {
       assistente_categorias: { Args: never; Returns: string[] }
       assistente_liberada: { Args: never; Returns: boolean }
       assistente_mentor_liberada: { Args: never; Returns: boolean }
+      whatsapp_dono: { Args: never; Returns: boolean }
       assistente_revogar: { Args: never; Returns: undefined }
       // #316A — aceitar o termo com a escolha das chaves; mudar as chaves; apagar tudo o que foi informado.
       assistente_aceitar: {
