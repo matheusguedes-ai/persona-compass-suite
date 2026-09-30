@@ -43,12 +43,34 @@ export type Database = {
           },
         ]
       }
+      // #316A — as quatro chaves de privacidade do aluno (estado atual) e o histórico das escolhas.
+      assistente_chaves: {
+        Row: { user_id: string; conta_id: string; lembrar_conversas: boolean; aprender_plataforma: boolean; mentor_acompanha: boolean; melhorar_assistente: boolean; atualizado_em: string }
+        Insert: { user_id: string; conta_id: string; lembrar_conversas?: boolean; aprender_plataforma?: boolean; mentor_acompanha?: boolean; melhorar_assistente?: boolean; atualizado_em?: string }
+        Update: { user_id?: string; conta_id?: string; lembrar_conversas?: boolean; aprender_plataforma?: boolean; mentor_acompanha?: boolean; melhorar_assistente?: boolean; atualizado_em?: string }
+        Relationships: []
+      }
+      assistente_chaves_registro: {
+        Row: { id: string; user_id: string; conta_id: string; consentimento_id: string | null; termo_versao: number | null; evento: string; lembrar_conversas: boolean; aprender_plataforma: boolean; mentor_acompanha: boolean; melhorar_assistente: boolean; desligadas: string[]; ao_desligar: Json | null; apagados: number; criado_em: string }
+        Insert: { id?: string; user_id: string; conta_id: string; consentimento_id?: string | null; termo_versao?: number | null; evento: string; lembrar_conversas: boolean; aprender_plataforma: boolean; mentor_acompanha: boolean; melhorar_assistente: boolean; desligadas?: string[]; ao_desligar?: Json | null; apagados?: number; criado_em?: string }
+        Update: { id?: string; user_id?: string; conta_id?: string; consentimento_id?: string | null; termo_versao?: number | null; evento?: string; lembrar_conversas?: boolean; aprender_plataforma?: boolean; mentor_acompanha?: boolean; melhorar_assistente?: boolean; desligadas?: string[]; ao_desligar?: Json | null; apagados?: number; criado_em?: string }
+        Relationships: [
+          {
+            foreignKeyName: "assistente_chaves_registro_consentimento_id_fkey"
+            columns: ["consentimento_id"]
+            isOneToOne: false
+            referencedRelation: "assistente_consentimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistente_consentimentos: {
         Row: {
           aceito_em: string
           conta_id: string
           id: string
           revogado_em: string | null
+          substituido_em: string | null
           rotulo_aceito: string
           termo_id: string
           termo_versao: number
@@ -60,6 +82,7 @@ export type Database = {
           conta_id: string
           id?: string
           revogado_em?: string | null
+          substituido_em?: string | null
           rotulo_aceito: string
           termo_id: string
           termo_versao: number
@@ -71,6 +94,7 @@ export type Database = {
           conta_id?: string
           id?: string
           revogado_em?: string | null
+          substituido_em?: string | null
           rotulo_aceito?: string
           termo_id?: string
           termo_versao?: number
@@ -229,6 +253,7 @@ export type Database = {
         Row: {
           conta_id: string | null
           criado_em: string
+          explica_chaves: boolean
           id: string
           publicado_em: string | null
           rotulo_aceite: string
@@ -239,6 +264,7 @@ export type Database = {
         Insert: {
           conta_id?: string | null
           criado_em?: string
+          explica_chaves?: boolean
           id?: string
           publicado_em?: string | null
           rotulo_aceite: string
@@ -249,6 +275,7 @@ export type Database = {
         Update: {
           conta_id?: string | null
           criado_em?: string
+          explica_chaves?: boolean
           id?: string
           publicado_em?: string | null
           rotulo_aceite?: string
@@ -2598,6 +2625,16 @@ export type Database = {
       assistente_liberada: { Args: never; Returns: boolean }
       assistente_mentor_liberada: { Args: never; Returns: boolean }
       assistente_revogar: { Args: never; Returns: undefined }
+      // #316A — aceitar o termo com a escolha das chaves; mudar as chaves; apagar tudo o que foi informado.
+      assistente_aceitar: {
+        Args: { _termo_id: string; _lembrar_conversas?: boolean; _aprender_plataforma?: boolean; _mentor_acompanha?: boolean; _melhorar_assistente?: boolean; _ao_desligar?: Json | null }
+        Returns: Json
+      }
+      assistente_definir_chaves: {
+        Args: { _lembrar_conversas: boolean; _aprender_plataforma: boolean; _mentor_acompanha: boolean; _melhorar_assistente: boolean; _ao_desligar?: Json | null }
+        Returns: Json
+      }
+      assistente_apagar_tudo: { Args: never; Returns: Json }
       assistente_situacao: { Args: never; Returns: Json }
       promover_a_mentor: { Args: { p_person_id: string }; Returns: string }
       rebaixar_mentor: { Args: { p_person_id: string }; Returns: undefined }

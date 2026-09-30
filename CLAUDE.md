@@ -273,7 +273,8 @@ e o arquivo `.sql` correspondente é commitado em `supabase/migrations/`.
 | `devolutivas` | a conversa de resultado: fila, agendamento e o que ficou combinado |
 | `suspeitas_duplicidade` | #300: par de cadastros que pode ser a mesma pessoa (telefone igual / nome parecido). Nasce no link aberto (`link_aberto`) ou quando o mentor marca "não são a mesma pessoa" (`varredura`, status `descartada`) |
 | `fusoes_pessoas` | #300: registro de cada unificação — a linha inteira do cadastro absorvido, o que mudou de dono e o que foi descartado. É o que torna uma fusão desfazível à mão |
-| `assistente_termos` / `assistente_consentimentos` | #289: termo da assistente, versionado (publicado não se edita — o banco recusa); aceite com versão, data e CÓPIA do texto aceito. Revogar marca `revogado_em` e apaga o histórico |
+| `assistente_termos` / `assistente_consentimentos` | #289: termo da assistente, versionado (publicado não se edita — o banco recusa); aceite com versão, data e CÓPIA do texto aceito. Revogar marca `revogado_em` e apaga o histórico. #316A: `explica_chaves` (só sob termo assim as chaves aparecem e ligam); aceitar versão nova marca o aceite antigo `substituido_em` — vigente = não revogado E não substituído; em vigor = a maior versão publicada |
+| `assistente_chaves` / `assistente_chaves_registro` | #316A: as quatro chaves de privacidade do aluno (estado atual; sem linha = todas desligadas) e o histórico que não se edita — cada aceite, mudança, "apagar tudo" e revogação com a versão do termo, as chaves depois do evento e a escolha "apagar/manter" de cada chave que desligou. Dono = `user_id` (login) + `conta_id`. Só o próprio aluno lê; só funções do banco gravam. Contrato em `docs/assistente-chaves.md` |
 | `assistente_conversas` / `assistente_mensagens` | #289: conversas do aluno com a assistente. Dono = `user_id` (o LOGIN do aluno, não `people`) + `conta_id`. **Só o próprio aluno lê** |
 | `assistente_liberacoes` / `assistente_uso` | #289: quem tem a assistente liberada (grupo ou login; SEM linha = fechada) e uma linha por chamada ao modelo (tokens, sem texto; perde o `user_id` quando o aluno revoga). ⚠️ A entrada que o modelo recebeu é `entrada_total_tokens` — `input_tokens` é só o pedaço fora do cache (uns 2 tokens). `escopo` (`aluno`/`mentor`, #307) diz de qual assistente veio; `conversa_id` é só de aluno, `conversa_mentor_id` só de mentor (constraint). #317: `assistente_liberacoes.categorias` = os níveis que a linha libera (nunca vazio: sem nível = sem linha); `assistente_uso.categoria` = o nível que respondeu (NULL = antes de 28/09/2026, tudo Sonnet 5 esforço baixo = a Básica) |
 | `assistente_preferencias` | #317: o nível que a pessoa escolheu por último, por assistente (`escopo` aluno/mentor). Dono = `user_id` + `conta_id`. Não é permissão — o teto é conferido a cada pergunta. Só o próprio login lê; grava a chave de serviço, depois de conferir o teto |
@@ -576,6 +577,22 @@ foram reveladas e revogadas por terem passado por aqui).
   sabe quem entrou nem quando.
 - Termo: `scripts/conteudo_termo_assistente.py` (texto do dono do produto, conferido palavra por
   palavra contra o arquivo aprovado). Mudar o texto = versão nova, nunca editar a publicada.
+- **#316A — as quatro CHAVES de privacidade, na mão do aluno** (contrato completo em `docs/assistente-chaves.md`):
+  "Lembrar das nossas conversas" e "Aprender com o que eu faço na plataforma" (ficam só entre ele e a
+  assistente) | "Meu mentor acompanha meu progresso" e "Ajudar a melhorar a assistente" (SAEM dele) — a
+  tela mostra os dois blocos com separador. Independentes, TUDO COMEÇA DESLIGADO, a 3 só com a 1 e desliga
+  junto com ela, e desligar pergunta NA HORA "apagar o que foi guardado ou manter em espera?". Regra e
+  registro moram no banco (`assistente_aceitar` / `_definir_chaves` / `_apagar_tudo` / `_revogar`, sobre
+  `auth.uid()`); "apagar tudo" (conversas + o que as chaves guardaram; aceite e registro ficam como prova)
+  sempre à mão no painel Privacidade. NENHUMA das quatro funções existe ainda (memória = fatia B, resumo ao
+  mentor = fatia D): a tela marca "em breve" (`disponivel` em `src/lib/assistente/chaves.ts`) e cada fatia
+  que nascer põe o DELETE do que guarda em `assistente_apagar_guardado` — a única porta do "apagar".
+  **Termo versão 2** (explica as chaves + o bloco do dono sobre a observação do mentor, palavra por
+  palavra) está como RASCUNHO até o dono aprovar; `publicar --confirmo` só DEPOIS do código no ar — aí
+  quem aceitou a versão 1 lê a nova antes de continuar (as conversas ficam; dá para baixar, apagar ou
+  revogar sem aceitar). A chave 2 NÃO é a leitura do painel que ela já faz para responder (#305): é
+  aprender com o jeito de usar ao longo do tempo. Prova no banco com rastro zero:
+  `scripts/testar_chaves_assistente.sql`.
 - **#310 — recortes declarados** (o mesmo conserto da assistente do mentor, só o necessário): a agenda
   cobre de 7 dias atrás até 120 à frente e o texto DIZ a janela; grupo grande diz "N colegas (PARCIAL:
   os 80 primeiros)"; os pontos são lidos inteiros (`lerTodas`) e os "últimos" dizem "20 de N"; conversa

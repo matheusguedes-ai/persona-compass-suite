@@ -12,6 +12,9 @@
  *   consentimento e liberação; o banco ainda recusa gravar sem consentimento ativo (gatilho).
  * - O mentor não tem função nenhuma aqui. Não existe caminho de leitura de conversa para ele. As
  *   observações que ele escreve (#305) vão num sentido só: dele para a assistente.
+ * - #316A — o aceite do termo, as quatro chaves de privacidade, "apagar tudo" e a revogação são funções
+ *   do banco sobre `auth.uid()` (`assistente_aceitar`, `_definir_chaves`, `_apagar_tudo`, `_revogar`),
+ *   chamadas com o login do aluno: a regra das chaves e o registro de cada escolha moram lá.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -24,6 +27,8 @@ import { avisoDeHistoricoCortado } from "@/lib/assistente/historico";
 import { perguntaComTrechosDaBiblioteca } from "@/lib/assistente/biblioteca-busca.server";
 import { CATEGORIAS, naOrdem, nivelEmUso, type Categoria } from "@/lib/assistente/niveis";
 import { escolhaLembrada, niveisDaTela } from "@/lib/assistente/niveis.server";
+import { CHAVES, lerChaves, type EstadoDasChaves } from "@/lib/assistente/chaves";
+import { lerTodas } from "@/lib/ler-todas";
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -34,10 +39,20 @@ type Situacao = {
   liberada: boolean;
   tem_relatorio: boolean;
   termo_publicado: boolean;
+  /** Tem aceite VIGENTE (não revogado e não substituído por versão mais nova) — de qualquer versão. */
   consentimento_ativo: boolean;
   tem_historico: boolean;
   /** #317 — o teto do aluno, na ordem da escada. Vazio ⇔ `liberada` falso. */
   categorias: Categoria[];
+  /** #316A — a versão do termo em vigor (a maior publicada) e a do aceite vigente do aluno. */
+  termo_versao: number | null;
+  consentimento_versao: number | null;
+  /** O aceite vigente é da versão em vigor. Sem isso não se conversa: o aluno lê a versão nova antes. */
+  consentimento_em_dia: boolean;
+  /** O termo que o aluno aceitou explica as chaves — só então elas aparecem e podem ser ligadas. */
+  chaves_disponiveis: boolean;
+  /** O estado das quatro chaves (sem linha no banco = todas desligadas). */
+  chaves: EstadoDasChaves;
 };
 
 export type SituacaoDaAssistente = Situacao & {
@@ -52,12 +67,42 @@ type Cliente = SupabaseClient<Database>;
 async function lerSituacao(supabase: Cliente): Promise<SituacaoDaAssistente> {
   const { data, error } = await supabase.rpc("assistente_situacao");
   if (error) throw new Error(`Não foi possível consultar a assistente (${error.message}).`);
-  const bruta = data as unknown as Omit<Situacao, "categorias"> & { categorias?: unknown[] };
-  // Com o app novo no ar antes do banco (ou o contrário), a chave pode faltar: vazio, nunca `undefined`.
-  const s: Situacao = { ...bruta, categorias: naOrdem(bruta.categorias) };
+  const bruta = data as unknown as Partial<Record<keyof Situacao, unknown>>;
+  // Com o app novo no ar antes do banco (ou o contrário), uma chave pode faltar: vale o valor mais
+  // fechado (sem aceite em dia, sem chaves), nunca `undefined`.
+  const s: Situacao = {
+    liberada: bruta.liberada === true,
+    tem_relatorio: bruta.tem_relatorio === true,
+    termo_publicado: bruta.termo_publicado === true,
+    consentimento_ativo: bruta.consentimento_ativo === true,
+    tem_historico: bruta.tem_historico === true,
+    categorias: naOrdem(Array.isArray(bruta.categorias) ? bruta.categorias : []),
+    termo_versao: typeof bruta.termo_versao === "number" ? bruta.termo_versao : null,
+    consentimento_versao: typeof bruta.consentimento_versao === "number" ? bruta.consentimento_versao : null,
+    consentimento_em_dia: bruta.consentimento_em_dia === true,
+    chaves_disponiveis: bruta.chaves_disponiveis === true,
+    chaves: lerChaves(bruta.chaves),
+  };
   const pode_comecar = s.liberada && s.tem_relatorio && s.termo_publicado;
   return { ...s, pode_comecar, no_menu: pode_comecar || s.consentimento_ativo || s.tem_historico };
 }
+
+/**
+ * O banco explica a recusa em português, com o prefixo "assistente: " (ver a migração das chaves). Para o
+ * aluno, sai só a frase; erro que não é da assistente vira a mensagem genérica de quem chamou.
+ */
+function mensagemDoBanco(erro: { message: string }, generica: string): string {
+  const m = /^assistente: (.+)$/s.exec(erro.message.trim());
+  if (!m) return `${generica} (${erro.message})`;
+  const frase = m[1].trim();
+  return frase.charAt(0).toUpperCase() + frase.slice(1) + (/[.!?]$/.test(frase) ? "" : ".");
+}
+
+const esquemaDasChaves = z.object(
+  Object.fromEntries(CHAVES.map((c) => [c, z.boolean()])) as Record<(typeof CHAVES)[number], z.ZodBoolean>,
+);
+// zod 4: `record` com chave enum exige TODAS as chaves; aqui vêm só as que o aluno desligou.
+const esquemaAoDesligar = z.partialRecord(z.enum(CHAVES), z.enum(["apagar", "manter"])).optional();
 
 async function contaDoAluno(supabase: Cliente, userId: string): Promise<string> {
   const { data, error } = await supabase.rpc("conta_do_autor", { p_author_id: userId });
@@ -80,11 +125,13 @@ export const carregarAssistente = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const situacao = await lerSituacao(supabase);
 
+    // Vigente = não revogado e não substituído por uma versão mais nova (#316A).
     const { data: consentimento, error: cErr } = await supabase
       .from("assistente_consentimentos")
       .select("id, termo_versao, aceito_em")
       .eq("user_id", userId)
       .is("revogado_em", null)
+      .is("substituido_em", null)
       .maybeSingle();
     if (cErr) throw new Error(`Não foi possível ler a sua autorização (${cErr.message}).`);
 
@@ -95,11 +142,13 @@ export const carregarAssistente = createServerFn({ method: "GET" })
       .order("atualizada_em", { ascending: false });
     if (vErr) throw new Error(`Não foi possível ler as suas conversas (${vErr.message}).`);
 
-    let termo: { id: string; versao: number; texto: string; rotulo_aceite: string } | null = null;
-    if (!consentimento && situacao.pode_comecar) {
+    // O termo vai para a tela quando falta o aceite da versão em vigor: primeiro uso OU texto novo
+    // depois de um aceite antigo (#316A — quem aceitou a versão anterior lê a nova antes de continuar).
+    let termo: TermoEmVigor | null = null;
+    if (!situacao.consentimento_em_dia && situacao.pode_comecar) {
       const { data: t, error: tErr } = await supabase
         .from("assistente_termos")
-        .select("id, versao, texto, rotulo_aceite")
+        .select("id, versao, texto, rotulo_aceite, explica_chaves")
         .eq("status", "publicado")
         .order("versao", { ascending: false })
         .limit(1)
@@ -118,44 +167,67 @@ export const carregarAssistente = createServerFn({ method: "GET" })
     };
   });
 
-/** Aceite explícito do termo. O banco copia versão e texto da linha do termo — o cliente só aponta qual. */
+export type TermoEmVigor = { id: string; versao: number; texto: string; rotulo_aceite: string; explica_chaves: boolean };
+
+/**
+ * Aceite explícito do termo, junto com a escolha das chaves (#316A). Uma operação só no banco
+ * (`assistente_aceitar`): marca o aceite anterior como substituído, registra o novo — o banco copia
+ * versão e texto da linha do termo, o cliente só aponta qual — e grava as chaves com o registro.
+ * `ao_desligar` só existe se, nesta tela, o aluno desligou uma chave que estava ligada.
+ */
 export const aceitarTermo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ termo_id: z.string().uuid(), aceito: z.literal(true) }).parse(d))
+  .inputValidator((d) =>
+    z.object({
+      termo_id: z.string().uuid(),
+      aceito: z.literal(true),
+      chaves: esquemaDasChaves,
+      ao_desligar: esquemaAoDesligar,
+    }).parse(d),
+  )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase } = context;
     const situacao = await lerSituacao(supabase);
-    if (situacao.consentimento_ativo) return { ok: true as const };
+    if (situacao.consentimento_em_dia) return { ok: true as const };
     if (!situacao.pode_comecar) throw new Error(ERROS_DA_ASSISTENTE.naoLiberada);
 
-    const { data: termo, error: tErr } = await supabase
-      .from("assistente_termos")
-      .select("id, versao, texto, rotulo_aceite")
-      .eq("id", data.termo_id)
-      .eq("status", "publicado")
-      .maybeSingle();
-    if (tErr) throw new Error(`Não foi possível ler o termo (${tErr.message}).`);
-    if (!termo) throw new Error("Este termo não está mais em vigor. Recarregue a página.");
-
-    const conta = await contaDoAluno(supabase, userId);
-    const db = await admin();
-    const { error } = await db.from("assistente_consentimentos").insert({
-      user_id: userId,
-      conta_id: conta,
-      termo_id: termo.id,
-      termo_versao: termo.versao,
-      texto_aceito: termo.texto,
-      rotulo_aceito: termo.rotulo_aceite,
+    const { error } = await supabase.rpc("assistente_aceitar", {
+      _termo_id: data.termo_id,
+      _lembrar_conversas: data.chaves.lembrar_conversas,
+      _aprender_plataforma: data.chaves.aprender_plataforma,
+      _mentor_acompanha: data.chaves.mentor_acompanha,
+      _melhorar_assistente: data.chaves.melhorar_assistente,
+      _ao_desligar: data.ao_desligar ?? null,
     });
-    // 23505 = já havia um consentimento ativo (duplo clique): o resultado é o mesmo.
-    if (error && error.code !== "23505") {
+    if (error) {
       throw new Error(
         error.message.includes("versão mais nova")
           ? "Este termo foi atualizado. Recarregue a página para ler a versão nova."
-          : `Não foi possível registrar a autorização (${error.message}).`,
+          : mensagemDoBanco(error, "Não foi possível registrar a autorização"),
       );
     }
     return { ok: true as const };
+  });
+
+/**
+ * Mudar as chaves depois do aceite (#316A). O banco confere tudo de novo: ligar pede o aceite em dia
+ * com um termo que explica as chaves; desligar vale sempre, e exige a escolha — apagar o que a chave
+ * guardou ou manter em espera — para cada chave que desliga.
+ */
+export const definirChaves = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ chaves: esquemaDasChaves, ao_desligar: esquemaAoDesligar }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: r, error } = await context.supabase.rpc("assistente_definir_chaves", {
+      _lembrar_conversas: data.chaves.lembrar_conversas,
+      _aprender_plataforma: data.chaves.aprender_plataforma,
+      _mentor_acompanha: data.chaves.mentor_acompanha,
+      _melhorar_assistente: data.chaves.melhorar_assistente,
+      _ao_desligar: data.ao_desligar ?? null,
+    });
+    if (error) throw new Error(mensagemDoBanco(error, "Não foi possível mudar a chave"));
+    const resposta = (r ?? {}) as { chaves?: unknown; apagados?: unknown };
+    return { chaves: lerChaves(resposta.chaves), apagados: typeof resposta.apagados === "number" ? resposta.apagados : 0 };
   });
 
 export const abrirConversa = createServerFn({ method: "GET" })
@@ -205,6 +277,8 @@ export const enviarMensagem = createServerFn({ method: "POST" })
 
     const situacao = await lerSituacao(supabase);
     if (!situacao.consentimento_ativo) throw new Error(ERROS_DA_ASSISTENTE.semConsentimento);
+    // #316A — aceite de uma versão anterior do termo não basta: o aluno lê a versão nova antes.
+    if (!situacao.consentimento_em_dia) throw new Error(ERROS_DA_ASSISTENTE.termoNovo);
     if (!situacao.liberada) throw new Error(ERROS_DA_ASSISTENTE.naoLiberada);
     const categoria = nivelEmUso(situacao.categorias, data.categoria ?? (await escolhaLembrada(supabase, userId, "aluno")));
     if (!categoria) throw new Error(ERROS_DA_ASSISTENTE.naoLiberada);
@@ -330,12 +404,18 @@ export const apagarConversa = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-export const apagarTodasAsConversas = createServerFn({ method: "POST" })
+/**
+ * #316A — apagar TUDO o que o aluno informou à assistente: as conversas e o que as chaves guardaram
+ * (inclusive o que estava em espera). Sempre disponível — não depende de aceitar termo novo. Não revoga
+ * nem mexe nas chaves; o aceite e o registro das escolhas ficam, como prova, com a linha "apagar_tudo".
+ */
+export const apagarTudoDaAssistente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { error } = await context.supabase.from("assistente_conversas").delete().eq("user_id", context.userId);
-    if (error) throw new Error(`Não foi possível apagar o histórico (${error.message}).`);
-    return { ok: true as const };
+    const { data, error } = await context.supabase.rpc("assistente_apagar_tudo");
+    if (error) throw new Error(mensagemDoBanco(error, "Não foi possível apagar"));
+    const r = (data ?? {}) as { conversas?: unknown };
+    return { conversas: typeof r.conversas === "number" ? r.conversas : 0 };
   });
 
 /** Revogar: uma operação só no banco — marca a revogação e apaga o histórico junto. */
@@ -347,37 +427,87 @@ export const revogarAssistente = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** "Ver tudo o que a assistente guardou" e a cópia para baixar: autorizações + todas as conversas. */
+export type EventoDasChaves = {
+  evento: "aceite" | "mudanca" | "apagar_tudo" | "revogacao";
+  termo_versao: number | null;
+  criado_em: string;
+  chaves: EstadoDasChaves;
+  desligadas: string[];
+  ao_desligar: Record<string, string> | null;
+};
+
+/**
+ * "Ver tudo o que a assistente guardou" e a cópia para baixar: autorizações (com as versões substituídas),
+ * as chaves e o histórico delas (#316A), e todas as conversas. Tudo lido INTEIRO, em partes (regra #314):
+ * a cópia é um direito do aluno, e uma cópia cortada em silêncio no milésimo item não é a cópia.
+ */
 export const meusDadosDaAssistente = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [{ data: consentimentos, error: cErr }, { data: conversas, error: vErr }, { data: mensagens, error: mErr }] =
-      await Promise.all([
+    const [consentimentos, registro, conversas, mensagens] = await Promise.all([
+      lerTodas((de, ate) =>
         supabase
           .from("assistente_consentimentos")
-          .select("termo_versao, texto_aceito, rotulo_aceito, aceito_em, revogado_em")
+          .select("termo_versao, texto_aceito, rotulo_aceito, aceito_em, revogado_em, substituido_em", { count: "exact" })
           .eq("user_id", userId)
-          .order("aceito_em"),
+          .order("aceito_em")
+          .order("id")
+          .range(de, ate),
+      ),
+      lerTodas((de, ate) =>
+        supabase
+          .from("assistente_chaves_registro")
+          .select(
+            "evento, termo_versao, criado_em, lembrar_conversas, aprender_plataforma, mentor_acompanha, melhorar_assistente, desligadas, ao_desligar",
+            { count: "exact" },
+          )
+          .eq("user_id", userId)
+          .order("criado_em")
+          .order("id")
+          .range(de, ate),
+      ),
+      lerTodas((de, ate) =>
         supabase
           .from("assistente_conversas")
-          .select("id, titulo, criada_em, atualizada_em")
-          .eq("user_id", userId)
-          .order("criada_em"),
-        supabase
-          .from("assistente_mensagens")
-          .select("conversa_id, papel, conteudo, criada_em")
+          .select("id, titulo, criada_em, atualizada_em", { count: "exact" })
           .eq("user_id", userId)
           .order("criada_em")
-          .order("id"),
-      ]);
-    const erro = cErr ?? vErr ?? mErr;
-    if (erro) throw new Error(`Não foi possível reunir os seus dados (${erro.message}).`);
+          .order("id")
+          .range(de, ate),
+      ),
+      lerTodas((de, ate) =>
+        supabase
+          .from("assistente_mensagens")
+          .select("conversa_id, papel, conteudo, criada_em", { count: "exact" })
+          .eq("user_id", userId)
+          .order("criada_em")
+          .order("id")
+          .range(de, ate),
+      ),
+    ]).catch((e: unknown) => {
+      throw new Error(`Não foi possível reunir os seus dados (${e instanceof Error ? e.message : String(e)}).`);
+    });
+    const situacao = await lerSituacao(supabase);
     return {
-      consentimentos: consentimentos ?? [],
-      conversas: (conversas ?? []).map((c) => ({
+      consentimentos: consentimentos.linhas,
+      chaves: situacao.chaves,
+      chaves_disponiveis: situacao.chaves_disponiveis,
+      historico_das_chaves: registro.linhas.map(
+        (r): EventoDasChaves => ({
+          evento: r.evento as EventoDasChaves["evento"],
+          termo_versao: r.termo_versao,
+          criado_em: r.criado_em,
+          chaves: lerChaves(r),
+          desligadas: r.desligadas ?? [],
+          ao_desligar: (r.ao_desligar ?? null) as Record<string, string> | null,
+        }),
+      ),
+      conversas: conversas.linhas.map((c) => ({
         ...c,
-        mensagens: (mensagens ?? []).filter((m) => m.conversa_id === c.id).map(({ conversa_id: _, ...m }) => m),
+        mensagens: mensagens.linhas.filter((m) => m.conversa_id === c.id).map(({ conversa_id: _, ...m }) => m),
       })),
+      // Se um dia bater o teto de segurança da leitura, a cópia DIZ que não está inteira.
+      completa: consentimentos.completo && registro.completo && conversas.completo && mensagens.completo,
     };
   });

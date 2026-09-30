@@ -110,7 +110,12 @@ function confere(ok: boolean, rotulo: string) {
 // ------------------------------------------------------------------------------------------------
 // estatico — nenhum arquivo da assistente do mentor lê as conversas dos alunos.
 // ------------------------------------------------------------------------------------------------
-const PROIBIDAS = ["assistente_conversas", "assistente_mensagens", "assistente_consentimentos", "assistente_observacoes", "assistente_liberacoes"];
+// #316A — as chaves de privacidade do aluno e o histórico delas também: as duas primeiras são "só ele e a
+// assistente"; o que o mentor vai receber (chave 3) nasce na fatia D, por caminho próprio.
+const PROIBIDAS = [
+  "assistente_conversas", "assistente_mensagens", "assistente_consentimentos", "assistente_observacoes",
+  "assistente_liberacoes", "assistente_chaves", "assistente_chaves_registro",
+];
 function estatico() {
   const arquivos = [
     ...readdirSync("src/lib/assistente-mentor").map((f) => `src/lib/assistente-mentor/${f}`),

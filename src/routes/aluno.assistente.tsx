@@ -2,8 +2,10 @@
  * ASSISTENTE DO MÉTODO INTENÇÃO — Nível 1 (#289). O aluno conversa sobre o PRÓPRIO relatório.
  *
  * Três estados: (1) prévia do mentor → aviso, nada de conversa (a prévia roda com o login do mentor,
- * e a conversa é espaço privado do aluno); (2) ainda sem autorização → o termo inteiro na tela, caixa
- * de aceite desmarcada; (3) autorizado → conversas, histórico, cópia para baixar e revogação.
+ * e a conversa é espaço privado do aluno); (2) sem o aceite da versão em vigor do termo → o termo inteiro
+ * na tela, com as quatro chaves de privacidade desligadas e a caixa de aceite desmarcada — no primeiro uso
+ * e também quando o texto muda depois de um aceite antigo (#316A); (3) autorizado → conversas, histórico
+ * e o painel Privacidade (chaves, cópia para baixar, apagar tudo e revogação).
  *
  * Nada aqui decide o que a pessoa pode ver: quem decide é o banco (RLS) e as funções do servidor.
  */
@@ -13,10 +15,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
-  abrirConversa, aceitarTermo, apagarConversa, apagarTodasAsConversas, carregarAssistente,
-  enviarMensagem, meusDadosDaAssistente, revogarAssistente, type ConversaResumo, type Mensagem,
+  abrirConversa, aceitarTermo, apagarConversa, apagarTudoDaAssistente, carregarAssistente, definirChaves,
+  enviarMensagem, meusDadosDaAssistente, revogarAssistente,
+  type ConversaResumo, type EventoDasChaves, type Mensagem, type SituacaoDaAssistente, type TermoEmVigor,
 } from "@/lib/assistente.functions";
-import { ASSISTENTE } from "@/lib/assistente/textos";
+import { ASSISTENTE, PRIVACIDADE } from "@/lib/assistente/textos";
+import {
+  CHAVES, DEFINICAO_DAS_CHAVES, desligadasEntre, type EscolhasAoDesligar, type EstadoDasChaves,
+} from "@/lib/assistente/chaves";
+import { ChavesDePrivacidade } from "@/components/assistente/chaves-de-privacidade";
 import type { NiveisDaTela } from "@/lib/assistente/niveis";
 import { SeletorDeNivel } from "@/components/seletor-de-nivel";
 import { useNivelDaAssistente } from "@/hooks/use-nivel-da-assistente";
@@ -94,16 +101,25 @@ function AssistenteDoAluno() {
       </Moldura>
     );
   }
+  // Falta o aceite da versão em vigor e há termo para aceitar: primeiro uso, ou texto novo (#316A).
+  if (!data.situacao.consentimento_em_dia && data.termo) {
+    return (
+      <Moldura>
+        <TermoDeConsentimento
+          termo={data.termo}
+          situacao={data.situacao}
+          consentimentoAnterior={data.consentimento}
+          onAceito={() => void refetch()}
+        />
+      </Moldura>
+    );
+  }
   if (!data.consentimento) {
     return (
       <Moldura>
-        {data.termo ? (
-          <TermoDeConsentimento termo={data.termo} onAceito={() => void refetch()} />
-        ) : (
-          <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground ring-1 ring-black/5 dark:ring-white/10">
-            {ASSISTENTE.indisponivel}
-          </div>
-        )}
+        <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground ring-1 ring-black/5 dark:ring-white/10">
+          {ASSISTENTE.indisponivel}
+        </div>
       </Moldura>
     );
   }
@@ -112,7 +128,8 @@ function AssistenteDoAluno() {
       <Conversas
         conversas={data.conversas}
         consentimento={data.consentimento}
-        podeEnviar={data.situacao.liberada && data.situacao.tem_relatorio}
+        situacao={data.situacao}
+        podeEnviar={data.situacao.liberada && data.situacao.tem_relatorio && data.situacao.consentimento_em_dia}
         niveis={data.niveis}
       />
     </Moldura>
@@ -139,14 +156,30 @@ function TextoDoTermo({ texto }: { texto: string }) {
 }
 
 function TermoDeConsentimento({
-  termo, onAceito,
-}: { termo: { id: string; versao: number; texto: string; rotulo_aceite: string }; onAceito: () => void }) {
+  termo, situacao, consentimentoAnterior, onAceito,
+}: {
+  termo: TermoEmVigor;
+  situacao: SituacaoDaAssistente;
+  /** O aceite de uma versão ANTERIOR, quando é o texto que mudou (#316A). */
+  consentimentoAnterior: { termo_versao: number; aceito_em: string } | null;
+  onAceito: () => void;
+}) {
   const [marcado, setMarcado] = useState(false);
+  // #316A — no primeiro uso, tudo desligado. Quando o texto muda, as escolhas que o próprio aluno já tinha
+  // feito continuam como estavam — a plataforma não liga nem desliga nada por ele.
+  const [chaves, setChaves] = useState<EstadoDasChaves>(situacao.chaves);
+  const [escolhas, setEscolhas] = useState<EscolhasAoDesligar>({});
   const navigate = useNavigate();
   const qc = useQueryClient();
   const aceitarFn = useServerFn(aceitarTermo);
   const aceitar = useMutation({
-    mutationFn: () => aceitarFn({ data: { termo_id: termo.id, aceito: true } }),
+    mutationFn: () => {
+      // Só vai a escolha de quem continua desligada — religar depois de escolher desfaz a escolha.
+      const aoDesligar = Object.fromEntries(
+        desligadasEntre(situacao.chaves, chaves).map((c) => [c, escolhas[c] ?? "manter"]),
+      ) as EscolhasAoDesligar;
+      return aceitarFn({ data: { termo_id: termo.id, aceito: true, chaves, ao_desligar: aoDesligar } });
+    },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["assistente-situacao"] });
       onAceito();
@@ -155,11 +188,33 @@ function TermoDeConsentimento({
   });
   return (
     <div className="rounded-xl bg-card p-5 ring-1 ring-black/5 dark:ring-white/10 sm:p-8">
+      {consentimentoAnterior && (
+        <div className="mb-5 rounded-lg border border-input bg-muted/60 p-4">
+          <p className="text-sm font-semibold">{PRIVACIDADE.termoMudouTitulo}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{PRIVACIDADE.termoMudouTexto(termo.versao, termo.explica_chaves)}</p>
+        </div>
+      )}
       <h2 className="text-base font-semibold">{ASSISTENTE.tituloTermo}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{ASSISTENTE.introTermo}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {consentimentoAnterior ? PRIVACIDADE.introReaceite : ASSISTENTE.introTermo}
+      </p>
       <div className="mt-5 border-t border-black/5 dark:border-white/10 pt-4">
         <TextoDoTermo texto={termo.texto} />
       </div>
+      {termo.explica_chaves && (
+        <div className="mt-6 border-t border-black/5 dark:border-white/10 pt-4">
+          <h3 className="mb-2 text-sm font-semibold">{PRIVACIDADE.tituloChaves}</h3>
+          <ChavesDePrivacidade
+            salvo={situacao.chaves}
+            valor={chaves}
+            ocupado={aceitar.isPending}
+            onMudar={(novo, esc) => {
+              setChaves(novo);
+              setEscolhas((antes) => ({ ...antes, ...esc }));
+            }}
+          />
+        </div>
+      )}
       <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-lg border border-input p-4">
         <Checkbox checked={marcado} onCheckedChange={(v) => setMarcado(v === true)} className="mt-0.5" />
         <span className="text-sm font-medium">{termo.rotulo_aceite}</span>
@@ -171,6 +226,13 @@ function TermoDeConsentimento({
           {aceitar.isPending ? "Registrando…" : ASSISTENTE.aceitar}
         </Button>
       </div>
+      {/* Quem aceitou a versão anterior exerce os direitos SEM precisar aceitar o texto novo. */}
+      {consentimentoAnterior && (
+        <div className="mt-6 flex flex-col gap-2 border-t border-black/5 dark:border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">{PRIVACIDADE.termoMudouAlternativa}</p>
+          <Privacidade consentimento={consentimentoAnterior} situacao={situacao} />
+        </div>
+      )}
     </div>
   );
 }
@@ -302,10 +364,11 @@ function ListaDeConversas({
 }
 
 function Conversas({
-  conversas, consentimento, podeEnviar, niveis,
+  conversas, consentimento, situacao, podeEnviar, niveis,
 }: {
   conversas: ConversaResumo[];
   consentimento: { termo_versao: number; aceito_em: string };
+  situacao: SituacaoDaAssistente;
   podeEnviar: boolean;
   niveis: NiveisDaTela;
 }) {
@@ -404,7 +467,7 @@ function Conversas({
           <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
             {ativa ? conversas.find((c) => c.id === ativa)?.titulo ?? "" : ASSISTENTE.novaConversa}
           </p>
-          <MeusDados consentimento={consentimento} />
+          <Privacidade consentimento={consentimento} situacao={situacao} />
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-3 py-4 sm:px-5">
@@ -485,46 +548,112 @@ function Conversas({
 }
 
 // ------------------------------------------------------------------------------------------------
-// "O que fica guardado": ver, baixar uma cópia, apagar tudo e retirar a autorização.
+// "Privacidade": as chaves (#316A), ver e baixar uma cópia, apagar tudo e retirar a autorização.
 // ------------------------------------------------------------------------------------------------
 
 const dataHora = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
 
-function MeusDados({ consentimento }: { consentimento: { termo_versao: number; aceito_em: string } }) {
+const NOME_DO_EVENTO: Record<EventoDasChaves["evento"], string> = {
+  aceite: "Aceite do termo",
+  mudanca: "Mudança de chave",
+  apagar_tudo: "Apagou tudo o que a assistente guardou",
+  revogacao: "Retirou a autorização",
+};
+
+function linhasDaCopia(d: Awaited<ReturnType<typeof meusDadosDaAssistente>>): string[] {
+  const ligadas = (c: EstadoDasChaves) =>
+    CHAVES.filter((k) => c[k]).map((k) => DEFINICAO_DAS_CHAVES[k].titulo).join("; ") || "nenhuma ligada";
+  const linhas: string[] = [
+    "ASSISTENTE DO MÉTODO INTENÇÃO — CÓPIA DOS SEUS DADOS",
+    `Gerada em ${dataHora(new Date().toISOString())}`,
+    ...(d.completa ? [] : ["ATENÇÃO: esta cópia não saiu inteira — peça ao suporte da plataforma a cópia completa."]),
+    "",
+    "AUTORIZAÇÕES",
+    ...d.consentimentos.map(
+      (c) =>
+        `- Termo versão ${c.termo_versao}, aceito em ${dataHora(c.aceito_em)}` +
+        (c.revogado_em
+          ? `, retirado em ${dataHora(c.revogado_em)}`
+          : c.substituido_em
+            ? `, substituído pela versão seguinte em ${dataHora(c.substituido_em)}`
+            : " (em vigor)"),
+    ),
+    "",
+    "SUAS CHAVES AGORA",
+    ...(d.chaves_disponiveis
+      ? CHAVES.map((k) => `- ${DEFINICAO_DAS_CHAVES[k].titulo}: ${d.chaves[k] ? "ligada" : "desligada"}`)
+      : ["- O termo que você aceitou não traz as chaves: todas desligadas."]),
+    "",
+    `HISTÓRICO DAS SUAS ESCOLHAS (${d.historico_das_chaves.length})`,
+    ...d.historico_das_chaves.map((e) => {
+      const desligou = e.desligadas.length
+        ? ` Desligou: ${e.desligadas
+            .map((k) => `${DEFINICAO_DAS_CHAVES[k as keyof EstadoDasChaves]?.titulo ?? k} (${e.ao_desligar?.[k] === "apagar" ? "apagando o que foi guardado" : "mantendo em espera"})`)
+            .join("; ")}.`
+        : "";
+      return `- ${dataHora(e.criado_em)} — ${NOME_DO_EVENTO[e.evento]}${e.termo_versao ? ` (termo versão ${e.termo_versao})` : ""}. Chaves ligadas: ${ligadas(e.chaves)}.${desligou}`;
+    }),
+    "",
+    `CONVERSAS (${d.conversas.length})`,
+  ];
+  for (const c of d.conversas) {
+    linhas.push("", `=== ${c.titulo} (começou em ${dataHora(c.criada_em)})`);
+    for (const m of c.mensagens) {
+      linhas.push("", `[${dataHora(m.criada_em)}] ${m.papel === "aluno" ? "Você" : "Assistente"}:`, m.conteudo);
+    }
+  }
+  const vigente = [...d.consentimentos].reverse().find((c) => !c.revogado_em && !c.substituido_em) ?? d.consentimentos[d.consentimentos.length - 1];
+  if (vigente) {
+    linhas.push("", `TEXTO DO TERMO QUE VOCÊ ACEITOU (versão ${vigente.termo_versao})`, "", vigente.texto_aceito.replace(/^### /gm, ""), "", `[x] ${vigente.rotulo_aceito}`);
+  }
+  return linhas;
+}
+
+function Privacidade({
+  consentimento, situacao,
+}: {
+  consentimento: { termo_versao: number; aceito_em: string };
+  situacao: SituacaoDaAssistente;
+}) {
   const qc = useQueryClient();
   const [aberto, setAberto] = useState(false);
   const dadosFn = useServerFn(meusDadosDaAssistente);
-  const apagarTudoFn = useServerFn(apagarTodasAsConversas);
+  const apagarTudoFn = useServerFn(apagarTudoDaAssistente);
   const revogarFn = useServerFn(revogarAssistente);
+  const definirFn = useServerFn(definirChaves);
+  // #316A — mexer nas chaves só com o aceite em dia de um termo que as explica (desligar também passa por
+  // aqui; quem ainda não aceitou o texto novo vê a tela do termo, com as chaves dela).
+  const mostraChaves = situacao.chaves_disponiveis && situacao.consentimento_em_dia;
+  const [chaves, setChaves] = useState<EstadoDasChaves>(situacao.chaves);
+  useEffect(() => setChaves(situacao.chaves), [situacao.chaves]);
+
+  const mudarChaves = useMutation({
+    mutationFn: ({ novo, escolhas }: { novo: EstadoDasChaves; escolhas: EscolhasAoDesligar }) =>
+      definirFn({ data: { chaves: novo, ao_desligar: escolhas } }),
+    onMutate: ({ novo }) => setChaves(novo),
+    onSuccess: (r, { escolhas }) => {
+      setChaves(r.chaves);
+      const desligou = Object.values(escolhas);
+      toast.success(
+        desligou.length === 0
+          ? PRIVACIDADE.ligou
+          : desligou.includes("apagar")
+            ? PRIVACIDADE.desligouApagando
+            : PRIVACIDADE.desligouMantendo,
+      );
+      void qc.invalidateQueries({ queryKey: ["assistente"] });
+    },
+    onError: (e) => {
+      setChaves(situacao.chaves);
+      toast.error(e instanceof Error ? e.message : "Não foi possível mudar a chave.");
+    },
+  });
 
   const baixar = useMutation({
     mutationFn: () => dadosFn(),
     onSuccess: (d) => {
-      const linhas: string[] = [
-        "ASSISTENTE DO MÉTODO INTENÇÃO — CÓPIA DOS SEUS DADOS",
-        `Gerada em ${dataHora(new Date().toISOString())}`,
-        "",
-        "AUTORIZAÇÕES",
-        ...d.consentimentos.map(
-          (c) =>
-            `- Termo versão ${c.termo_versao}, aceito em ${dataHora(c.aceito_em)}` +
-            (c.revogado_em ? `, retirado em ${dataHora(c.revogado_em)}` : " (em vigor)"),
-        ),
-        "",
-        `CONVERSAS (${d.conversas.length})`,
-      ];
-      for (const c of d.conversas) {
-        linhas.push("", `=== ${c.titulo} (começou em ${dataHora(c.criada_em)})`);
-        for (const m of c.mensagens) {
-          linhas.push("", `[${dataHora(m.criada_em)}] ${m.papel === "aluno" ? "Você" : "Assistente"}:`, m.conteudo);
-        }
-      }
-      const vigente = d.consentimentos[d.consentimentos.length - 1];
-      if (vigente) {
-        linhas.push("", `TEXTO DO TERMO QUE VOCÊ ACEITOU (versão ${vigente.termo_versao})`, "", vigente.texto_aceito.replace(/^### /gm, ""), "", `[x] ${vigente.rotulo_aceito}`);
-      }
-      const blob = new Blob([linhas.join("\n")], { type: "text/plain;charset=utf-8" });
+      const blob = new Blob([linhasDaCopia(d).join("\n")], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -541,7 +670,7 @@ function MeusDados({ consentimento }: { consentimento: { termo_versao: number; a
       void qc.invalidateQueries({ queryKey: ["assistente"] });
       qc.removeQueries({ queryKey: ["assistente-conversa"] });
       setAberto(false);
-      toast.success("Todas as conversas foram apagadas.");
+      toast.success(PRIVACIDADE.apagarTudoFeito);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Não foi possível apagar."),
   });
@@ -562,43 +691,46 @@ function MeusDados({ consentimento }: { consentimento: { termo_versao: number; a
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-          <ShieldCheck className="size-4" /> <span className="hidden sm:inline">{ASSISTENTE.meusDados}</span>
+          {/* A palavra aparece também no celular: a assistente manda o aluno procurar "Privacidade" (#316A). */}
+          <ShieldCheck className="size-4" /> <span>{ASSISTENTE.meusDados}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{ASSISTENTE.meusDados}</DialogTitle>
+          <DialogTitle>{PRIVACIDADE.tituloPainel}</DialogTitle>
           <DialogDescription>
             Você autorizou a assistente em {dataHora(consentimento.aceito_em)} (termo versão {consentimento.termo_versao}).
           </DialogDescription>
         </DialogHeader>
+        {mostraChaves && (
+          <div className="border-b border-black/5 dark:border-white/10 pb-4">
+            <h3 className="mb-2 text-sm font-semibold">{PRIVACIDADE.tituloChaves}</h3>
+            <ChavesDePrivacidade
+              salvo={situacao.chaves}
+              valor={chaves}
+              ocupado={mudarChaves.isPending}
+              onMudar={(novo, escolhas) => mudarChaves.mutate({ novo, escolhas })}
+            />
+          </div>
+        )}
         <div className="space-y-3 text-sm text-muted-foreground">
-          <p>
-            Fica guardado: a data e o texto do termo que você aceitou, e as suas conversas — só você vê. O seu mentor não
-            lê nenhuma delas.
-          </p>
-          <p>
-            Para medir o custo da plataforma, cada resposta também registra números de uso (o tamanho da pergunta e da
-            resposta), sem nenhum texto seu.
-          </p>
+          <p>{PRIVACIDADE.oQueFicaGuardado}</p>
+          <p>{PRIVACIDADE.numerosDeUso}</p>
         </div>
         <div className="mt-2 flex flex-col gap-2">
           <Button variant="outline" className="justify-start gap-2" disabled={baixar.isPending} onClick={() => baixar.mutate()}>
-            <Download className="size-4" /> {baixar.isPending ? "Preparando…" : "Baixar uma cópia de tudo"}
+            <Download className="size-4" /> {baixar.isPending ? "Preparando…" : PRIVACIDADE.baixar}
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" className="justify-start gap-2">
-                <Trash2 className="size-4" /> Apagar todas as conversas
+                <Trash2 className="size-4" /> {PRIVACIDADE.apagarTudo}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Apagar todas as conversas?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  O seu histórico inteiro some e não volta. A autorização continua valendo: você pode seguir usando a
-                  assistente.
-                </AlertDialogDescription>
+                <AlertDialogTitle>{PRIVACIDADE.apagarTudoTitulo}</AlertDialogTitle>
+                <AlertDialogDescription>{PRIVACIDADE.apagarTudoTexto}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -609,16 +741,13 @@ function MeusDados({ consentimento }: { consentimento: { termo_versao: number; a
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" className="justify-start gap-2 text-destructive hover:text-destructive">
-                <Lock className="size-4" /> Retirar a autorização
+                <Lock className="size-4" /> {PRIVACIDADE.revogar}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Retirar a autorização?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  A assistente para de acessar os seus dados e todo o seu histórico de conversas é apagado — isso não
-                  volta. Se quiser usar de novo depois, é só ler e aceitar o termo outra vez.
-                </AlertDialogDescription>
+                <AlertDialogDescription>{PRIVACIDADE.revogarTexto}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
