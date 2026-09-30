@@ -96,6 +96,7 @@ import { Route as ApiPublicInviteIdRouteImport } from './routes/api.public.invit
 import { Route as ApiPublicReportBateriaIdRouteImport } from './routes/api.public.report-bateria.$id'
 import { Route as ApiPublicReportIdRouteImport } from './routes/api.public.report.$id'
 import { Route as ApiPublicResponseIdRouteImport } from './routes/api.public.response.$id'
+import { Route as ApiWebhookZapsterSegredoRouteImport } from './routes/api.webhook.zapster.$segredo'
 import { Route as AppTestesVersionIdPdfResponseIdRouteImport } from './routes/_app.testes.$versionId.pdf.$responseId'
 
 const AppRoute = AppRouteImport.update({
@@ -544,6 +545,12 @@ const ApiPublicResponseIdRoute = ApiPublicResponseIdRouteImport.update({
   path: '/api/public/response/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhookZapsterSegredoRoute =
+  ApiWebhookZapsterSegredoRouteImport.update({
+    id: '/api/webhook/zapster/$segredo',
+    path: '/api/webhook/zapster/$segredo',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppTestesVersionIdPdfResponseIdRoute =
   AppTestesVersionIdPdfResponseIdRouteImport.update({
     id: '/$versionId/pdf/$responseId',
@@ -638,6 +645,7 @@ export interface FileRoutesByFullPath {
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
+  '/api/webhook/zapster/$segredo': typeof ApiWebhookZapsterSegredoRoute
   '/testes/$versionId/pdf/$responseId': typeof AppTestesVersionIdPdfResponseIdRoute
 }
 export interface FileRoutesByTo {
@@ -719,6 +727,7 @@ export interface FileRoutesByTo {
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
+  '/api/webhook/zapster/$segredo': typeof ApiWebhookZapsterSegredoRoute
   '/testes/$versionId/pdf/$responseId': typeof AppTestesVersionIdPdfResponseIdRoute
 }
 export interface FileRoutesById {
@@ -810,6 +819,7 @@ export interface FileRoutesById {
   '/api/public/report-bateria/$id': typeof ApiPublicReportBateriaIdRoute
   '/api/public/report/$id': typeof ApiPublicReportIdRoute
   '/api/public/response/$id': typeof ApiPublicResponseIdRoute
+  '/api/webhook/zapster/$segredo': typeof ApiWebhookZapsterSegredoRoute
   '/_app/testes/$versionId/pdf/$responseId': typeof AppTestesVersionIdPdfResponseIdRoute
 }
 export interface FileRouteTypes {
@@ -901,6 +911,7 @@ export interface FileRouteTypes {
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
+    | '/api/webhook/zapster/$segredo'
     | '/testes/$versionId/pdf/$responseId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -982,6 +993,7 @@ export interface FileRouteTypes {
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
+    | '/api/webhook/zapster/$segredo'
     | '/testes/$versionId/pdf/$responseId'
   id:
     | '__root__'
@@ -1072,6 +1084,7 @@ export interface FileRouteTypes {
     | '/api/public/report-bateria/$id'
     | '/api/public/report/$id'
     | '/api/public/response/$id'
+    | '/api/webhook/zapster/$segredo'
     | '/_app/testes/$versionId/pdf/$responseId'
   fileRoutesById: FileRoutesById
 }
@@ -1112,6 +1125,7 @@ export interface RootRouteChildren {
   ApiPublicReportBateriaIdRoute: typeof ApiPublicReportBateriaIdRoute
   ApiPublicReportIdRoute: typeof ApiPublicReportIdRoute
   ApiPublicResponseIdRoute: typeof ApiPublicResponseIdRoute
+  ApiWebhookZapsterSegredoRoute: typeof ApiWebhookZapsterSegredoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1725,6 +1739,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicResponseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhook/zapster/$segredo': {
+      id: '/api/webhook/zapster/$segredo'
+      path: '/api/webhook/zapster/$segredo'
+      fullPath: '/api/webhook/zapster/$segredo'
+      preLoaderRoute: typeof ApiWebhookZapsterSegredoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/testes/$versionId/pdf/$responseId': {
       id: '/_app/testes/$versionId/pdf/$responseId'
       path: '/$versionId/pdf/$responseId'
@@ -1963,6 +1984,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicReportBateriaIdRoute: ApiPublicReportBateriaIdRoute,
   ApiPublicReportIdRoute: ApiPublicReportIdRoute,
   ApiPublicResponseIdRoute: ApiPublicResponseIdRoute,
+  ApiWebhookZapsterSegredoRoute: ApiWebhookZapsterSegredoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
