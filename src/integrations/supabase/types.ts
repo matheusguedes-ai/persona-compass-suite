@@ -343,6 +343,13 @@ export type Database = {
         Update: { person_id?: string | null }
         Relationships: []
       }
+      // M1a — diagnóstico do webhook (uma linha por chamada válida; nunca o corpo). Só o dono lê.
+      webhook_eventos: {
+        Row: { id: string; conta_id: string; recebido_em: string; tipo: string; acao: string; detalhe: string | null }
+        Insert: { id?: string; conta_id: string; recebido_em?: string; tipo: string; acao: string; detalhe?: string | null }
+        Update: { detalhe?: string | null }
+        Relationships: []
+      }
       assistente_uso: {
         Row: {
           cache_creation_input_tokens: number
