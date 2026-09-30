@@ -54,6 +54,7 @@ export type MensagemRecebida = {
   id: string; telefone: string; remetente: "pessoa" | "equipe" | "desconhecido" | "ambiguo";
   personId: string | null; nome: string | null; nomeDoPerfil?: string | null; candidatos: { id: string; nome: string }[] | null;
   tipo: string; texto: string | null; recebidaEm: string;
+  botaoId?: string | null; botaoRotulo?: string | null;
 };
 
 const MIDIA_ENTRE_COLCHETES: Record<string, string> = {
@@ -101,7 +102,7 @@ async function desligarPorPedido(admin: SupabaseClient, personIds: string[]): Pr
 }
 
 /** Quem deve saber: o dono e os mentores dos grupos do aluno — como pessoas (com telefone) e como logins (para o sino). */
-async function responsaveis(admin: SupabaseClient, contaId: string, alunoId: string | null) {
+async function responsaveis(admin: SupabaseClient, contaId: string, alunoId: string | null, incluirOProprio = false) {
   const { data: gm } = alunoId ? await admin.from("group_members").select("group_id").eq("person_id", alunoId) : { data: [] as { group_id: string }[] };
   const grupos = (gm ?? []).map((g: { group_id: string }) => g.group_id);
   const ids = new Set<string>();
@@ -115,7 +116,7 @@ async function responsaveis(admin: SupabaseClient, contaId: string, alunoId: str
       for (const t of tm ?? []) ids.add((t as { person_id: string }).person_id);
     }
   }
-  if (alunoId) ids.delete(alunoId);
+  if (alunoId && !incluirOProprio) ids.delete(alunoId);
   return { grupos, pessoasDeContato: [...ids] };
 }
 
@@ -123,8 +124,10 @@ async function responsaveis(admin: SupabaseClient, contaId: string, alunoId: str
  * Sino + WhatsApp para os responsáveis. Aluno de turma: dono + mentores da turma. SEM turma (ou desconhecido): SÓ o dono.
  * WhatsApp a qualquer hora e sem limite diário; exige consentimento vigente e telefone válido de quem recebe.
  */
-async function avisarMentores(admin: SupabaseClient, a: {
+export async function avisarMentores(admin: SupabaseClient, a: {
   contaId: string; alunoId: string | null; chaveDeAgrupamento: string; tipoSino: string; tituloSino: string; textoWhatsapp: string; coalescer: boolean;
+  /** M1c: o dono também é aluno de si mesmo nos testes — a confirmação dele avisa a ele mesmo. */
+  incluirOProprio?: boolean;
 }): Promise<string[]> {
   const link = a.alunoId ? `/pessoas/${a.alunoId}` : `/configuracoes?contato=${a.chaveDeAgrupamento}`;
   if (a.coalescer) {
@@ -133,7 +136,7 @@ async function avisarMentores(admin: SupabaseClient, a: {
     if ((count ?? 0) > 0) return ["mentor_ja_avisado"];
   }
   const feitos: string[] = [];
-  const { grupos, pessoasDeContato } = a.alunoId ? await responsaveis(admin, a.contaId, a.alunoId) : await responsaveis(admin, a.contaId, null);
+  const { grupos, pessoasDeContato } = a.alunoId ? await responsaveis(admin, a.contaId, a.alunoId, a.incluirOProprio) : await responsaveis(admin, a.contaId, null);
 
   if (grupos.length > 0) {
     const { notificar } = await import("@/lib/notificacoes.functions");
@@ -163,7 +166,6 @@ async function avisarMentores(admin: SupabaseClient, a: {
 /** O ponto de entrada. Devolve a lista do que foi feito (vai para `mensagens_recebidas.tratamento`). */
 export async function tratarMensagemRecebida(admin: SupabaseClient, args: { contaId: string; msg: MensagemRecebida; agora?: Date }): Promise<string[]> {
   const { contaId, msg } = args;
-  if (msg.remetente === "equipe") return [];
   // Reenvio tardio: só registra.
   if (Date.now() - new Date(msg.recebidaEm).getTime() > IDADE_MAXIMA_MIN * 60_000) return ["antiga_so_registrada"];
 
@@ -173,7 +175,7 @@ export async function tratarMensagemRecebida(admin: SupabaseClient, args: { cont
   const pedidoDeSair = msg.tipo === "texto" && ehPedidoDeSair(msg.texto);
 
   // ---- 1. SAIR (quem não está cadastrado não tem o que desligar nem o que confirmar)
-  if (pedidoDeSair && pessoas.length > 0) {
+  if (pedidoDeSair && pessoas.length > 0 && msg.remetente !== "equipe") {
     await desligarPorPedido(admin, pessoas.map((p) => p.id));
     feitos.push("sair");
     const mascara = mascararTelefone(msg.telefone);
@@ -193,7 +195,16 @@ export async function tratarMensagemRecebida(admin: SupabaseClient, args: { cont
     }
     return feitos;
   }
-  if (pedidoDeSair) return []; // desconhecido escrevendo SAIR: nada
+  if (pedidoDeSair && msg.remetente !== "equipe") return []; // desconhecido escrevendo SAIR: nada
+
+  // ---- M1c: resposta a um lembrete de mentoria ([OK], [Remarcar] ou "ok" digitado). Vale MESMO para número da equipe
+  //      (o dono também é aluno de si mesmo): a pessoa é identificada pelo lembrete que recebeu.
+  {
+    const { tratarLembrete } = await import("./confirmacao-lembrete.server");
+    const r = await tratarLembrete(admin, { contaId, msg });
+    if (r) return r;
+  }
+  if (msg.remetente === "equipe") return [];
 
   // ---- número em dois cadastros: não responde, não avisa (não se escolhe no escuro)
   if (msg.remetente === "ambiguo") return [];

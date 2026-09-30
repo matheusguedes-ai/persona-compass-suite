@@ -311,9 +311,12 @@ export type Database = {
       }
       // #291 F1a — registro de todo envio (whatsapp/email). Só o servidor grava; só o dono lê.
       envios_mensagens: {
-        Row: { id: string; conta_id: string; criado_por: string | null; person_id: string | null; canal: string; tipo: string; destino_mascarado: string | null; status: string; motivo_falha: string | null; fornecedor: string | null; fornecedor_msg_id: string | null; criado_em: string; enviado_em: string | null; entregue_em: string | null; lido_em: string | null }
-        Insert: { id?: string; conta_id: string; criado_por?: string | null; person_id?: string | null; canal: string; tipo: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null; entregue_em?: string | null; lido_em?: string | null }
-        Update: { id?: string; conta_id?: string; criado_por?: string | null; person_id?: string | null; canal?: string; tipo?: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null; entregue_em?: string | null; lido_em?: string | null }
+        Row: {
+          sessao_id: string | null; id: string; conta_id: string; criado_por: string | null; person_id: string | null; canal: string; tipo: string; destino_mascarado: string | null; status: string; motivo_falha: string | null; fornecedor: string | null; fornecedor_msg_id: string | null; criado_em: string; enviado_em: string | null; entregue_em: string | null; lido_em: string | null }
+        Insert: {
+          sessao_id?: string | null; id?: string; conta_id: string; criado_por?: string | null; person_id?: string | null; canal: string; tipo: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null; entregue_em?: string | null; lido_em?: string | null }
+        Update: {
+          sessao_id?: string | null; id?: string; conta_id?: string; criado_por?: string | null; person_id?: string | null; canal?: string; tipo?: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null; entregue_em?: string | null; lido_em?: string | null }
         Relationships: []
       }
       // dono-central — quem é DONO de conta. Só a service role grava.
@@ -338,9 +341,12 @@ export type Database = {
       }
       // Menu Mensagens M1a — mensagens recebidas pelo WhatsApp (webhook da Zapster). Comprovante. Só o dono lê; só o servidor grava.
       mensagens_recebidas: {
-        Row: { id: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id: string | null; remetente_nome: string | null; candidatos: Json | null; tipo: string; texto: string | null; botao_id: string | null; botao_rotulo: string | null; citada_texto: string | null; recebida_em: string; criado_em: string; tratamento: string | null }
-        Insert: { id?: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id?: string | null; remetente_nome?: string | null; candidatos?: Json | null; tipo: string; texto?: string | null; botao_id?: string | null; botao_rotulo?: string | null; citada_texto?: string | null; recebida_em: string; criado_em?: string; tratamento?: string | null }
-        Update: { person_id?: string | null; tratamento?: string | null }
+        Row: {
+          sessao_id: string | null; id: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id: string | null; remetente_nome: string | null; candidatos: Json | null; tipo: string; texto: string | null; botao_id: string | null; botao_rotulo: string | null; citada_texto: string | null; recebida_em: string; criado_em: string; tratamento: string | null }
+        Insert: {
+          sessao_id?: string | null; id?: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id?: string | null; remetente_nome?: string | null; candidatos?: Json | null; tipo: string; texto?: string | null; botao_id?: string | null; botao_rotulo?: string | null; citada_texto?: string | null; recebida_em: string; criado_em?: string; tratamento?: string | null }
+        Update: {
+          sessao_id?: string | null; person_id?: string | null; tratamento?: string | null }
         Relationships: []
       }
       // M1a — diagnóstico do webhook (uma linha por chamada válida; nunca o corpo). Só o dono lê.
@@ -705,6 +711,9 @@ export type Database = {
       }
       mentoria_sessoes: {
         Row: {
+          confirmada_pelo_aluno_em: string | null
+          confirmada_por_person_id: string | null
+          confirmada_via: string | null
           avaliacao_comentario: string | null
           avaliacao_estrelas: number | null
           avaliada_em: string | null
@@ -732,6 +741,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          confirmada_pelo_aluno_em?: string | null
+          confirmada_por_person_id?: string | null
+          confirmada_via?: string | null
           avaliacao_comentario?: string | null
           avaliacao_estrelas?: number | null
           avaliada_em?: string | null
@@ -759,6 +771,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          confirmada_pelo_aluno_em?: string | null
+          confirmada_por_person_id?: string | null
+          confirmada_via?: string | null
           avaliacao_comentario?: string | null
           avaliacao_estrelas?: number | null
           avaliada_em?: string | null

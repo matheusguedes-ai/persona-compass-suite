@@ -9,8 +9,11 @@
 
 export type Canal = "whatsapp" | "email";
 
+/** Botão de RESPOSTA (M1c): o rótulo aparece no botão (até 20 caracteres) e o id volta no clique (até 256). */
+export type Botao = { rotulo: string; id: string };
+
 export type ResultadoEnvioCanal =
-  | { ok: true; idNoFornecedor: string | null }
+  | { ok: true; idNoFornecedor: string | null; semBotoes?: boolean }
   | { ok: false; motivo: string };
 
 /** O que a tela pode saber da conexão. Nunca devolve id de instância, token nem resposta crua. */
@@ -27,6 +30,6 @@ export interface AdaptadorDeCanal {
   /** O adaptador já tem o que precisa (variáveis de ambiente) para falar com o fornecedor? */
   configurado(): boolean;
   /** `destino` já vem PADRONIZADO (só dígitos, com o país). O adaptador não valida telefone. */
-  enviarTexto(destino: string, texto: string): Promise<ResultadoEnvioCanal>;
+  enviarTexto(destino: string, texto: string, botoes?: Botao[]): Promise<ResultadoEnvioCanal>;
   estadoDaConexao(): Promise<EstadoDaConexao>;
 }
