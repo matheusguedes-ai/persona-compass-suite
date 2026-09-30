@@ -148,6 +148,12 @@ export function AbaWhatsapp() {
             As 50 últimas que chegaram ao WhatsApp da plataforma. Só leitura.
             {!data.webhook.configurado && " O recebimento ainda não está ligado: faltam ZAPSTER_WEBHOOK_SEGREDO e ZAPSTER_NUMERO nos Secrets, e o endereço no painel da Zapster."}
           </p>
+          {data.webhook.configurado && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Conferência do cadastro: segredo com {data.webhook.segredoTamanho} caracteres (o certo é 64)
+              {data.webhook.segredoComEspacoNasPontas ? ", com espaço sobrando nas pontas (ignorado)" : ""}; número da linha com {data.webhook.numeroDigitos} dígitos (o certo é 12 ou 13).
+            </p>
+          )}
         </div>
         {recebidas.isLoading ? (
           <p className="p-6 text-sm text-muted-foreground">Carregando…</p>
