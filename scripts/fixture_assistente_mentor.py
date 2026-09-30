@@ -89,6 +89,8 @@ def criar(arquivo):
     guarda("colab_user", _login(f"teste-colab-307-{rodada}{DOMINIO}", "ZZ Colaboradora Fictícia 307"))
     guarda("aluno_user", _login(f"teste-aluno-307-{rodada}{DOMINIO}", "ZZ Aluna Analítica 307"))
     m = ids["mentor_user"]
+    # Dono de conta = está em `contas` (definição central; ver 20260930150000). Some junto com o login (cascata).
+    rest("POST", "contas", corpo=[{"dono_id": m, "origem": "fixture de teste #307"}], retorno=False)
     rest("POST", "profiles", corpo=[{"user_id": m, "full_name": "ZZ Mentor Fictício 307"}], retorno=False)
     guarda("profile", m)
     tm = rest("POST", "team_members", corpo=[{

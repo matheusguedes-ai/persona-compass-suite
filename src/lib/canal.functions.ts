@@ -5,24 +5,17 @@
  * resultado. Quem grava o registro é a camada de canal (`canal/enviar.server.ts`), com a chave de
  * serviço; a tela lê os últimos envios pelo login do dono, e a RLS confere de novo que é dele.
  *
- * ⚠️ NÃO usar `exigirDono()` de team.functions aqui: `member_kind()` responde 'owner' também para
- * ALUNO. O portão é `whatsapp_dono()` (dono agindo pela própria conta, com alunos cadastrados).
+ * O portão é a checagem central de dono (`exigirDono`, que pergunta `is_account_owner()` ao banco) e a
+ * RLS da tabela de registro pergunta a mesma coisa (`whatsapp_dono()` = `is_account_owner()`).
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import { exigirDono } from "@/lib/team.functions";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const LIMITE_TESTES_POR_DIA = 5;
 export const TIPO_TESTE = "teste_conexao";
 export const TEXTO_DO_TESTE = "Teste de conexão — Plataforma Método Intenção.";
-
-async function exigirDonoDoWhatsapp(supabase: SupabaseClient<Database>) {
-  const { data, error } = await supabase.rpc("whatsapp_dono");
-  if (error) throw new Error(error.message);
-  if (data !== true) throw new Error("Só o dono da conta pode usar o WhatsApp da plataforma.");
-}
 
 /** Início do dia de hoje no horário de Brasília (UTC−3, sem horário de verão), em ISO. */
 function inicioDoDiaEmBrasilia(agora = new Date()): string {
@@ -48,7 +41,7 @@ export const getWhatsappPainel = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await exigirDonoDoWhatsapp(supabase);
+    await exigirDono(supabase);
     const { adaptadorDoCanal } = await import("@/lib/canal/enviar.server");
     const conexao = await adaptadorDoCanal("whatsapp")!.estadoDaConexao();
 
@@ -73,7 +66,7 @@ export const sendWhatsappTest = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ numero: z.string().trim().min(1).max(40) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await exigirDonoDoWhatsapp(supabase);
+    await exigirDono(supabase);
 
     const usados = await contarTestesDeHoje(userId);
     if (usados >= LIMITE_TESTES_POR_DIA) {
