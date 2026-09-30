@@ -316,6 +316,13 @@ export type Database = {
         Update: { id?: string; conta_id?: string; criado_por?: string | null; person_id?: string | null; canal?: string; tipo?: string; destino_mascarado?: string | null; status?: string; motivo_falha?: string | null; fornecedor?: string | null; fornecedor_msg_id?: string | null; criado_em?: string; enviado_em?: string | null }
         Relationships: []
       }
+      // dono-central — quem é DONO de conta. Só a service role grava.
+      contas: {
+        Row: { dono_id: string; criado_em: string; criado_por: string | null; origem: string }
+        Insert: { dono_id: string; criado_em?: string; criado_por?: string | null; origem?: string }
+        Update: { dono_id?: string; criado_em?: string; criado_por?: string | null; origem?: string }
+        Relationships: []
+      }
       assistente_uso: {
         Row: {
           cache_creation_input_tokens: number
@@ -2632,6 +2639,8 @@ export type Database = {
       assistente_liberada: { Args: never; Returns: boolean }
       assistente_mentor_liberada: { Args: never; Returns: boolean }
       whatsapp_dono: { Args: never; Returns: boolean }
+      is_account_owner: { Args: never; Returns: boolean }
+      registrar_conta_dona: { Args: { p_user: string; p_origem?: string }; Returns: undefined }
       assistente_revogar: { Args: never; Returns: undefined }
       // #316A — aceitar o termo com a escolha das chaves; mudar as chaves; apagar tudo o que foi informado.
       assistente_aceitar: {

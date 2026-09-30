@@ -48,18 +48,21 @@ export const PERMISSAO_LABEL: Record<Permissao, { titulo: string; ajuda: string 
 };
 
 /**
- * Só o dono administra a equipe. Um convidado — mesmo colaborador com todas as
- * permissões — não convida outras pessoas nem muda o próprio acesso.
+ * Só o dono da conta passa. A decisão mora NO BANCO, numa função só (`is_account_owner()`: está na
+ * tabela `contas` e age pela própria conta) — aluno e colaborador nunca passam.
  *
- * Exportada: o Classroom (`classroom.functions.ts`) é "menu do master" pela
- * mesma regra — nenhum colaborador ou mentor administra treinamentos, só quem
- * é dono. Reaproveitar em vez de escrever a checagem de novo.
+ * ⚠️ Antes isto perguntava `member_kind() = 'owner'`, que responde 'owner' para QUALQUER login fora de
+ * `team_members`, inclusive aluno. Não voltar a essa pergunta, nem a "tem pessoas cadastradas": um aluno
+ * se satisfaz cadastrando uma pessoa para si mesmo (provado em 30/09/2026).
+ *
+ * Exportada e reaproveitada: e-mail, Google Agenda, eventos, mentores, configurações da conta, WhatsApp e
+ * o Classroom usam ESTA, nunca uma checagem própria.
  */
 export async function exigirDono(supabase: SupabaseClient<Database>) {
-  const { data, error } = await supabase.rpc("member_kind");
+  const { data, error } = await supabase.rpc("is_account_owner");
   if (error) throw new Error(error.message);
-  if (data !== "owner") {
-    throw new Error("Só o dono da conta pode gerenciar a equipe.");
+  if (data !== true) {
+    throw new Error("Só o dono da conta pode fazer isso.");
   }
 }
 
@@ -394,7 +397,7 @@ export async function membershipDoUsuario(supabase: SupabaseClient<Database>, us
     // Não é da equipe. Pode ser o dono da conta ou um avaliado que criou
     // login: o que separa os dois é ter cadastro próprio (`user_id`) sem ter
     // avaliados sob a sua gestão (`mentor_id`).
-    let tenhoAvaliados = await contarPeople("mentor_id");
+    const tenhoAvaliados = await contarPeople("mentor_id");
 
     // Nada achado dos dois lados: pode ser o PRIMEIRO carregamento desta
     // conta — aluno recém-cadastrado ou mentor promovido cujo e-mail ainda
@@ -410,21 +413,26 @@ export async function membershipDoUsuario(supabase: SupabaseClient<Database>, us
       await supabase.rpc("claim_team_membership");
       row = await buscarTeamRow();
       vezesAvaliado = await contarPeople("user_id");
-      if (!row) tenhoAvaliados = await contarPeople("mentor_id");
     }
     if (row) {
       return montarRespostaEquipe(row, vezesAvaliado);
     }
 
-    const ehAluno = vezesAvaliado > 0 && tenhoAvaliados === 0;
+    // Dono = está em `contas` (definição central, no banco). Quem não é da equipe e não é dono é
+    // avaliado — inclusive quem acabou de criar login e ainda não foi casado com o cadastro (#299): para
+    // esse, "owner por exclusão" abria o painel do mentor a um aluno. `tenhoAvaliados` NÃO decide mais:
+    // qualquer login consegue cadastrar uma pessoa para si.
+    const { data: donoDaConta, error: donoErr } = await supabase.rpc("is_account_owner");
+    if (donoErr) throw new Error(donoErr.message);
+    const ehDono = donoDaConta === true;
     return {
-      kind: (ehAluno ? "aluno" : "owner") as "owner" | "aluno",
-      permissions: ehAluno ? [] : ([...PERMISSOES] as string[]),
+      kind: (ehDono ? "owner" : "aluno") as "owner" | "aluno",
+      permissions: ehDono ? ([...PERMISSOES] as string[]) : ([] as string[]),
       account_id: userId,
       member_id: null as string | null,
       // Dono que também é avaliado em outra conta. Aluno puro não precisa do
       // atalho: ele JÁ está na área dele.
-      tambem_avaliado: !ehAluno && vezesAvaliado > 0,
+      tambem_avaliado: ehDono && vezesAvaliado > 0,
       groups: [] as Array<{ group_id: string; name: string; can_download_reports: boolean; can_schedule_mentorias: boolean }>,
     };
   }
