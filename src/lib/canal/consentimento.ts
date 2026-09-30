@@ -56,6 +56,7 @@ const TIPOS_ESSENCIAIS = [
   "sessao_remarcada",
   "aula_cancelada",
   "aula_remarcada",
+  "mentor_resposta_aluno", // M1b: aviso ao mentor/dono de que um aluno respondeu no WhatsApp
 ] as const;
 
 /** Além do essencial: comunidade, testes liberados e conteúdo novo. */

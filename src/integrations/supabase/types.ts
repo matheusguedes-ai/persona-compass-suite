@@ -338,9 +338,9 @@ export type Database = {
       }
       // Menu Mensagens M1a — mensagens recebidas pelo WhatsApp (webhook da Zapster). Comprovante. Só o dono lê; só o servidor grava.
       mensagens_recebidas: {
-        Row: { id: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id: string | null; remetente_nome: string | null; candidatos: Json | null; tipo: string; texto: string | null; botao_id: string | null; botao_rotulo: string | null; citada_texto: string | null; recebida_em: string; criado_em: string }
-        Insert: { id?: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id?: string | null; remetente_nome?: string | null; candidatos?: Json | null; tipo: string; texto?: string | null; botao_id?: string | null; botao_rotulo?: string | null; citada_texto?: string | null; recebida_em: string; criado_em?: string }
-        Update: { person_id?: string | null }
+        Row: { id: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id: string | null; remetente_nome: string | null; candidatos: Json | null; tipo: string; texto: string | null; botao_id: string | null; botao_rotulo: string | null; citada_texto: string | null; recebida_em: string; criado_em: string; tratamento: string | null }
+        Insert: { id?: string; conta_id: string; zapster_id: string; telefone: string; remetente: string; person_id?: string | null; remetente_nome?: string | null; candidatos?: Json | null; tipo: string; texto?: string | null; botao_id?: string | null; botao_rotulo?: string | null; citada_texto?: string | null; recebida_em: string; criado_em?: string; tratamento?: string | null }
+        Update: { person_id?: string | null; tratamento?: string | null }
         Relationships: []
       }
       // M1a — diagnóstico do webhook (uma linha por chamada válida; nunca o corpo). Só o dono lê.
