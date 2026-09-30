@@ -48,3 +48,15 @@ export function chaveDoTelefone(bruto: string | null | undefined): string | null
   if (d.length !== 10 && d.length !== 11) return null;
   return `${d.slice(0, 2)}${d.slice(-8)}`;
 }
+
+/**
+ * O telefone COMPLETO, legível, para o WhatsApp do mentor poder retornar (M1b-2): "(18) 99999-1234". Só vai para o WhatsApp
+ * de quem é da equipe — nunca para log, relatório, chat nem tela.
+ */
+export function formatarTelefoneBR(bruto: string | null | undefined): string {
+  let d = (bruto ?? "").replace(/\D/g, "");
+  if ((d.length === 12 || d.length === 13) && d.startsWith("55")) d = d.slice(2);
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return d ? `+${d}` : "";
+}
