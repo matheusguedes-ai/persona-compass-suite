@@ -154,6 +154,20 @@ export function AbaWhatsapp() {
               {data.webhook.segredoComEspacoNasPontas ? ", com espaço sobrando nas pontas (ignorado)" : ""}; número da linha com {data.webhook.numeroDigitos} dígitos (o certo é 12 ou 13).
             </p>
           )}
+          {data.webhook.configurado && (
+            <div className="mt-2 text-[11px] text-muted-foreground">
+              <p className="font-medium">Últimos avisos que a Zapster mandou à plataforma:</p>
+              {data.webhook.eventos.length === 0 ? <p>nenhum ainda — se você mandou uma mensagem e nada aparece aqui, a Zapster não está chamando o endereço (confira o webhook no painel dela).</p> : (
+                <ul>
+                  {data.webhook.eventos.map((ev) => (
+                    <li key={ev.id}>
+                      {new Date(ev.recebido_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} · {ev.tipo} · {ev.acao === "gravada" ? "gravada" : ev.acao === "outra_instancia" ? "descartada (não é da nossa linha)" : ev.acao}{ev.detalhe ? ` — ${ev.detalhe}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
         {recebidas.isLoading ? (
           <p className="p-6 text-sm text-muted-foreground">Carregando…</p>

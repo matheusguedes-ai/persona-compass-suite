@@ -16,7 +16,7 @@ for (const l of readFileSync(new URL("../.env.local", import.meta.url), "utf8").
 const saida: string[] = [];
 for (const k of ["log", "error", "warn"] as const) { const o = console[k].bind(console); console[k] = (...a: unknown[]) => { saida.push(a.map(String).join(" ")); o(...a); }; }
 
-import { processarEventoZapster, identificarRemetente, conteudoDaMensagem } from "../src/lib/canal/webhook-zapster.server";
+import { processarEventoZapster, registrarEventoDoWebhook, identificarRemetente, conteudoDaMensagem } from "../src/lib/canal/webhook-zapster.server";
 import { chaveDoTelefone, mascararTelefone } from "../src/lib/canal/telefone";
 
 const URL_ = env.SUPABASE_URL.replace(/\/$/, "");
@@ -181,6 +181,20 @@ try {
   confere("ninguém grava pela tela (nem o dono)", !!grava.error);
   confere("e o dono não consegue apagar nem editar o comprovante pela tela", !!(await cDono.from("mensagens_recebidas").delete().eq("zapster_id", "MSG-A1")).error || ((await linhas()).some((x) => x.zapster_id === "MSG-A1")));
 
+
+  // ---------- diagnóstico do webhook ----------
+  console.log("\n== diagnóstico: o que a Zapster chamou e o que a plataforma fez (sem corpo, sem telefone inteiro)");
+  const evOutra = { type: "message.received", data: { id: "DIAG-1", sender: { id: "5511977778888" }, recipient: { id: "5511900000001", type: "chat" } } };
+  await registrarEventoDoWebhook(admin as never, dono.id, evOutra as never, "outra_instancia", NUMERO);
+  await registrarEventoDoWebhook(admin as never, dono.id, { type: "message.read", data: { id: "OUT-1" } } as never, "status", NUMERO);
+  const dg = (await admin.from("webhook_eventos").select("tipo, acao, detalhe").eq("conta_id", dono.id)).data ?? [];
+  const dOutra = dg.find((x) => x.acao === "outra_instancia");
+  confere("registra o tipo e o resultado de cada chamada", dg.length === 2 && dg.some((x) => x.tipo === "message.read" && x.acao === "status"));
+  confere("quando é de outra linha, guarda só o FIM dos números (para achar erro de cadastro)", !!dOutra && /destino do evento …0001; remetente …8888; linha esperada …0001/.test(dOutra.detalhe ?? ""), dOutra?.detalhe ?? "");
+  confere("nenhum telefone inteiro nem texto no diagnóstico", !JSON.stringify(dg).includes("55119777") && !JSON.stringify(dg).includes("5511955500001"));
+  confere("o ALUNO não lê o diagnóstico", ((await cAluno.from("webhook_eventos").select("id")).data ?? []).length === 0);
+  confere("o dono lê o diagnóstico da conta dele", ((await cDono.from("webhook_eventos").select("id")).data ?? []).length === 2);
+
   // ---------- fusão ----------
   console.log("\n== a fusão de cadastros leva as mensagens junto");
   const Pk = await pessoa(dono.id, "Fusao Mantida", "(11) 96666-7777"), Px = await pessoa(dono.id, "Fusao Absorvida", null);
@@ -199,6 +213,7 @@ try {
   console.log("\n== limpeza (ids já impressos acima; só dados FICTÍCIOS desta execução)");
   await admin.from("notificacoes").delete().in("user_id", criados.users);
   await admin.from("mensagens_recebidas").delete().in("conta_id", criados.users);
+  await admin.from("webhook_eventos").delete().in("conta_id", criados.users);
   await admin.from("envios_mensagens").delete().in("conta_id", criados.users);
   for (const id of criados.people) await admin.from("people").delete().eq("id", id);
   for (const id of criados.team) await admin.from("team_members").delete().eq("id", id);

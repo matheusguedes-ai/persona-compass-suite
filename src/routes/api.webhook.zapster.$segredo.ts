@@ -43,9 +43,19 @@ export const Route = createFileRoute("/api/webhook/zapster/$segredo")({
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { contaDaInstancia, processarEventoZapster } = await import("@/lib/canal/webhook-zapster.server");
+          const { registrarEventoDoWebhook } = await import("@/lib/canal/webhook-zapster.server");
           const contaId = await contaDaInstancia(supabaseAdmin);
           if (!contaId) return nao();
-          const acao = await processarEventoZapster(supabaseAdmin as never, evento as never, { contaId, numero });
+          let acao;
+          try {
+            acao = await processarEventoZapster(supabaseAdmin as never, evento as never, { contaId, numero });
+          } catch (e) {
+            await registrarEventoDoWebhook(supabaseAdmin as never, contaId, evento as never, "erro", numero, e instanceof Error ? e.message : undefined).catch(() => {});
+            throw e;
+          }
+          // O diagnóstico nunca atrapalha a resposta à Zapster.
+          await registrarEventoDoWebhook(supabaseAdmin as never, contaId, evento as never, acao, numero).catch((e) =>
+            console.error("[webhook-zapster] diagnóstico não gravado:", e instanceof Error ? e.message : "erro"));
           // De outra linha: para quem chama, é como se a porta não existisse.
           if (acao === "outra_instancia") return nao();
           return new Response(JSON.stringify({ ok: true, acao }), { headers: { "content-type": "application/json" } });

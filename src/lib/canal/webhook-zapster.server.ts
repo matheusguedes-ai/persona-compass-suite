@@ -177,3 +177,25 @@ export async function contaDaInstancia(admin: SupabaseClient): Promise<string | 
     .order("criado_em", { ascending: false }).limit(1).maybeSingle();
   return (ult?.conta_id as string | undefined) ?? null;
 }
+
+const fim = (v: unknown) => { const d = soDigitos(v); return d ? `…${d.slice(-4)}` : "?"; };
+
+/**
+ * Diagnóstico: uma linha por chamada válida da Zapster — tipo, resultado e o FIM de números (4 dígitos), nunca o corpo.
+ * Quando o evento é de outra linha, guarda o fim do número do evento e o fim do número esperado, para achar erro de
+ * cadastro (ex.: a Zapster manda o número num formato diferente do que está em ZAPSTER_NUMERO). Guarda só as 200 últimas.
+ */
+export async function registrarEventoDoWebhook(
+  admin: SupabaseClient, contaId: string, evento: EventoZapster, acao: Acao | "erro", numero: string, erro?: string,
+) {
+  const d = obj(evento.data);
+  const detalhe = acao === "outra_instancia"
+    ? `destino do evento ${fim(obj(d.recipient).id ?? d.id)}; remetente ${fim(obj(d.sender).id)}; linha esperada ${fim(numero)}`
+    : acao === "erro" ? `falha: ${(erro ?? "erro").slice(0, 120)}`
+    : acao === "invalido" ? "faltou o identificador da mensagem ou o remetente"
+    : null;
+  await admin.from("webhook_eventos").insert({ conta_id: contaId, tipo: String(evento.type ?? "?").slice(0, 60), acao, detalhe });
+  const { data: velhos } = await admin.from("webhook_eventos").select("id").eq("conta_id", contaId)
+    .order("recebido_em", { ascending: false }).range(200, 400);
+  if ((velhos ?? []).length > 0) await admin.from("webhook_eventos").delete().in("id", velhos!.map((v: { id: string }) => v.id));
+}

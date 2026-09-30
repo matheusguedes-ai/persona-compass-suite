@@ -58,6 +58,8 @@ export const getWhatsappPainel = createServerFn({ method: "GET" })
     const segredoBruto = process.env.ZAPSTER_WEBHOOK_SEGREDO || process.env.APP_ZAPSTER_WEBHOOK_SEGREDO || "";
     const numeroBruto = process.env.ZAPSTER_NUMERO || process.env.APP_ZAPSTER_NUMERO || "";
     const webhookConfigurado = segredoBruto.trim() !== "" && numeroBruto.replace(/\D/g, "") !== "";
+    const { data: eventos } = await supabase.from("webhook_eventos").select("id, recebido_em, tipo, acao, detalhe")
+      .order("recebido_em", { ascending: false }).limit(8);
     const { data: ultima } = await supabase.from("mensagens_recebidas").select("recebida_em").order("recebida_em", { ascending: false }).limit(1);
     return {
       conexao,
@@ -70,6 +72,7 @@ export const getWhatsappPainel = createServerFn({ method: "GET" })
         segredoComEspacoNasPontas: segredoBruto !== segredoBruto.trim(),
         numeroDigitos: numeroBruto.replace(/\D/g, "").length,
         ultimaRecebidaEm: (ultima ?? [])[0]?.recebida_em ?? null,
+        eventos: eventos ?? [],
       },
     };
   });
