@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyStudentProfile, updateMyStudentProfile } from "@/lib/student.functions";
 import { assinarMeuEnvio } from "@/lib/preview-upload.functions";
+import { ReceberMensagens } from "@/components/receber-mensagens";
 import { supabase } from "@/integrations/supabase/client";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { RecortarImagem } from "@/components/recorte-imagem";
@@ -172,6 +173,8 @@ function PerfilAluno() {
             conta dela.
           </p>
         </div>
+        {/* #291 F1b: só LEITURA na prévia — mostra o status; o botão de ativar não existe e o servidor também recusa. */}
+        <ReceberMensagens previewPersonId={ver} />
       </div>
     );
   }
@@ -346,6 +349,7 @@ function PerfilAluno() {
         </form>
       </div>
     <VisibilidadeDoPerfil />
+    <ReceberMensagens previewPersonId={ver ?? null} />
     </div>
   );
 }

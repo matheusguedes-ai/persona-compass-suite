@@ -323,6 +323,19 @@ export type Database = {
         Update: { dono_id?: string; criado_em?: string; criado_por?: string | null; origem?: string }
         Relationships: []
       }
+      // #291 F1b — consentimento de WhatsApp (uma linha por decisão) e códigos de confirmação (só o resumo). Só o servidor grava.
+      whatsapp_consentimentos: {
+        Row: { id: string; conta_id: string; person_id: string; user_id: string | null; canal: string; nivel: string; termo_versao: string; texto_aceito: string; destino_mascarado: string; origem: string; aceito_em: string; revogado_em: string | null; revogado_motivo: string | null }
+        Insert: { id?: string; conta_id?: string; person_id: string; user_id?: string | null; canal?: string; nivel: string; termo_versao: string; texto_aceito: string; destino_mascarado: string; origem?: string; aceito_em?: string; revogado_em?: string | null; revogado_motivo?: string | null }
+        Update: { revogado_em?: string | null; revogado_motivo?: string | null }
+        Relationships: []
+      }
+      whatsapp_codigos: {
+        Row: { id: string; conta_id: string; person_id: string; user_id: string; nivel: string; telefone_mascarado: string; codigo_hash: string; sal: string; criado_em: string; expira_em: string; tentativas: number; enviado: boolean; invalidado_em: string | null; consumido_em: string | null }
+        Insert: { id?: string; conta_id: string; person_id: string; user_id: string; nivel: string; telefone_mascarado: string; codigo_hash: string; sal: string; criado_em?: string; expira_em: string; tentativas?: number; enviado?: boolean; invalidado_em?: string | null; consumido_em?: string | null }
+        Update: { tentativas?: number; enviado?: boolean; invalidado_em?: string | null; consumido_em?: string | null }
+        Relationships: []
+      }
       assistente_uso: {
         Row: {
           cache_creation_input_tokens: number
