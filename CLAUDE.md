@@ -588,9 +588,10 @@ foram reveladas e revogadas por terem passado por aqui).
   mentor = fatia D): a tela marca "em breve" (`disponivel` em `src/lib/assistente/chaves.ts`) e cada fatia
   que nascer põe o DELETE do que guarda em `assistente_apagar_guardado` — a única porta do "apagar".
   **Termo versão 2** (explica as chaves + o bloco do dono sobre a observação do mentor, palavra por
-  palavra) está como RASCUNHO até o dono aprovar; `publicar --confirmo` só DEPOIS do código no ar — aí
-  quem aceitou a versão 1 lê a nova antes de continuar (as conversas ficam; dá para baixar, apagar ou
-  revogar sem aceitar). A chave 2 NÃO é a leitura do painel que ela já faz para responder (#305): é
+  palavra) APROVADO pelo dono em 30/09 com três ajustes e PUBLICADO no mesmo dia, DEPOIS do código no ar
+  (deploy `6bf2007d`, termo às 16:02Z): quem aceitou a versão 1 lê a nova antes de continuar (as
+  conversas ficam; dá para baixar, apagar ou revogar sem aceitar). Termo publicado não se edita:
+  mudança = versão 3, e todo mundo relê. A chave 2 NÃO é a leitura do painel que ela já faz para responder (#305): é
   aprender com o jeito de usar ao longo do tempo. Prova no banco com rastro zero:
   `scripts/testar_chaves_assistente.sql`.
 - **#310 — recortes declarados** (o mesmo conserto da assistente do mentor, só o necessário): a agenda
