@@ -81,3 +81,20 @@ export async function enviarMensagem(
   if (updErr) console.error("[canal] enviado, mas não consegui atualizar o registro:", updErr.message);
   return { status: "enviado", registroId: reg.id };
 }
+
+/**
+ * Registra um envio que NÃO foi feito, com o motivo (ex.: limite diário). Nenhum fornecedor é chamado.
+ * Guarda só o número mascarado, como todo registro desta tabela.
+ */
+export async function registrarEnvioNaoFeito(
+  admin: SupabaseClient,
+  args: { contaId: string; personId: string | null; tipo: string; destino: string; motivo: string; canal?: Canal },
+): Promise<void> {
+  const canal = args.canal ?? "whatsapp";
+  const { error } = await admin.from("envios_mensagens").insert({
+    conta_id: args.contaId, person_id: args.personId, canal, tipo: args.tipo,
+    destino_mascarado: normalizarTelefoneBR(args.destino).mascarado, status: "falhou", motivo_falha: args.motivo,
+    fornecedor: adaptadorDoCanal(canal)?.fornecedor ?? null,
+  });
+  if (error) console.error("[canal] não consegui registrar o envio não feito:", error.message);
+}
