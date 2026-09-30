@@ -145,7 +145,7 @@ export async function processarEventoZapster(admin: SupabaseClient, evento: Even
       const { tratarMensagemRecebida } = await import("./resposta-whatsapp.server");
       const feitos = await tratarMensagemRecebida(admin, {
         contaId: ctx.contaId, agora: ctx.agora,
-        msg: { id: linha!.id as string, telefone, remetente: quem.remetente, personId: quem.personId, nome: quem.nome, candidatos: quem.candidatos, tipo: c.tipo, texto: c.texto, recebidaEm: enviadaEm },
+        msg: { id: linha!.id as string, telefone, remetente: quem.remetente, personId: quem.personId, nome: quem.nome, nomeDoPerfil: txt(de.name), candidatos: quem.candidatos, tipo: c.tipo, texto: c.texto, recebidaEm: enviadaEm },
       });
       if (feitos.length > 0) await admin.from("mensagens_recebidas").update({ tratamento: feitos.join(",") }).eq("id", linha!.id);
     } catch (e) {

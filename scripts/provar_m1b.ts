@@ -1,6 +1,6 @@
 /**
- * Menu Mensagens M1b — PROVA de SAIR, resposta automática e aviso ao mentor, com dados FICTÍCIOS no banco de verdade
- * e a Zapster SIMULADA (nenhuma mensagem real sai). A hora da plataforma é injetada (janela das 8h às 20h).
+ * Menu Mensagens M1b (+ ajustes M1b-2) — PROVA de SAIR, respostas automáticas e aviso ao mentor, com dados FICTÍCIOS no
+ * banco de verdade e a Zapster SIMULADA (nenhuma mensagem real sai). A hora da plataforma é injetada.
  *   npx tsx scripts/provar_m1b.ts
  */
 import { createClient } from "@supabase/supabase-js";
@@ -24,9 +24,9 @@ const saida: string[] = [];
 for (const k of ["log", "error", "warn"] as const) { const o = console[k].bind(console); console[k] = (...a: unknown[]) => { saida.push(a.map(String).join(" ")); o(...a); }; }
 
 import { processarEventoZapster } from "../src/lib/canal/webhook-zapster.server";
-import { ehPedidoDeSair, TEXTO_CONFIRMACAO_SAIR, TEXTO_RESPOSTA_AUTOMATICA } from "../src/lib/canal/resposta-whatsapp.server";
+import { ehPedidoDeSair, textoRespostaAoAluno, TEXTO_BOAS_VINDAS_DESCONHECIDO, TEXTO_CONFIRMACAO_SAIR } from "../src/lib/canal/resposta-whatsapp.server";
 import { podeEnviarWhatsapp } from "../src/lib/canal/consentimento.server";
-import { mascararTelefone } from "../src/lib/canal/telefone";
+import { formatarTelefoneBR, mascararTelefone } from "../src/lib/canal/telefone";
 import { TERMO_TEXTO, TERMO_VERSAO } from "../src/lib/canal/consentimento";
 
 const admin = createClient(env.SUPABASE_URL.replace(/\/$/, ""), env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -47,11 +47,13 @@ const fone = (n: number) => `(11) 9${String(1000 + n).padStart(4, "0")}-${String
 const soDig = (s: string) => `55${s.replace(/\D/g, "")}`;
 
 try {
-  const { data: u } = await admin.auth.admin.createUser({ email: `teste-m1b-dono-${rodada}@exemplo.invalido`, email_confirm: true });
-  const dono = u.user!.id; criados.users.push(dono); console.log(`criado login dono: ${dono}`);
-  await admin.rpc("registrar_conta_dona", { p_user: dono, p_origem: "prova M1b" });
-  const { data: u2 } = await admin.auth.admin.createUser({ email: `teste-m1b-mentor-${rodada}@exemplo.invalido`, email_confirm: true });
-  const mentorLogin = u2.user!.id; criados.users.push(mentorLogin); console.log(`criado login mentor: ${mentorLogin}`);
+  async function login(rotulo: string) {
+    const { data: u } = await admin.auth.admin.createUser({ email: `teste-m1b-${rotulo}-${rodada}@exemplo.invalido`, email_confirm: true });
+    criados.users.push(u.user!.id); console.log(`criado login ${rotulo}: ${u.user!.id}`); return u.user!.id;
+  }
+  const dono = await login("dono");
+  await admin.rpc("registrar_conta_dona", { p_user: dono, p_origem: "prova M1b-2" });
+  const mentorLogin = await login("mentor"), colabLogin = await login("colab");
 
   let seq = 0;
   async function pessoa(nome: string, consentimento: "completo" | "essencial" | "nenhum", opcoes: { userId?: string | null; phone?: string | null } = {}) {
@@ -63,143 +65,172 @@ try {
     return { id, phone: phone!, nome };
   }
   const Pdono = await pessoa("Dono Pessoa", "completo", { userId: dono });
-  const Pmentor = await pessoa("Mentora Um", "essencial");
-  const Psem = await pessoa("Mentor SemConsentimento", "nenhum");
+  const Pmentor = await pessoa("Mentora Um", "essencial"), Psem = await pessoa("Mentor SemConsentimento", "nenhum"), Pcolab = await pessoa("Colaboradora Dois", "completo");
   const Ana = await pessoa("Ana Aluna", "completo"), Cris = await pessoa("Cris Aluna", "completo"), Duda = await pessoa("Duda Aluna", "completo"), Edu = await pessoa("Edu Aluno", "completo"), Fabi = await pessoa("Fabi Aluna", "completo");
+  const Semturma = await pessoa("Gabi SemTurma", "completo"), Semturma2 = await pessoa("Hugo SemTurma", "completo");
   const Dup1 = await pessoa("Dupla Um", "completo", { phone: "(11) 94444-5555" }), Dup2 = await pessoa("Dupla Dois", "completo", { phone: "11 94444 5555" });
 
   const grupo = await ins("groups", { mentor_id: dono, name: "Turma M1b" }, "groups");
   for (const p of [Ana, Cris, Duda, Edu, Fabi]) await admin.from("group_members").insert({ group_id: grupo, person_id: p.id });
-  // dois mentores da turma: um com consentimento, outro sem
-  for (const [p, nome] of [[Pmentor, "Mentora Um"], [Psem, "Mentor Sem"]] as const) {
-    const tm = await ins("team_members", { owner_id: dono, kind: "mentor", name: nome, email: `${nome.replace(/\W/g, "").toLowerCase()}-${rodada}@exemplo.invalido`, person_id: p.id, status: "ativo" }, "team");
-    await admin.from("team_member_groups").insert({ team_member_id: tm, group_id: grupo });
-  }
+  const tmMentor = await ins("team_members", { owner_id: dono, kind: "mentor", name: "Mentora Um", email: `mentora-${rodada}@exemplo.invalido`, person_id: Pmentor.id, user_id: mentorLogin, status: "ativo" }, "team");
+  await admin.from("team_member_groups").insert({ team_member_id: tmMentor, group_id: grupo });
+  const tmSem = await ins("team_members", { owner_id: dono, kind: "mentor", name: "Mentor Sem", email: `mentorsem-${rodada}@exemplo.invalido`, person_id: Psem.id, status: "ativo" }, "team");
+  await admin.from("team_member_groups").insert({ team_member_id: tmSem, group_id: grupo });
+  // uma colaboradora da equipe que NÃO é da turma (para provar que aluno sem turma não a alcança)
+  await ins("team_members", { owner_id: dono, kind: "colaborador", name: "Colab Dois", email: `colab-${rodada}@exemplo.invalido`, person_id: Pcolab.id, user_id: colabLogin, status: "ativo", permissions: ["pessoas"] }, "team");
+
   const ctxBase = { contaId: dono, numero: NUMERO };
   let n = 0;
-  const msg = async (de: string, texto: string, hm: string, extra: Record<string, unknown> = {}, tipo = "text") => {
-    const id = `M1B-${rodada}-${++n}`;
+  const msg = async (de: string, texto: string | null, hm: string, opcoes: { tipo?: string; nome?: string | null; idFixo?: string; content?: Record<string, unknown> } = {}) => {
+    const id = opcoes.idFixo ?? `M1B-${rodada}-${++n}`;
     const agora = new Date().toISOString();
-    const r = await processarEventoZapster(admin as never, { type: "message.received", created_at: agora, data: { id, sender: { id: soDig(de), name: "Nome" }, recipient: { id: soDig(de), type: "chat" }, sent_at: agora, type: tipo, content: { text: texto }, ...extra } } as never, { ...ctxBase, agora: brt(hm) });
+    const r = await processarEventoZapster(admin as never, { type: "message.received", created_at: agora, data: { id, sender: { id: soDig(de), name: opcoes.nome === undefined ? "Nome" : opcoes.nome }, recipient: { id: soDig(de), type: "chat" }, sent_at: agora, type: opcoes.tipo ?? "text", content: opcoes.content ?? { text: texto } } } as never, { ...ctxBase, agora: brt(hm) });
     const { data: linha } = await admin.from("mensagens_recebidas").select("tratamento, remetente").eq("zapster_id", id).maybeSingle();
     return { r, id, tratamento: linha?.tratamento ?? null, remetente: linha?.remetente };
   };
-  const enviosPara = (p: { phone: string }) => enviados.filter((e) => e.recipient === soDig(p.phone));
+  const para = (p: { phone: string }) => enviados.filter((e) => e.recipient === soDig(p.phone));
   const sinos = async (tipo: string) => (await admin.from("notificacoes").select("titulo, user_id").eq("conta_id", dono).eq("tipo", tipo)).data ?? [];
+  const tel = (p: { phone: string }) => formatarTelefoneBR(soDig(p.phone));
 
-  // ---------- reconhecimento de SAIR ----------
   console.log("== o que conta como pedido de sair");
-  confere("SAIR, sair., Parar, STOP!, cancelar, ' Sair ' (com acento/pontuação) contam", ["SAIR", "sair.", "Parar", "STOP!", "cancelar", "  Sair  ", "SÁIR"].every(ehPedidoDeSair) || ["SAIR", "sair.", "Parar", "STOP!", "cancelar", "  Sair  "].every(ehPedidoDeSair));
+  confere("SAIR, sair., Parar, STOP!, cancelar, ' Sair ' contam", ["SAIR", "sair.", "Parar", "STOP!", "cancelar", "  Sair  "].every(ehPedidoDeSair));
   confere("'sair da reunião', 'não quero sair', 'parar de tocar', 'oi', '' NÃO contam", !["sair da reunião", "não quero sair", "parar de tocar", "oi", "", "sair agora por favor"].some(ehPedidoDeSair));
+  confere("telefone completo legível para o mentor", formatarTelefoneBR("5518999991234") === "(18) 99999-1234" && formatarTelefoneBR("(18) 3222-1234") === "(18) 3222-1234" && formatarTelefoneBR("551832221234") === "(18) 3222-1234");
 
-  // ---------- resposta automática + mentor avisado (dentro da janela) ----------
-  console.log("\n== mensagem comum de aluno às 14h: resposta automática + mentor avisado");
+  // ---------- (a) aluno cadastrado ----------
+  console.log("\n== (a) aluno cadastrado escreve: texto novo + aviso ao mentor com telefone completo");
   let r = await msg(Ana.phone, "Oi, tudo bem? Posso remarcar?", "14:00");
   confere("gravada, identificada como a aluna", r.r === "gravada" && r.remetente === "pessoa");
-  const respAna = enviosPara(Ana);
-  confere("a aluna recebe UMA resposta automática, com o texto combinado", respAna.length === 1 && respAna[0].text === TEXTO_RESPOSTA_AUTOMATICA, JSON.stringify(respAna));
-  const snAna = (await sinos("whatsapp_resposta"))[0];
-  confere("sino do dono: '[Nome] respondeu no WhatsApp: “início da mensagem”'", (await sinos("whatsapp_resposta")).length === 1 && snAna.titulo === "Ana Aluna respondeu no WhatsApp: “Oi, tudo bem? Posso remarcar?”" && snAna.user_id === dono, JSON.stringify(snAna));
-  const paraDono = enviosPara(Pdono), paraMentor = enviosPara(Pmentor), paraSem = enviosPara(Psem);
-  confere("o DONO recebe WhatsApp avisando", paraDono.length === 1 && paraDono[0].text.startsWith("Ana Aluna respondeu no WhatsApp da plataforma: “Oi, tudo bem? Posso remarcar?”."), JSON.stringify(paraDono));
-  confere("o MENTOR da turma (com consentimento) recebe WhatsApp", paraMentor.length === 1);
-  confere("o mentor SEM consentimento não recebe WhatsApp", paraSem.length === 0);
+  const respAna = para(Ana);
+  confere("a aluna recebe o texto NOVO, com o primeiro nome", respAna.length === 1 && respAna[0].text === "Olá, Ana! Recebemos sua mensagem. Em breve seu mentor vai falar com você.\n— Método Intenção" && respAna[0].text === textoRespostaAoAluno("Ana Aluna"), JSON.stringify(respAna));
+  const avisoDono = para(Pdono), avisoMentor = para(Pmentor), avisoSem = para(Psem);
+  const esperado = `Ana Aluna (${tel(Ana)}) mandou mensagem no número do Método Intenção: "Oi, tudo bem? Posso remarcar?"`;
+  confere("o DONO recebe o aviso no formato pedido: nome, telefone COMPLETO e o texto entre aspas", avisoDono.length === 1 && avisoDono[0].text === esperado, JSON.stringify(avisoDono));
+  confere("a MENTORA da turma (com consentimento) também recebe", avisoMentor.length === 1 && avisoMentor[0].text === esperado);
+  confere("o mentor SEM consentimento não recebe", avisoSem.length === 0);
+  const sn = await sinos("whatsapp_resposta");
+  confere("sino: 'Ana Aluna respondeu no WhatsApp: “…”' (sem telefone completo)", sn.some((x) => x.titulo === "Ana Aluna respondeu no WhatsApp: “Oi, tudo bem? Posso remarcar?”") && !sn.some((x) => x.titulo.includes("9")) === false || sn.every((x) => !x.titulo.includes(soDig(Ana.phone))));
+  confere("a turma tem login de mentor: o sino chega ao dono e à mentora, NÃO à colaboradora de fora da turma", sn.some((x) => x.user_id === dono) && sn.some((x) => x.user_id === mentorLogin) && !sn.some((x) => x.user_id === colabLogin), JSON.stringify(sn.map((x) => x.user_id === dono ? "dono" : x.user_id === mentorLogin ? "mentora" : x.user_id === colabLogin ? "colab" : "?")));
   confere("a mensagem registra o que foi feito", (r.tratamento ?? "").includes("resposta_automatica") && (r.tratamento ?? "").includes("mentor_avisado"), String(r.tratamento));
-  const rotulos = (await admin.from("envios_mensagens").select("tipo, person_id, conta_id, status").eq("conta_id", dono)).data ?? [];
-  confere("todo envio tem dono e pessoa e está registrado", rotulos.length === 3 && rotulos.every((e) => e.conta_id === dono && e.person_id && e.status === "enviado"));
 
+  // ---------- (c) mesmo número de novo ----------
+  console.log("\n== (c) o mesmo número escreve de novo no mesmo dia");
   const antes = enviados.length;
   r = await msg(Ana.phone, "outra coisa", "14:05");
-  confere("2ª mensagem no mesmo dia: SEM 2ª resposta automática", enviosPara(Ana).length === 1);
-  confere("e dentro de 15 min NÃO avisa o mentor de novo (nem sino nem WhatsApp)", (await sinos("whatsapp_resposta")).length === 1 && enviados.length === antes, String(enviados.length - antes));
+  confere("nenhuma 2ª resposta automática no mesmo dia", para(Ana).length === 1);
+  confere("dentro de 15 min não avisa o mentor de novo (nem WhatsApp, nem sino)", enviados.length === antes && (await sinos("whatsapp_resposta")).filter((x) => x.user_id === dono).length === 1, String(enviados.length - antes));
+  // passados 15 minutos: avisa de novo (simula a passagem do tempo envelhecendo o aviso)
+  await admin.from("notificacoes").update({ created_at: new Date(Date.now() - 16 * 60_000).toISOString() }).eq("conta_id", dono).eq("tipo", "whatsapp_resposta");
+  const antes2 = enviados.length;
+  await msg(Ana.phone, "terceira", "14:30");
+  confere("depois de 15 minutos: avisa o mentor de novo; a resposta automática continua sendo só 1 no dia", para(Ana).length === 1 && enviados.length === antes2 + 2 /* dono + mentora */, String(enviados.length - antes2));
 
-  // ---------- fora da janela ----------
-  console.log("\n== às 22h: nada de WhatsApp (só o sino)");
+  // ---------- (e) 22h: tudo sai na hora ----------
+  console.log("\n== (e) às 22h: a resposta automática e o aviso ao mentor saem na hora");
   const antes22 = enviados.length;
-  r = await msg(Cris.phone, "boa noite!", "22:00");
-  confere("às 22h: nenhuma resposta automática e nenhum WhatsApp ao mentor", enviados.length === antes22 && enviosPara(Cris).length === 0);
-  confere("mas o sino do mentor recebe", (await sinos("whatsapp_resposta")).length === 2);
-  r = await msg(Duda.phone, "bom dia", "07:59");
-  confere("às 7h59: também nada de WhatsApp", enviados.length === antes22);
-  r = await msg(Edu.phone, "oi", "20:00");
-  confere("às 20h00: também nada", enviados.length === antes22);
+  await msg(Cris.phone, "boa noite!", "22:00");
+  confere("às 22h: a aluna recebe a resposta automática", para(Cris).length === 1 && para(Cris)[0].text.startsWith("Olá, Cris!"));
+  confere("às 22h: o mentor recebe o aviso por WhatsApp", enviados.length === antes22 + 3 /* resposta + dono + mentora */ && para(Pdono).some((e) => e.text.startsWith("Cris Aluna (")), String(enviados.length - antes22));
+  await msg(Duda.phone, "bom dia", "03:00");
+  confere("às 3h da manhã: também (sem janela)", para(Duda).length === 1 && para(Pdono).some((e) => e.text.startsWith("Duda Aluna (")));
 
-  // ---------- quem NÃO recebe resposta ----------
-  console.log("\n== equipe, desconhecido e ambíguo não recebem resposta nem aviso");
-  const antesX = enviados.length, sinoX = (await sinos("whatsapp_resposta")).length;
-  await msg(Pdono.phone, "teste do dono", "14:10");
-  await msg(fone(99), "quem é?", "14:10");
-  await msg("(11) 94444-5555", "sou eu", "14:10");
-  confere("equipe (o dono), número desconhecido e número em dois cadastros: nada enviado, nenhum aviso", enviados.length === antesX && (await sinos("whatsapp_resposta")).length === sinoX);
+  // ---------- (d) sem limite diário ----------
+  console.log("\n== (d) 5 alunos diferentes no mesmo dia: os 5 avisos chegam (sem limite de 3)");
+  await msg(Edu.phone, "oi", "15:00"); await msg(Fabi.phone, "oi", "15:00");
+  const nomesAvisados = para(Pdono).map((e) => e.text.split(" (")[0]);
+  confere("o dono recebeu o aviso dos 5 alunos (Ana, Cris, Duda, Edu, Fabi)", ["Ana Aluna", "Cris Aluna", "Duda Aluna", "Edu Aluno", "Fabi Aluna"].every((nome) => nomesAvisados.includes(nome)), nomesAvisados.join(","));
+  const enviosDono = (await admin.from("envios_mensagens").select("id", { count: "exact", head: true }).eq("person_id", Pdono.id).eq("tipo", "mentor_resposta_aluno")).count;
+  confere("e nada deixou de chegar por 'limite diário' (5+ avisos registrados ao dono)", (enviosDono ?? 0) >= 5, String(enviosDono));
 
-  // ---------- limite de avisos ao mentor por dia ----------
-  console.log("\n== limite de 3 avisos por dia por pessoa (mentor)");
-  for (let i = 0; i < 3; i++) await admin.from("envios_mensagens").insert({ conta_id: dono, person_id: Pmentor.id, canal: "whatsapp", tipo: "mentor_resposta_aluno", status: "enviado" });
-  const antesL = enviados.length;
-  await msg(Fabi.phone, "estou aqui", "15:00");
-  confere("a mentora já no limite do dia NÃO recebe o 4º; o dono (fora do limite) recebe", enviosPara(Pmentor).length === 1 /* só o de antes */ && enviosPara(Pdono).length === 2 && enviados.length === antesL + 2 /* resposta automática à Fabi + dono */, String(enviados.length - antesL));
-
-  // ---------- SAIR ----------
-  console.log("\n== SAIR");
-  const podeAntes = (await podeEnviarWhatsapp(admin, Ana.id, "lembrete_mentoria")).pode;
-  const antesS = enviados.length;
-  r = await msg(Ana.phone, "SAIR", "22:30");   // fora da janela de propósito: a confirmação é resposta a um pedido
-  const consAna = (await admin.from("whatsapp_consentimentos").select("revogado_em, revogado_motivo").eq("person_id", Ana.id)).data ?? [];
-  confere("antes: a aluna podia receber lembrete", podeAntes === true);
-  confere("SAIR: o consentimento foi desligado na hora, com o motivo 'pediu_sair' (histórico mantido)", consAna.length === 1 && !!consAna[0].revogado_em && consAna[0].revogado_motivo === "pediu_sair", JSON.stringify(consAna));
-  confere("e agora a F1c NÃO pode mandar lembrete a ela", (await podeEnviarWhatsapp(admin, Ana.id, "lembrete_mentoria")).pode === false);
-  const confirma = enviados.slice(antesS).filter((e) => e.recipient === soDig(Ana.phone));
-  confere("UMA confirmação, com o texto combinado, mesmo às 22h30", confirma.length === 1 && confirma[0].text === TEXTO_CONFIRMACAO_SAIR, JSON.stringify(confirma));
-  confere("NÃO manda a resposta automática comum junto", !confirma.some((e) => e.text === TEXTO_RESPOSTA_AUTOMATICA));
-  confere("o sino do mentor avisa que pediu para sair", (await sinos("whatsapp_saiu")).length === 1 && (await sinos("whatsapp_saiu"))[0].titulo.startsWith("Ana Aluna pediu para sair do WhatsApp."));
-  confere("a mensagem registra 'sair'", (r.tratamento ?? "").includes("sair") && (r.tratamento ?? "").includes("confirmacao_enviada"), String(r.tratamento));
-
-  const antesS2 = enviados.length;
-  await msg(Ana.phone, "sair", "14:00");
-  await msg(Ana.phone, "Stop!", "14:00");
-  await msg(Ana.phone, "parar", "14:00");
-  confere("SAIR repetido no mesmo dia: no máximo 2 confirmações por número", enviados.slice(antesS2).filter((e) => e.recipient === soDig(Ana.phone) && e.text === TEXTO_CONFIRMACAO_SAIR).length <= 1);
-
+  // ---------- (b) desconhecido ----------
+  console.log("\n== (b) número desconhecido: boas-vindas + aviso ao dono");
+  const DESC = { phone: fone(97) };
   const antesD = enviados.length;
-  await msg(Cris.phone, "sair da reunião", "14:00");
-  await msg(Cris.phone, "não quero sair", "14:00");
-  confere("'sair da reunião' e 'não quero sair' NÃO desligam ninguém", (await podeEnviarWhatsapp(admin, Cris.id, "lembrete_mentoria")).pode === true);
+  r = await msg(DESC.phone, "Olá", "16:00", { nome: "Laila Perfil" });
+  const bemVindo = para(DESC);
+  confere("o desconhecido recebe as boas-vindas, no texto pedido", bemVindo.length === 1 && bemVindo[0].text === TEXTO_BOAS_VINDAS_DESCONHECIDO && TEXTO_BOAS_VINDAS_DESCONHECIDO === "Olá! Seja bem-vindo(a) ao Método Intenção. Este é o canal exclusivo de agendamentos e informativos para alunos, clientes, mentores e parceiros do Método Intenção. Recebemos sua mensagem e em breve um mentor vai falar com você.", JSON.stringify(bemVindo));
+  const avD = para(Pdono).find((e) => e.text.startsWith("Novo contato"));
+  confere("o DONO recebe o aviso: nome do perfil, telefone completo e o texto", !!avD && avD.text === `Novo contato no número do Método Intenção: Laila Perfil (${tel(DESC)}): "Olá"`, JSON.stringify(avD));
+  confere("desconhecido NÃO gera aviso à mentora da turma (não tem mentor responsável): só o dono", !para(Pmentor).some((e) => e.text.startsWith("Novo contato")) && !para(Pcolab).some((e) => e.text.startsWith("Novo contato")));
+  const snD = (await sinos("whatsapp_novo_contato"));
+  confere("o sino do dono avisa (com telefone MASCARADO); ninguém mais da equipe recebe", snD.length === 1 && snD[0].user_id === dono && snD[0].titulo === "Novo contato no WhatsApp: Laila Perfil: “Olá”" && !snD[0].titulo.includes(soDig(DESC.phone)), JSON.stringify(snD));
+  const antesD2 = enviados.length;
+  await msg(DESC.phone, "tem alguém aí?", "16:02", { nome: "Laila Perfil" });
+  confere("o mesmo desconhecido de novo: nenhuma 2ª boas-vindas e nenhum novo aviso em 15 min", enviados.length === antesD2);
+  const DESC2 = { phone: fone(96) };
+  await msg(DESC2.phone, "Oi", "16:03", { nome: null });
+  const avD2 = para(Pdono).find((e) => e.text.includes(`(${tel(DESC2)})`));
+  confere("sem nome de perfil: o aviso mostra só o telefone", !!avD2 && avD2.text === `Novo contato no número do Método Intenção: (${tel(DESC2)}): "Oi"`, JSON.stringify(avD2));
 
-  await msg(Edu.phone, "Parar", "14:00");
-  confere("'Parar' também desliga (Edu)", (await podeEnviarWhatsapp(admin, Edu.id, "lembrete_mentoria")).pode === false);
+  // ---------- mídia ----------
+  console.log("\n== mídia: o mentor lê '[enviou um áudio]' etc.");
+  const M1 = await pessoa("Iara Midia", "completo"); await admin.from("group_members").insert({ group_id: grupo, person_id: M1.id });
+  await msg(M1.phone, null, "17:00", { tipo: "audio", content: { media: { url: "https://x.invalido/a.ogg" }, text: "" } });
+  confere("áudio: o aviso traz '[enviou um áudio]' e nada do arquivo", para(Pdono).some((e) => e.text === `Iara Midia (${tel(M1)}) mandou mensagem no número do Método Intenção: "[enviou um áudio]"`) && !enviados.some((e) => e.text.includes("x.invalido")));
+  const M2 = await pessoa("Joana Midia", "completo"); await admin.from("group_members").insert({ group_id: grupo, person_id: M2.id });
+  await msg(M2.phone, null, "17:00", { tipo: "image", content: { media: { url: "https://x.invalido/i.jpg" }, text: "uma legenda qualquer" } });
+  confere("imagem: '[enviou uma imagem]'", para(Pdono).some((e) => e.text.endsWith(`"[enviou uma imagem]"`)));
+  const longo = "x".repeat(450);
+  const M3 = await pessoa("Kaka Longo", "completo"); await admin.from("group_members").insert({ group_id: grupo, person_id: M3.id });
+  await msg(M3.phone, longo, "17:00");
+  const avL = para(Pdono).find((e) => e.text.startsWith("Kaka Longo"));
+  confere("texto longo: no máximo 300 caracteres (cortado com reticências)", !!avL && avL.text.includes("x".repeat(299) + "…") && !avL.text.includes("x".repeat(301)));
 
-  // retry: o mesmo evento SAIR duas vezes
+  // ---------- (f) aluno sem turma ----------
+  console.log("\n== (f) aluno SEM turma: só o dono");
+  const antesF = enviados.length;
+  await msg(Semturma.phone, "preciso de ajuda", "14:00");
+  const snF = (await admin.from("notificacoes").select("user_id, titulo").eq("conta_id", dono).eq("tipo", "whatsapp_resposta").like("titulo", "Gabi SemTurma%")).data ?? [];
+  confere("o sino vai SÓ para o dono (nem mentora, nem colaboradora)", snF.length === 1 && snF[0].user_id === dono, JSON.stringify(snF.map((x) => x.user_id === dono ? "dono" : "outro")));
+  const wF = enviados.slice(antesF);
+  confere("o WhatsApp vai SÓ para o dono (a mentora da turma e a colaboradora não recebem)", wF.filter((e) => e.text.startsWith("Gabi SemTurma (")).map((e) => e.recipient).join() === soDig(Pdono.phone), JSON.stringify(wF.map((e) => e.recipient)));
+  confere("e a aluna recebe a resposta automática normalmente", para(Semturma).length === 1);
+
+  // ---------- (g) quem NÃO recebe resposta ----------
+  console.log("\n== (g) equipe, número da plataforma e ambíguo: nenhuma resposta automática");
+  const antesG = enviados.length;
+  await msg(Pdono.phone, "teste do dono", "14:10");
+  await msg(Pmentor.phone, "oi, sou a mentora", "14:10");
+  const rEco = await msg(NUMERO.slice(2), "eco", "14:10");
+  await msg("(11) 94444-5555", "sou eu", "14:10");
+  confere("equipe (dono e mentora), o número da própria plataforma e o número em dois cadastros: nada enviado", enviados.length === antesG, String(enviados.length - antesG));
+  confere("o eco do número da plataforma nem é registrado como mensagem", rEco.r === "ignorada");
+
+  // ---------- SAIR (inalterado) ----------
+  console.log("\n== SAIR continua igual");
+  const antesS = enviados.length;
+  r = await msg(Semturma2.phone, "SAIR", "22:30");
+  const cons = (await admin.from("whatsapp_consentimentos").select("revogado_em, revogado_motivo").eq("person_id", Semturma2.id)).data ?? [];
+  confere("SAIR desliga na hora, motivo 'pediu_sair', e a F1c não pode mais mandar lembrete", cons.length === 1 && cons[0].revogado_motivo === "pediu_sair" && (await podeEnviarWhatsapp(admin, Semturma2.id, "lembrete_mentoria")).pode === false);
+  confere("UMA confirmação (mesmo às 22h30), sem a resposta automática comum", para(Semturma2).length === 1 && para(Semturma2)[0].text === TEXTO_CONFIRMACAO_SAIR);
+  confere("o dono é avisado (sino + WhatsApp com o telefone)", (await sinos("whatsapp_saiu")).length === 1 && enviados.slice(antesS).some((e) => e.recipient === soDig(Pdono.phone) && e.text.startsWith(`Hugo SemTurma (${tel(Semturma2)}) pediu para sair`)));
+  const antesS2 = enviados.length;
+  await msg(Cris.phone, "sair da reunião", "14:00"); await msg(Cris.phone, "não quero sair", "14:00");
+  confere("frases com 'sair' NÃO desligam", (await podeEnviarWhatsapp(admin, Cris.id, "lembrete_mentoria")).pode === true);
   const idRetry = `M1B-${rodada}-RETRY`;
-  const evRetry = { type: "message.received", created_at: new Date().toISOString(), data: { id: idRetry, sender: { id: soDig(Duda.phone) }, recipient: { id: soDig(Duda.phone), type: "chat" }, sent_at: new Date().toISOString(), type: "text", content: { text: "STOP" } } };
   const antesR = enviados.length;
-  const a1 = await processarEventoZapster(admin as never, evRetry as never, { ...ctxBase, agora: brt("14:00") }), a2 = await processarEventoZapster(admin as never, evRetry as never, { ...ctxBase, agora: brt("14:00") });
-  confere("o mesmo SAIR reenviado pela Zapster: 1 só confirmação (o reenvio é 'duplicada')", a1 === "gravada" && a2 === "duplicada" && enviados.slice(antesR).filter((e) => e.recipient === soDig(Duda.phone)).length === 1);
-
-  // SAIR de número em dois cadastros: desliga os dois
-  const antesA = enviados.length;
-  r = await msg("(11) 94444-5555", "SAIR", "14:00");
-  confere("número em dois cadastros: SAIR desliga OS DOIS", (await podeEnviarWhatsapp(admin, Dup1.id, "lembrete_mentoria")).pode === false && (await podeEnviarWhatsapp(admin, Dup2.id, "lembrete_mentoria")).pode === false);
-  confere("e ele recebe a confirmação", enviados.slice(antesA).some((e) => e.text === TEXTO_CONFIRMACAO_SAIR));
-
-  // SAIR de desconhecido
+  const a1 = await msg(Fabi.phone, "STOP", "14:00", { idFixo: idRetry });
+  const a2 = await msg(Fabi.phone, "STOP", "14:00", { idFixo: idRetry });
+  confere("o mesmo SAIR reenviado: 1 só confirmação", a1.r === "gravada" && a2.r === "duplicada" && enviados.slice(antesR).filter((e) => e.recipient === soDig(Fabi.phone) && e.text === TEXTO_CONFIRMACAO_SAIR).length === 1);
+  await msg("(11) 94444-5555", "SAIR", "14:00");
+  confere("número em dois cadastros: SAIR desliga os dois", (await podeEnviarWhatsapp(admin, Dup1.id, "lembrete_mentoria")).pode === false && (await podeEnviarWhatsapp(admin, Dup2.id, "lembrete_mentoria")).pode === false);
   const antesU = enviados.length;
-  r = await msg(fone(98), "SAIR", "14:00");
-  confere("SAIR de número desconhecido: nada desligado, nada enviado", enviados.length === antesU && r.r === "gravada");
+  await msg(fone(95), "SAIR", "14:00");
+  confere("SAIR de desconhecido: nada desligado, nada enviado, nenhum aviso", enviados.length === antesU);
 
-  // mensagem antiga
+  // ---------- mensagem antiga ----------
   console.log("\n== reenvio tardio (mensagem com mais de 30 minutos)");
-  const antigaId = `M1B-${rodada}-VELHA`; const velha = new Date(Date.now() - 2 * 3_600_000).toISOString();
-  const antesV = enviados.length;
-  const rv = await processarEventoZapster(admin as never, { type: "message.received", created_at: velha, data: { id: antigaId, sender: { id: soDig(Cris.phone) }, recipient: { id: soDig(Cris.phone), type: "chat" }, sent_at: velha, type: "text", content: { text: "oi tarde" } } } as never, { ...ctxBase, agora: brt("14:00") });
-  confere("mensagem antiga: só registrada, ninguém responde nem é avisado", rv === "gravada" && enviados.length === antesV, String(enviados.length - antesV));
+  const velha = new Date(Date.now() - 2 * 3_600_000).toISOString(), antesV = enviados.length;
+  const rv = await processarEventoZapster(admin as never, { type: "message.received", created_at: velha, data: { id: `M1B-${rodada}-VELHA`, sender: { id: soDig(fone(94)) }, recipient: { id: soDig(fone(94)), type: "chat" }, sent_at: velha, type: "text", content: { text: "oi tarde" } } } as never, { ...ctxBase, agora: brt("14:00") });
+  confere("mensagem antiga: só registrada (nem desconhecido recebe resposta)", rv === "gravada" && enviados.length === antesV);
 
   // ---------- nada vaza ----------
   console.log("\n== nada de telefone ou texto em log");
-  const numeros = [Ana, Cris, Duda, Edu, Pdono, Pmentor].map((p) => p.phone.replace(/\D/g, ""));
+  const numeros = [Ana, Cris, Duda, Edu, Pdono, Pmentor, DESC, DESC2].map((p) => p.phone.replace(/\D/g, ""));
   confere("nenhum telefone completo nem trecho de mensagem nos logs", !numeros.some((t) => saida.some((s) => s.includes(t) && !s.startsWith("criada") && !s.startsWith("ok") && !s.startsWith("FALHA"))) && !saida.some((s) => s.includes("Posso remarcar") && !s.startsWith("ok") && !s.startsWith("FALHA")));
 } finally {
   console.log("\n== limpeza (ids já impressos; só dados FICTÍCIOS desta execução)");
-  await admin.from("notificacoes").delete().eq("conta_id", criados.users[0]);
+  await admin.from("notificacoes").delete().in("conta_id", criados.users);
   await admin.from("mensagens_recebidas").delete().in("conta_id", criados.users);
   await admin.from("envios_mensagens").delete().in("conta_id", criados.users);
   for (const id of criados.team) await admin.from("team_members").delete().eq("id", id);
