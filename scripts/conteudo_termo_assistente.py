@@ -21,9 +21,11 @@ VERSÃO 2 (#316, fatia A — 30/09/2026): o consentimento deixa de ser único. O
 QUATRO CHAVES independentes (aprovadas pelo dono em 28/09), todas desligadas até o aluno ligar, e traz,
 PALAVRA POR PALAVRA, o bloco sobre as observações do mentor escrito e aprovado pelo dono em 28/09
 (`BLOCO_OBSERVACAO_APROVADO` — o `conferir` falha se uma vírgula mudar). O resto do texto é redação
-nova, a partir da versão 1, e só vale depois que o dono do produto aprovar: por isso `aplicar` grava a
-versão 2 como RASCUNHO (`pendente` — nenhuma tela e nenhum aluno a enxerga), e só `publicar --confirmo`
-a põe em vigor. Ordem obrigatória (regra 5): o código da #316A no ar ANTES de publicar a versão 2 —
+nova, a partir da versão 1, APROVADA pelo dono do produto em 30/09/2026 com três ajustes (o bloco do mentor
+logo depois de "O que o seu mentor vê", sem "Nas palavras da própria assistente" — o texto é da
+plataforma; "quem cuida da qualidade da assistente" em vez de "a equipe"; e "Diferente de desligar uma
+chave, retirar a autorização apaga tudo."). `aplicar` grava a versão 2 como RASCUNHO (`pendente` —
+nenhuma tela e nenhum aluno a enxerga), e só `publicar --confirmo` a põe em vigor. Ordem obrigatória (regra 5): o código da #316A no ar ANTES de publicar a versão 2 —
 publicada com o código antigo, o aluno aceitaria pela tela antiga, sem as chaves.
 
 Uso:  python3 scripts/conteudo_termo_assistente.py conferir
@@ -137,6 +139,10 @@ O seu mentor não lê as suas conversas com a assistente — nunca, com nenhuma 
 
 O que você contar de mais pessoal fica entre você e a assistente. Se em algum momento você quiser que algo chegue ao seu mentor, conte diretamente a ele: a assistente não leva recados.
 
+### Observações do seu mentor
+
+""" + "\n\n".join(BLOCO_OBSERVACAO_APROVADO) + """
+
 ### Quatro chaves que ficam na sua mão
 
 Além do uso descrito acima, existem quatro chaves. Cada uma liga uma coisa diferente, e elas são independentes: você pode ligar uma e deixar as outras desligadas. Todas começam desligadas. Você escolhe o que ligar agora, junto com este termo, e pode mudar quando quiser.
@@ -175,7 +181,7 @@ Ao desligar: o seu mentor deixa de receber resumos novos.
 
 O que liga: as suas conversas passam a ajudar a calibrar a assistente da plataforma, de forma despersonalizada — sem o seu nome e sem nada que identifique você.
 
-Quem vê: a equipe que cuida da qualidade da assistente, sem saber que é você. Aqui também a informação sai de você.
+Quem vê: quem cuida da qualidade da assistente, sem saber que é você. Aqui também a informação sai de você.
 
 Ao desligar: as suas conversas deixam de ser usadas para isso.
 
@@ -183,15 +189,9 @@ Ao desligar: as suas conversas deixam de ser usadas para isso.
 
 Desligar uma chave não apaga nada sozinho: o que ela guardou fica em espera, parado, sem ser usado. Mas a escolha de apagar aparece na hora em que você desliga. A tela pergunta se você quer apagar o que foi guardado ou manter em espera, caso volte a ligar — e as duas opções ficam ali, lado a lado.
 
-### Observações do seu mentor
-
-Nas palavras da própria assistente:
-
-""" + "\n\n".join(BLOCO_OBSERVACAO_APROVADO) + """
-
 ### Seus direitos, sempre
 
-A qualquer momento você pode: ver tudo o que a assistente guardou sobre você e baixar uma cópia; ligar ou desligar qualquer chave; apagar tudo o que você informou à assistente, com um botão que fica sempre à mão; e retirar esta autorização. Se retirar, ela para de acessar seus dados, as quatro chaves desligam e o que foi guardado é apagado.
+A qualquer momento você pode: ver tudo o que a assistente guardou sobre você e baixar uma cópia; ligar ou desligar qualquer chave; apagar tudo o que você informou à assistente, com um botão que fica sempre à mão; e retirar esta autorização. Diferente de desligar uma chave, retirar a autorização apaga tudo. Se retirar, ela para de acessar seus dados, as quatro chaves desligam e o que foi guardado é apagado.
 
 Fica registrado quando você aceitou, qual versão deste texto e quais chaves ficaram ligadas — e cada vez que você muda uma chave. Se este texto mudar, você lê a versão nova antes de continuar.
 
@@ -206,13 +206,13 @@ SECOES_2 = [
     "O que ela usa para te responder",
     "Se a conversa entrar em assuntos delicados",
     "O que o seu mentor vê — e o que não vê",
+    "Observações do seu mentor",
     "Quatro chaves que ficam na sua mão",
     "Chave 1 — “Lembrar das nossas conversas”",
     "Chave 2 — “Aprender com o que eu faço na plataforma”",
     "Chave 3 — “Meu mentor acompanha meu progresso”",
     "Chave 4 — “Ajudar a melhorar a assistente”",
     "Quando você desliga uma chave",
-    "Observações do seu mentor",
     "Seus direitos, sempre",
     "O que ela não é",
 ]
@@ -274,6 +274,12 @@ def conferir_versao_2():
                   "apagar o que foi guardado ou manter em espera"):
         assert regra in TEXTO_2, f"versão 2 sem a regra: {regra}"
     assert "é só pedir a ela" not in TEXTO_2, "a assistente não leva recados — a v1 prometia o contrário"
+    # Ajustes do dono ao aprovar (30/09): o bloco do mentor junto do assunto e na voz da PLATAFORMA; quem
+    # calibra sem virar "empresa grande"; e a diferença entre desligar e retirar, com todas as letras.
+    assert SECOES_2.index("Observações do seu mentor") == SECOES_2.index("O que o seu mentor vê — e o que não vê") + 1
+    assert "Nas palavras da própria assistente" not in TEXTO_2, "o texto é da plataforma, não da IA"
+    assert "a equipe que cuida" not in TEXTO_2 and "quem cuida da qualidade da assistente, sem saber que é você" in TEXTO_2
+    assert "Diferente de desligar uma chave, retirar a autorização apaga tudo." in TEXTO_2
     assert ROTULO_ACEITE_2.startswith("Autorizo") and ROTULO_ACEITE_2 != ROTULO_ACEITE
     print(f"conferido: versão 2 — {len(SECOES_2)} seções, {len(TEXTO_2)} caracteres; bloco do mentor igual ao "
           "aprovado; as quatro chaves com o que liga, quem vê e o que acontece ao desligar; títulos iguais aos da tela")
