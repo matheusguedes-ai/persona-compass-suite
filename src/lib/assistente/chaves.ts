@@ -1,7 +1,7 @@
 /**
  * #316, fatia A — as quatro CHAVES de privacidade da assistente, aprovadas pelo dono do produto em
  * 28/09/2026. Serve à tela e ao servidor; a REGRA mora no banco (`assistente_gravar_chaves`, migração
- * 20260930120000): tudo começa desligado, a 3 só liga com a 1 e desliga junto com ela, e desligar
+ * 20260930120500): tudo começa desligado, a 3 só liga com a 1 e desliga junto com ela, e desligar
  * exige escolher entre apagar o que a chave guardou ou manter em espera. Aqui só se repete a regra
  * para a tela não oferecer o que o banco vai recusar.
  *
