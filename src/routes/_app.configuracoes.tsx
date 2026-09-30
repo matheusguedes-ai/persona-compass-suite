@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, CheckCircle2, ImageUp, Loader2, Send, Trash2 } from "lucide-react";
 import { getEmailStatus, listEmailLogs, sendTestEmail } from "@/lib/email.functions";
 import { toast } from "sonner";
+import { AbaWhatsapp } from "@/components/whatsapp-teste";
 import {
   estadoDoGoogle, iniciarConexaoGoogle, desconectarGoogle,
 } from "@/lib/google.functions";
@@ -307,6 +308,7 @@ function ConfiguracoesPage() {
               <TabsTrigger value="relatorio">Relatório</TabsTrigger>
               <TabsTrigger value="mensagens">Mensagens</TabsTrigger>
               <TabsTrigger value="emails">Emails</TabsTrigger>
+              <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
               <TabsTrigger value="agenda">Agenda</TabsTrigger>
             </>
           )}
@@ -646,6 +648,10 @@ function ConfiguracoesPage() {
 
         <TabsContent value="emails" className="mt-6">
           <AbaEmails />
+        </TabsContent>
+
+        <TabsContent value="whatsapp" className="mt-6">
+          <AbaWhatsapp />
         </TabsContent>
           </>
         )}
