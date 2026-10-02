@@ -68,9 +68,23 @@ export function ondeParaWhatsapp(modalidade: string, local: string | null, linkU
   return linkUrl ? `Link: ${linkUrl}` : "Link: a combinar com o seu mentor.";
 }
 
+/**
+ * M1c-2: os botões [OK]/[Remarcar] ficam DESLIGADOS. Em 01/10/2026 três lembretes com botão foram "entregues" segundo a
+ * Zapster e não apareceram no iPhone (conexão não oficial não entrega mensagem interativa). Para religar no futuro:
+ * variável WHATSAPP_BOTOES_LIGADOS=1 (lida a cada envio; nada a mudar no código). Cliques em botões de lembretes antigos
+ * continuam funcionando — quem trata o clique não olha esta chave.
+ */
+export function botoesLigados(): boolean {
+  return process.env.WHATSAPP_BOTOES_LIGADOS === "1";
+}
+
 export function textoDoLembrete(a: {
   nomeAluno: string | null; nomeMentor: string; quando: Date; agora: Date;
   modalidade: string; local: string | null; linkUrl: string | null; linkDaSessao: string | null;
+  /** M1c-2: o link permite remarcar? (decide se a última linha oferece REMARCAR) */
+  permiteRemarcar?: boolean;
+  /** M1c-2: com botões ligados a última linha é a antiga ("Toque em OK…"); sem botões (padrão) pede para RESPONDER. */
+  comBotoes?: boolean;
 }): string {
   const primeiro = (a.nomeAluno ?? "").trim().split(/\s+/)[0];
   const p = partes(a.quando);
@@ -83,7 +97,8 @@ export function textoDoLembrete(a: {
   ];
   if (a.linkDaSessao) linhas.push(`Se precisar remarcar, é por aqui: ${a.linkDaSessao}`);
   linhas.push("Até lá! — Método Intenção");
-  linhas.push("Toque em OK para confirmar (ou responda OK).");
+  linhas.push(a.comBotoes ? "Toque em OK para confirmar (ou responda OK)."
+    : a.permiteRemarcar ? "Para confirmar, responda OK. Para remarcar, responda REMARCAR." : "Para confirmar, responda OK.");
   return linhas.join("\n");
 }
 
@@ -204,20 +219,22 @@ export async function lembreteWhatsapp(
   const { data: prof } = await admin.from("profiles").select("full_name").eq("user_id", sessao.mentor_id).maybeSingle();
   const { siteUrl } = await import("@/lib/site-url.server");
   const gerenciavel = link.permite_cancelar || link.permite_remarcar;
+  const comBotoes = botoesLigados();
   const texto = textoDoLembrete({
     nomeAluno: pessoa.full_name, nomeMentor: prof?.full_name?.trim() || "seu mentor", quando: new Date(sessao.quando), agora,
     modalidade: sessao.modalidade, local: sessao.local, linkUrl: sessao.link_url,
     linkDaSessao: gerenciavel ? `${siteUrl()}/sessao/${sessao.id}` : null, // o mesmo endereço do e-mail ("Gerenciar sessão")
+    permiteRemarcar: link.permite_remarcar, comBotoes,
   });
   const r6 = await enviarMensagem(admin, {
     contaId: sessao.mentor_id, criadoPor: null, canal: "whatsapp", tipo: TIPO_LEMBRETE_MENTORIA,
     destino: pessoa.phone ?? "", texto, personId: pessoa.id, sessaoId: sessao.id,
     // M1c: [OK] sempre; [Remarcar] só se o link de agendamento dessa sessão PERMITE remarcar. O id do botão aponta para
     // ESTE envio (o clique volta com ele). Nunca se mistura botão de resposta com botão de link.
-    botoes: (registroId) => [
+    botoes: comBotoes ? (registroId) => [
       { rotulo: "OK", id: `lembrete:${registroId}:ok` },
       ...(link.permite_remarcar ? [{ rotulo: "Remarcar", id: `lembrete:${registroId}:remarcar` }] : []),
-    ],
+    ] : undefined,
   });
   if (r6.status === "enviado") return "enviado";
   await avisarMentorDaFalha(r, sessao, { id: pessoa.id, full_name: pessoa.full_name ?? "O aluno" }, r6.motivo);

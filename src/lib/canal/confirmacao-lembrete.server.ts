@@ -38,6 +38,12 @@ export function ehOk(texto: string | null): boolean {
   return t === "ok" || t === "okay";
 }
 
+/** M1c-2: a palavra REMARCAR sozinha (maiúscula, acento e pontuação à vontade) vale como o antigo botão [Remarcar]. */
+export function ehRemarcar(texto: string | null): boolean {
+  const t = (texto ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+  return t === "remarcar";
+}
+
 /** O id que a plataforma põe no botão: "lembrete:<id do envio>:ok" ou ":remarcar". */
 export function lerIdDoBotao(id: string | null | undefined): { envioId: string; acao: "ok" | "remarcar" } | null {
   const m = /^lembrete:([0-9a-f-]{36}):(ok|remarcar)$/.exec(id ?? "");
@@ -49,14 +55,14 @@ function rotuloDoBotao(r: string | null | undefined): "ok" | "remarcar" | null {
   return t === "ok" ? "ok" : t === "remarcar" ? "remarcar" : null;
 }
 
-type Sessao = { id: string; mentor_id: string; quando: string; status: string | null; confirmada_pelo_aluno_em: string | null };
+type Sessao = { id: string; mentor_id: string; quando: string; status: string | null; confirmada_pelo_aluno_em: string | null; link_id?: string | null };
 type Pessoa = { id: string; full_name: string | null; phone: string | null };
 
 async function sessaoDoEnvio(admin: SupabaseClient, envioId: string, contaId: string): Promise<{ pessoa: Pessoa | null; sessao: Sessao | null; existe: boolean }> {
   const { data: e } = await admin.from("envios_mensagens").select("id, conta_id, person_id, sessao_id, tipo, canal").eq("id", envioId).maybeSingle();
   if (!e || e.conta_id !== contaId || e.tipo !== "lembrete_mentoria" || e.canal !== "whatsapp") return { pessoa: null, sessao: null, existe: false };
   const { data: p } = e.person_id ? await admin.from("people").select("id, full_name, phone").eq("id", e.person_id).maybeSingle() : { data: null };
-  const { data: s } = e.sessao_id ? await admin.from("mentoria_sessoes").select("id, mentor_id, quando, status, confirmada_pelo_aluno_em").eq("id", e.sessao_id).maybeSingle() : { data: null };
+  const { data: s } = e.sessao_id ? await admin.from("mentoria_sessoes").select("id, mentor_id, quando, status, confirmada_pelo_aluno_em, link_id").eq("id", e.sessao_id).maybeSingle() : { data: null };
   return { pessoa: (p as Pessoa | null) ?? null, sessao: (s as Sessao | null) ?? null, existe: true };
 }
 
@@ -68,7 +74,7 @@ async function lembreteRecente(admin: SupabaseClient, personIds: string[]): Prom
     .in("person_id", personIds).eq("tipo", "lembrete_mentoria").eq("canal", "whatsapp").eq("status", "enviado")
     .not("sessao_id", "is", null).gte("criado_em", desde).order("criado_em", { ascending: false }).limit(10);
   for (const e of (envios ?? []) as { person_id: string; sessao_id: string }[]) {
-    const { data: s } = await admin.from("mentoria_sessoes").select("id, mentor_id, quando, status, confirmada_pelo_aluno_em").eq("id", e.sessao_id).maybeSingle();
+    const { data: s } = await admin.from("mentoria_sessoes").select("id, mentor_id, quando, status, confirmada_pelo_aluno_em, link_id").eq("id", e.sessao_id).maybeSingle();
     if (!s || s.status !== "agendada" || new Date(s.quando).getTime() <= Date.now()) continue;
     const { data: p } = await admin.from("people").select("id, full_name, phone").eq("id", e.person_id).maybeSingle();
     if (p) return { pessoa: p as Pessoa, sessao: s as Sessao };
@@ -94,6 +100,8 @@ export async function tratarLembrete(admin: SupabaseClient, args: { contaId: str
     else { acao = rotuloDoBotao(msg.botaoRotulo); }   // a Zapster não devolveu o nosso id: vale o rótulo + o telefone
   } else if (msg.tipo === "texto" && ehOk(msg.texto)) {
     acao = "ok";
+  } else if (msg.tipo === "texto" && ehRemarcar(msg.texto)) {
+    acao = "remarcar";
   }
   if (!acao) return null;
 
@@ -116,12 +124,17 @@ export async function tratarLembrete(admin: SupabaseClient, args: { contaId: str
     const ids = msg.personId ? [msg.personId] : (msg.candidatos ?? []).map((c) => c.id);
     const achado = await lembreteRecente(admin, ids);
     if (!achado) {
-      // "ok" digitado sem lembrete pendente: fluxo normal. Clique sem achar lembrete nenhum: não está mais ativa.
+      // "ok"/"remarcar" digitado sem lembrete pendente: fluxo normal. Clique sem achar lembrete nenhum: não está mais ativa.
       if (origem === "texto") return null;
       await responder(TIPO_INATIVA, TEXTO_INATIVA, null, null);
       return ["lembrete_inativo"];
     }
     pessoa = achado.pessoa; sessao = achado.sessao;
+    // REMARCAR digitado só vale se o link da sessão permite remarcar (o lembrete nem oferecia a palavra senão).
+    if (acao === "remarcar" && origem === "texto") {
+      const { data: lk } = sessao.link_id ? await admin.from("mentoria_links").select("permite_remarcar").eq("id", sessao.link_id).maybeSingle() : { data: null };
+      if (!lk?.permite_remarcar) return null;
+    }
   }
   const feitos: string[] = [];
 
