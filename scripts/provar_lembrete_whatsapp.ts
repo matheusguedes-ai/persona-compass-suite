@@ -56,13 +56,15 @@ const D1 = "2026-10-20", D2 = "2026-10-21";
 
 // ---------- o texto e a janela, sem banco ----------
 console.log("== texto e janela (puros)");
-const base = { nomeAluno: "Ana Souza", nomeMentor: "Dra. Teste", modalidade: "online", local: null, linkUrl: "https://meet.exemplo.invalido/x", linkDaSessao: "https://assessment.metodointencao.com.br/sessao/ABC", permiteRemarcar: true };
+const base = { nomeAluno: "Ana Souza", nomeMentor: "Dra. Teste", modalidade: "online", local: null, linkUrl: "https://meet.exemplo.invalido/x", linkDaSessao: "https://assessment.metodointencao.com.br/sessao/ABC", permiteRemarcar: true, permiteCancelar: true };
 const t1 = textoDoLembrete({ ...base, quando: brt(D2, "14:30"), agora: brt(D1, "14:00") });
-confere("texto 'amanhã', dia da semana, dd/mm, hora, link da sala e link para remarcar", t1 === "Olá, Ana! Passando para lembrar da sua mentoria com Dra. Teste amanhã, quarta-feira, 21/10, às 14:30.\nLink: https://meet.exemplo.invalido/x\nSe precisar remarcar, é por aqui: https://assessment.metodointencao.com.br/sessao/ABC\nAté lá! — Método Intenção\nPara confirmar, responda OK. Para remarcar, responda REMARCAR.", JSON.stringify(t1));
-const t2 = textoDoLembrete({ ...base, modalidade: "presencial", local: "Rua das Flores, 100", linkUrl: null, linkDaSessao: null, permiteRemarcar: false, quando: brt(D1, "17:00"), agora: brt(D1, "14:00") });
+confere("texto 'amanhã', dia da semana, dd/mm, hora, link da sala e link para remarcar", t1 === "Olá, Ana! Passando para lembrar da sua mentoria com Dra. Teste amanhã, quarta-feira, 21/10, às 14:30.\nLink: https://meet.exemplo.invalido/x\nSe precisar remarcar, é por aqui: https://assessment.metodointencao.com.br/sessao/ABC\nAté lá! — Método Intenção\nPara confirmar, responda OK. Para remarcar, responda REMARCAR. Para cancelar, responda CANCELAR.", JSON.stringify(t1));
+const t2 = textoDoLembrete({ ...base, modalidade: "presencial", local: "Rua das Flores, 100", linkUrl: null, linkDaSessao: null, permiteRemarcar: false, permiteCancelar: false, quando: brt(D1, "17:00"), agora: brt(D1, "14:00") });
 confere("texto 'hoje', presencial com 'Local:', sem a linha de remarcar quando a sessão não é gerenciável", t2.includes("com Dra. Teste hoje, terça-feira, 20/10, às 17:00.") && t2.includes("Local: Rua das Flores, 100") && !t2.includes("remarcar"), t2);
 const t3 = textoDoLembrete({ ...base, permiteRemarcar: false, quando: brt(D2, "14:30"), agora: brt(D1, "14:00") });
-confere("M1c-2: link que não permite remarcar → só 'Para confirmar, responda OK.'", t3.endsWith("Até lá! — Método Intenção\nPara confirmar, responda OK.") && !t3.includes("REMARCAR"), t3);
+confere("M1c-3: link que permite cancelar mas não remarcar → 'OK' e 'CANCELAR', sem REMARCAR", t3.endsWith("Até lá! — Método Intenção\nPara confirmar, responda OK. Para cancelar, responda CANCELAR.") && !t3.includes("REMARCAR"), t3);
+const t3b = textoDoLembrete({ ...base, permiteRemarcar: false, permiteCancelar: false, quando: brt(D2, "14:30"), agora: brt(D1, "14:00") });
+confere("M1c-3: link que não permite nada → só 'Para confirmar, responda OK.'", t3b.endsWith("Até lá! — Método Intenção\nPara confirmar, responda OK."), t3b);
 const t4 = textoDoLembrete({ ...base, comBotoes: true, quando: brt(D2, "14:30"), agora: brt(D1, "14:00") });
 confere("M1c-2: com os botões religados a última linha é a antiga", t4.endsWith("Toque em OK para confirmar (ou responda OK)."), t4);
 confere("janela: 7h59 fechada, 8h00 aberta, 19h59 aberta, 20h00 fechada", !janelaDoWhatsappAberta(brt(D1, "07:59")) && janelaDoWhatsappAberta(brt(D1, "08:00")) && janelaDoWhatsappAberta(brt(D1, "19:59")) && !janelaDoWhatsappAberta(brt(D1, "20:00")));
@@ -125,7 +127,7 @@ try {
   const r1 = await rodar(agora1, [Sa, Sb, Sc, Si]);
   const zapA = zapEnviados.filter((z) => z.recipient === `55${Pa.phone.replace(/\D/g, "")}`);
   confere("(a) o aluno com consentimento Completo recebeu 1 WhatsApp, no número certo (55+DDD+9…)", zapA.length === 1 && zapEnviados.length === 2 /* Ana (completo) + Iara (essencial cobre lembrete) */);
-  confere("(a) a mensagem tem o texto certo", zapA[0]?.text === "Olá, Ana! Passando para lembrar da sua mentoria com Dra. Teste amanhã, quarta-feira, 21/10, às 14:00.\nLink: https://meet.exemplo.invalido/sala\nSe precisar remarcar, é por aqui: https://assessment.metodointencao.com.br/sessao/" + Sa + "\nAté lá! — Método Intenção\nPara confirmar, responda OK. Para remarcar, responda REMARCAR.", JSON.stringify(zapA[0]?.text));
+  confere("(a) a mensagem tem o texto certo", zapA[0]?.text === "Olá, Ana! Passando para lembrar da sua mentoria com Dra. Teste amanhã, quarta-feira, 21/10, às 14:00.\nLink: https://meet.exemplo.invalido/sala\nSe precisar remarcar, é por aqui: https://assessment.metodointencao.com.br/sessao/" + Sa + "\nAté lá! — Método Intenção\nPara confirmar, responda OK. Para remarcar, responda REMARCAR. Para cancelar, responda CANCELAR.", JSON.stringify(zapA[0]?.text));
   const enA = await enviosDe(Pa.id);
   confere("(a) registrado em envios_mensagens: lembrete_mentoria, enviado, com dono, pessoa e id do fornecedor, número mascarado", enA.length === 1 && enA[0].tipo === "lembrete_mentoria" && enA[0].status === "enviado" && enA[0].conta_id === dono && !!enA[0].fornecedor_msg_id && enA[0].destino_mascarado === mascararTelefone(Pa.phone));
   confere("(c) sem consentimento: nenhum WhatsApp e nenhum registro", (await enviosDe(Pb.id)).length === 0 && !zapEnviados.some((z) => z.recipient === `55${Pb.phone.replace(/\D/g, "")}`));

@@ -29,7 +29,7 @@ for (const k of ["log", "error", "warn"] as const) { const o = console[k].bind(c
 
 import { processarEventoZapster } from "../src/lib/canal/webhook-zapster.server";
 import { enviarLembretesDevidos } from "../src/lib/agendamento.functions";
-import { ehOk, ehRemarcar, lerIdDoBotao, TEXTO_INATIVA, TEXTO_JA_CONFIRMADA } from "../src/lib/canal/confirmacao-lembrete.server";
+import { ehOk, ehRemarcar, ehCancelar, lerIdDoBotao, TEXTO_INATIVA, TEXTO_JA_CONFIRMADA } from "../src/lib/canal/confirmacao-lembrete.server";
 import { formatarTelefoneBR, mascararTelefone } from "../src/lib/canal/telefone";
 import { TERMO_TEXTO, TERMO_VERSAO } from "../src/lib/canal/consentimento";
 
@@ -74,6 +74,7 @@ try {
     const men = await nova("mentorias", { mentor_id: dono, person_id: p.id, titulo: "Pacote M1c", sessoes_contratadas: 4, status: "ativa", link_id: link }, "mentorias");
     return nova("mentoria_sessoes", { mentoria_id: men, mentor_id: dono, quando: quando.toISOString(), termina_em: new Date(quando.getTime() + 60_000).toISOString(), modalidade: "online", link_url: "https://meet.exemplo.invalido/sala", status: "agendada", link_id: link }, "sessoes");
   }
+  const lembrarAs = (ids: string[], hm: string) => enviarLembretesDevidos(admin as never, { agora: brt(D1, hm), somenteSessoes: ids });
   const lembrar = (ids: string[]) => enviarLembretesDevidos(admin as never, { agora: brt(D1, "14:30"), somenteSessoes: ids });
   const para = (p: { phone: string }) => enviados.filter((e) => e.recipient === soDig(p.phone));
   const ctx = { contaId: dono, numero: NUMERO };
@@ -238,7 +239,7 @@ try {
   enviados.length = 0;
   await lembrar([SG, SH, SI]);
   const zG = para(Gus)[0], zH = para(Hel)[0];
-  confere("lembrete sai SEM botões, terminando com a instrução de responder OK ou REMARCAR", !!zG && !zG.buttons && zG.text.endsWith("Para confirmar, responda OK. Para remarcar, responda REMARCAR."), zG?.text);
+  confere("lembrete sai SEM botões, terminando com a instrução de responder OK ou REMARCAR", !!zG && !zG.buttons && zG.text.endsWith("Para confirmar, responda OK. Para remarcar, responda REMARCAR. Para cancelar, responda CANCELAR."), zG?.text);
   confere("link que não permite remarcar: só 'Para confirmar, responda OK.'", !!zH && !zH.buttons && zH.text.endsWith("Até lá! — Método Intenção\nPara confirmar, responda OK."), zH?.text);
   enviados.length = 0;
   const rr = await texto(Gus.phone, "REMARCAR");
@@ -263,6 +264,84 @@ try {
   confere("clique em botão de lembrete antigo continua funcionando com a chave desligada ('já está confirmada')", para(Ana)[0]?.text === TEXTO_JA_CONFIRMADA || para(Ana).length === 0);
   await texto(Fabi.phone, "SAIR");
   confere("SAIR continua prioritário", true);
+
+  // ---------- M1c-3: CANCELAR, citação ("Responder") e retomada ----------
+  console.log("\n== M1c-3: CANCELAR, 'Responder' citando o lembrete, avisos com tipos próprios, retomada");
+  confere("ehCancelar: cancelar, CANCELAR, Cancelar!, ' cancelar. ' contam; frases não", ["cancelar", "CANCELAR", "Cancelar!", " cancelar. "].every(ehCancelar) && !["quero cancelar", "não cancelar", "", "cancela"].some(ehCancelar));
+  const Kai = await pessoa("Kai Aluno"), Lia = await pessoa("Lia Aluna"), Mel = await pessoa("Mel Aluna");
+  // Kai: 3 sessões (citação escolhe a certa); Lia: link que NÃO permite cancelar; Mel: retomada
+  const K1 = await sessao(Kai, Lr, "15:00"), K2 = await sessao(Kai, Lr, "15:10"), K3 = await sessao(Kai, Lr, "15:20");
+  const LiaS = await sessao(Lia, Ln, "15:30"), MelS = await sessao(Mel, Lr, "15:40");
+  enviados.length = 0;
+  await lembrarAs([K1, K2, K3, LiaS, MelS], "16:00");
+  const zK = para(Kai);
+  confere("link que permite tudo: a última linha oferece OK, REMARCAR e CANCELAR (sem botões)", zK.length === 3 && zK.every((z) => !z.buttons && z.text.endsWith("Para confirmar, responda OK. Para remarcar, responda REMARCAR. Para cancelar, responda CANCELAR.")), zK[0]?.text);
+  const idsK = (await admin.from("envios_mensagens").select("sessao_id, fornecedor_msg_id, id").eq("person_id", Kai.id).eq("tipo", "lembrete_mentoria")).data!;
+  const msgDe = (sid: string) => idsK.find((e) => e.sessao_id === sid)!.fornecedor_msg_id as string;
+  const textoDe = (sid: string) => zK.find((z) => z.text.includes(sid) || true) && "";
+  void textoDe;
+
+  // citando pelo id da mensagem: vale para a sessão daquele lembrete (a PRIMEIRA, não a mais recente)
+  enviados.length = 0;
+  await evento(Kai.phone, { text: "Ok", quoted: { id: msgDe(K1), content: { text: "Olá, Kai! Passando para lembrar" } } });
+  confere("citando o lembrete das 15:00: confirma a sessão das 15:00 (não a mais recente)", !!(await sessaoLinha(K1)).confirmada_pelo_aluno_em && (await sessaoLinha(K3)).confirmada_pelo_aluno_em === null && (await sessaoLinha(K2)).confirmada_pelo_aluno_em === null);
+  confere("a resposta fala da sessão certa", para(Kai)[0]?.text.includes("quarta-feira, 21/10, às 15:00 está confirmada"), para(Kai)[0]?.text);
+  // citando só pelo TEXTO (a Zapster não manda o id): o dia e a hora escritos no lembrete
+  enviados.length = 0;
+  await evento(Kai.phone, { text: "REMARCAR", quoted: { content: { text: "Olá, Kai! Passando para lembrar da sua mentoria com Dra. Teste amanhã, quarta-feira, 21/10, às 15:10.\nLink: x" } } });
+  confere("citando só o texto do lembrete das 15:10: o REMARCAR vale para a sessão das 15:10", para(Kai)[0]?.text.includes(`/sessao/${K2}`), para(Kai)[0]?.text);
+  // sem citação: o mais recente (a sessão das 15:20)
+  enviados.length = 0;
+  await evento(Kai.phone, { text: "cancelar" });
+  confere("sem citação: o CANCELAR vale para o lembrete pendente mais recente (15:20)", para(Kai)[0]?.text === `Tudo bem, Kai. Para cancelar sua mentoria de quarta-feira, 21/10, às 15:20, é por aqui: https://assessment.metodointencao.com.br/sessao/${K3}`, para(Kai)[0]?.text);
+  confere("o dono recebe o ❌ por WhatsApp e pelo sino", para(Pdono).some((e) => e.text === "❌ Kai Aluno quer cancelar a mentoria de quarta-feira, 21/10, às 15:20.") && (await sino("whatsapp_cancelar")).length === 1);
+  confere("e a sessão NÃO foi cancelada (continua pelo link)", (await sessaoLinha(K3)).status === "agendada");
+  const tiposDono = (await admin.from("envios_mensagens").select("tipo").eq("person_id", Pdono.id).like("tipo", "mentor_%")).data!.map((e) => e.tipo as string);
+  confere("os avisos ao mentor saem com tipos próprios: mentor_confirmou, mentor_remarcar, mentor_cancelar (e mentor_saiu no SAIR)", ["mentor_confirmou", "mentor_remarcar", "mentor_cancelar", "mentor_saiu"].every((t) => tiposDono.includes(t)), tiposDono.join());
+  // citação de lembrete de sessão cancelada → "não está mais ativa" (não confirma OUTRA sessão)
+  await admin.from("mentoria_sessoes").update({ status: "cancelada", cancelada_em: new Date().toISOString(), cancelada_por: "mentor" }).eq("id", K2);
+  enviados.length = 0;
+  await evento(Kai.phone, { text: "ok", quoted: { id: msgDe(K2) } });
+  confere("citando o lembrete de uma sessão cancelada: 'não está mais ativa' e a K3 continua sem confirmação", para(Kai)[0]?.text === TEXTO_INATIVA && (await sessaoLinha(K3)).confirmada_pelo_aluno_em === null);
+  // citação de mensagem que NÃO é nossa → ignora a citação, vale o mais recente
+  enviados.length = 0;
+  await evento(Kai.phone, { text: "ok", quoted: { id: "ID-QUE-NAO-E-NOSSO", content: { text: "bom dia" } } });
+  confere("citando outra coisa: vale o lembrete pendente mais recente", !!(await sessaoLinha(K3)).confirmada_pelo_aluno_em);
+
+  // link que não permite cancelar
+  enviados.length = 0;
+  await texto(Lia.phone, "Cancelar");
+  confere("link que NÃO permite cancelar: 'Para cancelar, fale com o seu mentor.' e o mentor é avisado", para(Lia)[0]?.text === "Para cancelar, fale com o seu mentor." && para(Pdono).some((e) => e.text.startsWith("❌ Lia Aluna quer cancelar")), para(Lia)[0]?.text);
+  confere("e o consentimento da Lia continua (CANCELAR não é SAIR)", (await admin.from("whatsapp_consentimentos").select("revogado_em").eq("person_id", Lia.id)).data![0].revogado_em === null);
+
+  // equipe: o número do dono também responde ao próprio lembrete com CANCELAR
+  enviados.length = 0;
+  const sPdono = (await admin.from("mentoria_sessoes").select("id").eq("id", SP).single()).data!.id;
+  await texto(Pdono.phone, "cancelar");
+  confere("equipe COM lembrete pendente: CANCELAR gera a resposta com o link da sessão", para(Pdono).some((e) => e.text.startsWith("Tudo bem, Dono. Para cancelar sua mentoria de")));
+  // e SEM lembrete pendente (a sessão dele já passou/foi cancelada), número de equipe segue ignorado pela M1b — foi o que se viu em 02/10
+  await admin.from("mentoria_sessoes").update({ status: "cancelada", cancelada_em: new Date().toISOString(), cancelada_por: "mentor" }).eq("id", sPdono);
+  enviados.length = 0;
+  await texto(Pdono.phone, "cancelar");
+  confere("equipe SEM lembrete pendente: nada acontece (por isso o 'Cancelar' de 02/10 não gerou resposta)", para(Pdono).length === 0);
+
+  // retomada: a 1ª passada foi cortada depois da confirmação e da resposta ao aluno, antes do aviso ao mentor
+  console.log("\n== retomada de uma passada cortada");
+  const zM = para(Mel)[0];
+  await admin.from("mentoria_sessoes").update({ confirmada_pelo_aluno_em: new Date().toISOString(), confirmada_via: "texto", confirmada_por_person_id: Mel.id }).eq("id", MelS);
+  const agoraIso = new Date().toISOString();
+  const idMsg = `M1C-${rodada}-CORTADA`;
+  await admin.from("mensagens_recebidas").insert({ conta_id: dono, zapster_id: idMsg, telefone: soDig(Mel.phone), remetente: "pessoa", person_id: Mel.id, remetente_nome: "Mel Aluna", tipo: "texto", texto: "ok", recebida_em: agoraIso });
+  await admin.from("envios_mensagens").insert({ conta_id: dono, person_id: Mel.id, canal: "whatsapp", tipo: "confirmacao_mentoria", status: "enviado", sessao_id: MelS, destino_mascarado: mascararTelefone(Mel.phone) });
+  enviados.length = 0; void zM;
+  await evento(Mel.phone, { text: "ok" }, "text", idMsg);
+  confere("a retomada completa só o que faltava: o ✅ ao mentor sai", para(Pdono).some((e) => e.text.startsWith("✅ Mel Aluna confirmou")));
+  confere("e NÃO repete a resposta ao aluno", para(Mel).length === 0);
+  enviados.length = 0;
+  await evento(Mel.phone, { text: "ok" }, "text", idMsg);
+  confere("um 3º reenvio (já tratado) não faz mais nada", enviados.length === 0);
+  const trat = (await admin.from("mensagens_recebidas").select("tratamento").eq("zapster_id", idMsg).single()).data!.tratamento as string;
+  confere("e o tratamento registra a retomada", trat.includes("retomada") && trat.includes("confirmou"), trat);
 
   // ---------- nada de telefone completo em log ----------
   console.log("\n== logs");

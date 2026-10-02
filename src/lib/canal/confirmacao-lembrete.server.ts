@@ -1,6 +1,8 @@
 /**
- * Menu Mensagens — M1c: a resposta ao lembrete de mentoria. O lembrete (F1c) vai com os botões [OK] e [Remarcar]; aqui a
- * plataforma entende o clique ("OK" ou "Remarcar") e também um "ok" digitado.
+ * Menu Mensagens — M1c / M1c-3: a resposta ao lembrete de mentoria. O lembrete (F1c) pede para o aluno RESPONDER OK, REMARCAR ou
+ * CANCELAR (os botões, quando ligados, valem igual); aqui a plataforma entende as três palavras e o clique de botão.
+ * M1c-3: se o aluno usou "Responder" no WhatsApp, a resposta vale para a SESSÃO DAQUELE LEMBRETE; sem citação, vale o lembrete
+ * pendente mais recente. CANCELAR NÃO cancela a sessão: manda o link (ou manda falar com o mentor) e avisa o mentor.
  *
  * Ordem de prioridade ao tratar uma mensagem: SAIR → (isto aqui) → fluxo normal da M1b. Quem chama já tratou o SAIR.
  *
@@ -25,6 +27,7 @@ export const TIPO_CONFIRMACAO = "confirmacao_mentoria";
 export const TIPO_REMARCAR = "remarcar_link";
 export const TIPO_JA_CONFIRMADA = "mentoria_ja_confirmada";
 export const TIPO_INATIVA = "mentoria_inativa";
+export const TIPO_CANCELAR = "cancelar_link";
 export const JANELA_DO_OK_HORAS = 48;
 
 export const TEXTO_JA_CONFIRMADA = "Sua mentoria já está confirmada. 👍";
@@ -42,6 +45,12 @@ export function ehOk(texto: string | null): boolean {
 export function ehRemarcar(texto: string | null): boolean {
   const t = (texto ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
   return t === "remarcar";
+}
+
+/** M1c-3: a palavra CANCELAR sozinha (maiúscula, acento e pontuação à vontade). */
+export function ehCancelar(texto: string | null): boolean {
+  const t = (texto ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+  return t === "cancelar";
 }
 
 /** O id que a plataforma põe no botão: "lembrete:<id do envio>:ok" ou ":remarcar". */
@@ -66,31 +75,70 @@ async function sessaoDoEnvio(admin: SupabaseClient, envioId: string, contaId: st
   return { pessoa: (p as Pessoa | null) ?? null, sessao: (s as Sessao | null) ?? null, existe: true };
 }
 
+const SEL_SESSAO = "id, mentor_id, quando, status, confirmada_pelo_aluno_em, link_id";
+
+async function pessoaPorId(admin: SupabaseClient, id: string): Promise<Pessoa | null> {
+  const { data } = await admin.from("people").select("id, full_name, phone").eq("id", id).maybeSingle();
+  return (data as Pessoa | null) ?? null;
+}
+
+/** Os lembretes de WhatsApp (últimas 48 h) enviados a essas pessoas, do mais novo para o mais antigo — com a sessão de cada um. */
+async function lembretesDasPessoas(admin: SupabaseClient, personIds: string[]): Promise<{ envio: { id: string; person_id: string; sessao_id: string; fornecedor_msg_id: string | null }; sessao: Sessao }[]> {
+  if (personIds.length === 0) return [];
+  const desde = new Date(Date.now() - JANELA_DO_OK_HORAS * 3_600_000).toISOString();
+  const { data: envios } = await admin.from("envios_mensagens").select("id, person_id, sessao_id, fornecedor_msg_id, criado_em")
+    .in("person_id", personIds).eq("tipo", "lembrete_mentoria").eq("canal", "whatsapp").eq("status", "enviado")
+    .not("sessao_id", "is", null).gte("criado_em", desde).order("criado_em", { ascending: false }).limit(20);
+  const lista = (envios ?? []) as { id: string; person_id: string; sessao_id: string; fornecedor_msg_id: string | null }[];
+  if (lista.length === 0) return [];
+  const { data: sessoes } = await admin.from("mentoria_sessoes").select(SEL_SESSAO).in("id", [...new Set(lista.map((e) => e.sessao_id))]);
+  const porId = new Map(((sessoes ?? []) as Sessao[]).map((s) => [s.id, s]));
+  return lista.filter((e) => porId.has(e.sessao_id)).map((e) => ({ envio: e, sessao: porId.get(e.sessao_id)! }));
+}
+
+const ativa = (s: Sessao) => s.status === "agendada" && new Date(s.quando).getTime() > Date.now();
+
 /** O lembrete MAIS RECENTE (últimas 48 h) daquelas pessoas cuja sessão é futura e não está cancelada. */
 async function lembreteRecente(admin: SupabaseClient, personIds: string[]): Promise<{ pessoa: Pessoa; sessao: Sessao } | null> {
-  if (personIds.length === 0) return null;
-  const desde = new Date(Date.now() - JANELA_DO_OK_HORAS * 3_600_000).toISOString();
-  const { data: envios } = await admin.from("envios_mensagens").select("person_id, sessao_id, criado_em")
-    .in("person_id", personIds).eq("tipo", "lembrete_mentoria").eq("canal", "whatsapp").eq("status", "enviado")
-    .not("sessao_id", "is", null).gte("criado_em", desde).order("criado_em", { ascending: false }).limit(10);
-  for (const e of (envios ?? []) as { person_id: string; sessao_id: string }[]) {
-    const { data: s } = await admin.from("mentoria_sessoes").select("id, mentor_id, quando, status, confirmada_pelo_aluno_em, link_id").eq("id", e.sessao_id).maybeSingle();
-    if (!s || s.status !== "agendada" || new Date(s.quando).getTime() <= Date.now()) continue;
-    const { data: p } = await admin.from("people").select("id, full_name, phone").eq("id", e.person_id).maybeSingle();
-    if (p) return { pessoa: p as Pessoa, sessao: s as Sessao };
+  for (const l of await lembretesDasPessoas(admin, personIds)) {
+    if (!ativa(l.sessao)) continue;
+    const p = await pessoaPorId(admin, l.envio.person_id);
+    if (p) return { pessoa: p, sessao: l.sessao };
   }
   return null;
 }
 
 /**
- * Trata o clique em [OK]/[Remarcar] ou o "ok" digitado. Devolve o que fez (vai para `tratamento`), ou `null` quando a
- * mensagem NÃO é uma resposta a lembrete — aí quem chama segue o fluxo normal da M1b.
+ * M1c-3: a sessão do lembrete que o aluno CITOU ("Responder"). Primeiro pelo identificador da mensagem citada (casa com o id
+ * que a Zapster nos devolveu no envio); depois pelo TEXTO citado (o dia e a hora escritos no lembrete). Vale mesmo quando a
+ * sessão já não está ativa — aí a resposta é "não está mais ativa", e não a confirmação de OUTRA sessão.
+ */
+async function lembreteCitado(admin: SupabaseClient, personIds: string[], citada: { id?: string | null; texto?: string | null }): Promise<{ pessoa: Pessoa; sessao: Sessao } | null> {
+  if (!citada.id && !citada.texto) return null;
+  const lista = await lembretesDasPessoas(admin, personIds);
+  let achado = citada.id ? lista.find((l) => l.envio.fornecedor_msg_id === citada.id) : undefined;
+  if (!achado && citada.texto && /mentoria/i.test(citada.texto)) {
+    const m = /(\d{2})\/(\d{2}),\s*às\s*(\d{2}:\d{2})/.exec(citada.texto);
+    if (m) {
+      const alvo = `${m[1]}/${m[2]}, às ${m[3]}`;
+      achado = lista.find((l) => quandoPorExtenso(new Date(l.sessao.quando)).endsWith(alvo));
+    }
+  }
+  if (!achado) return null;
+  const p = await pessoaPorId(admin, achado.envio.person_id);
+  return p ? { pessoa: p, sessao: achado.sessao } : null;
+}
+
+
+/**
+ * Trata o clique em [OK]/[Remarcar]/[Cancelar] ou a palavra digitada. Devolve o que fez (vai para `tratamento`), ou `null` quando
+ * a mensagem NÃO é uma resposta a lembrete — aí quem chama segue o fluxo normal da M1b.
  */
 export async function tratarLembrete(admin: SupabaseClient, args: { contaId: string; msg: MensagemRecebida }): Promise<string[] | null> {
   const { contaId, msg } = args;
 
   // ---- o que a pessoa fez
-  let acao: "ok" | "remarcar" | null = null;
+  let acao: "ok" | "remarcar" | "cancelar" | null = null;
   let origem: "botao" | "texto" = "texto";
   let envioId: string | null = null;
   if (msg.tipo === "botao") {
@@ -102,18 +150,31 @@ export async function tratarLembrete(admin: SupabaseClient, args: { contaId: str
     acao = "ok";
   } else if (msg.tipo === "texto" && ehRemarcar(msg.texto)) {
     acao = "remarcar";
+  } else if (msg.tipo === "texto" && ehCancelar(msg.texto)) {
+    acao = "cancelar";
   }
   if (!acao) return null;
 
+  // Numa retomada (a 1ª passada foi cortada), o que já saiu desde a chegada da mensagem não sai de novo.
+  const desde = msg.retomada ? new Date(new Date(msg.recebidaEm).getTime() - 60_000).toISOString() : undefined;
+
   const responder = async (tipo: string, texto: string, pessoa: Pessoa | null, sessaoId: string | null) => {
+    if (desde && pessoa) {
+      let q = admin.from("envios_mensagens").select("id", { count: "exact", head: true })
+        .eq("person_id", pessoa.id).eq("tipo", tipo).eq("canal", "whatsapp").gte("criado_em", desde);
+      if (sessaoId) q = q.eq("sessao_id", sessaoId);
+      const { count } = await q;
+      if ((count ?? 0) > 0) return true;
+    }
     const r = await enviarMensagem(admin, { contaId, criadoPor: null, canal: "whatsapp", tipo, destino: msg.telefone, texto, personId: pessoa?.id ?? null, sessaoId });
     return r.status === "enviado";
   };
   const ligarASessao = async (sessaoId: string) => { await admin.from("mensagens_recebidas").update({ sessao_id: sessaoId }).eq("id", msg.id); };
 
-  // ---- de qual lembrete/sessão se trata
+  // ---- de qual lembrete/sessão se trata: botão → citação ("Responder") → o lembrete pendente mais recente
   let pessoa: Pessoa | null = null;
   let sessao: Sessao | null = null;
+  let viaCitacao = false;
   if (envioId) {
     const r = await sessaoDoEnvio(admin, envioId, contaId);
     if (!r.existe) return null;                       // id que não é nosso: não é uma resposta a lembrete
@@ -122,56 +183,89 @@ export async function tratarLembrete(admin: SupabaseClient, args: { contaId: str
     if (!pessoa || chaveDoTelefone(pessoa.phone) !== chaveDoTelefone(msg.telefone)) return null;
   } else {
     const ids = msg.personId ? [msg.personId] : (msg.candidatos ?? []).map((c) => c.id);
-    const achado = await lembreteRecente(admin, ids);
+    const citado = await lembreteCitado(admin, ids, { id: msg.citadaId, texto: msg.citadaTexto });
+    const achado = citado ?? await lembreteRecente(admin, ids);
+    viaCitacao = !!citado;
     if (!achado) {
-      // "ok"/"remarcar" digitado sem lembrete pendente: fluxo normal. Clique sem achar lembrete nenhum: não está mais ativa.
+      // texto digitado sem lembrete pendente: fluxo normal. Clique sem achar lembrete nenhum: não está mais ativa.
       if (origem === "texto") return null;
       await responder(TIPO_INATIVA, TEXTO_INATIVA, null, null);
       return ["lembrete_inativo"];
     }
     pessoa = achado.pessoa; sessao = achado.sessao;
     // REMARCAR digitado só vale se o link da sessão permite remarcar (o lembrete nem oferecia a palavra senão).
-    if (acao === "remarcar" && origem === "texto") {
+    if (acao === "remarcar" && origem === "texto" && ativa(sessao)) {
       const { data: lk } = sessao.link_id ? await admin.from("mentoria_links").select("permite_remarcar").eq("id", sessao.link_id).maybeSingle() : { data: null };
       if (!lk?.permite_remarcar) return null;
     }
   }
-  const feitos: string[] = [];
+  const marca = viaCitacao ? ["via_citacao"] : [];
 
   // ---- D) sessão cancelada, passada ou apagada
-  if (!sessao || sessao.status !== "agendada" || new Date(sessao.quando).getTime() <= Date.now()) {
+  if (!sessao || !ativa(sessao)) {
     if (sessao) await ligarASessao(sessao.id);
     await responder(TIPO_INATIVA, TEXTO_INATIVA, pessoa, sessao?.id ?? null);
-    return ["lembrete_inativo"];
+    return ["lembrete_inativo", ...marca];
   }
   await ligarASessao(sessao.id);
   const primeiro = (pessoa!.full_name ?? "").trim().split(/\s+/)[0];
   const quando = quandoPorExtenso(new Date(sessao.quando));
   const nome = pessoa!.full_name ?? "O aluno";
+  const avisar = (o: { tipoSino: string; tipoEnvio: string; titulo: string; coalescer: boolean }) => avisarMentores(admin, {
+    contaId, alunoId: pessoa!.id, chaveDeAgrupamento: sessao!.id, tipoSino: o.tipoSino, tipoEnvio: o.tipoEnvio, tituloSino: o.titulo, textoWhatsapp: o.titulo,
+    coalescer: o.coalescer, incluirOProprio: true, sessaoId: sessao!.id, linkDoSino: `/pessoas/${pessoa!.id}?sessao=${sessao!.id}`, jaFeitoDesde: desde,
+  });
 
   if (acao === "ok") {
     // A trava: só UMA confirmação vence (se duas chegarem juntas, a segunda cai no caso B).
     const { data: gravou } = await admin.from("mentoria_sessoes")
       .update({ confirmada_pelo_aluno_em: new Date().toISOString(), confirmada_via: origem, confirmada_por_person_id: pessoa!.id })
       .eq("id", sessao.id).is("confirmada_pelo_aluno_em", null).select("id").maybeSingle();
-    if (gravou) {
-      // ---- A) primeira confirmação
-      await responder(TIPO_CONFIRMACAO, `Obrigado${primeiro ? `, ${primeiro}` : ""}! Sua mentoria de ${quando} está confirmada. Até lá! — Método Intenção`, pessoa, sessao.id);
+    // Numa retomada, "já confirmada" por ESTA mensagem (a 1ª passada gravou e foi cortada) é a primeira confirmação, a completar.
+    const foiEstaMensagem = !gravou && !!desde && (await confirmadaDepoisDe(admin, sessao.id, pessoa!.id, desde));
+    if (gravou || foiEstaMensagem) {
+      // ---- A) primeira confirmação — a resposta ao aluno e o aviso ao mentor saem JUNTOS
       const titulo = `✅ ${nome} confirmou a mentoria de ${quando}.`;
-      await avisarMentores(admin, { contaId, alunoId: pessoa!.id, chaveDeAgrupamento: sessao.id, tipoSino: "whatsapp_confirmou", tituloSino: titulo, textoWhatsapp: titulo, coalescer: false, incluirOProprio: true });
-      return [...feitos, "confirmou", origem === "botao" ? "via_botao" : "via_texto"];
+      await Promise.all([
+        responder(TIPO_CONFIRMACAO, `Obrigado${primeiro ? `, ${primeiro}` : ""}! Sua mentoria de ${quando} está confirmada. Até lá! — Método Intenção`, pessoa, sessao.id),
+        avisar({ tipoSino: "whatsapp_confirmou", tipoEnvio: "mentor_confirmou", titulo, coalescer: false }),
+      ]);
+      return ["confirmou", origem === "botao" ? "via_botao" : "via_texto", ...marca];
     }
     // ---- B) já estava confirmada: responde UMA vez
+    if (desde) return ["ja_confirmada_sem_resposta"];
     const { count } = await admin.from("mensagens_recebidas").select("id", { count: "exact", head: true }).eq("sessao_id", sessao.id).like("tratamento", "%ja_confirmada%");
-    if ((count ?? 0) === 0) { await responder(TIPO_JA_CONFIRMADA, TEXTO_JA_CONFIRMADA, pessoa, sessao.id); return ["ja_confirmada"]; }
+    if ((count ?? 0) === 0) { await responder(TIPO_JA_CONFIRMADA, TEXTO_JA_CONFIRMADA, pessoa, sessao.id); return ["ja_confirmada", ...marca]; }
     return ["ja_confirmada_sem_resposta"];
   }
 
-  // ---- C) Remarcar: o link, sem botão de link, e o mentor sabe; a sessão NÃO muda
   const { siteUrl } = await import("@/lib/site-url.server");
-  await responder(TIPO_REMARCAR, `Sem problemas${primeiro ? `, ${primeiro}` : ""}! Para escolher outro horário, é por aqui: ${siteUrl()}/sessao/${sessao.id}`, pessoa, sessao.id);
-  const titulo = `🔁 ${nome} pediu para remarcar a mentoria de ${quando}.`;
-  await avisarMentores(admin, { contaId, alunoId: pessoa!.id, chaveDeAgrupamento: sessao.id, tipoSino: "whatsapp_remarcar", tituloSino: titulo, textoWhatsapp: titulo, coalescer: true, incluirOProprio: true });
-  void formatarTelefoneBR;
-  return ["remarcar_pedido"];
+  const linkDaSessao = `${siteUrl()}/sessao/${sessao.id}`;
+
+  if (acao === "remarcar") {
+    // ---- C) Remarcar: o link, sem botão de link, e o mentor sabe; a sessão NÃO muda
+    const titulo = `🔁 ${nome} pediu para remarcar a mentoria de ${quando}.`;
+    await Promise.all([
+      responder(TIPO_REMARCAR, `Sem problemas${primeiro ? `, ${primeiro}` : ""}! Para escolher outro horário, é por aqui: ${linkDaSessao}`, pessoa, sessao.id),
+      avisar({ tipoSino: "whatsapp_remarcar", tipoEnvio: "mentor_remarcar", titulo, coalescer: true }),
+    ]);
+    return ["remarcar_pedido", ...marca];
+  }
+
+  // ---- E) Cancelar: NUNCA cancela sozinho. Manda o link (se o link permite cancelar) ou manda falar com o mentor; o mentor é avisado.
+  const { data: lkc } = sessao.link_id ? await admin.from("mentoria_links").select("permite_cancelar").eq("id", sessao.link_id).maybeSingle() : { data: null };
+  const resposta = lkc?.permite_cancelar
+    ? `Tudo bem${primeiro ? `, ${primeiro}` : ""}. Para cancelar sua mentoria de ${quando}, é por aqui: ${linkDaSessao}`
+    : "Para cancelar, fale com o seu mentor.";
+  const titulo = `❌ ${nome} quer cancelar a mentoria de ${quando}.`;
+  await Promise.all([
+    responder(TIPO_CANCELAR, resposta, pessoa, sessao.id),
+    avisar({ tipoSino: "whatsapp_cancelar", tipoEnvio: "mentor_cancelar", titulo, coalescer: true }),
+  ]);
+  return [lkc?.permite_cancelar ? "cancelar_pedido" : "cancelar_sem_link", ...marca];
+}
+
+async function confirmadaDepoisDe(admin: SupabaseClient, sessaoId: string, personId: string, desde: string): Promise<boolean> {
+  const { data } = await admin.from("mentoria_sessoes").select("confirmada_pelo_aluno_em, confirmada_por_person_id").eq("id", sessaoId).maybeSingle();
+  return !!data?.confirmada_pelo_aluno_em && data.confirmada_por_person_id === personId && new Date(data.confirmada_pelo_aluno_em as string).getTime() >= new Date(desde).getTime();
 }

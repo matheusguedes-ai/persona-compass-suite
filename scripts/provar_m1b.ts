@@ -93,8 +93,8 @@ try {
   const tel = (p: { phone: string }) => formatarTelefoneBR(soDig(p.phone));
 
   console.log("== o que conta como pedido de sair");
-  confere("SAIR, sair., Parar, STOP!, cancelar, ' Sair ' contam", ["SAIR", "sair.", "Parar", "STOP!", "cancelar", "  Sair  "].every(ehPedidoDeSair));
-  confere("'sair da reunião', 'não quero sair', 'parar de tocar', 'oi', '' NÃO contam", !["sair da reunião", "não quero sair", "parar de tocar", "oi", "", "sair agora por favor"].some(ehPedidoDeSair));
+  confere("SAIR, sair., Parar, STOP!, ' Sair ' contam", ["SAIR", "sair.", "Parar", "STOP!", "  Sair  "].every(ehPedidoDeSair));
+  confere("'sair da reunião', 'não quero sair', 'parar de tocar', 'oi', '' NÃO contam", !["cancelar", "Cancelar!", "sair da reunião", "não quero sair", "parar de tocar", "oi", "", "sair agora por favor"].some(ehPedidoDeSair));
   confere("telefone completo legível para o mentor", formatarTelefoneBR("5518999991234") === "(18) 99999-1234" && formatarTelefoneBR("(18) 3222-1234") === "(18) 3222-1234" && formatarTelefoneBR("551832221234") === "(18) 3222-1234");
 
   // ---------- (a) aluno cadastrado ----------
@@ -207,6 +207,8 @@ try {
   const antesS2 = enviados.length;
   await msg(Cris.phone, "sair da reunião", "14:00"); await msg(Cris.phone, "não quero sair", "14:00");
   confere("frases com 'sair' NÃO desligam", (await podeEnviarWhatsapp(admin, Cris.id, "lembrete_mentoria")).pode === true);
+  await msg(Cris.phone, "CANCELAR", "14:00");
+  confere("M1c-3: CANCELAR (sem lembrete pendente) NÃO desliga o WhatsApp — segue o fluxo normal da M1b", (await podeEnviarWhatsapp(admin, Cris.id, "lembrete_mentoria")).pode === true);
   const idRetry = `M1B-${rodada}-RETRY`;
   const antesR = enviados.length;
   const a1 = await msg(Fabi.phone, "STOP", "14:00", { idFixo: idRetry });

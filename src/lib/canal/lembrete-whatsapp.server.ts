@@ -83,6 +83,8 @@ export function textoDoLembrete(a: {
   modalidade: string; local: string | null; linkUrl: string | null; linkDaSessao: string | null;
   /** M1c-2: o link permite remarcar? (decide se a última linha oferece REMARCAR) */
   permiteRemarcar?: boolean;
+  /** M1c-3: o link permite cancelar? (decide se a última linha oferece CANCELAR) */
+  permiteCancelar?: boolean;
   /** M1c-2: com botões ligados a última linha é a antiga ("Toque em OK…"); sem botões (padrão) pede para RESPONDER. */
   comBotoes?: boolean;
 }): string {
@@ -97,8 +99,14 @@ export function textoDoLembrete(a: {
   ];
   if (a.linkDaSessao) linhas.push(`Se precisar remarcar, é por aqui: ${a.linkDaSessao}`);
   linhas.push("Até lá! — Método Intenção");
-  linhas.push(a.comBotoes ? "Toque em OK para confirmar (ou responda OK)."
-    : a.permiteRemarcar ? "Para confirmar, responda OK. Para remarcar, responda REMARCAR." : "Para confirmar, responda OK.");
+  if (a.comBotoes) linhas.push("Toque em OK para confirmar (ou responda OK).");
+  else {
+    // M1c-3: a última linha lista só o que o link da sessão permite.
+    const partes: string[] = ["Para confirmar, responda OK."];
+    if (a.permiteRemarcar) partes.push("Para remarcar, responda REMARCAR.");
+    if (a.permiteCancelar) partes.push("Para cancelar, responda CANCELAR.");
+    linhas.push(partes.join(" "));
+  }
   return linhas.join("\n");
 }
 
@@ -224,7 +232,7 @@ export async function lembreteWhatsapp(
     nomeAluno: pessoa.full_name, nomeMentor: prof?.full_name?.trim() || "seu mentor", quando: new Date(sessao.quando), agora,
     modalidade: sessao.modalidade, local: sessao.local, linkUrl: sessao.link_url,
     linkDaSessao: gerenciavel ? `${siteUrl()}/sessao/${sessao.id}` : null, // o mesmo endereço do e-mail ("Gerenciar sessão")
-    permiteRemarcar: link.permite_remarcar, comBotoes,
+    permiteRemarcar: link.permite_remarcar, permiteCancelar: link.permite_cancelar, comBotoes,
   });
   const r6 = await enviarMensagem(admin, {
     contaId: sessao.mentor_id, criadoPor: null, canal: "whatsapp", tipo: TIPO_LEMBRETE_MENTORIA,

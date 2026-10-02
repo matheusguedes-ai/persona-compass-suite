@@ -28,6 +28,9 @@ import { formatarTelefoneBR, mascararTelefone } from "./telefone";
 export const TIPO_CONFIRMACAO_SAIR = "confirmacao_sair";
 export const TIPO_RESPOSTA_AUTOMATICA = "resposta_automatica";
 export const TIPO_AVISO_AO_MENTOR = "mentor_resposta_aluno";
+/** M1c-3: cada aviso ao mentor com o SEU tipo (o painel de números do futuro separa por eles). */
+export const TIPO_MENTOR_SAIU = "mentor_saiu";
+export const TIPO_MENTOR_NOVO_CONTATO = "mentor_novo_contato";
 export const IDADE_MAXIMA_MIN = 30;
 export const COALESCER_MIN = 15;
 
@@ -43,11 +46,15 @@ export function textoRespostaAoAluno(nome: string | null): string {
   return `${primeiro ? `Olá, ${primeiro}!` : "Olá!"} Recebemos sua mensagem. Em breve seu mentor vai falar com você.\n— Método Intenção`;
 }
 
-/** Só SAIR, PARAR, STOP ou CANCELAR (com ou sem acento, maiúscula ou pontuação). "sair da reunião" NÃO é um pedido de sair. */
+/**
+ * Só SAIR, PARAR ou STOP (com ou sem acento, maiúscula ou pontuação). "sair da reunião" NÃO é um pedido de sair.
+ * M1c-3: CANCELAR deixou de desligar o WhatsApp — quem escreve CANCELAR quase sempre quer cancelar a MENTORIA, não parar de
+ * receber os avisos (ver `confirmacao-lembrete.server.ts`).
+ */
 export function ehPedidoDeSair(texto: string | null): boolean {
   const t = (texto ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
     .replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
-  return ["sair", "parar", "stop", "cancelar"].includes(t);
+  return ["sair", "parar", "stop"].includes(t);
 }
 
 export type MensagemRecebida = {
@@ -55,6 +62,10 @@ export type MensagemRecebida = {
   personId: string | null; nome: string | null; nomeDoPerfil?: string | null; candidatos: { id: string; nome: string }[] | null;
   tipo: string; texto: string | null; recebidaEm: string;
   botaoId?: string | null; botaoRotulo?: string | null;
+  /** M1c-3: a mensagem que o aluno citou com "Responder" (id e/ou texto, como a Zapster mandou). */
+  citadaId?: string | null; citadaTexto?: string | null;
+  /** M1c-3: a primeira passada foi cortada no meio e a Zapster reenviou; refaz só o que falta, sem duplicar. */
+  retomada?: boolean;
 };
 
 const MIDIA_ENTRE_COLCHETES: Record<string, string> = {
@@ -128,8 +139,17 @@ export async function avisarMentores(admin: SupabaseClient, a: {
   contaId: string; alunoId: string | null; chaveDeAgrupamento: string; tipoSino: string; tituloSino: string; textoWhatsapp: string; coalescer: boolean;
   /** M1c: o dono também é aluno de si mesmo nos testes — a confirmação dele avisa a ele mesmo. */
   incluirOProprio?: boolean;
+  /** M1c-3: o tipo do envio de WhatsApp (padrão: o aviso de "aluno respondeu"). */
+  tipoEnvio?: string;
+  /** M1c-3: de qual sessão é o aviso (fica gravado no envio). */
+  sessaoId?: string | null;
+  /** M1c-3: retomada de uma passada cortada — pula o sino e o WhatsApp que já saíram desde este instante. */
+  jaFeitoDesde?: string;
+  /** M1c-3: destino do sino (padrão: a ficha do aluno). Com a sessão no endereço, a trava de 15 min vale por sessão. */
+  linkDoSino?: string;
 }): Promise<string[]> {
-  const link = a.alunoId ? `/pessoas/${a.alunoId}` : `/configuracoes?contato=${a.chaveDeAgrupamento}`;
+  const tipoEnvio = a.tipoEnvio ?? TIPO_AVISO_AO_MENTOR;
+  const link = a.linkDoSino ?? (a.alunoId ? `/pessoas/${a.alunoId}` : `/configuracoes?contato=${a.chaveDeAgrupamento}`);
   if (a.coalescer) {
     const desde = new Date(Date.now() - COALESCER_MIN * 60_000).toISOString();
     const { count } = await admin.from("notificacoes").select("id", { count: "exact", head: true }).eq("tipo", a.tipoSino).eq("link", link).gte("created_at", desde);
@@ -138,27 +158,44 @@ export async function avisarMentores(admin: SupabaseClient, a: {
   const feitos: string[] = [];
   const { grupos, pessoasDeContato } = a.alunoId ? await responsaveis(admin, a.contaId, a.alunoId, a.incluirOProprio) : await responsaveis(admin, a.contaId, null);
 
-  if (grupos.length > 0) {
-    const { notificar } = await import("@/lib/notificacoes.functions");
-    await notificar(admin as never, { conta: a.contaId, tipo: a.tipoSino, titulo: a.tituloSino, link, grupos });
-  } else {
-    // Sem turma não há "mentor responsável": só o dono (e não a equipe inteira, que o aviso de conta inteira alcançaria).
-    const { error } = await admin.from("notificacoes").insert({ user_id: a.contaId, conta_id: a.contaId, tipo: a.tipoSino, titulo: a.tituloSino, link });
-    if (error) throw new Error(error.message);
-  }
+  // O sino e o WhatsApp de cada responsável correm JUNTOS: em 02/10/2026 a soma das esperas, uma depois da outra, passou do
+  // tempo que a Zapster dá ao nosso webhook, a primeira passada foi cortada e o ✅ por WhatsApp se perdeu.
+  const sinoJaSaiu = a.jaFeitoDesde
+    ? ((await admin.from("notificacoes").select("id", { count: "exact", head: true }).eq("tipo", a.tipoSino).eq("titulo", a.tituloSino).gte("created_at", a.jaFeitoDesde)).count ?? 0) > 0
+    : false;
+  const fazerSino = async () => {
+    if (sinoJaSaiu) return;
+    if (grupos.length > 0) {
+      const { notificar } = await import("@/lib/notificacoes.functions");
+      await notificar(admin as never, { conta: a.contaId, tipo: a.tipoSino, titulo: a.tituloSino, link, grupos });
+    } else {
+      // Sem turma não há "mentor responsável": só o dono (e não a equipe inteira, que o aviso de conta inteira alcançaria).
+      const { error } = await admin.from("notificacoes").insert({ user_id: a.contaId, conta_id: a.contaId, tipo: a.tipoSino, titulo: a.tituloSino, link });
+      if (error) throw new Error(error.message);
+    }
+  };
+  const fazerWhatsapp = async (): Promise<boolean> => {
+    if (pessoasDeContato.length === 0) return false;
+    const { data: gente } = await admin.from("people").select("id, phone").in("id", pessoasDeContato);
+    const resultados = await Promise.all(((gente ?? []) as { id: string; phone: string | null }[]).map(async (p) => {
+      const pode = await podeEnviarWhatsapp(admin, p.id, tipoEnvio);
+      if (!pode.pode) return false;
+      if (a.jaFeitoDesde) {
+        let q = admin.from("envios_mensagens").select("id", { count: "exact", head: true })
+          .eq("person_id", p.id).eq("tipo", tipoEnvio).eq("canal", "whatsapp").gte("criado_em", a.jaFeitoDesde);
+        if (a.sessaoId) q = q.eq("sessao_id", a.sessaoId); // o aviso DESTA sessão (o aluno pode ter outras)
+        const { count } = await q;
+        if ((count ?? 0) > 0) return false; // já saiu na primeira passada
+      }
+      const r = await enviarMensagem(admin, {
+        contaId: a.contaId, criadoPor: null, canal: "whatsapp", tipo: tipoEnvio, destino: p.phone ?? "", texto: a.textoWhatsapp, personId: p.id, sessaoId: a.sessaoId ?? null,
+      });
+      return r.status === "enviado";
+    }));
+    return resultados.some(Boolean);
+  };
+  const [, algum] = await Promise.all([fazerSino(), fazerWhatsapp()]);
   feitos.push("sino");
-
-  if (pessoasDeContato.length === 0) return feitos;
-  const { data: gente } = await admin.from("people").select("id, phone").in("id", pessoasDeContato);
-  let algum = false;
-  for (const p of (gente ?? []) as { id: string; phone: string | null }[]) {
-    const pode = await podeEnviarWhatsapp(admin, p.id, TIPO_AVISO_AO_MENTOR);
-    if (!pode.pode) continue;
-    const r = await enviarMensagem(admin, {
-      contaId: a.contaId, criadoPor: null, canal: "whatsapp", tipo: TIPO_AVISO_AO_MENTOR, destino: p.phone ?? "", texto: a.textoWhatsapp, personId: p.id,
-    });
-    if (r.status === "enviado") algum = true;
-  }
   if (algum) feitos.push("mentor_whatsapp");
   return feitos;
 }
@@ -174,6 +211,14 @@ export async function tratarMensagemRecebida(admin: SupabaseClient, args: { cont
   const feitos: string[] = [];
   const pedidoDeSair = msg.tipo === "texto" && ehPedidoDeSair(msg.texto);
 
+  // ---- retomada de uma passada cortada: só a resposta a lembrete de mentoria é refeita (e sem repetir o que já saiu).
+  //      SAIR, resposta automática e aviso comum NÃO se refazem: não têm trava e a repetição seria um incômodo.
+  if (msg.retomada) {
+    if (pedidoDeSair) return [];
+    const { tratarLembrete } = await import("./confirmacao-lembrete.server");
+    return (await tratarLembrete(admin, { contaId, msg })) ?? [];
+  }
+
   // ---- 1. SAIR (quem não está cadastrado não tem o que desligar nem o que confirmar)
   if (pedidoDeSair && pessoas.length > 0 && msg.remetente !== "equipe") {
     await desligarPorPedido(admin, pessoas.map((p) => p.id));
@@ -187,7 +232,7 @@ export async function tratarMensagemRecebida(admin: SupabaseClient, args: { cont
     }
     if (unico) {
       const avisos = await avisarMentores(admin, {
-        contaId, alunoId: unico.id, chaveDeAgrupamento: unico.id, tipoSino: "whatsapp_saiu", coalescer: false,
+        contaId, alunoId: unico.id, chaveDeAgrupamento: unico.id, tipoSino: "whatsapp_saiu", tipoEnvio: TIPO_MENTOR_SAIU, coalescer: false,
         tituloSino: `${unico.nome} pediu para sair do WhatsApp. O WhatsApp dessa pessoa foi desligado; os avisos seguem por e-mail.`,
         textoWhatsapp: `${unico.nome} (${formatarTelefoneBR(msg.telefone)}) pediu para sair dos avisos por WhatsApp da plataforma. O WhatsApp dessa pessoa foi desligado; os avisos seguem por e-mail.`,
       });
@@ -235,7 +280,7 @@ export async function tratarMensagemRecebida(admin: SupabaseClient, args: { cont
     const tSino = trecho(msg.texto, 80);
     const chave = createHash("sha256").update(msg.telefone).digest("hex").slice(0, 12);
     const avisos = await avisarMentores(admin, {
-      contaId, alunoId: null, chaveDeAgrupamento: chave, tipoSino: "whatsapp_novo_contato", coalescer: true,
+      contaId, alunoId: null, chaveDeAgrupamento: chave, tipoSino: "whatsapp_novo_contato", tipoEnvio: TIPO_MENTOR_NOVO_CONTATO, coalescer: true,
       tituloSino: `Novo contato no WhatsApp: ${quem || mascararTelefone(msg.telefone)}${tSino && !MIDIA_ENTRE_COLCHETES[msg.tipo] ? `: “${tSino}”` : ` ${MIDIA_ENTRE_COLCHETES[msg.tipo]?.replace(/^\[|\]$/g, "") ?? ""}`}`.trim(),
       textoWhatsapp: `Novo contato no número do Método Intenção: ${quem ? `${quem} ` : ""}(${tel}): "${conteudo}"`,
     });
