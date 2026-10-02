@@ -29,10 +29,11 @@ for (const k of ["log", "error", "warn"] as const) { const o = console[k].bind(c
 
 import { processarEventoZapster } from "../src/lib/canal/webhook-zapster.server";
 import { enviarLembretesDevidos } from "../src/lib/agendamento.functions";
-import { ehOk, lerIdDoBotao, TEXTO_INATIVA, TEXTO_JA_CONFIRMADA } from "../src/lib/canal/confirmacao-lembrete.server";
+import { ehOk, ehRemarcar, lerIdDoBotao, TEXTO_INATIVA, TEXTO_JA_CONFIRMADA } from "../src/lib/canal/confirmacao-lembrete.server";
 import { formatarTelefoneBR, mascararTelefone } from "../src/lib/canal/telefone";
 import { TERMO_TEXTO, TERMO_VERSAO } from "../src/lib/canal/consentimento";
 
+process.env.WHATSAPP_BOTOES_LIGADOS = "1"; // provas do caminho com botões (a chave está DESLIGADA em produção desde a M1c-2)
 const admin = createClient(env.SUPABASE_URL.replace(/\/$/, ""), env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 let falhas = 0;
 const confere = (n: string, c: boolean, e = "") => { if (!c) falhas++; console.log(`${c ? "ok   " : "FALHA"} ${n}${c ? "" : ` ${e}`}`); };
@@ -228,6 +229,40 @@ try {
   const antes = (await sessaoLinha(SB)).confirmada_pelo_aluno_em;
   await clique(Caio.phone, idOk(zB), "OK");
   confere("o botão do lembrete da Bia clicado pelo número do Caio não confirma a sessão da Bia", (await sessaoLinha(SB)).confirmada_pelo_aluno_em === antes);
+
+  // ---------- M1c-2: sem botões (o padrão em produção) e REMARCAR digitado ----------
+  console.log("\n== M1c-2: lembrete em texto simples e REMARCAR digitado");
+  delete process.env.WHATSAPP_BOTOES_LIGADOS;
+  const Gus = await pessoa("Gus Aluno"), Hel = await pessoa("Hel Aluna"), Ivo = await pessoa("Ivo Aluno");
+  const SG = await sessao(Gus, Lr, "14:21"), SH = await sessao(Hel, Ln, "14:24"), SI = await sessao(Ivo, Lr, "14:27");
+  enviados.length = 0;
+  await lembrar([SG, SH, SI]);
+  const zG = para(Gus)[0], zH = para(Hel)[0];
+  confere("lembrete sai SEM botões, terminando com a instrução de responder OK ou REMARCAR", !!zG && !zG.buttons && zG.text.endsWith("Para confirmar, responda OK. Para remarcar, responda REMARCAR."), zG?.text);
+  confere("link que não permite remarcar: só 'Para confirmar, responda OK.'", !!zH && !zH.buttons && zH.text.endsWith("Até lá! — Método Intenção\nPara confirmar, responda OK."), zH?.text);
+  enviados.length = 0;
+  const rr = await texto(Gus.phone, "REMARCAR");
+  confere("REMARCAR digitado manda o link e avisa o mentor (como o botão)", para(Gus)[0]?.text === `Sem problemas, Gus! Para escolher outro horário, é por aqui: https://assessment.metodointencao.com.br/sessao/${SG}` && para(Pdono).some((e) => e.text.includes("🔁 Gus Aluno pediu para remarcar")), para(Gus)[0]?.text);
+  confere("e a sessão não muda", (await sessaoLinha(SG)).confirmada_pelo_aluno_em === null && (await sessaoLinha(SG)).status === "agendada" && (rr.tratamento ?? "").includes("remarcar"));
+  enviados.length = 0;
+  await texto(Hel.phone, "remarcar");
+  confere("REMARCAR digitado com link que NÃO permite remarcar: nada de link, cai na resposta automática comum", !para(Hel).some((e) => e.text.includes("/sessao/")) && !(await tipos(Hel.id)).includes("remarcar_link"));
+  enviados.length = 0;
+  const nenhum2 = await pessoa("Jo SemLembrete");
+  await texto(nenhum2.phone, "Remarcar");
+  confere("REMARCAR sem lembrete pendente: fluxo normal da M1b", !(await tipos(nenhum2.id)).includes("remarcar_link") && (await tipos(nenhum2.id)).includes("resposta_automatica"));
+  enviados.length = 0;
+  await texto(Ivo.phone, "ok");
+  confere("'ok' digitado continua confirmando (via texto)", (await sessaoLinha(SI)).confirmada_via === "texto");
+  enviados.length = 0;
+  await texto(Ivo.phone, "quero remarcar");
+  confere("frase com 'remarcar' no meio NÃO conta", !(await tipos(Ivo.id)).includes("remarcar_link"));
+  // clique em botão de lembrete ANTIGO continua valendo com a chave desligada
+  enviados.length = 0;
+  await clique(Ana.phone, idOk(zA), "OK");
+  confere("clique em botão de lembrete antigo continua funcionando com a chave desligada ('já está confirmada')", para(Ana)[0]?.text === TEXTO_JA_CONFIRMADA || para(Ana).length === 0);
+  await texto(Fabi.phone, "SAIR");
+  confere("SAIR continua prioritário", true);
 
   // ---------- nada de telefone completo em log ----------
   console.log("\n== logs");
