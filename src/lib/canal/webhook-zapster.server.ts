@@ -35,24 +35,44 @@ type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj => (v && typeof v === "object" ? (v as Obj) : {});
 
 // ------------------------------------------------------------------------------------------ tipo da mensagem
-export type Conteudo = { tipo: string; texto: string | null; botaoId: string | null; botaoRotulo: string | null; citadaTexto: string | null };
+export type Conteudo = { tipo: string; texto: string | null; botaoId: string | null; botaoRotulo: string | null; citadaTexto: string | null; citadaId: string | null };
+
+/**
+ * M1c-3: a mensagem que o aluno CITOU ("Responder" no WhatsApp). A Zapster documenta `content.quoted` (visto no clique de botão);
+ * como a forma exata para uma resposta de texto não está documentada, procuramos nos lugares prováveis e aceitamos os nomes
+ * de campo mais comuns. O que não for achado fica nulo — e quem usa sabe seguir sem citação.
+ */
+export function citacaoDaMensagem(data: Obj): { id: string | null; texto: string | null } {
+  const content = obj(data.content);
+  const candidatos = [content.quoted, content.quoted_message, content.reply_to, content.context, data.quoted, data.reply_to, data.context];
+  for (const c of candidatos) {
+    const q = obj(c);
+    if (Object.keys(q).length === 0) continue;
+    const dentro = obj(q.content);
+    const id = txt(q.id) ?? txt(q.message_id) ?? txt(q.stanza_id) ?? txt(q.quoted_id) ?? txt(dentro.id);
+    const texto = txt(dentro.text) ?? txt(q.text) ?? txt(q.body) ?? txt(q.caption) ?? txt(dentro.caption);
+    if (id || texto) return { id, texto };
+  }
+  return { id: txt(content.quoted_id) ?? txt(content.reply_to_id) ?? txt(data.quoted_id) ?? null, texto: null };
+}
 
 /** Tira da mensagem só o que importa. Mídia: só o TIPO (e a legenda, se houver) — o arquivo não é baixado nem guardado. */
 export function conteudoDaMensagem(data: Obj): Conteudo {
   const content = obj(data.content);
   const tipoBruto = String(data.type ?? "");
-  const vazio = { texto: null, botaoId: null, botaoRotulo: null, citadaTexto: null };
+  const vazio = { texto: null, botaoId: null, botaoRotulo: null, citadaTexto: null, citadaId: null };
+  const cit = citacaoDaMensagem(data);
 
   const botao = obj(content.button_reply);
   if (botao.id !== undefined || botao.label !== undefined) {
     return {
       tipo: "botao", texto: txt(content.text), botaoId: txt(botao.id), botaoRotulo: txt(botao.label),
-      citadaTexto: txt(obj(obj(content.quoted).content).text),
+      citadaTexto: cit.texto, citadaId: cit.id,
     };
   }
   const lista = obj(content.list_reply);
   if (lista.id !== undefined || lista.title !== undefined) {
-    return { tipo: "lista", texto: txt(lista.title) ?? txt(content.text), botaoId: txt(lista.id), botaoRotulo: txt(lista.title), citadaTexto: null };
+    return { tipo: "lista", texto: txt(lista.title) ?? txt(content.text), botaoId: txt(lista.id), botaoRotulo: txt(lista.title), citadaTexto: null, citadaId: null };
   }
   const porTipo: Record<string, string> = {
     text: "texto", audio: "audio", image: "imagem", video: "video", sticker: "sticker",
@@ -61,7 +81,7 @@ export function conteudoDaMensagem(data: Obj): Conteudo {
   const tipo = porTipo[tipoBruto] ?? (tipoBruto ? "outro" : "texto");
   // Texto de mensagem de texto; legenda de imagem/vídeo/documento. Áudio, figurinha, localização e contato: sem texto.
   const comTexto = tipo === "texto" || tipo === "imagem" || tipo === "video" || tipo === "documento";
-  return { ...vazio, tipo, texto: comTexto ? txt(content.text) : null };
+  return { ...vazio, tipo, texto: comTexto ? txt(content.text) : null, citadaTexto: cit.texto, citadaId: cit.id };
 }
 
 // ------------------------------------------------------------------------------------------ quem mandou
@@ -109,6 +129,32 @@ async function avisarDonoDesconectado(admin: SupabaseClient, contaId: string) {
   if (error) console.error("[webhook-zapster] aviso de desconexão não gravado:", error.message);
 }
 
+const RETOMADA_MAX_MIN = 20;
+
+async function retomarSeFoiCortada(
+  admin: SupabaseClient, ctx: ContextoDoWebhook,
+  a: { zapsterId: string; telefone: string; quem: Awaited<ReturnType<typeof identificarRemetente>>; c: Conteudo; de: Obj },
+) {
+  try {
+    const { data: linha } = await admin.from("mensagens_recebidas").select("id, tratamento, recebida_em, criado_em, sessao_id")
+      .eq("conta_id", ctx.contaId).eq("zapster_id", a.zapsterId).maybeSingle();
+    if (!linha || (linha.tratamento ?? "") !== "") return; // já tratada (ou nada a fazer): nada de repetir
+    if (Date.now() - new Date(linha.recebida_em as string).getTime() > RETOMADA_MAX_MIN * 60_000) return;
+    const { tratarMensagemRecebida } = await import("./resposta-whatsapp.server");
+    const feitos = await tratarMensagemRecebida(admin, {
+      contaId: ctx.contaId, agora: ctx.agora,
+      msg: {
+        id: linha.id as string, telefone: a.telefone, remetente: a.quem.remetente, personId: a.quem.personId, nome: a.quem.nome,
+        nomeDoPerfil: txt(a.de.name), candidatos: a.quem.candidatos, tipo: a.c.tipo, texto: a.c.texto, recebidaEm: linha.recebida_em as string,
+        botaoId: a.c.botaoId, botaoRotulo: a.c.botaoRotulo, citadaId: a.c.citadaId, citadaTexto: a.c.citadaTexto, retomada: true,
+      },
+    });
+    if (feitos.length > 0) await admin.from("mensagens_recebidas").update({ tratamento: `${feitos.join(",")},retomada` }).eq("id", linha.id);
+  } catch (e) {
+    console.error("[webhook-zapster] retomada falhou:", e instanceof Error ? e.message : "erro");
+  }
+}
+
 export async function processarEventoZapster(admin: SupabaseClient, evento: EventoZapster, ctx: ContextoDoWebhook): Promise<Acao> {
   const tipo = String(evento.type ?? "");
   const data = obj(evento.data);
@@ -133,10 +179,16 @@ export async function processarEventoZapster(admin: SupabaseClient, evento: Even
     const { data: linha, error } = await admin.from("mensagens_recebidas").insert({
       conta_id: ctx.contaId, zapster_id: zapsterId, telefone, remetente: quem.remetente, person_id: quem.personId,
       remetente_nome: quem.nome ?? txt(de.name), candidatos: quem.candidatos, tipo: c.tipo, texto: c.texto,
-      botao_id: c.botaoId, botao_rotulo: c.botaoRotulo, citada_texto: c.citadaTexto, recebida_em: enviadaEm,
+      botao_id: c.botaoId, botao_rotulo: c.botaoRotulo, citada_texto: c.citadaTexto, citada_id: c.citadaId, recebida_em: enviadaEm,
     }).select("id").single();
     if (error) {
-      if (error.code === "23505") return "duplicada"; // o mesmo evento de novo: já está registrado (e já foi tratado)
+      if (error.code === "23505") {
+        // O mesmo evento de novo (a Zapster reenvia quando a nossa resposta não chegou a tempo). Se a primeira passada foi
+        // CORTADA no meio — a mensagem está guardada e o tratamento nunca foi gravado —, refaz SÓ o que é resposta a
+        // lembrete de mentoria, pulando o que já saiu (M1c-3: o ✅ do mentor se perdeu assim em 02/10/2026).
+        await retomarSeFoiCortada(admin, ctx, { zapsterId, telefone, quem, c, de });
+        return "duplicada";
+      }
       throw new Error(error.message);
     }
     // M1b: o que a plataforma FAZ com a mensagem (SAIR, resposta automática, aviso ao mentor). Só para mensagem nova:
@@ -145,7 +197,7 @@ export async function processarEventoZapster(admin: SupabaseClient, evento: Even
       const { tratarMensagemRecebida } = await import("./resposta-whatsapp.server");
       const feitos = await tratarMensagemRecebida(admin, {
         contaId: ctx.contaId, agora: ctx.agora,
-        msg: { id: linha!.id as string, telefone, remetente: quem.remetente, personId: quem.personId, nome: quem.nome, nomeDoPerfil: txt(de.name), candidatos: quem.candidatos, tipo: c.tipo, texto: c.texto, recebidaEm: enviadaEm, botaoId: c.botaoId, botaoRotulo: c.botaoRotulo },
+        msg: { id: linha!.id as string, telefone, remetente: quem.remetente, personId: quem.personId, nome: quem.nome, nomeDoPerfil: txt(de.name), candidatos: quem.candidatos, tipo: c.tipo, texto: c.texto, recebidaEm: enviadaEm, botaoId: c.botaoId, botaoRotulo: c.botaoRotulo, citadaId: c.citadaId, citadaTexto: c.citadaTexto },
       });
       if (feitos.length > 0) await admin.from("mensagens_recebidas").update({ tratamento: feitos.join(",") }).eq("id", linha!.id);
     } catch (e) {
@@ -206,7 +258,12 @@ export async function registrarEventoDoWebhook(
 ) {
   const d = obj(evento.data);
   // Só NOMES de campos (nunca valores): mostra se a Zapster manda algo que identifique a instância.
-  const forma = `campos: ${Object.keys(evento).join(",")} | data: ${Object.keys(d).join(",")} | sender: ${Object.keys(obj(d.sender)).join(",")} | recipient: ${Object.keys(obj(d.recipient)).join(",")}`.slice(0, 280);
+  const c = obj(d.content);
+  // M1c-3: também os NOMES dos campos de `content` e do que vier citado (nunca os valores) — é assim que se descobre a forma
+  // exata de uma resposta com "Responder" sem guardar a conversa de ninguém.
+  const citado = [c.quoted, c.quoted_message, c.reply_to, c.context].map(obj).find((q) => Object.keys(q).length > 0);
+  const forma = `campos: ${Object.keys(evento).join(",")} | data: ${Object.keys(d).join(",")} | sender: ${Object.keys(obj(d.sender)).join(",")} | recipient: ${Object.keys(obj(d.recipient)).join(",")}`.slice(0, 280)
+    + (String(evento.type) === "message.received" ? ` | content: ${Object.keys(c).join(",")}${citado ? ` | citado: ${Object.keys(citado).join(",")}${Object.keys(obj(citado.content)).length ? ` (content: ${Object.keys(obj(citado.content)).join(",")})` : ""}` : ""}`.slice(0, 250) : "");
   const detalhe = acao === "outra_instancia"
     ? `número do evento ${fim(obj(d.recipient).id ?? d.id)}; remetente ${fim(obj(d.sender).id)}; linha esperada ${fim(numero)}`
     : acao === "erro" ? `falha: ${(erro ?? "erro").slice(0, 120)}`
