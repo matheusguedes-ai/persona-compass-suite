@@ -24,6 +24,7 @@ type Zap = { recipient: string; text: string };
 type Mail = { to: string; subject: string; html: string };
 const zapEnviados: Zap[] = [], emails: Mail[] = [];
 let zapModo: "ok" | "falha" = "ok";
+let latenciaMs = 0; // M1c-4: simula a demora do fornecedor para medir o tempo da rodada
 let zapInstancia: "connected" | "disconnected" | "offline" = "connected";
 const realFetch = globalThis.fetch;
 globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
@@ -31,10 +32,12 @@ globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
   if (u.includes("api.zapsterapi.com") && u.includes("/wa/instances/")) return new Response(JSON.stringify({ status: zapInstancia }), { status: 200 });
   if (u.includes("api.zapsterapi.com") && u.endsWith("/wa/messages")) {
     if (zapModo === "falha") return new Response(JSON.stringify({ code: "erro_simulado", message: "Falha simulada da Zapster" }), { status: 500 });
+    if (latenciaMs) await new Promise((r) => setTimeout(r, latenciaMs));
     zapEnviados.push(JSON.parse(String(init?.body)) as Zap);
     return new Response(JSON.stringify({ message_id: `SIM${zapEnviados.length}` }), { status: 200 });
   }
   if (u.includes("api.resend.com")) {
+    if (latenciaMs) await new Promise((r) => setTimeout(r, latenciaMs));
     const b = JSON.parse(String(init?.body)) as { to: string[]; subject: string; html: string };
     emails.push({ to: b.to[0], subject: b.subject, html: b.html });
     return new Response(JSON.stringify({ id: "EMAILSIM" }), { status: 200 });
@@ -174,21 +177,46 @@ try {
   await rodar(brt(D2, "08:00"), [Sh]);
   confere("(d) às 8h a sessão das 7h30 já começou: NUNCA manda WhatsApp", zapEnviados.length === 0 && (await enviosDe(Ph.id)).length === 0);
 
-  // ---------- (e) limite de 3 por dia ----------
-  console.log("\n== (e) 4º WhatsApp do dia para a mesma pessoa");
+  // ---------- (e) o limite de 3 por dia SAIU (M1c-4) ----------
+  console.log("\n== (e) o limite de 3 por dia saiu: o 5º WhatsApp do dia sai normal");
   const inicio = inicioDoDiaEmBrasilia(brt(D1, "18:00"));
-  for (let i = 0; i < 3; i++) await admin.from("envios_mensagens").insert({ conta_id: dono, person_id: Pd.id, canal: "whatsapp", tipo: "lembrete_mentoria", status: "enviado", criado_em: new Date(new Date(inicio).getTime() + (i + 1) * 3_600_000).toISOString() });
-  await admin.from("envios_mensagens").insert({ conta_id: dono, person_id: Pd.id, canal: "whatsapp", tipo: "codigo_confirmacao", status: "enviado", criado_em: new Date(new Date(inicio).getTime() + 5 * 3_600_000).toISOString() }); // código NÃO conta
+  for (let i = 0; i < 4; i++) await admin.from("envios_mensagens").insert({ conta_id: dono, person_id: Pd.id, canal: "whatsapp", tipo: i % 2 ? "mentor_resposta_aluno" : "lembrete_mentoria", status: "enviado", criado_em: new Date(new Date(inicio).getTime() + (i + 1) * 3_600_000).toISOString() });
   const Sd = await sessao(Pd, L24, brt(D2, "18:00"));
   reset();
   const rd = await rodar(brt(D1, "18:10"), [Sd]);
-  const enD = await enviosDe(Pd.id);
-  confere("(e) com 3 já enviados no dia (e 1 código, que não conta): o 4º NÃO sai", zapEnviados.length === 0 && rd.whatsapp.limite === 1, JSON.stringify(rd.whatsapp));
-  confere("(e) fica registrado o motivo", enD.some((e) => e.status === "falhou" && (e.motivo_falha ?? "").includes("limite diário")));
-  confere("(e) o e-mail saiu normal", emailsPara(Pd).length === 1);
+  confere("(e) com 4 já enviados no dia (respostas e avisos incluídos), o lembrete SAI", zapEnviados.length === 1 && rd.whatsapp.enviado === 1, JSON.stringify(rd.whatsapp));
+  confere("(e) e nenhum registro de limite", !(await enviosDe(Pd.id)).some((e) => (e.motivo_falha ?? "").includes("limite") || (e.motivo_falha ?? "").includes("trava")));
+
+  console.log("\n== (e2) a trava de segurança: 20 por dia por pessoa, somando tudo");
+  const Pz = await pessoa("Zeca Travado", "completo");
+  for (let i = 0; i < 20; i++) await admin.from("envios_mensagens").insert({ conta_id: dono, person_id: Pz.id, canal: "whatsapp", tipo: i % 3 ? "mentor_resposta_aluno" : "lembrete_mentoria", status: "enviado", criado_em: new Date(new Date(inicio).getTime() + (i + 1) * 30 * 60_000).toISOString() });
+  const Sz = await sessao(Pz, L24, brt(D2, "19:00"));
   reset();
-  await rodar(brt(D1, "18:25"), [Sd]);
-  confere("(e) e não tenta de novo a cada rodada (1 só registro de limite)", (await enviosDe(Pd.id)).filter((e) => (e.motivo_falha ?? "").includes("limite")).length === 1);
+  const rz = await rodar(brt(D1, "19:10"), [Sz]);
+  const enZ = await enviosDe(Pz.id);
+  confere("(e2) com 20 já enviados no dia, o 21º NÃO sai", zapEnviados.length === 0 && rz.whatsapp.limite === 1, JSON.stringify(rz.whatsapp));
+  confere("(e2) fica registrado o motivo 'trava de segurança'", enZ.some((e) => e.status === "falhou" && (e.motivo_falha ?? "").includes("trava de segurança")));
+  const sinoTrava = async () => ((await admin.from("notificacoes").select("id").eq("user_id", dono).eq("tipo", "whatsapp_trava_seguranca")).data ?? []).length;
+  confere("(e2) o DONO é avisado no sino", (await sinoTrava()) === 1);
+  confere("(e2) o e-mail saiu normal", emailsPara(Pz).length === 1);
+  confere("(e2) a trava do lembrete NÃO foi gasta (se o dia virar, ele ainda sai)", ((await admin.from("lembretes_enviados").select("id").eq("sessao_id", Sz).eq("destinatario", "aluno_whatsapp")).data ?? []).length === 0);
+  reset();
+  await rodar(brt(D1, "19:25"), [Sz]);
+  confere("(e2) a cada rodada NÃO repete: 1 registro do motivo e 1 aviso no sino por dia", (await enviosDe(Pz.id)).filter((e) => (e.motivo_falha ?? "").includes("trava de segurança")).length === 1 && (await sinoTrava()) === 1);
+
+  // ---------- (r) o relógio não pode passar dos 5 s do banco (M1c-4) ----------
+  console.log("\n== (r) rodada com 3 envios de WhatsApp, fornecedor lento (0,8 s por chamada)");
+  const Ra = await pessoa("Rita Rapida", "completo"), Rb = await pessoa("Beto Rapido", "completo"), Rc = await pessoa("Cida Rapida", "completo");
+  const SRa = await sessao(Ra, L24, brt(D2, "10:00")), SRb = await sessao(Rb, L24, brt(D2, "10:02")), SRc = await sessao(Rc, L24, brt(D2, "10:04"));
+  reset(); latenciaMs = 800;
+  const t0 = Date.now();
+  const rr = await rodar(brt(D1, "11:00"), [SRa, SRb, SRc]);
+  const durou = Date.now() - t0; latenciaMs = 0;
+  confere(`(r) a rodada com 3 sessões (3 WhatsApp + 6 e-mails, tudo com 0,8 s de demora) fecha em ${durou} ms, abaixo dos 5000 ms do relógio`, durou < 5000, String(durou));
+  confere("(r) sem perder: 3 WhatsApp e 6 e-mails saíram", zapEnviados.length === 3 && rr.enviados === 6 && rr.whatsapp.enviado === 3, JSON.stringify(rr));
+  reset();
+  const rr2 = await rodar(brt(D1, "11:15"), [SRa, SRb, SRc]);
+  confere("(r) sem duplicar: a rodada seguinte não manda nada", zapEnviados.length === 0 && emails.length === 0 && rr2.whatsapp.ja_tratado === 3, JSON.stringify(rr2));
 
   // ---------- (f) falha da Zapster ----------
   console.log("\n== (f) falha simulada da Zapster");
