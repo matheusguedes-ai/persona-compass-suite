@@ -1632,17 +1632,21 @@ export async function enviarLembretesDevidos(
   let avaliados = 0;
   let rodadaWhatsapp: import("@/lib/canal/lembrete-whatsapp.server").RodadaWhatsapp | undefined;
 
-  for (const sessao of sessoes) {
-    if (!sessao.link_id) continue; // sessão criada fora do link não tem lembrete_horas configurado
+  // M1c-4: as sessões são tratadas EM PARALELO (de 5 em 5). Em 01/10 e 03/10 as rodadas com WhatsApp a enviar estouraram os 5 s
+  // que o relógio do banco espera: cada sessão fazia ~10 consultas + e-mails + Zapster, uma depois da outra. Cada sessão é
+  // independente (a trava contra repetição é por sessão), então a ordem não importa.
+  const tratarSessao = async (sessao: (typeof sessoes)[number]) => {
+    if (!sessao.link_id) return; // sessão criada fora do link não tem lembrete_horas configurado
     const link = linkPorId.get(sessao.link_id);
-    if (!link || link.lembrete_horas.length === 0) continue;
+    if (!link || link.lembrete_horas.length === 0) return;
 
     for (const horas of link.lembrete_horas) {
       const devidoEm = new Date(new Date(sessao.quando).getTime() - horas * 3_600_000);
       if (agora < devidoEm) continue; // ainda não chegou a hora deste aviso
       avaliados++;
 
-      for (const destinatario of ["aluno", "mentor"] as const) {
+      // M1c-4: os e-mails (aluno e mentor) e o WhatsApp correm JUNTOS — são independentes entre si, cada um com a sua trava.
+      const emails = ["aluno", "mentor"].map(async (destinatario) => {
         const { error: insertError } = await supabaseAdmin
           .from("lembretes_enviados")
           .insert({ sessao_id: sessao.id, horas, destinatario });
@@ -1650,23 +1654,30 @@ export async function enviarLembretesDevidos(
           if (insertError.code !== "23505") {
             console.error(`[lembretes] insert falhou para sessão ${sessao.id} (${destinatario}, ${horas}h): ${insertError.message}`);
           }
-          continue;
+          return;
         }
-        if (await enviarLembreteEmail(supabaseAdmin, sessao, link, destinatario)) enviados++;
-      }
+        if (await enviarLembreteEmail(supabaseAdmin, sessao, link, destinatario as "aluno" | "mentor")) enviados++;
+      });
 
       // #291 F1c: o WhatsApp do aluno é SOMADO ao e-mail acima, que não mudou. Roda a cada rodada (e não só quando o
       // e-mail acaba de sair): um lembrete vencido às 22h espera a janela das 8h. Nunca derruba o ciclo.
-      try {
-        const { novaRodada, lembreteWhatsapp } = await import("@/lib/canal/lembrete-whatsapp.server");
-        rodadaWhatsapp ??= novaRodada(supabaseAdmin as never, agora);
-        const resultado = await lembreteWhatsapp(rodadaWhatsapp, { sessao, link, horas });
-        whatsapp[resultado] = (whatsapp[resultado] ?? 0) + 1;
-      } catch (e) {
-        console.error(`[lembretes] whatsapp falhou para sessão ${sessao.id} (${horas}h):`, e instanceof Error ? e.message : "erro");
-        whatsapp.erro = (whatsapp.erro ?? 0) + 1;
-      }
+      const zap = (async () => {
+        try {
+          const { novaRodada, lembreteWhatsapp } = await import("@/lib/canal/lembrete-whatsapp.server");
+          rodadaWhatsapp ??= novaRodada(supabaseAdmin as never, agora);
+          const resultado = await lembreteWhatsapp(rodadaWhatsapp, { sessao, link, horas });
+          whatsapp[resultado] = (whatsapp[resultado] ?? 0) + 1;
+        } catch (e) {
+          console.error(`[lembretes] whatsapp falhou para sessão ${sessao.id} (${horas}h):`, e instanceof Error ? e.message : "erro");
+          whatsapp.erro = (whatsapp.erro ?? 0) + 1;
+        }
+      })();
+      await Promise.all([...emails, zap]);
     }
+  };
+  const LOTE = 5;
+  for (let i = 0; i < sessoes.length; i += LOTE) {
+    await Promise.all(sessoes.slice(i, i + LOTE).map(tratarSessao));
   }
 
   return { enviados, avaliados, whatsapp };

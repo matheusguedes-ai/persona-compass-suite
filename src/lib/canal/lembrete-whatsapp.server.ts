@@ -15,12 +15,12 @@
  *      mentor responsável; o e-mail já saiu.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { travaDeSegurancaAtingida } from "./trava-seguranca.server";
 import { adaptadorDoCanal, enviarMensagem, registrarEnvioNaoFeito } from "./enviar.server";
 import { podeEnviarWhatsapp } from "./consentimento.server";
 import type { EstadoDaConexao } from "./tipos";
 
 export const TIPO_LEMBRETE_MENTORIA = "lembrete_mentoria";
-export const LIMITE_WHATSAPP_POR_DIA = 3;
 export const JANELA_INICIO_H = 8;
 export const JANELA_FIM_H = 20; // exclusivo: 19h59 ainda pode, 20h00 não
 const FUSO = "America/Sao_Paulo";
@@ -119,6 +119,7 @@ export type RodadaWhatsapp = {
   admin: SupabaseClient;
   agora: Date;
   conexao?: EstadoDaConexao;
+  conexaoPendente?: Promise<EstadoDaConexao>;
   avisados: Set<string>; // contas que já foram avisadas de "desconectado" nesta rodada
 };
 
@@ -133,7 +134,9 @@ type Sessao = {
 type Link = { permite_cancelar: boolean; permite_remarcar: boolean };
 
 async function conexaoDaRodada(r: RodadaWhatsapp): Promise<EstadoDaConexao> {
-  r.conexao ??= await adaptadorDoCanal("whatsapp")!.estadoDaConexao();
+  // Uma pergunta só à Zapster por rodada, mesmo com as sessões sendo tratadas em paralelo (M1c-4): guarda a PROMESSA.
+  r.conexaoPendente ??= adaptadorDoCanal("whatsapp")!.estadoDaConexao();
+  r.conexao = await r.conexaoPendente;
   return r.conexao;
 }
 
@@ -195,14 +198,12 @@ export async function lembreteWhatsapp(
   const pode = await podeEnviarWhatsapp(admin, pessoa.id, TIPO_LEMBRETE_MENTORIA);
   if (!pode.pode) return "sem_consentimento";
 
-  // 3. limite diário
-  const { count: hoje } = await admin.from("envios_mensagens").select("id", { count: "exact", head: true })
-    .eq("person_id", pessoa.id).eq("canal", "whatsapp").eq("status", "enviado").neq("tipo", "codigo_confirmacao")
-    .gte("criado_em", inicioDoDiaEmBrasilia(agora));
-  const limiteAtingido = (hoje ?? 0) >= LIMITE_WHATSAPP_POR_DIA;
+  // 3. trava de segurança contra defeito (20 por dia por pessoa, somando tudo). NÃO é o limite de uso de antes (3/dia, removido em
+  //    03/10/2026): no uso normal não aparece. Atingida, não gasta a trava do lembrete — se o dia virar, ele ainda sai.
+  if (await travaDeSegurancaAtingida(admin, { contaId: sessao.mentor_id, personId: pessoa.id, destino: pessoa.phone ?? "", tipo: TIPO_LEMBRETE_MENTORIA, agora })) return "limite";
 
   // 4. instância (só pergunta à Zapster se vai mesmo tentar enviar)
-  if (!limiteAtingido) {
+  {
     const c = await conexaoDaRodada(r);
     if (c.estado === "nao_configurada") return "nao_configurado";
     if (c.estado === "desconectada" || c.estado === "desligada") {
@@ -214,14 +215,6 @@ export async function lembreteWhatsapp(
   // 5. a trava: quem gravar a linha primeiro é quem trata este lembrete
   const { error: travaErr } = await admin.from("lembretes_enviados").insert({ sessao_id: sessao.id, horas, destinatario: "aluno_whatsapp" });
   if (travaErr) return "ja_tratado"; // 23505 = outra rodada pegou primeiro
-
-  if (limiteAtingido) {
-    await registrarEnvioNaoFeito(admin, {
-      contaId: sessao.mentor_id, personId: pessoa.id, tipo: TIPO_LEMBRETE_MENTORIA, destino: pessoa.phone ?? "",
-      motivo: `limite diário de ${LIMITE_WHATSAPP_POR_DIA} WhatsApp por pessoa atingido`,
-    });
-    return "limite";
-  }
 
   // 6. o envio
   const { data: prof } = await admin.from("profiles").select("full_name").eq("user_id", sessao.mentor_id).maybeSingle();

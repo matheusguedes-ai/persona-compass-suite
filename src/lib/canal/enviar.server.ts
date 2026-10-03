@@ -11,6 +11,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adaptadorZapster } from "./zapster.server";
 import { normalizarTelefoneBR } from "./telefone";
+import { travaDeSegurancaAtingida } from "./trava-seguranca.server";
 import type { AdaptadorDeCanal, Botao, Canal } from "./tipos";
 
 /** O canal → adaptador. É aqui (e só aqui) que se troca de fornecedor. */
@@ -42,6 +43,13 @@ export async function enviarMensagem(
 ): Promise<ResultadoDoEnvio> {
   const fone = normalizarTelefoneBR(args.destino);
   const adaptador = adaptadorDoCanal(args.canal);
+
+  // M1c-4: a trava de segurança (20 por dia por pessoa, somando tudo) vale para QUALQUER envio por WhatsApp a uma pessoa cadastrada.
+  if (args.canal === "whatsapp" && args.personId) {
+    if (await travaDeSegurancaAtingida(admin, { contaId: args.contaId, personId: args.personId, destino: args.destino, tipo: args.tipo })) {
+      return { status: "falhou", registroId: null, motivo: "trava de segurança" };
+    }
+  }
 
   const { data: reg, error: insErr } = await admin
     .from("envios_mensagens")

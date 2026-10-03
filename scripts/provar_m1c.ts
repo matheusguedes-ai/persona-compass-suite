@@ -33,6 +33,7 @@ import { ehOk, ehRemarcar, ehCancelar, lerIdDoBotao, TEXTO_INATIVA, TEXTO_JA_CON
 import { formatarTelefoneBR, mascararTelefone } from "../src/lib/canal/telefone";
 import { TERMO_TEXTO, TERMO_VERSAO } from "../src/lib/canal/consentimento";
 
+process.env.WHATSAPP_TRAVA_MAX_DE_TESTE = "1000"; // o dono recebe os avisos de todos os alunos fictícios desta prova longa
 process.env.WHATSAPP_BOTOES_LIGADOS = "1"; // provas do caminho com botões (a chave está DESLIGADA em produção desde a M1c-2)
 const admin = createClient(env.SUPABASE_URL.replace(/\/$/, ""), env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 let falhas = 0;
@@ -276,7 +277,9 @@ try {
   await lembrarAs([K1, K2, K3, LiaS, MelS], "16:00");
   const zK = para(Kai);
   confere("link que permite tudo: a última linha oferece OK, REMARCAR e CANCELAR (sem botões)", zK.length === 3 && zK.every((z) => !z.buttons && z.text.endsWith("Para confirmar, responda OK. Para remarcar, responda REMARCAR. Para cancelar, responda CANCELAR.")), zK[0]?.text);
-  const idsK = (await admin.from("envios_mensagens").select("sessao_id, fornecedor_msg_id, id").eq("person_id", Kai.id).eq("tipo", "lembrete_mentoria")).data!;
+  const idsK = (await admin.from("envios_mensagens").select("sessao_id, fornecedor_msg_id, id, criado_em").eq("person_id", Kai.id).eq("tipo", "lembrete_mentoria").order("criado_em", { ascending: false })).data!;
+  const Krec = idsK[0].sessao_id as string; // as sessões são tratadas em paralelo: o "mais recente" é o que o banco registrou por último
+  const horaDe = (sid: string) => ({ [K1]: "15:00", [K2]: "15:10", [K3]: "15:20" } as Record<string, string>)[sid];
   const msgDe = (sid: string) => idsK.find((e) => e.sessao_id === sid)!.fornecedor_msg_id as string;
   const textoDe = (sid: string) => zK.find((z) => z.text.includes(sid) || true) && "";
   void textoDe;
@@ -293,20 +296,20 @@ try {
   // sem citação: o mais recente (a sessão das 15:20)
   enviados.length = 0;
   await evento(Kai.phone, { text: "cancelar" });
-  confere("sem citação: o CANCELAR vale para o lembrete pendente mais recente (15:20)", para(Kai)[0]?.text === `Tudo bem, Kai. Para cancelar sua mentoria de quarta-feira, 21/10, às 15:20, é por aqui: https://assessment.metodointencao.com.br/sessao/${K3}`, para(Kai)[0]?.text);
-  confere("o dono recebe o ❌ por WhatsApp e pelo sino", para(Pdono).some((e) => e.text === "❌ Kai Aluno quer cancelar a mentoria de quarta-feira, 21/10, às 15:20.") && (await sino("whatsapp_cancelar")).length === 1);
-  confere("e a sessão NÃO foi cancelada (continua pelo link)", (await sessaoLinha(K3)).status === "agendada");
+  confere("sem citação: o CANCELAR vale para o lembrete pendente mais recente", para(Kai)[0]?.text === `Tudo bem, Kai. Para cancelar sua mentoria de quarta-feira, 21/10, às ${horaDe(Krec)}, é por aqui: https://assessment.metodointencao.com.br/sessao/${Krec}`, para(Kai)[0]?.text);
+  confere("o dono recebe o ❌ por WhatsApp e pelo sino", para(Pdono).some((e) => e.text === `❌ Kai Aluno quer cancelar a mentoria de quarta-feira, 21/10, às ${horaDe(Krec)}.`) && (await sino("whatsapp_cancelar")).length === 1);
+  confere("e a sessão NÃO foi cancelada (continua pelo link)", (await sessaoLinha(Krec)).status === "agendada");
   const tiposDono = (await admin.from("envios_mensagens").select("tipo").eq("person_id", Pdono.id).like("tipo", "mentor_%")).data!.map((e) => e.tipo as string);
   confere("os avisos ao mentor saem com tipos próprios: mentor_confirmou, mentor_remarcar, mentor_cancelar (e mentor_saiu no SAIR)", ["mentor_confirmou", "mentor_remarcar", "mentor_cancelar", "mentor_saiu"].every((t) => tiposDono.includes(t)), tiposDono.join());
   // citação de lembrete de sessão cancelada → "não está mais ativa" (não confirma OUTRA sessão)
   await admin.from("mentoria_sessoes").update({ status: "cancelada", cancelada_em: new Date().toISOString(), cancelada_por: "mentor" }).eq("id", K2);
   enviados.length = 0;
   await evento(Kai.phone, { text: "ok", quoted: { id: msgDe(K2) } });
-  confere("citando o lembrete de uma sessão cancelada: 'não está mais ativa' e a K3 continua sem confirmação", para(Kai)[0]?.text === TEXTO_INATIVA && (await sessaoLinha(K3)).confirmada_pelo_aluno_em === null);
+  confere("citando o lembrete de uma sessão cancelada: 'não está mais ativa' e nenhuma outra é confirmada por engano", para(Kai)[0]?.text === TEXTO_INATIVA && (await sessaoLinha(K3)).confirmada_pelo_aluno_em === null);
   // citação de mensagem que NÃO é nossa → ignora a citação, vale o mais recente
   enviados.length = 0;
   await evento(Kai.phone, { text: "ok", quoted: { id: "ID-QUE-NAO-E-NOSSO", content: { text: "bom dia" } } });
-  confere("citando outra coisa: vale o lembrete pendente mais recente", !!(await sessaoLinha(K3)).confirmada_pelo_aluno_em);
+  confere("citando outra coisa: vale o lembrete pendente mais recente (responde como lembrete, não como mensagem comum)", para(Kai).length === 1 && (/está confirmada/.test(para(Kai)[0].text) || para(Kai)[0].text === TEXTO_JA_CONFIRMADA), para(Kai)[0]?.text);
 
   // link que não permite cancelar
   enviados.length = 0;
